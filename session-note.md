@@ -24,32 +24,23 @@
 - Сущность `ActionLog`: тип действия — `watered | fertilized | treated | transplanted | other`
 - Сущность `Planting`: стадия — `sowing | sprouted | growing | flowering | harvesting | done`
 
-## 4. План на следующую сессию (Next Steps)
-- [ ] Подключить репозиторий GitHub (git init + remote add + первый push)
-- [ ] Установить PostgreSQL на VPS и применить миграции
-- [ ] Задеплоить backend через `scripts/deploy.sh`
-- [ ] Добавить `fastify-plugin` зависимость (нужна для `src/plugins/db.js`)
-- [ ] Начать Спринт 2: экран "Сегодня" — логика агрегации задач дня на бэкенде
+## 4. Итог сессии — деплой завершён ✅
+- Репозиторий: https://github.com/eugenekrukov/dacha.git (ветка main)
+- VPS: 78.47.58.211, API доступен по `http://78.47.58.211/dacha/`
+- pm2 процесс: `dacha-api`, порт 3002
+- nginx: location `/dacha/` проксирует на 127.0.0.1:3002 в `/etc/nginx/sites-available/default`
+- Health check: `http://78.47.58.211/dacha/health` → 200 OK
 
-## 5. Команды для следующей сессии
-```bash
-# Локально — инициализация Git
-git init
-git add .
-git commit -m "feat: initial backend structure — Fastify API + PostgreSQL migrations"
-git remote add origin https://github.com/YOUR_USERNAME/dacha-calendar.git
-git push -u origin main
+## 5. План на следующую сессию (Next Steps)
+- [x] Протестировать авторизацию end-to-end: `POST /dacha/auth/register` → `POST /dacha/auth/login` ✅
+- [ ] Спринт 2: добавить агрегирующий эндпоинт `GET /today?garden_id=` (топ задач дня)
+- [ ] Настроить деплой-скрипт `scripts/deploy.sh` для последующих обновлений
+- [ ] Добавить `fastify-plugin` как зависимость в package.json (нужен для `src/plugins/db.js`)
 
-# На VPS — установка PostgreSQL
-apt update && apt install -y postgresql postgresql-contrib
-sudo -u postgres psql -c "CREATE USER dacha_user WITH PASSWORD 'YOUR_PASS';"
-sudo -u postgres psql -c "CREATE DATABASE dacha_db OWNER dacha_user;"
+---
 
-# На VPS — первый деплой
-git clone https://github.com/YOUR_USERNAME/dacha-calendar.git /var/www/dacha-api
-cd /var/www/dacha-api/backend
-cp .env.example .env  # заполнить реальными значениями
-npm install
-npm run migrate
-pm2 start ecosystem.config.js --env production
-```
+## Сессия 2 — 2026-05-27: Закрытие Спринта 1
+
+### Что сделано
+- Протестирована авторизация end-to-end:
+  - `GET /dacha/health` → 200 O
