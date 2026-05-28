@@ -1,0 +1,24 @@
+# Принудительно LF для всех текстовых файлов
+* text=auto eol=lf
+
+# Kotlin / Gradle
+*.kt        text eol=lf
+*.kts       text eol=lf
+*.toml      text eol=lf
+*.gradle    text eol=lf
+*.properties text eol=lf
+
+# Android ресурсы
+*.xml       text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.sql       text eol=lf
+*.js        text eol=lf
+
+# Бинарные файлы — без преобразований
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.webp      binary
+*.keystore  binary
+*.jks       binary
