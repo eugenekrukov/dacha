@@ -7,7 +7,7 @@ interface DachaApi {
 
     // Auth
     @POST("auth/register")
-    suspend fun register(@Body request: LoginRequest): AuthResponse
+    suspend fun register(@Body request: RegisterRequest): AuthResponse
 
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): AuthResponse

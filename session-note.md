@@ -87,9 +87,24 @@
 - Токен хранится в `SharedPreferences` через `TokenStorage`
 
 ### Следующий шаг
-- Открыть `android/` в Android Studio и проверить сборку
-- Реализовать `CalendarScreen` (месячный/дневной вид)
-- Добавить экран онбординга (авторизация + создание участка)
+- Реализовать `CalendarScreen` (месячный/дневной вид) → закрыть Спринт 2
+- Запустить на эмуляторе / реальном устройстве и проверить онбординг end-to-end
+
+---
+
+## Сессия 5 — 2026-05-28: Онбординг
+
+### Что сделано
+- `AuthRepository` — логин/регистрация, сохранение JWT в SharedPreferences
+- `GardenRepository` — создание участка, сохранение `garden_id`
+- `LoginScreen` + `RegisterScreen` + `AuthViewModel`
+- `CreateGardenScreen` + `GardenViewModel` (dropdown регионов РФ)
+- `MainActivity` определяет стартовый экран по токену и `garden_id`
+- Флоу: нет токена → Login → Register → CreateGarden → TodayScreen
+- Билд успешен, предупреждения компилятора устранены (KSP, `@OptIn`, `@field:Json`, `-Xannotation-default-target`)
+
+### Осталось в Спринте 2
+- CalendarScreen (месячный/дневной вид)
 
 ---
 

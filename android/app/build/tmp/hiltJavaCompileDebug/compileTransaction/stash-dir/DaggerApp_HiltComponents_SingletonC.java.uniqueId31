@@ -584,7 +584,7 @@ public final class DaggerApp_HiltComponents_SingletonC {
     }
 
     @Override
-    public void injectApp(App arg0) {
+    public void injectApp(App app) {
     }
 
     private static final class SwitchingProvider<T> implements Provider<T> {

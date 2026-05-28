@@ -39,6 +39,10 @@ import hilt_aggregated_deps._dagger_hilt_android_internal_modules_HiltWrapper_Ac
 import hilt_aggregated_deps._ru_dachakalend_app_App_GeneratedInjector;
 import hilt_aggregated_deps._ru_dachakalend_app_MainActivity_GeneratedInjector;
 import hilt_aggregated_deps._ru_dachakalend_app_di_NetworkModule;
+import hilt_aggregated_deps._ru_dachakalend_app_ui_auth_AuthViewModel_HiltModules_BindsModule;
+import hilt_aggregated_deps._ru_dachakalend_app_ui_auth_AuthViewModel_HiltModules_KeyModule;
+import hilt_aggregated_deps._ru_dachakalend_app_ui_garden_GardenViewModel_HiltModules_BindsModule;
+import hilt_aggregated_deps._ru_dachakalend_app_ui_garden_GardenViewModel_HiltModules_KeyModule;
 import hilt_aggregated_deps._ru_dachakalend_app_ui_today_TodayViewModel_HiltModules_BindsModule;
 import hilt_aggregated_deps._ru_dachakalend_app_ui_today_TodayViewModel_HiltModules_KeyModule;
 
@@ -84,6 +88,10 @@ import hilt_aggregated_deps._ru_dachakalend_app_ui_today_TodayViewModel_HiltModu
         _ru_dachakalend_app_App_GeneratedInjector.class,
         _ru_dachakalend_app_MainActivity_GeneratedInjector.class,
         _ru_dachakalend_app_di_NetworkModule.class,
+        _ru_dachakalend_app_ui_auth_AuthViewModel_HiltModules_BindsModule.class,
+        _ru_dachakalend_app_ui_auth_AuthViewModel_HiltModules_KeyModule.class,
+        _ru_dachakalend_app_ui_garden_GardenViewModel_HiltModules_BindsModule.class,
+        _ru_dachakalend_app_ui_garden_GardenViewModel_HiltModules_KeyModule.class,
         _ru_dachakalend_app_ui_today_TodayViewModel_HiltModules_BindsModule.class,
         _ru_dachakalend_app_ui_today_TodayViewModel_HiltModules_KeyModule.class
     }

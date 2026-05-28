@@ -25,6 +25,7 @@ import dagger.hilt.android.internal.modules.ApplicationContextModule_ProvideCont
 import dagger.internal.DaggerGenerated;
 import dagger.internal.DoubleCheck;
 import dagger.internal.LazyClassKeyMap;
+import dagger.internal.MapBuilder;
 import dagger.internal.Preconditions;
 import dagger.internal.Provider;
 import java.util.Collections;
@@ -36,11 +37,21 @@ import retrofit2.Retrofit;
 import ru.dachakalend.app.data.api.AuthInterceptor;
 import ru.dachakalend.app.data.api.DachaApi;
 import ru.dachakalend.app.data.local.TokenStorage;
+import ru.dachakalend.app.data.repository.AuthRepository;
+import ru.dachakalend.app.data.repository.GardenRepository;
 import ru.dachakalend.app.data.repository.TodayRepository;
 import ru.dachakalend.app.di.NetworkModule_ProvideDachaApiFactory;
 import ru.dachakalend.app.di.NetworkModule_ProvideMoshiFactory;
 import ru.dachakalend.app.di.NetworkModule_ProvideOkHttpClientFactory;
 import ru.dachakalend.app.di.NetworkModule_ProvideRetrofitFactory;
+import ru.dachakalend.app.ui.auth.AuthViewModel;
+import ru.dachakalend.app.ui.auth.AuthViewModel_HiltModules;
+import ru.dachakalend.app.ui.auth.AuthViewModel_HiltModules_BindsModule_Binds_LazyMapKey;
+import ru.dachakalend.app.ui.auth.AuthViewModel_HiltModules_KeyModule_Provide_LazyMapKey;
+import ru.dachakalend.app.ui.garden.GardenViewModel;
+import ru.dachakalend.app.ui.garden.GardenViewModel_HiltModules;
+import ru.dachakalend.app.ui.garden.GardenViewModel_HiltModules_BindsModule_Binds_LazyMapKey;
+import ru.dachakalend.app.ui.garden.GardenViewModel_HiltModules_KeyModule_Provide_LazyMapKey;
 import ru.dachakalend.app.ui.today.TodayViewModel;
 import ru.dachakalend.app.ui.today.TodayViewModel_HiltModules;
 import ru.dachakalend.app.ui.today.TodayViewModel_HiltModules_BindsModule_Binds_LazyMapKey;
@@ -375,7 +386,7 @@ public final class DaggerApp_HiltComponents_SingletonC {
 
     @Override
     public Map<Class<?>, Boolean> getViewModelKeys() {
-      return LazyClassKeyMap.<Boolean>of(Collections.<String, Boolean>singletonMap(TodayViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, TodayViewModel_HiltModules.KeyModule.provide()));
+      return LazyClassKeyMap.<Boolean>of(MapBuilder.<String, Boolean>newMapBuilder(3).put(AuthViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, AuthViewModel_HiltModules.KeyModule.provide()).put(GardenViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, GardenViewModel_HiltModules.KeyModule.provide()).put(TodayViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, TodayViewModel_HiltModules.KeyModule.provide()).build());
     }
 
     @Override
@@ -395,6 +406,12 @@ public final class DaggerApp_HiltComponents_SingletonC {
 
     @Override
     public void injectMainActivity(MainActivity arg0) {
+      injectMainActivity2(arg0);
+    }
+
+    private MainActivity injectMainActivity2(MainActivity instance) {
+      MainActivity_MembersInjector.injectTokenStorage(instance, singletonCImpl.tokenStorageProvider.get());
+      return instance;
     }
   }
 
@@ -404,6 +421,10 @@ public final class DaggerApp_HiltComponents_SingletonC {
     private final ActivityRetainedCImpl activityRetainedCImpl;
 
     private final ViewModelCImpl viewModelCImpl = this;
+
+    Provider<AuthViewModel> authViewModelProvider;
+
+    Provider<GardenViewModel> gardenViewModelProvider;
 
     Provider<TodayViewModel> todayViewModelProvider;
 
@@ -419,12 +440,14 @@ public final class DaggerApp_HiltComponents_SingletonC {
     @SuppressWarnings("unchecked")
     private void initialize(final SavedStateHandle savedStateHandleParam,
         final ViewModelLifecycle viewModelLifecycleParam) {
-      this.todayViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 0);
+      this.authViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 0);
+      this.gardenViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 1);
+      this.todayViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 2);
     }
 
     @Override
     public Map<Class<?>, javax.inject.Provider<ViewModel>> getHiltViewModelMap() {
-      return LazyClassKeyMap.<javax.inject.Provider<ViewModel>>of(Collections.<String, javax.inject.Provider<ViewModel>>singletonMap(TodayViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) (todayViewModelProvider))));
+      return LazyClassKeyMap.<javax.inject.Provider<ViewModel>>of(MapBuilder.<String, javax.inject.Provider<ViewModel>>newMapBuilder(3).put(AuthViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) (authViewModelProvider))).put(GardenViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) (gardenViewModelProvider))).put(TodayViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) (todayViewModelProvider))).build());
     }
 
     @Override
@@ -453,7 +476,13 @@ public final class DaggerApp_HiltComponents_SingletonC {
       @Override
       public T get() {
         switch (id) {
-          case 0: // ru.dachakalend.app.ui.today.TodayViewModel
+          case 0: // ru.dachakalend.app.ui.auth.AuthViewModel
+          return (T) new AuthViewModel(singletonCImpl.authRepositoryProvider.get());
+
+          case 1: // ru.dachakalend.app.ui.garden.GardenViewModel
+          return (T) new GardenViewModel(singletonCImpl.gardenRepositoryProvider.get());
+
+          case 2: // ru.dachakalend.app.ui.today.TodayViewModel
           return (T) new TodayViewModel(singletonCImpl.todayRepositoryProvider.get());
 
           default: throw new AssertionError(id);
@@ -546,6 +575,10 @@ public final class DaggerApp_HiltComponents_SingletonC {
 
     Provider<DachaApi> provideDachaApiProvider;
 
+    Provider<AuthRepository> authRepositoryProvider;
+
+    Provider<GardenRepository> gardenRepositoryProvider;
+
     Provider<TodayRepository> todayRepositoryProvider;
 
     SingletonCImpl(ApplicationContextModule applicationContextModuleParam) {
@@ -560,12 +593,14 @@ public final class DaggerApp_HiltComponents_SingletonC {
 
     @SuppressWarnings("unchecked")
     private void initialize(final ApplicationContextModule applicationContextModuleParam) {
-      this.tokenStorageProvider = DoubleCheck.provider(new SwitchingProvider<TokenStorage>(singletonCImpl, 4));
-      this.provideOkHttpClientProvider = DoubleCheck.provider(new SwitchingProvider<OkHttpClient>(singletonCImpl, 3));
+      this.tokenStorageProvider = DoubleCheck.provider(new SwitchingProvider<TokenStorage>(singletonCImpl, 0));
+      this.provideOkHttpClientProvider = DoubleCheck.provider(new SwitchingProvider<OkHttpClient>(singletonCImpl, 4));
       this.provideMoshiProvider = DoubleCheck.provider(new SwitchingProvider<Moshi>(singletonCImpl, 5));
-      this.provideRetrofitProvider = DoubleCheck.provider(new SwitchingProvider<Retrofit>(singletonCImpl, 2));
-      this.provideDachaApiProvider = DoubleCheck.provider(new SwitchingProvider<DachaApi>(singletonCImpl, 1));
-      this.todayRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<TodayRepository>(singletonCImpl, 0));
+      this.provideRetrofitProvider = DoubleCheck.provider(new SwitchingProvider<Retrofit>(singletonCImpl, 3));
+      this.provideDachaApiProvider = DoubleCheck.provider(new SwitchingProvider<DachaApi>(singletonCImpl, 2));
+      this.authRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<AuthRepository>(singletonCImpl, 1));
+      this.gardenRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<GardenRepository>(singletonCImpl, 6));
+      this.todayRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<TodayRepository>(singletonCImpl, 7));
     }
 
     @Override
@@ -601,23 +636,29 @@ public final class DaggerApp_HiltComponents_SingletonC {
       @Override
       public T get() {
         switch (id) {
-          case 0: // ru.dachakalend.app.data.repository.TodayRepository
-          return (T) new TodayRepository(singletonCImpl.provideDachaApiProvider.get(), singletonCImpl.tokenStorageProvider.get());
+          case 0: // ru.dachakalend.app.data.local.TokenStorage
+          return (T) new TokenStorage(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
-          case 1: // ru.dachakalend.app.data.api.DachaApi
+          case 1: // ru.dachakalend.app.data.repository.AuthRepository
+          return (T) new AuthRepository(singletonCImpl.provideDachaApiProvider.get(), singletonCImpl.tokenStorageProvider.get());
+
+          case 2: // ru.dachakalend.app.data.api.DachaApi
           return (T) NetworkModule_ProvideDachaApiFactory.provideDachaApi(singletonCImpl.provideRetrofitProvider.get());
 
-          case 2: // retrofit2.Retrofit
+          case 3: // retrofit2.Retrofit
           return (T) NetworkModule_ProvideRetrofitFactory.provideRetrofit(singletonCImpl.provideOkHttpClientProvider.get(), singletonCImpl.provideMoshiProvider.get());
 
-          case 3: // okhttp3.OkHttpClient
+          case 4: // okhttp3.OkHttpClient
           return (T) NetworkModule_ProvideOkHttpClientFactory.provideOkHttpClient(singletonCImpl.authInterceptor());
-
-          case 4: // ru.dachakalend.app.data.local.TokenStorage
-          return (T) new TokenStorage(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
           case 5: // com.squareup.moshi.Moshi
           return (T) NetworkModule_ProvideMoshiFactory.provideMoshi();
+
+          case 6: // ru.dachakalend.app.data.repository.GardenRepository
+          return (T) new GardenRepository(singletonCImpl.provideDachaApiProvider.get(), singletonCImpl.tokenStorageProvider.get());
+
+          case 7: // ru.dachakalend.app.data.repository.TodayRepository
+          return (T) new TodayRepository(singletonCImpl.provideDachaApiProvider.get(), singletonCImpl.tokenStorageProvider.get());
 
           default: throw new AssertionError(id);
         }

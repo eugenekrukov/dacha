@@ -47,6 +47,8 @@ import dagger.hilt.migration.DisableInstallInCheck;
 import javax.annotation.processing.Generated;
 import javax.inject.Singleton;
 import ru.dachakalend.app.di.NetworkModule;
+import ru.dachakalend.app.ui.auth.AuthViewModel_HiltModules;
+import ru.dachakalend.app.ui.garden.GardenViewModel_HiltModules;
 import ru.dachakalend.app.ui.today.TodayViewModel_HiltModules;
 
 @Generated("dagger.hilt.processor.internal.root.RootProcessor")
@@ -155,6 +157,8 @@ public final class App_HiltComponents {
       modules = {
           ActivityCBuilderModule.class,
           ViewModelCBuilderModule.class,
+          AuthViewModel_HiltModules.KeyModule.class,
+          GardenViewModel_HiltModules.KeyModule.class,
           HiltWrapper_ActivityRetainedComponentManager_LifecycleModule.class,
           HiltWrapper_SavedStateHandleModule.class,
           TodayViewModel_HiltModules.KeyModule.class
@@ -193,6 +197,8 @@ public final class App_HiltComponents {
 
   @Subcomponent(
       modules = {
+          AuthViewModel_HiltModules.BindsModule.class,
+          GardenViewModel_HiltModules.BindsModule.class,
           HiltWrapper_HiltViewModelFactory_ViewModelModule.class,
           TodayViewModel_HiltModules.BindsModule.class
       }

@@ -54,6 +54,15 @@ data class WeatherSummary(
     @field:Json(name = "frost_risk") val frostRisk: Boolean?
 )
 
+// --- Register ---
+
+@JsonClass(generateAdapter = true)
+data class RegisterRequest(
+    val name: String,
+    val email: String,
+    val password: String
+)
+
 // --- Garden ---
 
 @JsonClass(generateAdapter = true)
