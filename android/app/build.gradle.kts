@@ -18,7 +18,7 @@ android {
         versionName = "0.1.0"
 
         // URL бэкенда — менять здесь при смене окружения
-        buildConfigField("String", "BASE_URL", "\"http://78.47.58.211/dacha/\"")
+        buildConfigField("String", "BASE_URL", "\"https://dacha.studio1008.com/\"")
     }
 
     buildTypes {
@@ -88,4 +88,9 @@ dependencies {
 
     // Настройки
     implementation(libs.datastore.preferences)
+
+    // WorkManager + Hilt-Work
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
 }

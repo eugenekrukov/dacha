@@ -12,7 +12,7 @@ module.exports = async function (fastify) {
       `INSERT INTO gardens (user_id, name, lat, lon, region, soil_type, climate_zone)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [userId, name, lat, lon, region, soil_type, climate_zone]
+      [userId, name, lat ?? null, lon ?? null, region, soil_type ?? null, climate_zone ?? null]
     )
     return reply.code(201).send(result.rows[0])
   })

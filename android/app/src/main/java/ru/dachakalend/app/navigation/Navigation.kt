@@ -18,6 +18,12 @@ sealed class Screen(val route: String) {
     object Calendar : Screen("calendar")
     object Plantings : Screen("plantings")
     object Harvest : Screen("harvest")
+
+    // Sprint 3
+    object Crops : Screen("crops")
+    object CropDetail : Screen("crop_detail/{cropId}") {
+        fun route(cropId: Int) = "crop_detail/$cropId"
+    }
 }
 
 data class BottomNavItem(
@@ -34,8 +40,11 @@ val bottomNavItems = listOf(
 )
 
 // Экраны, на которых не показывается BottomBar
+// Экраны, на которых не показывается BottomBar
 val screensWithoutBottomBar = setOf(
     Screen.Login.route,
     Screen.Register.route,
-    Screen.CreateGarden.route
+    Screen.CreateGarden.route,
+    Screen.Crops.route,
+    "crop_detail/{cropId}"
 )

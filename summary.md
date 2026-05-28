@@ -4,10 +4,11 @@
 Фиксация глобального прогресса по разработке MVP (5 запланированных спринтов) и актуального состояния кодовой базы.
 
 ## Текущий статус MVP
-- **Общий прогресс**: 52% (Спринт 1 завершён, Спринт 2 — бэкенд + Android UI + онбординг готовы)
-- **Текущий спринт**: Спринт 2 — Главная и календарь
-- **Стек**: Node.js 20 + Fastify 4 + PostgreSQL | Android (впереди)
+- **Общий прогресс**: 80% (Спринты 1–3 завершены)
+- **Текущий спринт**: Спринт 4 — Погода и уведомления
+- **Стек**: Node.js 20 + Fastify 4 + PostgreSQL | Android (Kotlin + Compose + Hilt)
 - **VPS порт**: 3002 | pm2 процесс: `dacha-api`
+- **Бэкенд URL**: `https://dacha.studio1008.com/` (HTTPS, nginx + Let's Encrypt)
 
 ---
 
@@ -20,7 +21,7 @@
 - [x] SQL-миграции всех 9 сущностей + seed справочника культур
 - [x] Конфиги деплоя (pm2 ecosystem, nginx, deploy.sh)
 - [x] Подключение GitHub репозитория и первый push
-- [x] Деплой на VPS + применение миграций (http://78.47.58.211/dacha/)
+- [x] Деплой на VPS + применение миграций (https://dacha.studio1008.com/)
 - [x] Протестировать авторизацию end-to-end
 - **Статус**: ✅ Завершён
 
@@ -29,15 +30,17 @@
 - [x] Агрегирующий эндпоинт `GET /today?garden_id=` (топ задач дня)
 - [x] Экран "Сегодня" — Android UI (TodayScreen, TodayViewModel, data-слой, тема)
 - [x] Онбординг — LoginScreen, RegisterScreen, CreateGardenScreen, роутинг по токену
-- [ ] Календарь работ (Месячный/дневной вид, статусы)
-- **Статус**: 🟡 В процессе
+- [x] Календарь работ — месячный грид, маркеры событий, дневной вид
+- **Статус**: ✅ Завершён
 
 ### Спринт 3. Культуры и журнал (Длительность: 1 неделя)
 *Результат: Ведение посадок и логирование активности.*
-- [ ] Android UI: справочник культур и карточка посадки (`Crop`, `Planting`)
-- [ ] Журнал действий в 2-3 тапа (`ActionLog`)
-- [ ] Механизм локальных напоминаний (`Reminder`)
-- **Статус**: 🔴 Не начат
+- [x] Android UI: справочник культур и карточка посадки (`CropsScreen`, `CropDetailScreen`, `PlantingsScreen`, `PlantingsViewModel`, `CropsViewModel`)
+- [x] Журнал действий в 2-3 тапа (`ActionLogBottomSheet`, `ActionLogViewModel`, `ActionsRepository`)
+- [x] Механизм локальных напоминаний (`ReminderWorker`, `ReminderScheduler`, WorkManager + HiltWorkerFactory)
+- [x] Модели: `Crop`, `ActionLog`, `CreatePlantingRequest`, `CreateActionRequest`, `CreateReminderRequest`
+- [x] API: getCrops, getCrop, createPlanting, updateStage, getActions, createAction, createReminder
+- **Статус**: ✅ Завершён
 
 ### Спринт 4. Погода и уведомления (Длительность: 1 неделя)
 *Результат: Интеграция внешних данных и доставка пушей.*

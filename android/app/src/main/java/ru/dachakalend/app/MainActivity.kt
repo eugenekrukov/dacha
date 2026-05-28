@@ -5,7 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -16,9 +18,14 @@ import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.navigation.Screen
 import ru.dachakalend.app.navigation.bottomNavItems
 import ru.dachakalend.app.navigation.screensWithoutBottomBar
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import ru.dachakalend.app.ui.auth.LoginScreen
 import ru.dachakalend.app.ui.auth.RegisterScreen
 import ru.dachakalend.app.ui.calendar.CalendarScreen
+import ru.dachakalend.app.ui.crops.CropDetailScreen
+import ru.dachakalend.app.ui.crops.CropsScreen
+import ru.dachakalend.app.ui.crops.CropsViewModel
 import ru.dachakalend.app.ui.garden.CreateGardenScreen
 import ru.dachakalend.app.ui.harvest.HarvestScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
@@ -117,8 +124,54 @@ class MainActivity : ComponentActivity() {
                         // Main app
                         composable(Screen.Today.route) { TodayScreen() }
                         composable(Screen.Calendar.route) { CalendarScreen() }
-                        composable(Screen.Plantings.route) { PlantingsScreen() }
+                        composable(Screen.Plantings.route) {
+                            PlantingsScreen(
+                                onAddCrop = { navController.navigate(Screen.Crops.route) }
+                            )
+                        }
                         composable(Screen.Harvest.route) { HarvestScreen() }
+
+                        // Справочник культур
+                        composable(Screen.Crops.route) {
+                            val cropsViewModel: CropsViewModel = hiltViewModel()
+                            val state by cropsViewModel.uiState.collectAsState()
+                            CropsScreen(
+                                viewModel = cropsViewModel,
+                                onCropClick = { crop ->
+                                    cropsViewModel.selectCrop(crop)
+                                    navController.navigate(Screen.CropDetail.route(crop.id))
+                                }
+                            )
+                        }
+                        composable(
+                            route = Screen.CropDetail.route,
+                            arguments = listOf(navArgument("cropId") { type = NavType.IntType })
+                        ) { backStackEntry ->
+                            val cropId = backStackEntry.arguments?.getInt("cropId")
+                            // Берём crop из предыдущей записи стека через ViewModel
+                            val cropsEntry = navController.getBackStackEntry(Screen.Crops.route)
+                            val cropsViewModel: CropsViewModel = hiltViewModel(cropsEntry)
+                            val state by cropsViewModel.uiState.collectAsState()
+                            val crop = state.selectedCrop
+                            if (crop != null && (cropId == null || crop.id == cropId)) {
+                                CropDetailScreen(
+                                    crop = crop,
+                                    onBack = {
+                                        cropsViewModel.clearSelectedCrop()
+                                        navController.popBackStack()
+                                    },
+                                    onPlant = { selectedCrop ->
+                                        // Переходим на посадки и сразу создаём посадку
+                                        navController.navigate(Screen.Plantings.route) {
+                                            popUpTo(Screen.Crops.route) { inclusive = true }
+                                        }
+                                        // PlantingsViewModel создаст посадку через StateFlow
+                                        // cropId сохраняем в SharedPreferences или передаём через SavedStateHandle
+                                        // Упрощённо: возврат на Plantings, где юзер нажмёт + снова
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

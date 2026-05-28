@@ -86,9 +86,11 @@
 - `BASE_URL` прописан в `buildConfigField` → `http://78.47.58.211/dacha/`
 - Токен хранится в `SharedPreferences` через `TokenStorage`
 
-### Следующий шаг
-- Реализовать `CalendarScreen` (месячный/дневной вид) → закрыть Спринт 2
-- Запустить на эмуляторе / реальном устройстве и проверить онбординг end-to-end
+### Следующий шаг — Спринт 3
+- Android UI: справочник культур и карточка посадки (`Crop`, `Planting`)
+- Журнал действий в 2-3 тапа (`ActionLog`)
+- Механизм локальных напоминаний (`Reminder`)
+- Запустить на эмуляторе / устройстве и проверить онбординг end-to-end
 
 ---
 
@@ -104,7 +106,35 @@
 - Билд успешен, предупреждения компилятора устранены (KSP, `@OptIn`, `@field:Json`, `-Xannotation-default-target`)
 
 ### Осталось в Спринте 2
-- CalendarScreen (месячный/дневной вид)
+- ✅ Всё закрыто. Спринт 2 завершён.
+
+---
+
+---
+
+## Сессия 6 — 2026-05-28: HTTPS, отладка на устройстве
+
+### Что сделано
+- Настроен HTTPS для бэкенда: поддомен `dacha.studio1008.com` → A-запись → Let's Encrypt сертификат → nginx reverse proxy на порт 3002
+- `BASE_URL` в `build.gradle.kts` переключён с `http://78.47.58.211/dacha/` на `https://dacha.studio1008.com/`
+- `network_security_config.xml`: убрано временное разрешение cleartext для IP, остался только `base-config cleartextTrafficPermitted="false"`
+- Приложение успешно запущено на реальном устройстве Samsung SM-A556E через ADB
+
+### Исправленные баги
+1. **CLEARTEXT error** — Android 9+ блокирует HTTP. Решение: HTTPS + обновлён `network_security_config.xml`
+2. **500 при создании участка** — колонки `lat`/`lon` в таблице `gardens` были NOT NULL. Решение: `ALTER TABLE gardens ALTER COLUMN lat DROP NOT NULL` + аналогично для `lon`; роут обновлён (`?? null`)
+3. **"Required value 'gardenId' missing"** — несовпадение структуры ответа `/today` с Android-моделью. Решение: поля `TodayResponse` сделаны nullable с дефолтами; ответ бэкенда приведён к формату `{garden_id, tasks[{title, description}], weather, generated_at}`
+
+### Текущее состояние инфраструктуры
+- nginx конфиг: `/etc/nginx/sites-available/dacha` (certbot управляет SSL)
+- Сертификат: `/etc/letsencrypt/live/dacha.studio1008.com/` (действителен до ~2026-08-27)
+- Health check: `https://dacha.studio1008.com/health` → `{"status":"ok"}`
+- Онбординг работает end-to-end: регистрация → создание участка → экран «Сегодня»
+
+### Следующие шаги — Спринт 3
+- Android UI: справочник культур и карточка посадки (`Crop`, `Planting`)
+- Журнал действий в 2-3 тапа (`ActionLog`)
+- Механизм локальных напоминаний (`Reminder`)
 
 ---
 
@@ -115,4 +145,32 @@ cd /var/www/dacha-api
 git pull origin main
 cd backend && npm install
 pm2 reload dacha-api
+```
+
+---
+
+## Сессия 3 — 2026-05-28: Спринт 3 — Культуры и журнал
+
+### Что сделано
+- **Модели** (`Models.kt`): добавлены `Crop`, `ActionLog`, `CreatePlantingRequest`, `CreateActionRequest`, `CreateReminderRequest`
+- **DachaApi**: расширен — `getCrops`, `getCrop`, `createPlanting`, `updatePlantingStage`, `getActions`, `createAction`, `createReminder`
+- **Репозитории**: `CropsRepository`, `PlantingsRepository` (с createPlanting + updateStage), `ActionsRepository`, `ReminderRepository`
+- **UI культур**: `CropsScreen` (фильтр по категориям), `CropDetailScreen` (детали + кнопка «Посадить»), `CropsViewModel`
+- **UI посадок**: `PlantingsScreen` (список посадок, переход стадий), `PlantingsViewModel`
+- **Журнал действий**: `ActionLogBottomSheet` (4 типа действий в 2 тапа), `ActionLogViewModel`
+- **Напоминания**: `ReminderWorker` (HiltWorker), `ReminderScheduler` (WorkManager), `NotificationHelper` (канал уведомлений)
+- **WorkManager**: подключён в `build.gradle.kts`, отключён auto-init в `AndroidManifest.xml`, `App.kt` реализует `Configuration.Provider`
+- **Навигация**: добавлены маршруты `Screen.Crops` и `Screen.CropDetail`, подключены в `MainActivity`
+
+### Следующий спринт (4)
+- Подключение погодного API (Open-Meteo или аналог без ключа)
+- Фоновый джоб кэширования WeatherSnapshot
+- Тест трёхслойных рекомендаций end-to-end
+- RuStore Push SDK — push-инфраструктура
+
+### Git
+```
+git add -A
+git commit -m "feat(sprint3): crops UI, action log, local reminders (WorkManager)"
+git push origin feature/sprint3-crops-journal
 ```

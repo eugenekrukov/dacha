@@ -22,13 +22,39 @@ interface DachaApi {
     @POST("gardens")
     suspend fun createGarden(@Body request: CreateGardenRequest): Garden
 
+    // Crops
+    @GET("crops")
+    suspend fun getCrops(@Query("category") category: String? = null): List<Crop>
+
+    @GET("crops/{id}")
+    suspend fun getCrop(@Path("id") id: Int): Crop
+
+    // Plantings
+    @GET("plantings")
+    suspend fun getPlantings(@Query("garden_id") gardenId: Int? = null): List<Planting>
+
+    @POST("plantings")
+    suspend fun createPlanting(@Body request: CreatePlantingRequest): Planting
+
+    @PATCH("plantings/{id}/stage")
+    suspend fun updatePlantingStage(
+        @Path("id") id: Int,
+        @Body body: Map<String, String>
+    ): Planting
+
+    // Actions
+    @GET("actions")
+    suspend fun getActions(@Query("planting_id") plantingId: Int): List<ActionLog>
+
+    @POST("actions")
+    suspend fun createAction(@Body request: CreateActionRequest): ActionLog
+
     // Reminders
     @GET("reminders")
     suspend fun getReminders(): List<Reminder>
 
-    // Plantings
-    @GET("plantings")
-    suspend fun getPlantings(): List<Planting>
+    @POST("reminders")
+    suspend fun createReminder(@Body request: CreateReminderRequest): Reminder
 
     // Today
     @GET("today")
