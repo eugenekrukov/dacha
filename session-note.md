@@ -68,6 +68,31 @@
 
 ---
 
+---
+
+## Сессия 4 — 2026-05-28: Android-структура проекта
+
+### Что сделано
+- Восстановлен сломанный `backend/src/app.js` (файл был обрезан на `} catch (err`), задеплоен на VPS
+- Создан Android-проект `android/` на стеке: **Kotlin + Jetpack Compose + Hilt + Retrofit**
+- Gradle Version Catalog (`libs.versions.toml`): AGP 8.3.2, Kotlin 1.9.23, Compose BOM 2024.05
+- **Data-слой**: `DachaApi` (Retrofit), `AuthInterceptor`, `TokenStorage`, `TodayRepository`, `NetworkModule` (Hilt)
+- **UI-слой**: `DachaCalendarTheme` (зелёная палитра, цвета по типу задачи), `TodayViewModel` (StateFlow), `TodayScreen` (Compose) — погода, карточки задач, быстрые кнопки
+- `MainActivity` с `BottomNavigation`: Сегодня / Календарь / Посадки / Урожай
+- Заглушки для CalendarScreen, PlantingsScreen, HarvestScreen
+
+### Ключевые параметры
+- Package: `ru.dachakalend.app` | minSdk: 26 | targetSdk: 34
+- `BASE_URL` прописан в `buildConfigField` → `http://78.47.58.211/dacha/`
+- Токен хранится в `SharedPreferences` через `TokenStorage`
+
+### Следующий шаг
+- Открыть `android/` в Android Studio и проверить сборку
+- Реализовать `CalendarScreen` (месячный/дневной вид)
+- Добавить экран онбординга (авторизация + создание участка)
+
+---
+
 ## 6. Команды для деплоя обновлений
 ```bash
 # На VPS — обновить код

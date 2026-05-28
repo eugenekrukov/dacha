@@ -4,7 +4,7 @@
 Фиксация глобального прогресса по разработке MVP (5 запланированных спринтов) и актуального состояния кодовой базы.
 
 ## Текущий статус MVP
-- **Общий прогресс**: 28% (Спринт 1 завершён, GET /today задеплоен и протестирован)
+- **Общий прогресс**: 40% (Спринт 1 завершён, Спринт 2 — бэкенд готов, Android-структура создана)
 - **Текущий спринт**: Спринт 2 — Главная и календарь
 - **Стек**: Node.js 20 + Fastify 4 + PostgreSQL | Android (впереди)
 - **VPS порт**: 3002 | pm2 процесс: `dacha-api`
@@ -27,7 +27,7 @@
 ### Спринт 2. Главная и календарь (Длительность: 1 неделя)
 *Результат: Экран "Сегодня" и календарная сетка.*
 - [x] Агрегирующий эндпоинт `GET /today?garden_id=` (топ задач дня)
-- [ ] Экран "Сегодня" (Погода, 3-5 главных задач, быстрые кнопки действий)
+- [x] Экран "Сегодня" — Android UI (TodayScreen, TodayViewModel, data-слой, тема)
 - [ ] Календарь работ (Месячный/дневной вид, статусы)
 - **Статус**: 🟡 В процессе
 
@@ -66,6 +66,29 @@
 
 ## Структура проекта
 ```
+android/
+├── gradle/libs.versions.toml   # Version catalog (AGP 8.3, Kotlin 1.9, Compose BOM 2024.05)
+├── app/
+│   ├── build.gradle.kts        # compileSdk 34, minSdk 26, buildConfig BASE_URL
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       └── java/ru/dachakalend/app/
+│           ├── App.kt              # @HiltAndroidApp
+│           ├── MainActivity.kt     # BottomNav + NavHost (4 вкладки)
+│           ├── navigation/         # Screen sealed class, bottomNavItems
+│           ├── data/
+│           │   ├── api/            # DachaApi (Retrofit), AuthInterceptor
+│           │   ├── model/          # Models.kt (TodayResponse, TodayTask, WeatherSummary, Garden...)
+│           │   ├── local/          # TokenStorage (SharedPreferences)
+│           │   └── repository/     # TodayRepository + sealed Result<T>
+│           ├── di/                 # NetworkModule (Hilt)
+│           └── ui/
+│               ├── theme/          # DachaCalendarTheme, taskColor()
+│               ├── today/          # TodayScreen + TodayViewModel
+│               ├── calendar/       # заглушка (Спринт 2)
+│               ├── plantings/      # заглушка (Спринт 3)
+│               └── harvest/        # заглушка (Спринт 5)
+
 backend/
 ├── src/
 │   ├── app.js                  # точка входа Fastify
