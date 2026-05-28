@@ -28,10 +28,10 @@ data class UserProfile(
 
 @JsonClass(generateAdapter = true)
 data class TodayResponse(
-    @field:Json(name = "garden_id") val gardenId: Int,
-    val tasks: List<TodayTask>,
-    val weather: WeatherSummary?,
-    @field:Json(name = "generated_at") val generatedAt: String
+    @field:Json(name = "garden_id") val gardenId: Int? = null,
+    val tasks: List<TodayTask> = emptyList(),
+    val weather: WeatherSummary? = null,
+    @field:Json(name = "generated_at") val generatedAt: String = ""
 )
 
 @JsonClass(generateAdapter = true)
