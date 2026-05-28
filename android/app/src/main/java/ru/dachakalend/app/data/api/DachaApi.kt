@@ -22,6 +22,14 @@ interface DachaApi {
     @POST("gardens")
     suspend fun createGarden(@Body request: CreateGardenRequest): Garden
 
+    // Reminders
+    @GET("reminders")
+    suspend fun getReminders(): List<Reminder>
+
+    // Plantings
+    @GET("plantings")
+    suspend fun getPlantings(): List<Planting>
+
     // Today
     @GET("today")
     suspend fun getToday(@Query("garden_id") gardenId: Int): TodayResponse

@@ -1,0 +1,30 @@
+# =====================
+# Android
+# =====================
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/**/*.iml
+android/.idea/
+android/captures/
+android/.externalNativeBuild/
+android/.cxx/
+android/*.keystore
+!android/debug.keystore
+
+# =====================
+# Node.js / Backend
+# =====================
+backend/node_modules/
+backend/.env
+backend/logs/
+backend/*.log
+npm-debug.log*
+
+# =====================
+# OS
+# =====================
+.DS_Store
+Thumbs.db
+desktop.ini

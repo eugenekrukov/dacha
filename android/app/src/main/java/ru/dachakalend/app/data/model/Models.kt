@@ -63,6 +63,32 @@ data class RegisterRequest(
     val password: String
 )
 
+// --- Reminder ---
+
+@JsonClass(generateAdapter = true)
+data class Reminder(
+    val id: Int,
+    val title: String,
+    val message: String?,
+    @field:Json(name = "remind_at") val remindAt: String,  // ISO 8601: "2026-06-15T08:00:00Z"
+    @field:Json(name = "is_sent") val isSent: Boolean?,
+    @field:Json(name = "planting_id") val plantingId: Int?
+)
+
+// --- Planting ---
+
+@JsonClass(generateAdapter = true)
+data class Planting(
+    val id: Int,
+    @field:Json(name = "crop_id") val cropId: Int,
+    @field:Json(name = "crop_name") val cropName: String?,
+    @field:Json(name = "garden_id") val gardenId: Int,
+    val stage: String,             // sowing | sprouted | growing | flowering | harvesting | done
+    @field:Json(name = "sown_at") val sownAt: String?,
+    @field:Json(name = "expected_harvest_at") val expectedHarvestAt: String?,
+    val notes: String?
+)
+
 // --- Garden ---
 
 @JsonClass(generateAdapter = true)

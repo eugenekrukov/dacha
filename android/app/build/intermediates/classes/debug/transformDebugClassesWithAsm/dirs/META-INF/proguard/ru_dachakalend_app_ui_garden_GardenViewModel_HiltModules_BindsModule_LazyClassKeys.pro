@@ -1,1 +1,0 @@
--keep,allowobfuscation,allowshrinking class ru.dachakalend.app.ui.garden.GardenViewModel
