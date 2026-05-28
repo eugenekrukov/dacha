@@ -179,24 +179,29 @@ module.exports = async function (fastify) {
     })
 
     // ── 7. Итоговый ответ ─────────────────────────────────────────────────────
+    const topTasks = tasks.slice(0, 5).map(t => ({
+      type: t.type,
+      priority: t.priority,
+      title: t.message || t.type,
+      description: t.crop_name ? `Культура: ${t.crop_name}` : '',
+      planting_id: t.planting_id || null,
+      crop_name: t.crop_name || null,
+      days_overdue: t.days_overdue || null,
+    }))
+
     return {
-      garden: {
-        id: garden.id,
-        name: garden.name,
-        region: garden.region,
-      },
+      garden_id: garden.id,
+      garden_name: garden.name,
       weather: weather
         ? {
-            temp_c: weather.temp_c,
-            feels_like_c: weather.feels_like_c,
-            condition: weather.condition,
+            temp_min: weather.temp_c,
+            temp_max: weather.feels_like_c,
             humidity: weather.humidity,
-            wind_speed: weather.wind_speed,
+            condition: weather.condition,
             frost_risk: weather.frost_risk,
-            fetched_at: weather.fetched_at,
           }
         : null,
-      tasks: tasks.slice(0, 5),         // топ-5 задач для экрана
+      tasks: topTasks,
       tasks_total: tasks.length,
       reminders_today: reminders.length,
       generated_at: today.toISOString(),
