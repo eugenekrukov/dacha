@@ -1,0 +1,1 @@
+-keep,allowobfuscation,allowshrinking class ru.dachakalend.app.ui.today.TodayViewModel

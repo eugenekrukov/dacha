@@ -28,10 +28,10 @@ data class UserProfile(
 
 @JsonClass(generateAdapter = true)
 data class TodayResponse(
-    @Json(name = "garden_id") val gardenId: Int,
+    @field:Json(name = "garden_id") val gardenId: Int,
     val tasks: List<TodayTask>,
     val weather: WeatherSummary?,
-    @Json(name = "generated_at") val generatedAt: String
+    @field:Json(name = "generated_at") val generatedAt: String
 )
 
 @JsonClass(generateAdapter = true)
@@ -40,18 +40,18 @@ data class TodayTask(
     val priority: Int,
     val title: String,
     val description: String,
-    @Json(name = "planting_id") val plantingId: Int?,
-    @Json(name = "crop_name") val cropName: String?,
-    @Json(name = "days_overdue") val daysOverdue: Int?
+    @field:Json(name = "planting_id") val plantingId: Int?,
+    @field:Json(name = "crop_name") val cropName: String?,
+    @field:Json(name = "days_overdue") val daysOverdue: Int?
 )
 
 @JsonClass(generateAdapter = true)
 data class WeatherSummary(
-    @Json(name = "temp_min") val tempMin: Double?,
-    @Json(name = "temp_max") val tempMax: Double?,
+    @field:Json(name = "temp_min") val tempMin: Double?,
+    @field:Json(name = "temp_max") val tempMax: Double?,
     val humidity: Int?,
     val condition: String?,
-    @Json(name = "frost_risk") val frostRisk: Boolean?
+    @field:Json(name = "frost_risk") val frostRisk: Boolean?
 )
 
 // --- Garden ---
@@ -69,6 +69,6 @@ data class CreateGardenRequest(
     val name: String,
     val location: String?,
     val region: String?,
-    @Json(name = "soil_type") val soilType: String?,
-    @Json(name = "climate_zone") val climateZone: String?
+    @field:Json(name = "soil_type") val soilType: String?,
+    @field:Json(name = "climate_zone") val climateZone: String?
 )

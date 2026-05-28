@@ -8,7 +8,7 @@ import javax.inject.Singleton
 
 @Singleton
 class TokenStorage @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     private val prefs = context.getSharedPreferences("dacha_prefs", Context.MODE_PRIVATE)
 
