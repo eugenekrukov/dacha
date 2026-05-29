@@ -46,6 +46,12 @@ app.register(require('./routes/today'), { prefix: '/today' })
 // Health check
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
+// Weather background job — стартует после инициализации БД
+const { startWeatherJob } = require('./jobs/weatherJob')
+app.addHook('onReady', async () => {
+  startWeatherJob(app.db)
+})
+
 // Start
 const start = async () => {
   try {
