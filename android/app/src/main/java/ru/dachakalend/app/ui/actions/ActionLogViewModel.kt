@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.repository.ActionsRepository
+import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 
 data class ActionLogUiState(
@@ -34,10 +35,11 @@ class ActionLogViewModel @Inject constructor(
     fun logAction(plantingId: Int, type: String, notes: String? = null) {
         viewModelScope.launch {
             _uiState.value = ActionLogUiState(isLoading = true)
-            actionsRepository.logAction(plantingId, type, notes).fold(
-                onSuccess = { _uiState.value = ActionLogUiState(success = true) },
-                onFailure = { _uiState.value = ActionLogUiState(error = it.message) }
-            )
+            when (val result = actionsRepository.logAction(plantingId, type, notes)) {
+                is Result.Success -> _uiState.value = ActionLogUiState(success = true)
+                is Result.Error   -> _uiState.value = ActionLogUiState(error = result.message)
+                is Result.Loading -> Unit
+            }
         }
     }
 }

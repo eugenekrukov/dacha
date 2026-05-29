@@ -9,12 +9,15 @@ import javax.inject.Singleton
 @Singleton
 class ActionsRepository @Inject constructor(private val api: DachaApi) {
 
-    suspend fun getActions(plantingId: Int): Result<List<ActionLog>> = runCatching {
-        api.getActions(plantingId)
+    suspend fun getActions(plantingId: Int): Result<List<ActionLog>> = try {
+        Result.Success(api.getActions(plantingId))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка загрузки действий")
     }
 
-    suspend fun logAction(plantingId: Int, type: String, notes: String? = null): Result<ActionLog> =
-        runCatching {
-            api.createAction(CreateActionRequest(plantingId, type, notes))
-        }
+    suspend fun logAction(plantingId: Int, type: String, notes: String? = null): Result<ActionLog> = try {
+        Result.Success(api.createAction(CreateActionRequest(plantingId, type, notes)))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка записи действия")
+    }
 }

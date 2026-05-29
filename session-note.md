@@ -174,3 +174,12 @@ git add -A
 git commit -m "feat(sprint3): crops UI, action log, local reminders (WorkManager)"
 git push origin feature/sprint3-crops-journal
 ```
+
+---
+
+## Процесс завершения сессии (обязательно)
+
+В конце каждой сессии Claude обязан:
+1. Обновить `summary.md` — прогресс спринта, статус
+2. Дописать лог в `session-note.md`
+3. **Актуализировать `android/CONVENTIONS.md`** — если добавились новые репозитории, методы, паттерны или соглашения

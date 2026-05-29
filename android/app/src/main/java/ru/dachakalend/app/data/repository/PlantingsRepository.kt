@@ -9,15 +9,21 @@ import javax.inject.Singleton
 @Singleton
 class PlantingsRepository @Inject constructor(private val api: DachaApi) {
 
-    suspend fun getPlantings(gardenId: Int? = null): Result<List<Planting>> = runCatching {
-        api.getPlantings(gardenId)
+    suspend fun getPlantings(gardenId: Int? = null): Result<List<Planting>> = try {
+        Result.Success(api.getPlantings(gardenId))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка загрузки посадок")
     }
 
-    suspend fun createPlanting(request: CreatePlantingRequest): Result<Planting> = runCatching {
-        api.createPlanting(request)
+    suspend fun createPlanting(request: CreatePlantingRequest): Result<Planting> = try {
+        Result.Success(api.createPlanting(request))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка создания посадки")
     }
 
-    suspend fun updateStage(plantingId: Int, stage: String): Result<Planting> = runCatching {
-        api.updatePlantingStage(plantingId, mapOf("stage" to stage))
+    suspend fun updateStage(plantingId: Int, stage: String): Result<Planting> = try {
+        Result.Success(api.updatePlantingStage(plantingId, mapOf("stage" to stage)))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка обновления стадии")
     }
 }

@@ -8,11 +8,15 @@ import javax.inject.Singleton
 @Singleton
 class CropsRepository @Inject constructor(private val api: DachaApi) {
 
-    suspend fun getCrops(category: String? = null): Result<List<Crop>> = runCatching {
-        api.getCrops(category)
+    suspend fun getCrops(category: String? = null): Result<List<Crop>> = try {
+        Result.Success(api.getCrops(category))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка загрузки культур")
     }
 
-    suspend fun getCrop(id: Int): Result<Crop> = runCatching {
-        api.getCrop(id)
+    suspend fun getCrop(id: Int): Result<Crop> = try {
+        Result.Success(api.getCrop(id))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Культура не найдена")
     }
 }

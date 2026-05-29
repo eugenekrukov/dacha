@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.Crop
 import ru.dachakalend.app.data.repository.CropsRepository
+import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 
 data class CropsUiState(
@@ -43,10 +44,11 @@ class CropsViewModel @Inject constructor(
     fun loadCrops(category: String? = _uiState.value.selectedCategory) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null, selectedCategory = category)
-            cropsRepository.getCrops(category).fold(
-                onSuccess = { _uiState.value = _uiState.value.copy(crops = it, isLoading = false) },
-                onFailure = { _uiState.value = _uiState.value.copy(error = it.message, isLoading = false) }
-            )
+            when (val result = cropsRepository.getCrops(category)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(crops = result.data, isLoading = false)
+                is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false)
+                is Result.Loading -> Unit
+            }
         }
     }
 

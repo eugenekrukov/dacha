@@ -10,8 +10,8 @@ import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.CreatePlantingRequest
 import ru.dachakalend.app.data.model.Planting
-import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
+import ru.dachakalend.app.data.repository.Result
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -19,14 +19,13 @@ data class PlantingsUiState(
     val plantings: List<Planting> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val showActionSheet: Planting? = null,   // посадка, для которой открыт журнал действий
+    val showActionSheet: Planting? = null,
     val successMessage: String? = null
 )
 
 @HiltViewModel
 class PlantingsViewModel @Inject constructor(
     private val plantingsRepository: PlantingsRepository,
-    private val gardenRepository: GardenRepository,
     private val tokenStorage: TokenStorage
 ) : ViewModel() {
 
@@ -40,31 +39,46 @@ class PlantingsViewModel @Inject constructor(
     fun loadPlantings() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            // Берём первый сад пользователя
-            val gardenId = gardenRepository.getGardens().getOrNull()?.firstOrNull()?.id
-            plantingsRepository.getPlantings(gardenId).fold(
-                onSuccess = { _uiState.value = _uiState.value.copy(plantings = it, isLoading = false) },
-                onFailure = { _uiState.value = _uiState.value.copy(error = it.message, isLoading = false) }
-            )
+            val gardenId = tokenStorage.getGardenId().takeIf { it != -1 }
+            when (val result = plantingsRepository.getPlantings(gardenId)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(plantings = result.data, isLoading = false)
+                is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false)
+                is Result.Loading -> Unit
+            }
         }
     }
 
     fun createPlanting(cropId: Int, notes: String? = null) {
         viewModelScope.launch {
-            val gardenId = gardenRepository.getGardens().getOrNull()?.firstOrNull()?.id ?: return@launch
+            val gardenId = tokenStorage.getGardenId()
+            if (gardenId == -1) {
+                _uiState.value = _uiState.value.copy(error = "Участок не найден")
+                return@launch
+            }
             val request = CreatePlantingRequest(
                 cropId = cropId,
                 gardenId = gardenId,
                 sownAt = LocalDate.now().toString(),
                 notes = notes
             )
-            plantingsRepository.createPlanting(request).fold(
-                onSuccess = {
+            when (val result = plantingsRepository.createPlanting(request)) {
+                is Result.Success -> {
                     _uiState.value = _uiState.value.copy(successMessage = "Посадка добавлена!")
                     loadPlantings()
-                },
-                onFailure = { _uiState.value = _uiState.value.copy(error = it.message) }
-            )
+                }
+                is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message)
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun updateStage(plantingId: Int, stage: String) {
+        viewModelScope.launch {
+            when (plantingsRepository.updateStage(plantingId, stage)) {
+                is Result.Success -> loadPlantings()
+                is Result.Error   -> Unit
+                is Result.Loading -> Unit
+            }
         }
     }
 
@@ -78,11 +92,5 @@ class PlantingsViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(successMessage = null, error = null)
-    }
-
-    fun updateStage(plantingId: Int, stage: String) {
-        viewModelScope.launch {
-            plantingsRepository.updateStage(plantingId, stage).onSuccess { loadPlantings() }
-        }
     }
 }

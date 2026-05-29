@@ -9,11 +9,15 @@ import javax.inject.Singleton
 @Singleton
 class ReminderRepository @Inject constructor(private val api: DachaApi) {
 
-    suspend fun getReminders(): Result<List<Reminder>> = runCatching {
-        api.getReminders()
+    suspend fun getReminders(): Result<List<Reminder>> = try {
+        Result.Success(api.getReminders())
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка загрузки напоминаний")
     }
 
-    suspend fun createReminder(request: CreateReminderRequest): Result<Reminder> = runCatching {
-        api.createReminder(request)
+    suspend fun createReminder(request: CreateReminderRequest): Result<Reminder> = try {
+        Result.Success(api.createReminder(request))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка создания напоминания")
     }
 }
