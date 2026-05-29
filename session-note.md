@@ -267,6 +267,43 @@ git push origin feature/sprint5-harvest
 
 ---
 
+## Сессия 10 — 2026-05-29: Спринт 4 финал — Push-инфраструктура
+
+### Что сделано
+
+**Backend:**
+- `003_push_tokens.sql` — таблица `push_tokens(id, user_id, token, platform, created_at, updated_at)`, UNIQUE(user_id, token)
+- `routes/push-tokens.js` — `POST /push-tokens` (upsert токена), `DELETE /push-tokens` (удаление при выходе)
+- `services/pushService.js` — `sendPush(token, title, body, data)` через RuStore Push API, `sendFrostAlert(db, gardenId, tempC)` — рассылка всем устройствам участка
+- `jobs/weatherJob.js` — после обновления погоды вызывает `sendFrostAlert` если `frost_risk = true`
+- `.env.example` — добавлены `RUSTORE_PUSH_PROJECT_ID` и `RUSTORE_PUSH_SERVICE_TOKEN`
+
+**Android:**
+- `settings.gradle.kts` — добавлен maven `artifactory-external.vkpartner.ru`
+- `libs.versions.toml` — `rustorePush = "6.0.0"`, lib `rustore-push`
+- `app/build.gradle.kts` — `implementation(libs.rustore.push)`, `buildConfigField RUSTORE_PUSH_PROJECT_ID`
+- `DachaPushService.kt` — `@AndroidEntryPoint`, наследник `RuStoreMessagingService`: `onNewToken` → POST `/push-tokens`; `onMessageReceived` → показ data-only пушей через `NotificationHelper`
+- `App.kt` — `RuStorePushClient.init(projectId = BuildConfig.RUSTORE_PUSH_PROJECT_ID)`
+- `AndroidManifest.xml` — `<service>` для `DachaPushService` + `<meta-data>` канала `dacha_reminders`
+- `DachaApi.kt` — `registerPushToken` и `deletePushToken`
+
+### Что нужно сделать вручную перед деплоем
+1. В [RuStore Консоль](https://console.rustore.ru) → Push-уведомления → Проекты → создать проект для `ru.dachakalend.app`
+2. Скопировать **ID проекта** → вставить в `app/build.gradle.kts` в `RUSTORE_PUSH_PROJECT_ID`
+3. Скопировать **Сервисный токен** → добавить в `.env` на VPS: `RUSTORE_PUSH_SERVICE_TOKEN=...`
+4. Запустить миграцию на VPS: `psql $DATABASE_URL -f backend/src/db/migrations/003_push_tokens.sql`
+5. `pm2 reload dacha-api`
+
+### Git
+```
+git checkout -b feature/sprint4-push
+git add -A
+git commit -m "feat(sprint4): RuStore Push SDK — DachaPushService, push-tokens endpoint, frost_alert push"
+git push origin feature/sprint4-push
+```
+
+---
+
 ## Процесс завершения сессии (обязательно)
 
 В конце каждой сессии Claude обязан:

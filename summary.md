@@ -4,8 +4,8 @@
 Фиксация глобального прогресса по разработке MVP (5 запланированных спринтов) и актуального состояния кодовой базы.
 
 ## Текущий статус MVP
-- **Общий прогресс**: 80% (Спринты 1–3 завершены)
-- **Текущий спринт**: Спринт 4 — Погода и уведомления
+- **Общий прогресс**: 90% (Спринты 1–4 завершены, Спринт 5 в процессе)
+- **Текущий спринт**: Спринт 5 — Урожай и бета
 - **Стек**: Node.js 20 + Fastify 4 + PostgreSQL | Android (Kotlin + Compose + Hilt)
 - **VPS порт**: 3002 | pm2 процесс: `dacha-api`
 - **Бэкенд URL**: `https://dacha.studio1008.com/` (HTTPS, nginx + Let's Encrypt)
@@ -49,8 +49,8 @@
 - [x] Деплой на VPS + верификация `/weather` и `/recommendations` с реальными данными ✅
 - [x] Android: `WeatherRepository`, `RecommendationsRepository`, реальная погода + рекомендации на `TodayScreen` ✅
 - [x] Фикс совместимости: AGP 9.x (убран `kotlin.android` плагин), Hilt 2.59.2, `@Json` вместо `@field:Json` для Moshi KSP
-- [ ] Push-инфраструктура: RuStore Push SDK + серверный endpoint для push-токенов
-- **Статус**: 🟡 В процессе (осталось: Push)
+- [x] Push-инфраструктура: RuStore Push SDK 6.0.0 + `DachaPushService` + `POST /push-tokens` + `pushService.js` (frost_alert)
+- **Статус**: ✅ Завершён
 
 ### После MVP (технический долг)
 - [ ] **Геокодирование по населённому пункту** — в онбординге добавить поле "Ваш город/посёлок" и геокодировать через [DaData](https://dadata.ru/api/suggest/address/) (10 000 запросов/день бесплатно) или Nominatim/OSM (без ключа, 1 req/s). Яндекс Геокодер не подходит для prod — лимит 1000 req/day на бесплатном тарифе.

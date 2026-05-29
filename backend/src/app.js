@@ -42,6 +42,7 @@ app.register(require('./routes/recommendations'), { prefix: '/recommendations' }
 app.register(require('./routes/reminders'), { prefix: '/reminders' })
 app.register(require('./routes/harvests'), { prefix: '/harvests' })
 app.register(require('./routes/today'), { prefix: '/today' })
+app.register(require('./routes/push-tokens'), { prefix: '/push-tokens' })
 
 // Health check
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
