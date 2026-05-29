@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayTask
 import ru.dachakalend.app.data.model.WeatherSummary
 import ru.dachakalend.app.ui.theme.taskColor
@@ -29,7 +30,12 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
     when (val state = uiState) {
         is TodayUiState.Loading -> LoadingScreen()
         is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
-        is TodayUiState.Success -> TodayContent(state.data.weather, state.data.tasks) { viewModel.loadToday() }
+        is TodayUiState.Success -> TodayContent(
+            weather = state.data.today.weather,
+            tasks = state.data.today.tasks,
+            recommendations = state.data.recommendations,
+            onRefresh = { viewModel.loadToday() }
+        )
     }
 }
 
@@ -37,6 +43,7 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
 private fun TodayContent(
     weather: WeatherSummary?,
     tasks: List<TodayTask>,
+    recommendations: List<Recommendation>,
     onRefresh: () -> Unit
 ) {
     LazyColumn(
@@ -79,6 +86,21 @@ private fun TodayContent(
             }
         }
 
+        // Рекомендации
+        if (recommendations.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Рекомендации",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            items(recommendations) { rec ->
+                RecommendationCard(rec)
+            }
+        }
+
         // Быстрые действия
         item {
             QuickActionsRow()
@@ -105,31 +127,53 @@ private fun WeatherCard(weather: WeatherSummary?) {
                     Text(
                         text = if (weather.tempMin != null && weather.tempMax != null)
                             "${weather.tempMin.toInt()}° / ${weather.tempMax.toInt()}°"
+                        else if (weather.tempC != null) "${weather.tempC.toInt()}°"
                         else "—",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
-                    weather.condition?.let {
+                    Text(
+                        text = weather.conditionText ?: weather.condition ?: "—",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    weather.humidity?.let {
                         Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            text = "Влажность $it%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                         )
                     }
                 }
-                if (weather.frostRisk == true) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.error,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = "⚠ Заморозки",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (weather.frostRisk == true) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.error,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "⚠ Заморозки",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                    if (weather.heatRisk == true) {
+                        Surface(
+                            color = Color(0xFFE65100),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "🌡 Жара",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
                     }
                 }
             } else {
@@ -227,6 +271,62 @@ private fun QuickActionsRow() {
                 }
             }
             QuickBtn()
+        }
+    }
+}
+
+@Composable
+private fun RecommendationCard(rec: Recommendation) {
+    val (bgColor, icon) = when (rec.type) {
+        "frost_alert"   -> Color(0xFFE3F2FD) to Icons.Default.AcUnit
+        "watering"      -> Color(0xFFE1F5FE) to Icons.Default.WaterDrop
+        "harvest_ready" -> Color(0xFFF1F8E9) to Icons.Default.Spa
+        else            -> Color(0xFFFFF8E1) to Icons.Default.Lightbulb
+    }
+    val iconTint = when (rec.type) {
+        "frost_alert"   -> Color(0xFF1565C0)
+        "watering"      -> Color(0xFF0277BD)
+        "harvest_ready" -> Color(0xFF2E7D32)
+        else            -> Color(0xFFF57F17)
+    }
+    val priorityColor = when (rec.priority) {
+        "critical" -> MaterialTheme.colorScheme.error
+        "high"     -> Color(0xFFE65100)
+        "medium"   -> Color(0xFFF9A825)
+        else       -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(28.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                rec.cropName?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = priorityColor,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Text(
+                    text = rec.message,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }

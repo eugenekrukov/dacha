@@ -3,23 +3,32 @@ package ru.dachakalend.app.ui.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayResponse
+import ru.dachakalend.app.data.repository.RecommendationsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.data.repository.TodayRepository
 import javax.inject.Inject
 
+data class TodayScreenData(
+    val today: TodayResponse,
+    val recommendations: List<Recommendation>
+)
+
 sealed class TodayUiState {
     object Loading : TodayUiState()
-    data class Success(val data: TodayResponse) : TodayUiState()
+    data class Success(val data: TodayScreenData) : TodayUiState()
     data class Error(val message: String) : TodayUiState()
 }
 
 @HiltViewModel
 class TodayViewModel @Inject constructor(
-    private val repository: TodayRepository
+    private val todayRepository: TodayRepository,
+    private val recommendationsRepository: RecommendationsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<TodayUiState>(TodayUiState.Loading)
@@ -32,9 +41,21 @@ class TodayViewModel @Inject constructor(
     fun loadToday() {
         viewModelScope.launch {
             _uiState.value = TodayUiState.Loading
-            _uiState.value = when (val result = repository.getToday()) {
-                is Result.Success -> TodayUiState.Success(result.data)
-                is Result.Error   -> TodayUiState.Error(result.message)
+
+            val todayDeferred = async { todayRepository.getToday() }
+            val recsDeferred = async { recommendationsRepository.getRecommendations() }
+
+            val todayResult = todayDeferred.await()
+            val recsResult = recsDeferred.await()
+
+            _uiState.value = when (todayResult) {
+                is Result.Success -> TodayUiState.Success(
+                    TodayScreenData(
+                        today = todayResult.data,
+                        recommendations = if (recsResult is Result.Success) recsResult.data else emptyList()
+                    )
+                )
+                is Result.Error   -> TodayUiState.Error(todayResult.message)
                 is Result.Loading -> TodayUiState.Loading
             }
         }

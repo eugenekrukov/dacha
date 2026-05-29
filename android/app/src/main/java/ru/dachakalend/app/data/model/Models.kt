@@ -47,11 +47,44 @@ data class TodayTask(
 
 @JsonClass(generateAdapter = true)
 data class WeatherSummary(
+    @field:Json(name = "temp_c") val tempC: Double?,
     @field:Json(name = "temp_min") val tempMin: Double?,
     @field:Json(name = "temp_max") val tempMax: Double?,
     val humidity: Int?,
     val condition: String?,
-    @field:Json(name = "frost_risk") val frostRisk: Boolean?
+    @field:Json(name = "condition_text") val conditionText: String?,
+    @field:Json(name = "frost_risk") val frostRisk: Boolean?,
+    @field:Json(name = "heat_risk") val heatRisk: Boolean?
+)
+
+// --- WeatherSnapshot (GET /weather) ---
+
+@JsonClass(generateAdapter = true)
+data class WeatherSnapshot(
+    val id: Int,
+    @field:Json(name = "garden_id") val gardenId: Int,
+    @field:Json(name = "temp_c") val tempC: Double?,
+    @field:Json(name = "min_temp_c") val minTempC: Double?,
+    @field:Json(name = "max_temp_c") val maxTempC: Double?,
+    @field:Json(name = "humidity_pct") val humidityPct: Int?,
+    @field:Json(name = "wind_ms") val windMs: Double?,
+    @field:Json(name = "precip_mm") val precipMm: Double?,
+    val condition: String?,
+    @field:Json(name = "condition_text") val conditionText: String?,
+    @field:Json(name = "frost_risk") val frostRisk: Boolean?,
+    @field:Json(name = "heat_risk") val heatRisk: Boolean?,
+    @field:Json(name = "fetched_at") val fetchedAt: String
+)
+
+// --- Recommendation ---
+
+@JsonClass(generateAdapter = true)
+data class Recommendation(
+    val type: String,       // watering | frost_alert | harvest_ready
+    val priority: String,   // critical | high | medium | low
+    @field:Json(name = "planting_id") val plantingId: Int?,
+    @field:Json(name = "crop_name") val cropName: String?,
+    val message: String
 )
 
 // --- Register ---

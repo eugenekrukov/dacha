@@ -56,6 +56,14 @@ interface DachaApi {
     @POST("reminders")
     suspend fun createReminder(@Body request: CreateReminderRequest): Reminder
 
+    // Weather
+    @GET("weather")
+    suspend fun getWeather(@Query("garden_id") gardenId: Int): WeatherSnapshot
+
+    // Recommendations
+    @GET("recommendations")
+    suspend fun getRecommendations(@Query("garden_id") gardenId: Int): List<Recommendation>
+
     // Today
     @GET("today")
     suspend fun getToday(@Query("garden_id") gardenId: Int): TodayResponse
