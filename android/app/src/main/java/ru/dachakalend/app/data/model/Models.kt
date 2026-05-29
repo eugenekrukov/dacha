@@ -179,6 +179,27 @@ data class CreateReminderRequest(
     @Json(name = "planting_id") val plantingId: Int? = null
 )
 
+// --- Harvest ---
+
+@JsonClass(generateAdapter = true)
+data class Harvest(
+    val id: Int,
+    @Json(name = "planting_id") val plantingId: Int,
+    @Json(name = "crop_name") val cropName: String?,
+    @Json(name = "weight_kg") val weightKg: Double?,
+    val quantity: Int?,
+    val notes: String?,
+    @Json(name = "harvested_at") val harvestedAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateHarvestRequest(
+    @Json(name = "planting_id") val plantingId: Int,
+    @Json(name = "weight_kg") val weightKg: Double? = null,
+    val quantity: Int? = null,
+    val notes: String? = null
+)
+
 // --- Garden ---
 
 @JsonClass(generateAdapter = true)

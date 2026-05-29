@@ -214,9 +214,56 @@ cd /var/www/dacha-api && bash scripts/deploy.sh
 - `GET /recommendations?garden_id=1` — рекомендации с погодным слоем (frost_alert при t≤2°C)
 
 ### Следующие шаги Спринта 4
-- [ ] Android: WeatherRepository + модель WeatherSnapshot → реальные данные на TodayScreen
-- [ ] Android: RecommendationsRepository + карточки рекомендаций
+- [x] Android: WeatherRepository + модель WeatherSnapshot → реальные данные на TodayScreen ✅
+- [x] Android: RecommendationsRepository + карточки рекомендаций ✅
 - [ ] Push: RuStore Push SDK + PushService.kt + серверный endpoint для push-токена
+
+---
+
+## Сессия 8 — 2026-05-29: Спринт 4 — Android-часть + совместимость AGP 9
+
+### Что сделано
+- `WeatherSummary` обновлена: `tempC`, `conditionText`, `heatRisk`; новые модели `WeatherSnapshot`, `Recommendation`
+- `DachaApi`: `getWeather`, `getRecommendations`; `WeatherRepository`, `RecommendationsRepository`
+- `TodayViewModel`: параллельная загрузка `/today` + `/recommendations` через `async`
+- `TodayScreen`: улучшен `WeatherCard`, добавлены `RecommendationCard`
+- `today.js`: `parseFloat()` для температур (Postgres DECIMAL → строка)
+- `regionCoords.js`: координаты центров областей РФ для участков без GPS
+
+### Совместимость AGP 9 / Kotlin 2.3.21
+- Убран плагин `kotlin.android` (AGP 9.0+ встроил Kotlin)
+- Hilt обновлён до **2.59.2** (2.56.x несовместим с AGP 9, `BaseExtension` удалён)
+- KSP: новое версионирование `2.3.9` (не `kotlinVersion-kspBuildVersion`)
+- `@field:Json` → `@Json` во всех моделях (Kotlin 2.3+ без `-Xannotation-default-target`)
+
+### Следующая сессия — Push (финал Спринта 4)
+- RuStore Push SDK: зарегистрировать приложение, добавить SDK
+- `PushService.kt` — обработчик входящих пушей
+- Бэкенд: таблица `push_tokens`, `POST /push-tokens`, триггер при `frost_alert`
+
+---
+
+## Сессия 9 — 2026-05-29: Спринт 5 — Модуль урожая (Android)
+
+### Что сделано
+- **`Models.kt`**: добавлены `Harvest` и `CreateHarvestRequest` с `@JsonClass`/`@Json`
+- **`DachaApi.kt`**: добавлены `getHarvests(gardenId?)` и `createHarvest(request)`
+- **`HarvestRepository.kt`**: `getHarvests(gardenId?)` и `addHarvest(plantingId, weightKg, quantity, notes)` — паттерн `Result<T>`, `@Singleton`
+- **`HarvestViewModel.kt`**: параллельная загрузка урожаев + посадок, `openAddSheet / closeAddSheet`, `addHarvest`, `clearMessage`
+- **`HarvestScreen.kt`**: полноценный экран с:
+  - `HarvestSummaryCard` — итоговые цифры (всего кг / штук / записей) в `primaryContainer`
+  - `HarvestCard` — карточка записи (культура, вес/кол-во/заметка, дата)
+  - `EmptyHarvestState` — пустой стейт с подсказкой
+  - `AddHarvestSheet` — BottomSheet: выбор посадки (ExposedDropdownMenu), ввод веса + штук (2 поля в ряд), заметка, кнопка "Сохранить" с индикатором загрузки
+- Экран уже подключён в `MainActivity` через `composable(Screen.Harvest.route) { HarvestScreen() }`
+
+### Git
+```
+git checkout -b feature/sprint5-harvest
+git add -A
+git commit -m "feat(sprint5): Harvest module — model, repository, ViewModel, full UI"
+git push origin feature/sprint5-harvest
+```
 
 ---
 

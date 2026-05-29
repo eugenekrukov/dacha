@@ -64,6 +64,13 @@ interface DachaApi {
     @GET("recommendations")
     suspend fun getRecommendations(@Query("garden_id") gardenId: Int): List<Recommendation>
 
+    // Harvests
+    @GET("harvests")
+    suspend fun getHarvests(@Query("garden_id") gardenId: Int? = null): List<Harvest>
+
+    @POST("harvests")
+    suspend fun createHarvest(@Body request: CreateHarvestRequest): Harvest
+
     // Today
     @GET("today")
     suspend fun getToday(@Query("garden_id") gardenId: Int): TodayResponse
