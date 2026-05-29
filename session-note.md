@@ -177,6 +177,49 @@ git push origin feature/sprint3-crops-journal
 
 ---
 
+---
+
+## Сессия 7 — 2026-05-29: Спринт 4 — Погодный джоб (бэкенд)
+
+### Что сделано
+- Добавлены зависимости `node-cron ^3.0.3` и `node-fetch ^2.7.0` в `backend/package.json`
+- Создан `backend/src/services/weatherService.js` — интеграция с **Open-Meteo** (бесплатный API, без ключа):
+  - `fetchWeatherData(lat, lon)` → текущая температура, мин/макс, влажность, скорость ветра, осадки, WMO код погоды
+  - Нормализация: `condition` (clear/cloudy/rain/snow/storm), `condition_text` (русский текст по WMO), `frost_risk` (≤2°C), `heat_risk` (≥35°C)
+  - `updateGardenWeather(db, garden)` — пропускает, если кэш свежее 3 часов
+- Создан `backend/src/jobs/weatherJob.js` — `node-cron` расписание `0 */3 * * *`:
+  - Обходит все участки с координатами
+  - Запускается сразу при старте (без ожидания первых 3 часов)
+  - Обработка ошибок per-garden (один сбой не ломает весь джоб)
+- Обновлён `backend/src/app.js` — джоб регистрируется в хуке `onReady` (после инициализации БД)
+- Исправлен `backend/src/routes/today.js` — поля погоды приведены к реальной схеме:
+  - `weather.feels_like_c` → `weather.max_temp_c`
+  - `weather.humidity` → `weather.humidity_pct`
+  - Добавлены `condition_text`, `heat_risk`, `temp_c`
+
+### Для деплоя
+```bash
+# Локально
+git add src/services/weatherService.js src/jobs/weatherJob.js src/app.js src/routes/today.js package.json
+git commit -m "feat(weather): Open-Meteo integration + 3h cron job"
+git push origin main
+
+# На VPS
+cd /var/www/dacha-api && bash scripts/deploy.sh
+```
+
+### Проверка после деплоя
+- `pm2 logs dacha-api` — ожидать `[weather-job] Garden N: обновлено — X°C, ...`
+- `GET /weather?garden_id=1` с токеном — должен вернуть реальные данные
+- `GET /recommendations?garden_id=1` — рекомендации с погодным слоем (frost_alert при t≤2°C)
+
+### Следующие шаги Спринта 4
+- [ ] Android: WeatherRepository + модель WeatherSnapshot → реальные данные на TodayScreen
+- [ ] Android: RecommendationsRepository + карточки рекомендаций
+- [ ] Push: RuStore Push SDK + PushService.kt + серверный endpoint для push-токена
+
+---
+
 ## Процесс завершения сессии (обязательно)
 
 В конце каждой сессии Claude обязан:
