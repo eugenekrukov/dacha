@@ -194,11 +194,14 @@ module.exports = async function (fastify) {
       garden_name: garden.name,
       weather: weather
         ? {
-            temp_min: weather.temp_c,
-            temp_max: weather.feels_like_c,
-            humidity: weather.humidity,
+            temp_c: weather.temp_c,
+            temp_min: weather.min_temp_c,
+            temp_max: weather.max_temp_c,
+            humidity: weather.humidity_pct,
             condition: weather.condition,
+            condition_text: weather.condition_text,
             frost_risk: weather.frost_risk,
+            heat_risk: weather.heat_risk,
           }
         : null,
       tasks: topTasks,
