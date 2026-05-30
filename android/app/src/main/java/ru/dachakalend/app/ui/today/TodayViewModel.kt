@@ -7,11 +7,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayResponse
 import ru.dachakalend.app.data.repository.RecommendationsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.data.repository.TodayRepository
+import ru.rustore.sdk.pushclient.RuStorePushClient
 import javax.inject.Inject
 
 data class TodayScreenData(
@@ -28,7 +30,8 @@ sealed class TodayUiState {
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val todayRepository: TodayRepository,
-    private val recommendationsRepository: RecommendationsRepository
+    private val recommendationsRepository: RecommendationsRepository,
+    private val api: DachaApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<TodayUiState>(TodayUiState.Loading)
@@ -36,6 +39,18 @@ class TodayViewModel @Inject constructor(
 
     init {
         loadToday()
+        registerPushToken()
+    }
+
+    // Явно запрашиваем push-токен и отправляем на бэкенд при каждом старте
+    private fun registerPushToken() {
+        RuStorePushClient.getToken()
+            .addOnSuccessListener { token ->
+                viewModelScope.launch {
+                    try { api.registerPushToken(mapOf("token" to token)) }
+                    catch (_: Exception) {}
+                }
+            }
     }
 
     fun loadToday() {

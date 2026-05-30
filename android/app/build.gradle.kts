@@ -26,7 +26,7 @@ android {
     buildTypes {
         debug {
             isDebuggable = true
-            applicationIdSuffix = ".debug"
+            // applicationIdSuffix = ".debug"  // отключено: RuStore Push требует точного совпадения package name
         }
         release {
             isMinifyEnabled = true
