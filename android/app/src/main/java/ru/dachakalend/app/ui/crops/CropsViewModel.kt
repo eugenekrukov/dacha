@@ -22,11 +22,10 @@ data class CropsUiState(
 
 val CROP_CATEGORIES = listOf(
     null to "Все",
-    "vegetables" to "Овощи",
-    "greens" to "Зелень",
-    "fruits" to "Фрукты",
-    "berries" to "Ягоды",
-    "flowers" to "Цветы"
+    "vegetable" to "Овощи",
+    "herb" to "Зелень",
+    "berry" to "Ягоды",
+    "flower" to "Цветы"
 )
 
 @HiltViewModel

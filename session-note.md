@@ -325,6 +325,36 @@ git push origin main
 
 ---
 
+## Сессия 2026-05-30 — Тесты + баг-фикс посадок
+
+### Что сделано
+- Создан `TESTING.md` — полная структура тестов для бэкенда (Vitest + Supertest) и Android (MockK + Turbine). 60+ тест-кейсов по всем модулям MVP.
+- Добавлена задача по написанию тестов в `summary.md`.
+
+### Bug fixes
+1. **Фильтры культур не работали** — `CROP_CATEGORIES` в `CropsViewModel.kt` содержал неправильные ключи (`vegetables`, `greens`, `berries`, `flowers`), не совпадавшие с БД (`vegetable`, `herb`, `berry`, `flower`). Убрана несуществующая категория `fruits`.
+2. **Дублирование культур** — в таблице `crops` отсутствует `UNIQUE(name)`, поэтому `ON CONFLICT DO NOTHING` в seed не срабатывал. Добавлена миграция `004_unique_crops_name.sql` (удаляет дубли, добавляет constraint). В `crops.js` добавлен `DISTINCT ON (name)` как страховка.
+3. **Краш при посадке** — `onPlant` в `MainActivity` делал `popUpTo(Crops, inclusive=true)`, после чего `getBackStackEntry(Crops)` бросал `IllegalArgumentException`. Плюс `createPlanting()` вообще не вызывался. Решение: передаём `cropId` через nav argument (`plantings?newCropId={id}`), `PlantingsViewModel` получает его через `SavedStateHandle` и вызывает `createPlanting()` в `init`.
+
+### Файлы изменены
+- `android/.../CropsViewModel.kt` — исправлены ключи CROP_CATEGORIES
+- `backend/src/routes/crops.js` — добавлен DISTINCT ON (name)
+- `backend/src/db/migrations/004_unique_crops_name.sql` — новая миграция
+- `android/.../Navigation.kt` — Screen.Plantings добавлен routeWithArgs + withNewCrop()
+- `android/.../PlantingsViewModel.kt` — добавлен SavedStateHandle, auto-createPlanting
+- `android/.../MainActivity.kt` — исправлен onPlant + добавлен composable для routeWithArgs
+
+### Деплой
+```
+git checkout -b fix/crops-filter-duplicate-planting
+git add -A
+git commit -m "fix: crops filter keys, dedup via DISTINCT, planting via nav args"
+git push origin fix/crops-filter-duplicate-planting
+# На VPS: npm run migrate (004_unique_crops_name.sql)
+```
+
+---
+
 ## Процесс завершения сессии (обязательно)
 
 В конце каждой сессии Claude обязан:
@@ -351,14 +381,13 @@ git push origin main
 
 ### Git
 ```
-git add -A
-git commit -m "feat(sprint5): analytics screen + CSV export — MVP complete"
-git push origin feature/sprint5-analytics-export
-# После проверки билда:
 git checkout main
 git merge --squash feature/sprint5-analytics-export
-git commit -m "feat(sprint5): analytics screen + CSV export — MVP complete"
+git commit -m "feat(sprint5): analytics + CSV export — MVP complete"
 git push origin main
-git branch -d feature/sprint5-analytics-export
-git push origin --delete feature/sprint5-analytics-export
+# VPS: cd /var/www/dacha-api && git pull origin main && pm2 reload dacha-api ✅
 ```
+
+### Доп. правка
+- Убрана вкладка "Статистика" из BottomNav (`Navigation.kt`) — экран скрыт, маршрут сохранён
+- Требует пересборки APK

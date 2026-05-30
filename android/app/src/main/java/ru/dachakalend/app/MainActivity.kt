@@ -125,7 +125,20 @@ class MainActivity : ComponentActivity() {
                         // Main app
                         composable(Screen.Today.route) { TodayScreen() }
                         composable(Screen.Calendar.route) { CalendarScreen() }
+                        // Plantings — базовый маршрут (из BottomNav)
                         composable(Screen.Plantings.route) {
+                            PlantingsScreen(
+                                onAddCrop = { navController.navigate(Screen.Crops.route) }
+                            )
+                        }
+                        // Plantings — с newCropId (из CropDetail → сразу создаём посадку)
+                        composable(
+                            route = Screen.Plantings.routeWithArgs,
+                            arguments = listOf(navArgument(Screen.Plantings.ARG_NEW_CROP_ID) {
+                                type = NavType.IntType
+                                defaultValue = -1
+                            })
+                        ) {
                             PlantingsScreen(
                                 onAddCrop = { navController.navigate(Screen.Crops.route) }
                             )
@@ -163,13 +176,13 @@ class MainActivity : ComponentActivity() {
                                         navController.popBackStack()
                                     },
                                     onPlant = { selectedCrop ->
-                                        // Переходим на посадки и сразу создаём посадку
-                                        navController.navigate(Screen.Plantings.route) {
-                                            popUpTo(Screen.Crops.route) { inclusive = true }
+                                        // Передаём cropId через nav argument — PlantingsViewModel
+                                        // получит его через SavedStateHandle и сразу создаст посадку
+                                        navController.navigate(
+                                            Screen.Plantings.withNewCrop(selectedCrop.id)
+                                        ) {
+                                            popUpTo(Screen.Today.route)
                                         }
-                                        // PlantingsViewModel создаст посадку через StateFlow
-                                        // cropId сохраняем в SharedPreferences или передаём через SavedStateHandle
-                                        // Упрощённо: возврат на Plantings, где юзер нажмёт + снова
                                     }
                                 )
                             }
