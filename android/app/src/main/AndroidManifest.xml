@@ -27,6 +27,21 @@
                 tools:node="remove" />
         </provider>
 
+        <!-- RuStore Push SDK — сервис приёма уведомлений -->
+        <service
+            android:name=".notification.DachaPushService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="ru.rustore.sdk.pushclient.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Канал уведомлений по умолчанию (совпадает с NotificationHelper.CHANNEL_ID) -->
+        <meta-data
+            android:name="ru.rustore.sdk.pushclient.default_notification_channel_id"
+            android:value="dacha_reminders" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

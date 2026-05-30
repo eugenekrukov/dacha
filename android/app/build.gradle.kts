@@ -18,6 +18,9 @@ android {
 
         // URL бэкенда — менять здесь при смене окружения
         buildConfigField("String", "BASE_URL", "\"https://dacha.studio1008.com/\"")
+
+        // RuStore Push — ID проекта из RuStore Консоль → Push-уведомления → Проекты
+        buildConfigField("String", "RUSTORE_PUSH_PROJECT_ID", "\"HG8uxj8nCRFKvPWNRhubdefqYcYiAset\"")
     }
 
     buildTypes {
@@ -91,4 +94,7 @@ dependencies {
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.work)
     ksp(libs.hilt.work.compiler)
+
+    // RuStore Push SDK
+    implementation(libs.rustore.push)
 }

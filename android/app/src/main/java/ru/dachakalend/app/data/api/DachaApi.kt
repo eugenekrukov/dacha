@@ -1,6 +1,7 @@
 package ru.dachakalend.app.data.api
 
 import retrofit2.http.*
+import retrofit2.http.HTTP
 import ru.dachakalend.app.data.model.*
 
 interface DachaApi {
@@ -63,6 +64,20 @@ interface DachaApi {
     // Recommendations
     @GET("recommendations")
     suspend fun getRecommendations(@Query("garden_id") gardenId: Int): List<Recommendation>
+
+    // Push tokens
+    @POST("push-tokens")
+    suspend fun registerPushToken(@Body body: Map<String, String>)
+
+    @HTTP(method = "DELETE", path = "push-tokens", hasBody = true)
+    suspend fun deletePushToken(@Body body: Map<String, String>)
+
+    // Harvests
+    @GET("harvests")
+    suspend fun getHarvests(@Query("garden_id") gardenId: Int? = null): List<Harvest>
+
+    @POST("harvests")
+    suspend fun createHarvest(@Body request: CreateHarvestRequest): Harvest
 
     // Today
     @GET("today")

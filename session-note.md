@@ -214,9 +214,93 @@ cd /var/www/dacha-api && bash scripts/deploy.sh
 - `GET /recommendations?garden_id=1` — рекомендации с погодным слоем (frost_alert при t≤2°C)
 
 ### Следующие шаги Спринта 4
-- [ ] Android: WeatherRepository + модель WeatherSnapshot → реальные данные на TodayScreen
-- [ ] Android: RecommendationsRepository + карточки рекомендаций
+- [x] Android: WeatherRepository + модель WeatherSnapshot → реальные данные на TodayScreen ✅
+- [x] Android: RecommendationsRepository + карточки рекомендаций ✅
 - [ ] Push: RuStore Push SDK + PushService.kt + серверный endpoint для push-токена
+
+---
+
+## Сессия 8 — 2026-05-29: Спринт 4 — Android-часть + совместимость AGP 9
+
+### Что сделано
+- `WeatherSummary` обновлена: `tempC`, `conditionText`, `heatRisk`; новые модели `WeatherSnapshot`, `Recommendation`
+- `DachaApi`: `getWeather`, `getRecommendations`; `WeatherRepository`, `RecommendationsRepository`
+- `TodayViewModel`: параллельная загрузка `/today` + `/recommendations` через `async`
+- `TodayScreen`: улучшен `WeatherCard`, добавлены `RecommendationCard`
+- `today.js`: `parseFloat()` для температур (Postgres DECIMAL → строка)
+- `regionCoords.js`: координаты центров областей РФ для участков без GPS
+
+### Совместимость AGP 9 / Kotlin 2.3.21
+- Убран плагин `kotlin.android` (AGP 9.0+ встроил Kotlin)
+- Hilt обновлён до **2.59.2** (2.56.x несовместим с AGP 9, `BaseExtension` удалён)
+- KSP: новое версионирование `2.3.9` (не `kotlinVersion-kspBuildVersion`)
+- `@field:Json` → `@Json` во всех моделях (Kotlin 2.3+ без `-Xannotation-default-target`)
+
+### Следующая сессия — Push (финал Спринта 4)
+- RuStore Push SDK: зарегистрировать приложение, добавить SDK
+- `PushService.kt` — обработчик входящих пушей
+- Бэкенд: таблица `push_tokens`, `POST /push-tokens`, триггер при `frost_alert`
+
+---
+
+## Сессия 9 — 2026-05-29: Спринт 5 — Модуль урожая (Android)
+
+### Что сделано
+- **`Models.kt`**: добавлены `Harvest` и `CreateHarvestRequest` с `@JsonClass`/`@Json`
+- **`DachaApi.kt`**: добавлены `getHarvests(gardenId?)` и `createHarvest(request)`
+- **`HarvestRepository.kt`**: `getHarvests(gardenId?)` и `addHarvest(plantingId, weightKg, quantity, notes)` — паттерн `Result<T>`, `@Singleton`
+- **`HarvestViewModel.kt`**: параллельная загрузка урожаев + посадок, `openAddSheet / closeAddSheet`, `addHarvest`, `clearMessage`
+- **`HarvestScreen.kt`**: полноценный экран с:
+  - `HarvestSummaryCard` — итоговые цифры (всего кг / штук / записей) в `primaryContainer`
+  - `HarvestCard` — карточка записи (культура, вес/кол-во/заметка, дата)
+  - `EmptyHarvestState` — пустой стейт с подсказкой
+  - `AddHarvestSheet` — BottomSheet: выбор посадки (ExposedDropdownMenu), ввод веса + штук (2 поля в ряд), заметка, кнопка "Сохранить" с индикатором загрузки
+- Экран уже подключён в `MainActivity` через `composable(Screen.Harvest.route) { HarvestScreen() }`
+
+### Git
+```
+git checkout -b feature/sprint5-harvest
+git add -A
+git commit -m "feat(sprint5): Harvest module — model, repository, ViewModel, full UI"
+git push origin feature/sprint5-harvest
+```
+
+---
+
+## Сессия 10 — 2026-05-29: Спринт 4 финал — Push-инфраструктура
+
+### Что сделано
+
+**Backend:**
+- `003_push_tokens.sql` — таблица `push_tokens(id, user_id, token, platform, created_at, updated_at)`, UNIQUE(user_id, token)
+- `routes/push-tokens.js` — `POST /push-tokens` (upsert токена), `DELETE /push-tokens` (удаление при выходе)
+- `services/pushService.js` — `sendPush(token, title, body, data)` через RuStore Push API, `sendFrostAlert(db, gardenId, tempC)` — рассылка всем устройствам участка
+- `jobs/weatherJob.js` — после обновления погоды вызывает `sendFrostAlert` если `frost_risk = true`
+- `.env.example` — добавлены `RUSTORE_PUSH_PROJECT_ID` и `RUSTORE_PUSH_SERVICE_TOKEN`
+
+**Android:**
+- `settings.gradle.kts` — добавлен maven `artifactory-external.vkpartner.ru`
+- `libs.versions.toml` — `rustorePush = "6.0.0"`, lib `rustore-push`
+- `app/build.gradle.kts` — `implementation(libs.rustore.push)`, `buildConfigField RUSTORE_PUSH_PROJECT_ID`
+- `DachaPushService.kt` — `@AndroidEntryPoint`, наследник `RuStoreMessagingService`: `onNewToken` → POST `/push-tokens`; `onMessageReceived` → показ data-only пушей через `NotificationHelper`
+- `App.kt` — `RuStorePushClient.init(projectId = BuildConfig.RUSTORE_PUSH_PROJECT_ID)`
+- `AndroidManifest.xml` — `<service>` для `DachaPushService` + `<meta-data>` канала `dacha_reminders`
+- `DachaApi.kt` — `registerPushToken` и `deletePushToken`
+
+### Что нужно сделать вручную перед деплоем
+1. В [RuStore Консоль](https://console.rustore.ru) → Push-уведомления → Проекты → создать проект для `ru.dachakalend.app`
+2. Скопировать **ID проекта** → вставить в `app/build.gradle.kts` в `RUSTORE_PUSH_PROJECT_ID`
+3. Скопировать **Сервисный токен** → добавить в `.env` на VPS: `RUSTORE_PUSH_SERVICE_TOKEN=...`
+4. Запустить миграцию на VPS: `psql $DATABASE_URL -f backend/src/db/migrations/003_push_tokens.sql`
+5. `pm2 reload dacha-api`
+
+### Git
+```
+git checkout -b feature/sprint4-push
+git add -A
+git commit -m "feat(sprint4): RuStore Push SDK — DachaPushService, push-tokens endpoint, frost_alert push"
+git push origin feature/sprint4-push
+```
 
 ---
 

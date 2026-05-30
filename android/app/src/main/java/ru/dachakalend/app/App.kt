@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import ru.dachakalend.app.notification.NotificationHelper
+import ru.rustore.sdk.pushclient.RuStorePushClient
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -20,5 +21,12 @@ class App : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.createChannel(this)
+
+        // Инициализация RuStore Push SDK
+        // Замените BuildConfig.RUSTORE_PUSH_PROJECT_ID на реальный ID из RuStore Консоль
+        RuStorePushClient.init(
+            application = this,
+            projectId = BuildConfig.RUSTORE_PUSH_PROJECT_ID
+        )
     }
 }
