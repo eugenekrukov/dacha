@@ -1,6 +1,7 @@
 'use strict'
 
 const { getCoordsForRegion } = require('../utils/regionCoords')
+const { updateGardenWeather } = require('../services/weatherService')
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
@@ -21,7 +22,14 @@ module.exports = async function (fastify) {
        RETURNING *`,
       [userId, name, lat, lon, region, soil_type ?? null, climate_zone ?? null]
     )
-    return reply.code(201).send(result.rows[0])
+    const garden = result.rows[0]
+
+    // Сразу обновляем погоду для нового участка (не ждём 3-часового цикла)
+    if (lat && lon) {
+      updateGardenWeather(fastify.db, garden).catch(() => {})
+    }
+
+    return reply.code(201).send(garden)
   })
 
   // GET /gardens

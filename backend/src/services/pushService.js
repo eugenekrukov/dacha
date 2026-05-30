@@ -34,7 +34,7 @@ async function sendPush(token, title, body, data = {}) {
   }
 
   try {
-    const res = await fetch(`${RUSTORE_PUSH_API}/${projectId}/send`, {
+    const res = await fetch(`${RUSTORE_PUSH_API}/${projectId}/messages:send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
