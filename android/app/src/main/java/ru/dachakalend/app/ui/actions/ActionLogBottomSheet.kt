@@ -34,7 +34,9 @@ fun ActionLogBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .navigationBarsPadding()  // отступ под системную навигацию (жесты / кнопки)
+                .imePadding()             // отступ при появлении клавиатуры
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
