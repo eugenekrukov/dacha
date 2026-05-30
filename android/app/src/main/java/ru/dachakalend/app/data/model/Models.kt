@@ -157,7 +157,7 @@ data class ActionLog(
     val id: Int,
     @Json(name = "planting_id") val plantingId: Int,
     @Json(name = "crop_name") val cropName: String?,
-    val type: String,       // watering | fertilizing | treatment | other
+    @Json(name = "action_type") val type: String,  // watering | fertilizing | treatment | other
     val notes: String?,
     @Json(name = "logged_at") val loggedAt: String
 )
