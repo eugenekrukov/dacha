@@ -7,4 +7,4 @@ WHERE id NOT IN (
 );
 
 -- Добавляем уникальный constraint чтобы ON CONFLICT работал в будущем
-ALTER TABLE crops ADD CONSTRAINT crops_name_unique UNIQUE (name);
+ALTER TABLE crops ADD CONSTRAINT IF NOT EXISTS crops_name_unique UNIQUE (name);
