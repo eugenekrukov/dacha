@@ -163,8 +163,14 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("cropId") { type = NavType.IntType })
                         ) { backStackEntry ->
                             val cropId = backStackEntry.arguments?.getInt("cropId")
-                            // Берём crop из предыдущей записи стека через ViewModel
-                            val cropsEntry = navController.getBackStackEntry(Screen.Crops.route)
+                            // Берём crop из предыдущей записи стека через ViewModel.
+                            // try-catch обязателен: при навигации onPlant Crops убирается из стека,
+                            // и Compose делает ещё одну recomposition — без защиты будет IAE crash.
+                            val cropsEntry = try {
+                                navController.getBackStackEntry(Screen.Crops.route)
+                            } catch (e: Exception) {
+                                null
+                            } ?: return@composable
                             val cropsViewModel: CropsViewModel = hiltViewModel(cropsEntry)
                             val state by cropsViewModel.uiState.collectAsState()
                             val crop = state.selectedCrop
