@@ -1,61 +1,49 @@
 package ru.dachakalend.app.notification
 
-import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import ru.rustore.sdk.pushclient.messaging.RuStoreMessagingService
+import ru.rustore.sdk.pushclient.messaging.exception.RuStorePushClientException
 import ru.rustore.sdk.pushclient.messaging.model.RemoteMessage
+import ru.rustore.sdk.pushclient.messaging.service.RuStoreMessagingService
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
-import javax.inject.Inject
 
-@AndroidEntryPoint
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface PushServiceEntryPoint {
+    fun dachaApi(): DachaApi
+    fun tokenStorage(): TokenStorage
+}
+
 class DachaPushService : RuStoreMessagingService() {
-
-    @Inject lateinit var api: DachaApi
-    @Inject lateinit var tokenStorage: TokenStorage
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    /**
-     * Вызывается при получении нового push-токена.
-     * Отправляем токен на бэкенд, если пользователь залогинен.
-     */
+    private fun ep(): PushServiceEntryPoint =
+        EntryPointAccessors.fromApplication(application, PushServiceEntryPoint::class.java)
+
     override fun onNewToken(token: String) {
-        val authToken = tokenStorage.getToken() ?: return
+        ep().tokenStorage().getToken() ?: return
         scope.launch {
-            try {
-                api.registerPushToken(mapOf("token" to token))
-            } catch (e: Exception) {
-                // Не критично — попробуем снова при следующем обновлении токена
-            }
+            try { ep().dachaApi().registerPushToken(mapOf("token" to token)) }
+            catch (_: Exception) {}
         }
     }
 
-    /**
-     * Вызывается при получении push-уведомления.
-     * RuStore SDK автоматически показывает уведомление если в payload есть `notification`.
-     * Здесь обрабатываем только data-only пуши (например, silent refresh).
-     */
     override fun onMessageReceived(message: RemoteMessage) {
-        val data = message.data
-        // Если в уведомлении нет notification-объекта — показываем вручную
-        if (message.notification == null && data.isNotEmpty()) {
-            val title = data["title"] ?: return
-            val body = data["body"] ?: return
-            NotificationHelper.show(applicationContext, message.messageId.hashCode(), title, body)
+        if (message.notification == null && message.data.isNotEmpty()) {
+            val title = message.data["title"] ?: return
+            val body = message.data["body"] ?: return
+            NotificationHelper.show(application, message.messageId.hashCode(), title, body)
         }
     }
 
-    override fun onDeletedMessages() {
-        // Рекомендуется синхронизироваться с сервером при пропущенных уведомлениях
-    }
+    override fun onDeletedMessages() {}
 
-    override fun onError(errors: List<ru.rustore.sdk.pushclient.common.exception.RuStorePushClientException>) {
-        errors.forEach { e ->
-            // HostAppNotInstalledException — RuStore не установлен, не критично
-            // UnauthorizedException — пользователь не авторизован в RuStore
-        }
-    }
+    override fun onError(errors: List<RuStorePushClientException>) {}
 }

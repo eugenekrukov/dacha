@@ -20,7 +20,7 @@ android {
         buildConfigField("String", "BASE_URL", "\"https://dacha.studio1008.com/\"")
 
         // RuStore Push — ID проекта из RuStore Консоль → Push-уведомления → Проекты
-        buildConfigField("String", "RUSTORE_PUSH_PROJECT_ID", "\"YOUR_RUSTORE_PROJECT_ID\"")
+        buildConfigField("String", "RUSTORE_PUSH_PROJECT_ID", "\"HG8uxj8nCRFKvPWNRhubdefqYcYiAset\"")
     }
 
     buildTypes {
