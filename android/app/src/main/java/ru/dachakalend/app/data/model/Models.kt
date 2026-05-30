@@ -200,6 +200,31 @@ data class CreateHarvestRequest(
     val notes: String? = null
 )
 
+// --- Analytics ---
+
+@JsonClass(generateAdapter = true)
+data class AnalyticsSummary(
+    val streak: Int,
+    @Json(name = "total_actions") val totalActions: Int,
+    @Json(name = "total_harvests") val totalHarvests: Int,
+    @Json(name = "activity_by_day") val activityByDay: List<ActivityDay>,
+    val onboarding: OnboardingProgress
+)
+
+@JsonClass(generateAdapter = true)
+data class ActivityDay(
+    val date: String,   // yyyy-MM-dd
+    val count: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class OnboardingProgress(
+    val garden: Boolean,
+    val planting: Boolean,
+    val action: Boolean,
+    val harvest: Boolean
+)
+
 // --- Garden ---
 
 @JsonClass(generateAdapter = true)

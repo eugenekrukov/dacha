@@ -331,3 +331,34 @@ git push origin main
 1. Обновить `summary.md` — прогресс спринта, статус
 2. Дописать лог в `session-note.md`
 3. **Актуализировать `android/CONVENTIONS.md`** — если добавились новые репозитории, методы, паттерны или соглашения
+
+---
+
+## Сессия 12 — 2026-05-30: Спринт 5 завершён — аналитика и экспорт
+
+### Что сделано
+- `GET /actions/export` — бэкенд отдаёт CSV с BOM (Excel-совместимый), столбцы: дата, культура, действие, заметки
+- `GET /analytics/summary` — бэкенд: streak, total_actions, total_harvests, activity_by_day (30 дней), onboarding-прогресс
+- `analytics.js` зарегистрирован в `app.js` с префиксом `/analytics`
+- Модели `AnalyticsSummary`, `ActivityDay`, `OnboardingProgress` добавлены в `Models.kt`
+- `DachaApi`: `getAnalyticsSummary()`, `exportActions()` (возвращает `ResponseBody`)
+- `AnalyticsRepository`: `getSummary()` + `exportActionsIntent()` (FileProvider → Share chooser)
+- `FileProvider` добавлен в `AndroidManifest.xml`, создан `res/xml/file_paths.xml` (cache-path)
+- `AnalyticsViewModel` + `AnalyticsScreen` (StatCard, OnboardingCard, ActivityChart, кнопка экспорта)
+- `Screen.Analytics` добавлен в навигацию, иконка `BarChart` в BottomNav
+- `CONVENTIONS.md` обновлён: AnalyticsRepository, история изменений
+- `summary.md`: Спринт 5 ✅, прогресс → 100% MVP
+
+### Git
+```
+git add -A
+git commit -m "feat(sprint5): analytics screen + CSV export — MVP complete"
+git push origin feature/sprint5-analytics-export
+# После проверки билда:
+git checkout main
+git merge --squash feature/sprint5-analytics-export
+git commit -m "feat(sprint5): analytics screen + CSV export — MVP complete"
+git push origin main
+git branch -d feature/sprint5-analytics-export
+git push origin --delete feature/sprint5-analytics-export
+```

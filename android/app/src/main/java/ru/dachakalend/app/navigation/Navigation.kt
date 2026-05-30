@@ -1,6 +1,7 @@
 package ru.dachakalend.app.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Home
@@ -18,6 +19,9 @@ sealed class Screen(val route: String) {
     object Calendar : Screen("calendar")
     object Plantings : Screen("plantings")
     object Harvest : Screen("harvest")
+
+    // Sprint 5
+    object Analytics : Screen("analytics")
 
     // Sprint 3
     object Crops : Screen("crops")
@@ -37,6 +41,7 @@ val bottomNavItems = listOf(
     BottomNavItem(Screen.Calendar, "Календарь", Icons.Default.CalendarMonth),
     BottomNavItem(Screen.Plantings, "Посадки", Icons.Default.Grass),
     BottomNavItem(Screen.Harvest, "Урожай", Icons.Default.Spa),
+    BottomNavItem(Screen.Analytics, "Статистика", Icons.Default.BarChart),
 )
 
 // Экраны, на которых не показывается BottomBar

@@ -27,6 +27,7 @@ import ru.dachakalend.app.ui.crops.CropDetailScreen
 import ru.dachakalend.app.ui.crops.CropsScreen
 import ru.dachakalend.app.ui.crops.CropsViewModel
 import ru.dachakalend.app.ui.garden.CreateGardenScreen
+import ru.dachakalend.app.ui.analytics.AnalyticsScreen
 import ru.dachakalend.app.ui.harvest.HarvestScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
 import ru.dachakalend.app.ui.theme.DachaCalendarTheme
@@ -130,6 +131,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Screen.Harvest.route) { HarvestScreen() }
+                        composable(Screen.Analytics.route) { AnalyticsScreen() }
 
                         // Справочник культур
                         composable(Screen.Crops.route) {

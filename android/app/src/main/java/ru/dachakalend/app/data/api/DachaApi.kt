@@ -2,6 +2,7 @@ package ru.dachakalend.app.data.api
 
 import retrofit2.http.*
 import retrofit2.http.HTTP
+import retrofit2.http.Headers
 import ru.dachakalend.app.data.model.*
 
 interface DachaApi {
@@ -82,4 +83,12 @@ interface DachaApi {
     // Today
     @GET("today")
     suspend fun getToday(@Query("garden_id") gardenId: Int): TodayResponse
+
+    // Analytics
+    @GET("analytics/summary")
+    suspend fun getAnalyticsSummary(): AnalyticsSummary
+
+    @GET("actions/export")
+    @Headers("Accept: text/csv")
+    suspend fun exportActions(): okhttp3.ResponseBody
 }
