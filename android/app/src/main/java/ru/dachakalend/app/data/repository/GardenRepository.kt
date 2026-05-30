@@ -31,7 +31,6 @@ class GardenRepository @Inject constructor(
             val garden = api.createGarden(
                 CreateGardenRequest(
                     name = name,
-                    location = null,
                     region = region,
                     soilType = null,
                     climateZone = null
