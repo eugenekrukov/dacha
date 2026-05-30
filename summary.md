@@ -49,7 +49,9 @@
 - [x] Деплой на VPS + верификация `/weather` и `/recommendations` с реальными данными ✅
 - [x] Android: `WeatherRepository`, `RecommendationsRepository`, реальная погода + рекомендации на `TodayScreen` ✅
 - [x] Фикс совместимости: AGP 9.x (убран `kotlin.android` плагин), Hilt 2.59.2, `@Json` вместо `@field:Json` для Moshi KSP
-- [x] Push-инфраструктура: RuStore Push SDK 6.0.0 + `DachaPushService` + `POST /push-tokens` + `pushService.js` (frost_alert)
+- [x] Push-инфраструктура: RuStore Push SDK 6.0.0 + `DachaPushService` + `POST /push-tokens` + `pushService.js` (frost_alert) — протестировано end-to-end ✅
+- [x] Фикс `POST /actions`: бэкенд принимает и `type` и `action_type`
+- [x] Погода создаётся сразу при создании участка (не ждёт 3-часового цикла)
 - **Статус**: ✅ Завершён
 
 ### После MVP (технический долг)

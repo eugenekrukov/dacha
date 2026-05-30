@@ -304,6 +304,27 @@ git push origin feature/sprint4-push
 
 ---
 
+## Сессия 11 — 2026-05-30: Push end-to-end тест + фиксы
+
+### Что сделано
+- Исправлен endpoint в `pushService.js`: `/send` → `/messages:send` (правильный RuStore API)
+- `POST /actions`: бэкенд теперь принимает оба поля — `action_type` и `type`
+- `POST /gardens`: сразу запускает `updateGardenWeather` для нового участка
+- Push протестирован end-to-end: токен регистрируется → `{}` от RuStore → уведомление на устройстве ✅
+- Убран `applicationIdSuffix = ".debug"` — package name теперь `ru.dachakalend.app` (требование RuStore Push)
+- Выданы права `dacha_user` на таблицу `push_tokens`
+- Убран дубль `RUSTORE_PUSH_SERVICE_TOKEN` из `.env`
+- `TodayViewModel`: явный вызов `RuStorePushClient.getToken()` при каждом старте экрана
+
+### Git
+```
+git add -A
+git commit -m "fix: push endpoint, action_type field, weather on garden create"
+git push origin main
+```
+
+---
+
 ## Процесс завершения сессии (обязательно)
 
 В конце каждой сессии Claude обязан:
