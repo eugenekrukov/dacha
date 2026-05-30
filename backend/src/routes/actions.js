@@ -5,8 +5,9 @@ module.exports = async function (fastify) {
 
   // POST /actions — быстрое логирование (полил, подкормил, обработал)
   fastify.post('/', auth, async (request, reply) => {
-    const { planting_id, action_type, notes } = request.body
-    // action_type: watered | fertilized | treated | transplanted | other
+    const { planting_id, notes } = request.body
+    const action_type = request.body.action_type ?? request.body.type
+    // action_type: watering | fertilizing | treatment | other
     const result = await fastify.db.query(
       `INSERT INTO action_logs (planting_id, action_type, notes, logged_at)
        VALUES ($1,$2,$3,NOW()) RETURNING *`,
