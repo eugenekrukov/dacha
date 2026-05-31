@@ -7,4 +7,11 @@ WHERE id NOT IN (
 );
 
 -- Добавляем уникальный constraint чтобы ON CONFLICT работал в будущем
-ALTER TABLE crops ADD CONSTRAINT IF NOT EXISTS crops_name_unique UNIQUE (name);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'crops_name_unique'
+  ) THEN
+    ALTER TABLE crops ADD CONSTRAINT crops_name_unique UNIQUE (name);
+  END IF;
+END$$;

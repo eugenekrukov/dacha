@@ -21,7 +21,8 @@ module.exports = async function (fastify) {
 
     // 2. Активные посадки
     const plantingsRes = await db.query(
-      `SELECT p.*, c.name as crop_name, c.watering_freq_days, c.frost_sensitive, c.harvest_days
+      `SELECT p.*, c.name as crop_name, c.watering_freq_days, c.frost_sensitive, c.harvest_days,
+              c.fertilizing_schedule, c.watering_details
        FROM plantings p JOIN crops c ON c.id=p.crop_id
        WHERE p.garden_id=$1 AND p.stage NOT IN ('done')`,
       [garden_id]
@@ -79,6 +80,45 @@ module.exports = async function (fastify) {
           crop_name: planting.crop_name,
           message: `${planting.crop_name} готов к сбору — посадке ${daysSincePlanting} дней`
         })
+      }
+
+      // Слой 4: Подкормка по стадии роста
+      const schedule = planting.fertilizing_schedule || []
+      const fertEntry = schedule.find(f => f.stage === planting.stage)
+      if (fertEntry) {
+        const lastFertilized = await db.query(
+          `SELECT logged_at FROM action_logs WHERE planting_id=$1 AND action_type='fertilized' ORDER BY logged_at DESC LIMIT 1`,
+          [planting.id]
+        )
+        // Не напоминать чаще чем раз в 7 дней
+        const daysSinceFert = lastFertilized.rows[0]
+          ? Math.floor((Date.now() - new Date(lastFertilized.rows[0].logged_at)) / 86400000)
+          : 999
+        if (daysSinceFert >= 7) {
+          const note = fertEntry.notes ? ` ${fertEntry.notes}.` : ''
+          recommendations.push({
+            type: 'fertilizing',
+            priority: 'medium',
+            planting_id: planting.id,
+            crop_name: planting.crop_name,
+            message: `Подкормите ${planting.crop_name}: ${fertEntry.product_example}, ${fertEntry.dose}.${note}`
+          })
+        }
+      }
+
+      // Слой 5: Уточнённый полив из watering_details по стадии
+      if (planting.watering_details) {
+        const stageWater = planting.watering_details[planting.stage]
+        if (stageWater && daysSinceWatered >= stageWater.freq_days && daysSinceWatered < planting.watering_freq_days) {
+          // Стадийная частота строже — заменить уже добавленную рекомендацию по поливу
+          const idx = recommendations.findIndex(r => r.type === 'watering' && r.planting_id === planting.id)
+          const msg = `Пора полить ${planting.crop_name} — прошло ${daysSinceWatered} дн. (норма стадии: каждые ${stageWater.freq_days} дн.)`
+          if (idx !== -1) {
+            recommendations[idx].message = msg
+          } else {
+            recommendations.push({ type: 'watering', priority: 'high', planting_id: planting.id, crop_name: planting.crop_name, message: msg })
+          }
+        }
       }
     }
 

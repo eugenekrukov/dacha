@@ -277,3 +277,4 @@ val STAGE_LABELS = mapOf("sowing" to "Посеяно", ...)
 | 2026-05-29 | Sprint 5 | Git-правила (раздел 0): именование веток, squash-merge в main. HarvestRepository |
 | 2026-05-30 | Sprint 5 | AnalyticsRepository (getSummary, exportActionsIntent), AnalyticsScreen + AnalyticsViewModel, FileProvider для CSV-экспорта, маршрут Screen.Analytics в BottomNav |
 | 2026-05-30 | Bugs | Добавлен раздел 5 «Сверка моделей с бэкендом» — чеклист после серии багов с несовпадением имён полей (action_type, planted_at, Reminder.title, Garden.location) |
+| 2026-05-31 | KB v2 | Crop расширен: ClimateZoneWindow, WateringStage, FertilizingEntry, CropDisease, CropPest. Новые поля climate_zones, watering_details, fertilizing_schedule, diseases, pests, good/bad_neighbors, good_predecessors — все nullable с дефолтом null. |

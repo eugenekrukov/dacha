@@ -126,10 +126,52 @@ data class Planting(
 // --- Crop ---
 
 @JsonClass(generateAdapter = true)
+data class ClimateZoneWindow(
+    @Json(name = "sow_start") val sowStart: Int?,
+    @Json(name = "sow_end") val sowEnd: Int?,
+    @Json(name = "transplant_start") val transplantStart: Int?,
+    @Json(name = "transplant_end") val transplantEnd: Int?
+)
+
+@JsonClass(generateAdapter = true)
+data class WateringStage(
+    @Json(name = "freq_days") val freqDays: Int?,
+    @Json(name = "amount_l_m2") val amountLM2: Int?
+)
+
+@JsonClass(generateAdapter = true)
+data class FertilizingEntry(
+    val stage: String?,
+    val timing: String?,
+    @Json(name = "fertilizer_type") val fertilizerType: String?,
+    @Json(name = "product_example") val productExample: String?,
+    val dose: String?,
+    val method: String?,   // root | foliar
+    val notes: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class CropDisease(
+    val name: String,
+    val symptoms: String?,
+    val conditions: String?,
+    val treatment: String?,
+    val prevention: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class CropPest(
+    val name: String,
+    val signs: String?,
+    val treatment: String?,
+    val prevention: String?
+)
+
+@JsonClass(generateAdapter = true)
 data class Crop(
     val id: Int,
     val name: String,
-    val category: String,               // vegetables | greens | fruits | berries | flowers
+    val category: String,               // vegetable | herb | berry | flower
     @Json(name = "sowing_start_day") val sowingStartDay: Int?,
     @Json(name = "sowing_end_day") val sowingEndDay: Int?,
     @Json(name = "transplant_days") val transplantDays: Int?,
@@ -137,7 +179,16 @@ data class Crop(
     @Json(name = "watering_freq_days") val wateringFreqDays: Int?,
     @Json(name = "frost_sensitive") val frostSensitive: Boolean?,
     @Json(name = "companion_crops") val companionCrops: String?,
-    val notes: String?
+    val notes: String?,
+    // Расширенные поля (v2)
+    @Json(name = "climate_zones") val climateZones: Map<String, ClimateZoneWindow>? = null,
+    @Json(name = "watering_details") val wateringDetails: Map<String, WateringStage>? = null,
+    @Json(name = "fertilizing_schedule") val fertilizingSchedule: List<FertilizingEntry>? = null,
+    val diseases: List<CropDisease>? = null,
+    val pests: List<CropPest>? = null,
+    @Json(name = "good_neighbors") val goodNeighbors: List<String>? = null,
+    @Json(name = "bad_neighbors") val badNeighbors: List<String>? = null,
+    @Json(name = "good_predecessors") val goodPredecessors: List<String>? = null
 )
 
 // --- Planting requests ---
