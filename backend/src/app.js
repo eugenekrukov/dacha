@@ -1,4 +1,4 @@
-﻿'use strict'
+'use strict'
 
 require('dotenv').config()
 
@@ -61,10 +61,12 @@ app.register(require('./routes/analytics'), { prefix: '/analytics' })
 // Health check
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
-// Weather background job — стартует после инициализации БД
+// Background jobs — стартуют после инициализации БД
 const { startWeatherJob } = require('./jobs/weatherJob')
+const { startCareRemindersJob } = require('./jobs/careRemindersJob')
 app.addHook('onReady', async () => {
   startWeatherJob(app.db)
+  startCareRemindersJob(app.db)
 })
 
 // Start
@@ -80,4 +82,3 @@ const start = async () => {
 }
 
 start()
-
