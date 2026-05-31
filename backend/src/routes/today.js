@@ -1,15 +1,15 @@
-﻿'use strict'
+'use strict'
 
 const { buildTasks, formatTasks } = require('../utils/todayLogic')
 
 /**
  * GET /today?garden_id=
  *
- * РђРіСЂРµРіРёСЂСѓСЋС‰РёР№ СЌРЅРґРїРѕРёРЅС‚ СЌРєСЂР°РЅР° "РЎРµРіРѕРґРЅСЏ".
- * Р’РѕР·РІСЂР°С‰Р°РµС‚:
- *  - weather    вЂ” РїРѕСЃР»РµРґРЅРёР№ РїРѕРіРѕРґРЅС‹Р№ СЃРЅРёРјРѕРє СѓС‡Р°СЃС‚РєР°
- *  - tasks      вЂ” С‚РѕРї-5 РїСЂРёРѕСЂРёС‚РµС‚РЅС‹С… Р·Р°РґР°С‡ РґРЅСЏ (РїРѕР»РёРІ / РїРµСЂРµСЃР°РґРєР° / СѓР±РѕСЂРєР° / Р·Р°РјРѕСЂРѕР·РєРё)
- *  - reminders  вЂ” РЅР°РїРѕРјРёРЅР°РЅРёСЏ РЅР° СЃРµРіРѕРґРЅСЏ
+ * Агрегирующий эндпоинт экрана "Сегодня".
+ * Возвращает:
+ *  - weather    — последний погодный снимок участка
+ *  - tasks      — топ-5 приоритетных задач дня (полив / пересадка / уборка / заморозки)
+ *  - reminders  — напоминания на сегодня
  */
 
 module.exports = async function (fastify) {
@@ -19,7 +19,7 @@ module.exports = async function (fastify) {
     const { garden_id } = request.query
     if (!garden_id) return reply.code(400).send({ error: 'garden_id required' })
 
-    // РџСЂРѕРІРµСЂСЏРµРј РїСЂРёРЅР°РґР»РµР¶РЅРѕСЃС‚СЊ СѓС‡Р°СЃС‚РєР°
+    // Проверяем принадлежность участка
     const gardenRes = await fastify.db.query(
       'SELECT * FROM gardens WHERE id=$1 AND user_id=$2',
       [garden_id, request.user.userId]
@@ -29,7 +29,7 @@ module.exports = async function (fastify) {
 
     const today = new Date()
 
-    // в”Ђв”Ђ 1. РџРћР“РћР”Рђ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ── 1. ПОГОДА ────────────────────────────────────────────────────────────
     const weatherRes = await fastify.db.query(
       `SELECT * FROM weather_snapshots
        WHERE garden_id=$1
@@ -38,7 +38,7 @@ module.exports = async function (fastify) {
     )
     const weather = weatherRes.rows[0] || null
 
-    // в”Ђв”Ђ 2. РђРљРўРР’РќР«Р• РџРћРЎРђР”РљР в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ── 2. АКТИВНЫЕ ПОСАДКИ ──────────────────────────────────────────────────
     const plantingsRes = await fastify.db.query(
       `SELECT p.id, p.planted_at, p.stage, p.quantity, p.notes,
               c.name as crop_name, c.category,
@@ -52,8 +52,8 @@ module.exports = async function (fastify) {
     )
     const plantings = plantingsRes.rows
 
-    // в”Ђв”Ђ 3. РџРћРЎР›Р•Р”РќРР• Р”Р•Р™РЎРўР’РРЇ РџРћ РљРђР–Р”РћР™ РџРћРЎРђР”РљР• в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-    // РџРѕР»СѓС‡Р°РµРј РґР°С‚Сѓ РїРѕСЃР»РµРґРЅРµРіРѕ РїРѕР»РёРІР° РґР»СЏ РєР°Р¶РґРѕР№ РїРѕСЃР°РґРєРё РѕРґРЅРёРј Р·Р°РїСЂРѕСЃРѕРј
+    // ── 3. ПОСЛЕДНИЕ ДЕЙСТВИЯ ПО КАЖДОЙ ПОСАДКЕ ─────────────────────────────
+    // Получаем дату последнего полива для каждой посадки одним запросом
     let lastWateredMap = {}
     if (plantings.length > 0) {
       const ids = plantings.map(p => p.id)
@@ -69,7 +69,7 @@ module.exports = async function (fastify) {
       })
     }
 
-    // в”Ђв”Ђ 4. РќРђРџРћРњРРќРђРќРРЇ РќРђ РЎР•Р“РћР”РќРЇ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ── 4. НАПОМИНАНИЯ НА СЕГОДНЯ ────────────────────────────────────────────
     const remindersRes = await fastify.db.query(
       `SELECT r.id, r.type, r.message, r.remind_at, c.name as crop_name
        FROM reminders r
@@ -86,11 +86,11 @@ module.exports = async function (fastify) {
       priority: 5,
       reminder_id: r.id,
       crop_name: r.crop_name,
-      message: r.message || `РќР°РїРѕРјРёРЅР°РЅРёРµ: ${r.type}`,
+      message: r.message || `Напоминание: ${r.type}`,
       remind_at: r.remind_at,
     }))
 
-    // в”Ђв”Ђ 5. РЎР‘РћР РљРђ Р Р¤РћР РњРђРўРР РћР’РђРќРР• Р—РђР”РђР§ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ── 5. СБОРКА И ФОРМАТИРОВАНИЕ ЗАДАЧ ─────────────────────────────────────
     const rawTasks = buildTasks(plantings, weather, lastWateredMap, reminderTasks, today)
     const topTasks = formatTasks(rawTasks)
 
@@ -116,4 +116,3 @@ module.exports = async function (fastify) {
     }
   })
 }
-

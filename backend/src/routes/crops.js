@@ -1,13 +1,13 @@
-﻿'use strict'
+'use strict'
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
   const adminAuth = { onRequest: [fastify.requireAdmin] }
 
-  // GET /crops вЂ” СЃРїСЂР°РІРѕС‡РЅРёРє РєСѓР»СЊС‚СѓСЂ (РїСѓР±Р»РёС‡РЅС‹Р№)
+  // GET /crops — справочник культур (публичный)
   fastify.get('/', async (request) => {
     const { category } = request.query
-    // DISTINCT ON (name) РёСЃРєР»СЋС‡Р°РµС‚ РґСѓР±Р»РёРєР°С‚С‹ РЅР° СЃР»СѓС‡Р°Р№ РїРѕРІС‚РѕСЂРЅРѕРіРѕ Р·Р°РїСѓСЃРєР° РјРёРіСЂР°С†РёР№
+    // DISTINCT ON (name) исключает дубликаты на случай повторного запуска миграций
     let query = `SELECT DISTINCT ON (name) * FROM crops ORDER BY name ASC`
     const params = []
     if (category) {
@@ -25,7 +25,7 @@ module.exports = async function (fastify) {
     return result.rows[0]
   })
 
-  // POST /crops вЂ” РґРѕР±Р°РІР»РµРЅРёРµ РІ СЃРїСЂР°РІРѕС‡РЅРёРє (admin-use only, РїРѕРєР° Р±РµР· guard)
+  // POST /crops — добавление в справочник (admin only)
   fastify.post('/', adminAuth, async (request, reply) => {
     const { name, category, sowing_start_day, sowing_end_day, transplant_days, harvest_days, watering_freq_days, frost_sensitive, companion_crops, notes } = request.body
     const result = await fastify.db.query(
@@ -36,7 +36,7 @@ module.exports = async function (fastify) {
     return reply.code(201).send(result.rows[0])
   })
 
-  // PUT /crops/:id вЂ” РѕР±РЅРѕРІР»РµРЅРёРµ РєСѓР»СЊС‚СѓСЂС‹ (admin-use only)
+  // PUT /crops/:id — обновление культуры (admin only)
   fastify.put('/:id', adminAuth, async (request, reply) => {
     const ALLOWED = [
       'name', 'category', 'sowing_start_day', 'sowing_end_day', 'transplant_days',
@@ -67,4 +67,3 @@ module.exports = async function (fastify) {
     return result.rows[0]
   })
 }
-
