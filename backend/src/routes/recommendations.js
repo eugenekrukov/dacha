@@ -49,7 +49,7 @@ module.exports = async function (fastify) {
       )
       const daysSinceWatered = lastWatered.rows[0]
         ? Math.floor((Date.now() - new Date(lastWatered.rows[0].logged_at)) / 86400000)
-        : 999
+        : daysSincePlanting
 
       // В теплице полив реже (меньше испарение)
       const wateringFreq = planting.conditions === 'greenhouse'
@@ -97,7 +97,7 @@ module.exports = async function (fastify) {
         )
         const daysSinceFertilized = lastFertilized.rows[0]
           ? Math.floor((Date.now() - new Date(lastFertilized.rows[0].logged_at)) / 86400000)
-          : 999
+          : daysSincePlanting
         if (daysSinceFertilized > 14) {
           recommendations.push({
             type: 'fertilizing',
