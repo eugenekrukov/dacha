@@ -1,6 +1,6 @@
 'use strict'
 
-const { getCoordsForRegion } = require('../utils/regionCoords')
+const { getCoordsForRegion, getZoneForRegion } = require('../utils/regionCoords')
 const { updateGardenWeather } = require('../services/weatherService')
 
 module.exports = async function (fastify) {
@@ -40,7 +40,7 @@ module.exports = async function (fastify) {
       `INSERT INTO gardens (user_id, name, lat, lon, region, soil_type, climate_zone)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [userId, name, lat, lon, region, soil_type ?? null, climate_zone ?? null]
+      [userId, name, lat, lon, region, soil_type ?? null, climate_zone ?? getZoneForRegion(region)]
     )
     const garden = result.rows[0]
 
@@ -57,53 +57,3 @@ module.exports = async function (fastify) {
     const result = await fastify.db.query(
       'SELECT * FROM gardens WHERE user_id = $1 ORDER BY created_at DESC',
       [request.user.userId]
-    )
-    return result.rows
-  })
-
-  // GET /gardens/:id
-  fastify.get('/:id', auth, async (request, reply) => {
-    const result = await fastify.db.query(
-      'SELECT * FROM gardens WHERE id = $1 AND user_id = $2',
-      [request.params.id, request.user.userId]
-    )
-    if (!result.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
-    return result.rows[0]
-  })
-
-  // PUT /gardens/:id
-  fastify.put('/:id', auth, async (request, reply) => {
-    const { name, region, soil_type, climate_zone, city } = request.body
-    let lat, lon
-    if (request.body.lat != null && request.body.lon != null) {
-      lat = request.body.lat
-      lon = request.body.lon
-    } else if (city) {
-      try {
-        const q = encodeURIComponent(city + ', Россия')
-        const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-          { headers: { 'User-Agent': 'DachaKalendar/1.0 (support@dacha.studio1008.com)' } }
-        )
-        const data = await resp.json()
-        if (data.length > 0) {
-          lat = parseFloat(data[0].lat)
-          lon = parseFloat(data[0].lon)
-        }
-      } catch (_) {}
-    }
-    if (lat == null || lon == null) {
-      const coords = getCoordsForRegion(region)
-      lat = coords.lat
-      lon = coords.lon
-    }
-
-    const result = await fastify.db.query(
-      `UPDATE gardens SET name=$1, lat=$2, lon=$3, region=$4, soil_type=$5, climate_zone=$6, updated_at=NOW()
-       WHERE id=$7 AND user_id=$8 RETURNING *`,
-      [name, lat, lon, region, soil_type, climate_zone, request.params.id, request.user.userId]
-    )
-    if (!result.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
-    return result.rows[0]
-  })
-}
