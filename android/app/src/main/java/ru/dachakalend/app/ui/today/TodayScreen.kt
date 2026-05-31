@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items as lazyRowItems
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayTask
@@ -63,6 +64,7 @@ fun TodayScreen(
                 tasks = state.data.today.tasks,
                 recommendations = state.data.recommendations,
                 plantings = state.data.plantings,
+                todayActions = state.data.todayActions,
                 onRefresh = { viewModel.loadToday() },
                 onEditGarden = onEditGarden,
                 onAddPlanting = onAddPlanting
@@ -78,6 +80,7 @@ private fun TodayContent(
     tasks: List<TodayTask>,
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
+    todayActions: List<ActionLog> = emptyList(),
     onRefresh: () -> Unit,
     onEditGarden: () -> Unit = {},
     onAddPlanting: () -> Unit = {}
@@ -201,6 +204,21 @@ private fun TodayContent(
                 enabled = plantings.isNotEmpty(),
                 onAction = { type -> onQuickAction(type) }
             )
+        }
+
+        // Сводный журнал сегодняшних действий
+        if (todayActions.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Сделано сегодня",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            items(todayActions) { action ->
+                TodayActionRow(action)
+            }
         }
     }
 }
@@ -494,6 +512,40 @@ private fun RecommendationCard(rec: Recommendation) {
             }
         }
     }
+}
+
+private val ACTION_TYPE_LABELS = mapOf(
+    "watering"    to "💧 Полив",
+    "fertilizing" to "🌿 Подкормка",
+    "treatment"   to "🧴 Обработка",
+    "transplant"  to "🌱 Пересадка",
+    "other"       to "📝 Другое"
+)
+
+@Composable
+private fun TodayActionRow(action: ActionLog) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "${ACTION_TYPE_LABELS[action.type] ?: action.type}${action.cropName?.let { " — $it" } ?: ""}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            if (!action.notes.isNullOrBlank()) {
+                Text(
+                    text = action.notes,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+    HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp), thickness = 0.5.dp)
 }
 
 @Composable

@@ -58,7 +58,10 @@ interface DachaApi {
 
     // Actions
     @GET("actions")
-    suspend fun getActions(@Query("planting_id") plantingId: Int): List<ActionLog>
+    suspend fun getActions(
+        @Query("planting_id") plantingId: Int? = null,
+        @Query("limit") limit: Int? = null
+    ): List<ActionLog>
 
     @POST("actions")
     suspend fun createAction(@Body request: CreateActionRequest): ActionLog

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
+import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayResponse
@@ -23,7 +24,8 @@ import javax.inject.Inject
 data class TodayScreenData(
     val today: TodayResponse,
     val recommendations: List<Recommendation>,
-    val plantings: List<Planting> = emptyList()
+    val plantings: List<Planting> = emptyList(),
+    val todayActions: List<ActionLog> = emptyList()
 )
 
 sealed class TodayUiState {
@@ -46,8 +48,6 @@ class TodayViewModel @Inject constructor(
     val uiState: StateFlow<TodayUiState> = _uiState
 
     init {
-        // Если climateZone ещё не сохранён (например, после первого онбординга),
-        // подгружаем участок с сервера — там зона уже рассчитана бэкендом.
         if (tokenStorage.getClimateZone() == null) {
             viewModelScope.launch { gardenRepository.loadGardens() }
         }
@@ -55,7 +55,6 @@ class TodayViewModel @Inject constructor(
         registerPushToken()
     }
 
-    // Явно запрашиваем push-токен и отправляем на бэкенд при каждом старте
     private fun registerPushToken() {
         RuStorePushClient.getToken()
             .addOnSuccessListener { token ->
@@ -71,20 +70,29 @@ class TodayViewModel @Inject constructor(
             _uiState.value = TodayUiState.Loading
 
             val gardenId = tokenStorage.getGardenId().takeIf { it != -1 }
-            val todayDeferred = async { todayRepository.getToday() }
-            val recsDeferred  = async { recommendationsRepository.getRecommendations() }
+            val todayDeferred    = async { todayRepository.getToday() }
+            val recsDeferred     = async { recommendationsRepository.getRecommendations() }
             val plantingsDeferred = async { plantingsRepository.getPlantings(gardenId) }
+            val actionsDeferred  = async {
+                try { api.getActions(limit = 20) } catch (_: Exception) { emptyList() }
+            }
 
-            val todayResult    = todayDeferred.await()
-            val recsResult     = recsDeferred.await()
+            val todayResult     = todayDeferred.await()
+            val recsResult      = recsDeferred.await()
             val plantingsResult = plantingsDeferred.await()
+            val allActions      = actionsDeferred.await()
+
+            // Оставляем только действия за сегодня (по дате в loggedAt)
+            val todayDate = java.time.LocalDate.now().toString() // "2026-05-31"
+            val todayActions = allActions.filter { it.loggedAt.startsWith(todayDate) }
 
             _uiState.value = when (todayResult) {
                 is Result.Success -> TodayUiState.Success(
                     TodayScreenData(
-                        today = todayResult.data,
+                        today          = todayResult.data,
                         recommendations = if (recsResult is Result.Success) recsResult.data else emptyList(),
-                        plantings = if (plantingsResult is Result.Success) plantingsResult.data else emptyList()
+                        plantings      = if (plantingsResult is Result.Success) plantingsResult.data else emptyList(),
+                        todayActions   = todayActions
                     )
                 )
                 is Result.Error   -> TodayUiState.Error(todayResult.message)
