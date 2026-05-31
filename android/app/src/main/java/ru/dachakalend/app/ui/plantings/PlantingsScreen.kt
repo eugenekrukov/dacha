@@ -16,6 +16,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 
+private fun formatIsoDate(iso: String): String = try {
+    val date = java.time.OffsetDateTime.parse(iso)
+    "%02d.%02d.%02d".format(date.dayOfMonth, date.monthValue, date.year % 100)
+} catch (_: Exception) {
+    try {
+        val date = java.time.LocalDate.parse(iso.take(10))
+        "%02d.%02d.%02d".format(date.dayOfMonth, date.monthValue, date.year % 100)
+    } catch (_: Exception) { iso }
+}
+
 val STAGE_LABELS = mapOf(
     "sowing" to "Посеяно",
     "sprouted" to "Проросло",
@@ -131,11 +141,16 @@ private fun PlantingCard(
                     )
                     planting.sownAt?.let {
                         Text(
-                            "Посеяно: $it",
+                            formatIsoDate(it),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    Text(
+                        "Дата последнего действия: ${planting.lastActionAt?.let { formatIsoDate(it) } ?: "—"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
@@ -153,14 +168,4 @@ private fun PlantingCard(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onLogAction, modifier = Modifier.weight(1f)) {
-                    Text("📝 Записать действие")
-                }
-                OutlinedButton(onClick = onCropDetail) {
-                    Text("О культуре")
-                }
-            }
-        }
-    }
-}
+            Row(horizontalAr
