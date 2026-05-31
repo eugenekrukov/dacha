@@ -25,6 +25,8 @@ fun ActionLogBottomSheet(
     var notes by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf(preselectedType) }
 
+    // Сбрасываем состояние при открытии (ViewModel живёт дольше шторки)
+    LaunchedEffect(Unit) { viewModel.reset() }
     // Закрываем после успеха
     LaunchedEffect(state.success) {
         if (state.success) onDismiss()
@@ -109,15 +111,4 @@ fun ActionLogBottomSheet(
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
                 if (state.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Сохранить", style = MaterialTheme.typography.titleMedium)
-                }
-            }
-        }
-    }
-}
+  

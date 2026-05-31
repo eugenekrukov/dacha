@@ -274,6 +274,31 @@ val STAGE_LABELS = mapOf("sowing" to "Посеяно", ...)
 
 ---
 
+
+---
+
+## 11. Деплой на VPS — обязательный порядок
+
+**Нельзя делать `git pull` на VPS без предварительного коммита и пуша локально.**
+
+Порядок всегда такой:
+
+```bash
+# 1. ЛОКАЛЬНО — сначала коммит и пуш
+git add -A
+git commit -m "feat/fix: описание"
+git push origin <branch>
+
+# 2. ТОЛЬКО ПОТОМ — на VPS
+cd /var/www/dacha-api/backend
+git stash          # если есть локальные правки на VPS
+git pull origin <branch>
+npm run migrate    # если были новые миграции
+pm2 restart dacha-api
+```
+
+> Если пропустить шаг 1 — `git pull` не принесёт новый код, и деплой бессмысленен.
+
 ## История изменений
 
 | Дата | Спринт | Что добавлено |

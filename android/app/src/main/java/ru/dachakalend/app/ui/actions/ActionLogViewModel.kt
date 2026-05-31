@@ -32,6 +32,10 @@ class ActionLogViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ActionLogUiState())
     val uiState: StateFlow<ActionLogUiState> = _uiState.asStateFlow()
 
+    fun reset() {
+        _uiState.value = ActionLogUiState()
+    }
+
     fun logAction(plantingId: Int, type: String, notes: String? = null) {
         viewModelScope.launch {
             _uiState.value = ActionLogUiState(isLoading = true)
