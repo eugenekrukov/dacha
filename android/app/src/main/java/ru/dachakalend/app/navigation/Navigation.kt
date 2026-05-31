@@ -31,7 +31,10 @@ sealed class Screen(val route: String) {
     // Sprint 3
     object Crops : Screen("crops")
     object CropDetail : Screen("crop_detail/{cropId}") {
-        fun route(cropId: Int) = "crop_detail/$cropId"
+        const val ARG_SHOW_PLANT = "showPlantButton"
+        val routeWithArgs = "crop_detail/{cropId}?$ARG_SHOW_PLANT={$ARG_SHOW_PLANT}"
+        fun route(cropId: Int, showPlantButton: Boolean = true) =
+            "crop_detail/$cropId?$ARG_SHOW_PLANT=$showPlantButton"
     }
 }
 
@@ -55,5 +58,5 @@ val screensWithoutBottomBar = setOf(
     Screen.Register.route,
     Screen.CreateGarden.route,
     Screen.Crops.route,
-    "crop_detail/{cropId}"
+    Screen.CropDetail.routeWithArgs
 )

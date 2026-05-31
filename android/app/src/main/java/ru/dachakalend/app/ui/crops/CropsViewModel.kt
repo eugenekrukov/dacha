@@ -16,6 +16,7 @@ data class CropsUiState(
     val crops: List<Crop> = emptyList(),
     val selectedCategory: String? = null,
     val selectedCrop: Crop? = null,
+    val climateZone: String? = null,
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -37,6 +38,7 @@ class CropsViewModel @Inject constructor(
     val uiState: StateFlow<CropsUiState> = _uiState.asStateFlow()
 
     init {
+        _uiState.value = _uiState.value.copy(climateZone = cropsRepository.getClimateZone())
         loadCrops()
     }
 
@@ -53,6 +55,18 @@ class CropsViewModel @Inject constructor(
 
     fun selectCrop(crop: Crop) {
         _uiState.value = _uiState.value.copy(selectedCrop = crop)
+    }
+
+    fun loadCropById(cropId: Int) {
+        if (_uiState.value.selectedCrop?.id == cropId) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            when (val result = cropsRepository.getCrop(cropId)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(selectedCrop = result.data, isLoading = false)
+                is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false)
+                is Result.Loading -> Unit
+            }
+        }
     }
 
     fun clearSelectedCrop() {

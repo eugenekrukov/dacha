@@ -2,6 +2,7 @@ package ru.dachakalend.app.ui.crops
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -47,7 +48,7 @@ private val STAGE_LABELS = mapOf(
     "growing"   to "Рост",
     "flowering" to "Цветение",
     "fruiting"  to "Плодоношение",
-    "harvesting"to "Уборка"
+    "harvesting" to "Уборка"
 )
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
@@ -56,8 +57,9 @@ private val STAGE_LABELS = mapOf(
 @Composable
 fun CropDetailScreen(
     crop: Crop,
+    climateZone: String? = null,
     onBack: () -> Unit,
-    onPlant: (Crop) -> Unit
+    onPlant: ((Crop) -> Unit)? = null
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Уход", "Болезни", "Соседи")
@@ -73,7 +75,7 @@ fun CropDetailScreen(
                 }
             )
         },
-        bottomBar = {
+        bottomBar = if (onPlant != null) ({
             Surface(shadowElevation = 8.dp) {
                 Button(
                     onClick = { onPlant(crop) },
@@ -85,7 +87,7 @@ fun CropDetailScreen(
                     Text("🌱 Посадить", style = MaterialTheme.typography.titleMedium)
                 }
             }
-        }
+        }) else ({}),
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             TabRow(selectedTabIndex = selectedTab) {
@@ -99,7 +101,7 @@ fun CropDetailScreen(
             }
 
             when (selectedTab) {
-                0 -> CareTab(crop)
+                0 -> CareTab(crop, climateZone)
                 1 -> DiseasesTab(crop)
                 2 -> NeighborsTab(crop)
             }
@@ -110,7 +112,7 @@ fun CropDetailScreen(
 // ─── Tab: Уход ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun CareTab(crop: Crop) {
+private fun CareTab(crop: Crop, climateZone: String? = null) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -119,15 +121,21 @@ private fun CareTab(crop: Crop) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Сроки посева
+        val zoneNames = mapOf("6" to "Юг РФ", "5" to "Средняя полоса", "4" to "Урал", "3" to "Сибирь")
         InfoCard(title = "Сроки посева") {
             if (crop.climateZones != null && crop.climateZones.isNotEmpty()) {
-                val zoneNames = mapOf("6" to "Юг РФ", "5" to "Средняя полоса", "4" to "Урал", "3" to "Сибирь")
-                listOf("6", "5", "4", "3").forEach { zone ->
+                val zonesToShow = if (climateZone != null && crop.climateZones.containsKey(climateZone)) {
+                    listOf(climateZone)
+                } else {
+                    listOf("6", "5", "4", "3")
+                }
+                zonesToShow.forEach { zone ->
                     val z = crop.climateZones[zone] ?: return@forEach
                     val sow = sowingRange(z.sowStart, z.sowEnd)
                     val transplant = if (z.transplantStart != null)
                         sowingRange(z.transplantStart, z.transplantEnd) else null
-                    InfoRow(zoneNames[zone] ?: zone, if (transplant != null) "посев $sow · рассада $transplant" else sow)
+                    val label = if (zonesToShow.size == 1) "Посев" else (zoneNames[zone] ?: zone)
+                    InfoRow(label, if (transplant != null) "посев $sow · рассада $transplant" else sow)
                 }
             } else {
                 InfoRow("Посев (день года)", sowingRange(crop.sowingStartDay, crop.sowingEndDay))
@@ -419,6 +427,7 @@ private fun NeighborsTab(crop: Crop) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NeighborSection(
     title: String,

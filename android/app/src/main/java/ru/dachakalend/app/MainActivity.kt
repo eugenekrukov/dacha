@@ -5,6 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -128,7 +132,8 @@ class MainActivity : ComponentActivity() {
                         // Plantings — базовый маршрут (из BottomNav)
                         composable(Screen.Plantings.route) {
                             PlantingsScreen(
-                                onAddCrop = { navController.navigate(Screen.Crops.route) }
+                                onAddCrop = { navController.navigate(Screen.Crops.route) },
+                                onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) }
                             )
                         }
                         // Plantings — с newCropId (из CropDetail → сразу создаём посадку)
@@ -140,7 +145,8 @@ class MainActivity : ComponentActivity() {
                             })
                         ) {
                             PlantingsScreen(
-                                onAddCrop = { navController.navigate(Screen.Crops.route) }
+                                onAddCrop = { navController.navigate(Screen.Crops.route) },
+                                onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) }
                             )
                         }
                         composable(Screen.Harvest.route) { HarvestScreen() }
@@ -159,37 +165,39 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(
-                            route = Screen.CropDetail.route,
-                            arguments = listOf(navArgument("cropId") { type = NavType.IntType })
+                            route = Screen.CropDetail.routeWithArgs,
+                            arguments = listOf(
+                                navArgument("cropId") { type = NavType.IntType },
+                                navArgument(Screen.CropDetail.ARG_SHOW_PLANT) {
+                                    type = NavType.BoolType; defaultValue = true
+                                }
+                            )
                         ) { backStackEntry ->
-                            val cropId = backStackEntry.arguments?.getInt("cropId")
-                            // Берём crop из предыдущей записи стека через ViewModel.
-                            // try-catch обязателен: при навигации onPlant Crops убирается из стека,
-                            // и Compose делает ещё одну recomposition — без защиты будет IAE crash.
-                            val cropsEntry = try {
-                                navController.getBackStackEntry(Screen.Crops.route)
-                            } catch (e: Exception) {
-                                null
-                            } ?: return@composable
-                            val cropsViewModel: CropsViewModel = hiltViewModel(cropsEntry)
+                            val cropId = backStackEntry.arguments?.getInt("cropId") ?: return@composable
+                            val showPlantButton = backStackEntry.arguments?.getBoolean(Screen.CropDetail.ARG_SHOW_PLANT) ?: true
+                            val cropsViewModel: CropsViewModel = hiltViewModel()
+                            LaunchedEffect(cropId) { cropsViewModel.loadCropById(cropId) }
                             val state by cropsViewModel.uiState.collectAsState()
                             val crop = state.selectedCrop
-                            if (crop != null && (cropId == null || crop.id == cropId)) {
-                                CropDetailScreen(
+                            when {
+                                state.isLoading || crop == null -> Box(
+                                    Modifier.fillMaxSize(),
+                                    contentAlignment = androidx.compose.ui.Alignment.Center
+                                ) { CircularProgressIndicator() }
+                                else -> CropDetailScreen(
                                     crop = crop,
+                                    climateZone = state.climateZone,
                                     onBack = {
                                         cropsViewModel.clearSelectedCrop()
                                         navController.popBackStack()
                                     },
-                                    onPlant = { selectedCrop ->
-                                        // Передаём cropId через nav argument — PlantingsViewModel
-                                        // получит его через SavedStateHandle и сразу создаст посадку
+                                    onPlant = if (showPlantButton) ({ selectedCrop ->
                                         navController.navigate(
                                             Screen.Plantings.withNewCrop(selectedCrop.id)
                                         ) {
                                             popUpTo(Screen.Today.route)
                                         }
-                                    }
+                                    }) else null
                                 )
                             }
                         }

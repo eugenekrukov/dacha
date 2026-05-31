@@ -19,6 +19,7 @@ class GardenRepository @Inject constructor(
             val gardens = api.getGardens()
             if (gardens.isNotEmpty()) {
                 tokenStorage.saveGardenId(gardens.first().id)
+                tokenStorage.saveClimateZone(gardens.first().climateZone)
             }
             Result.Success(gardens)
         } catch (e: Exception) {

@@ -30,6 +30,7 @@ val STAGE_ORDER = listOf("sowing", "sprouted", "growing", "flowering", "harvesti
 @Composable
 fun PlantingsScreen(
     onAddCrop: () -> Unit,
+    onCropDetail: (Int) -> Unit = {},
     viewModel: PlantingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -84,7 +85,8 @@ fun PlantingsScreen(
                             val currentIdx = STAGE_ORDER.indexOf(planting.stage)
                             val next = STAGE_ORDER.getOrNull(currentIdx + 1)
                             if (next != null) viewModel.updateStage(planting.id, next)
-                        }
+                        },
+                        onCropDetail = { onCropDetail(planting.cropId) }
                     )
                 }
             }
@@ -104,7 +106,8 @@ fun PlantingsScreen(
 private fun PlantingCard(
     planting: Planting,
     onLogAction: () -> Unit,
-    onNextStage: () -> Unit
+    onNextStage: () -> Unit,
+    onCropDetail: () -> Unit = {}
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -150,8 +153,13 @@ private fun PlantingCard(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Button(onClick = onLogAction, modifier = Modifier.fillMaxWidth()) {
-                Text("📝 Записать действие")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onLogAction, modifier = Modifier.weight(1f)) {
+                    Text("📝 Записать действие")
+                }
+                OutlinedButton(onClick = onCropDetail) {
+                    Text("О культуре")
+                }
             }
         }
     }

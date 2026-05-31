@@ -5,7 +5,7 @@
 
 ## Текущий статус MVP
 - **Общий прогресс**: 100% MVP завершён ✅ (все 5 спринтов)
-- **Текущий спринт**: MVP завершён → следующий этап: тесты
+- **Текущий спринт**: MVP + технический долг завершены ✅ → в проде
 - **Стек**: Node.js 20 + Fastify 4 + PostgreSQL | Android (Kotlin + Compose + Hilt)
 - **VPS порт**: 3002 | pm2 процесс: `dacha-api`
 - **Бэкенд URL**: `https://dacha.studio1008.com/` (HTTPS, nginx + Let's Encrypt)

@@ -511,3 +511,43 @@ npm run test:coverage  # с покрытием
 - Ветка `feature/quick-actions-geocoding` смержена в `main`
 - Бэкенд задеплоен на VPS (`/var/www/dacha-api`), `pm2 reload dacha-api` выполнен
 - Конфликты при pull разрешены (`package-lock.json` — theirs, документация — ours)
+
+---
+
+## Сессия 2026-05-31 — CropDetail с посадок + климатическая зона
+
+### Что сделано
+
+**Доступ к карточке культуры с экрана посадок:**
+- `PlantingsScreen` — добавлена кнопка "О культуре" в каждой карточке посадки (рядом с "Записать действие")
+- `PlantingsScreen` — новый параметр `onCropDetail: (Int) -> Unit`
+- `CropsViewModel` — добавлен `loadCropById(cropId)`: загружает культуру напрямую по id без зависимости от стека навигации
+- `MainActivity (CropDetail composable)` — переписан: использует собственный `CropsViewModel` + `LaunchedEffect(cropId)`, показывает спиннер во время загрузки. Убрана хрупкая привязка к `getBackStackEntry(Crops)`
+
+**Фильтрация по климатической зоне:**
+- `TokenStorage` — добавлены `saveClimateZone` / `getClimateZone`
+- `GardenRepository` — при `GET /gardens` сохраняет `climateZone` первого сада
+- `CropsRepository` — добавлен `getClimateZone()` (делегирует к TokenStorage)
+- `CropsUiState` — новое поле `climateZone: String?`
+- `CropDetailScreen / CareTab` — принимают `climateZone`; если зона известна и есть данные — показывается только одна строка "Посев" для нужной зоны; иначе все зоны как раньше
+- `backend/src/utils/regionCoords.js` — добавлен `REGION_ZONE` (маппинг регионов → зоны 3–6) и `getZoneForRegion(region)`
+- `backend/src/routes/gardens.js` — `GET /gardens` возвращает `climate_zone ?? getZoneForRegion(region)` (fallback для старых записей без зоны); `POST/PUT` сохраняют зону автоматически
+- Проверено: Новосибирская область → `climate_zone: "4"` ✅
+
+**Кнопка "Посадить" только в справочнике:**
+- `CropDetailScreen.onPlant` — стал nullable; `bottomBar` скрыт когда `onPlant = null`
+- `Navigation.kt` — маршрут `CropDetail` получил аргумент `showPlantButton: Boolean`
+- С посадок → `showPlantButton=false` (кнопка скрыта); из справочника → `showPlantButton=true`
+
+### Деплой
+- `backend/src/routes/gardens.js` и `utils/regionCoords.js` перезаписаны напрямую на VPS (merge повредил файлы)
+- `pm2 restart dacha-api` выполнен, API отвечает ✅
+
+### Осталось
+- Закоммитить локально (после удаления `.git/index.lock`):
+  ```bash
+  del "C:\Projects\Dacha\Календарь дачника\.git\index.lock"
+  git add -A
+  git commit -m "feat: crop detail from plantings, climate zone filter, hide plant button"
+  git push origin feature/crop-detail-tabs
+  ```

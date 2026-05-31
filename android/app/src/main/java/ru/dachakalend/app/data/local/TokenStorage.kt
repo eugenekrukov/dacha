@@ -19,8 +19,12 @@ class TokenStorage @Inject constructor(
     fun saveGardenId(id: Int) = prefs.edit { putInt(KEY_GARDEN_ID, id) }
     fun getGardenId(): Int = prefs.getInt(KEY_GARDEN_ID, -1)
 
+    fun saveClimateZone(zone: String?) = prefs.edit { putString(KEY_CLIMATE_ZONE, zone) }
+    fun getClimateZone(): String? = prefs.getString(KEY_CLIMATE_ZONE, null)
+
     companion object {
         private const val KEY_TOKEN = "auth_token"
         private const val KEY_GARDEN_ID = "garden_id"
+        private const val KEY_CLIMATE_ZONE = "climate_zone"
     }
 }
