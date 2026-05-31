@@ -30,24 +30,44 @@ import ru.dachakalend.app.ui.theme.taskColor
 
 @Composable
 fun TodayScreen(
+    showOnboardingHint: Boolean = false,
     onEditGarden: () -> Unit = {},
     onAddPlanting: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    when (val state = uiState) {
-        is TodayUiState.Loading -> LoadingScreen()
-        is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
-        is TodayUiState.Success -> TodayContent(
-            weather = state.data.today.weather,
-            tasks = state.data.today.tasks,
-            recommendations = state.data.recommendations,
-            plantings = state.data.plantings,
-            onRefresh = { viewModel.loadToday() },
-            onEditGarden = onEditGarden,
-            onAddPlanting = onAddPlanting
-        )
+    // Показать подсказку онбординга один раз
+    LaunchedEffect(showOnboardingHint) {
+        if (showOnboardingHint) {
+            val result = snackbarHostState.showSnackbar(
+                message = "Участок создан! Добавьте первую культуру",
+                actionLabel = "К культурам",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                onAddPlanting()
+            }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { _ ->
+        when (val state = uiState) {
+            is TodayUiState.Loading -> LoadingScreen()
+            is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
+            is TodayUiState.Success -> TodayContent(
+                weather = state.data.today.weather,
+                tasks = state.data.today.tasks,
+                recommendations = state.data.recommendations,
+                plantings = state.data.plantings,
+                onRefresh = { viewModel.loadToday() },
+                onEditGarden = onEditGarden,
+                onAddPlanting = onAddPlanting
+            )
+        }
     }
 }
 

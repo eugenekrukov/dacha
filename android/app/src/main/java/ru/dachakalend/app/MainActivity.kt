@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.CreateGarden.route) {
                             CreateGardenScreen(
                                 onGardenCreated = {
-                                    navController.navigate(Screen.Today.route) {
+                                    navController.navigate(Screen.Today.fromOnboarding()) {
                                         popUpTo(Screen.CreateGarden.route) { inclusive = true }
                                     }
                                 }
@@ -133,9 +133,23 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Main app
+                        // Main app — базовый маршрут
                         composable(Screen.Today.route) {
                             TodayScreen(
+                                onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
+                                onAddPlanting = { navController.navigate(Screen.Crops.route) }
+                            )
+                        }
+                        // Today — с флагом онбординга (после CreateGarden)
+                        composable(
+                            route = Screen.Today.routeWithArgs,
+                            arguments = listOf(navArgument(Screen.Today.ARG_FROM_ONBOARDING) {
+                                type = NavType.BoolType; defaultValue = false
+                            })
+                        ) { backStackEntry ->
+                            val fromOnboarding = backStackEntry.arguments?.getBoolean(Screen.Today.ARG_FROM_ONBOARDING) ?: false
+                            TodayScreen(
+                                showOnboardingHint = fromOnboarding,
                                 onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
                                 onAddPlanting = { navController.navigate(Screen.Crops.route) }
                             )
