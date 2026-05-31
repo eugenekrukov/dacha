@@ -5,11 +5,11 @@ module.exports = async function (fastify) {
 
   // POST /plantings
   fastify.post('/', auth, async (request, reply) => {
-    const { garden_id, crop_id, planted_at, quantity, notes } = request.body
+    const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes } = request.body
     const result = await fastify.db.query(
-      `INSERT INTO plantings (garden_id, crop_id, planted_at, quantity, notes, stage)
-       VALUES ($1,$2,$3,$4,$5,'sowing') RETURNING *`,
-      [garden_id, crop_id, planted_at || new Date(), quantity, notes]
+      `INSERT INTO plantings (garden_id, crop_id, planted_at, quantity, conditions, notes, stage)
+       VALUES ($1,$2,$3,$4,$5,$6,'sowing') RETURNING *`,
+      [garden_id, crop_id, planted_at || new Date(), quantity, conditions, notes]
     )
     return reply.code(201).send(result.rows[0])
   })
@@ -46,10 +46,27 @@ module.exports = async function (fastify) {
 
   // PATCH /plantings/:id/stage
   fastify.patch('/:id/stage', auth, async (request, reply) => {
-    const { stage } = request.body // sowing | sprouted | growing | flowering | harvesting | done
+    const { stage } = request.body
     const result = await fastify.db.query(
       `UPDATE plantings SET stage=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
       [stage, request.params.id]
+    )
+    if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
+    return result.rows[0]
+  })
+
+  // PATCH /plantings/:id/info — редактирование даты, количества, условий
+  fastify.patch('/:id/info', auth, async (request, reply) => {
+    const { planted_at, quantity, conditions } = request.body
+    const result = await fastify.db.query(
+      `UPDATE plantings
+       SET planted_at = COALESCE($1, planted_at),
+           quantity   = COALESCE($2, quantity),
+           conditions = COALESCE($3, conditions),
+           updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [planted_at ?? null, quantity ?? null, conditions ?? null, request.params.id]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
     return result.rows[0]

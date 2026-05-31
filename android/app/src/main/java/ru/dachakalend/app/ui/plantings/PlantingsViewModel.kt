@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.CreatePlantingRequest
 import ru.dachakalend.app.data.model.Planting
+import ru.dachakalend.app.data.model.UpdatePlantingInfoRequest
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.navigation.Screen
@@ -22,7 +23,11 @@ data class PlantingsUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val showActionSheet: Planting? = null,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    // Шторка создания посадки (при нажатии "Посадить")
+    val pendingCropId: Int? = null,
+    // Шторка редактирования посадки (в 3 точках)
+    val editingPlanting: Planting? = null
 )
 
 @HiltViewModel
@@ -37,10 +42,10 @@ class PlantingsViewModel @Inject constructor(
 
     init {
         loadPlantings()
-        // Если пришли из CropDetail — сразу создаём посадку
+        // Если пришли из CropDetail — открываем шторку настройки посадки
         val newCropId = savedStateHandle.get<Int>(Screen.Plantings.ARG_NEW_CROP_ID)
         if (newCropId != null && newCropId != -1) {
-            createPlanting(newCropId)
+            _uiState.value = _uiState.value.copy(pendingCropId = newCropId)
         }
     }
 
@@ -56,7 +61,17 @@ class PlantingsViewModel @Inject constructor(
         }
     }
 
-    fun createPlanting(cropId: Int, notes: String? = null) {
+    /** Подтверждение из PlantingSetupBottomSheet */
+    fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String) {
+        _uiState.value = _uiState.value.copy(pendingCropId = null)
+        createPlanting(cropId, date, quantity, conditions)
+    }
+
+    fun dismissSetupSheet() {
+        _uiState.value = _uiState.value.copy(pendingCropId = null)
+    }
+
+    private fun createPlanting(cropId: Int, date: String, quantity: Int, conditions: String) {
         viewModelScope.launch {
             val gardenId = tokenStorage.getGardenId()
             if (gardenId == -1) {
@@ -66,8 +81,9 @@ class PlantingsViewModel @Inject constructor(
             val request = CreatePlantingRequest(
                 cropId = cropId,
                 gardenId = gardenId,
-                sownAt = LocalDate.now().toString(),
-                notes = notes
+                sownAt = date,
+                quantity = quantity,
+                conditions = conditions
             )
             when (val result = plantingsRepository.createPlanting(request)) {
                 is Result.Success -> {
@@ -75,6 +91,33 @@ class PlantingsViewModel @Inject constructor(
                     loadPlantings()
                 }
                 is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message)
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun openEditSheet(planting: Planting) {
+        _uiState.value = _uiState.value.copy(editingPlanting = planting)
+    }
+
+    fun dismissEditSheet() {
+        _uiState.value = _uiState.value.copy(editingPlanting = null)
+    }
+
+    fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String) {
+        _uiState.value = _uiState.value.copy(editingPlanting = null)
+        viewModelScope.launch {
+            val request = UpdatePlantingInfoRequest(
+                plantedAt = date,
+                quantity = quantity,
+                conditions = conditions
+            )
+            when (plantingsRepository.updateInfo(plantingId, request)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(successMessage = "Посадка обновлена!")
+                    loadPlantings()
+                }
+                is Result.Error   -> Unit
                 is Result.Loading -> Unit
             }
         }
@@ -96,6 +139,7 @@ class PlantingsViewModel @Inject constructor(
 
     fun closeActionSheet() {
         _uiState.value = _uiState.value.copy(showActionSheet = null)
+        loadPlantings()
     }
 
     fun clearMessage() {

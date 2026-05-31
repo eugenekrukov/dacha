@@ -44,6 +44,12 @@ interface DachaApi {
         @Body body: Map<String, String>
     ): Planting
 
+    @PATCH("plantings/{id}/info")
+    suspend fun updatePlantingInfo(
+        @Path("id") id: Int,
+        @Body request: UpdatePlantingInfoRequest
+    ): Planting
+
     // Actions
     @GET("actions")
     suspend fun getActions(@Query("planting_id") plantingId: Int): List<ActionLog>

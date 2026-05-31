@@ -36,7 +36,7 @@ data class TodayResponse(
 
 @JsonClass(generateAdapter = true)
 data class TodayTask(
-    val type: String,          // frost_alert | transplant_due | watering_due | harvest_due | reminder
+    val type: String,
     val priority: Int,
     val title: String,
     val description: String,
@@ -80,8 +80,8 @@ data class WeatherSnapshot(
 
 @JsonClass(generateAdapter = true)
 data class Recommendation(
-    val type: String,       // watering | frost_alert | harvest_ready
-    val priority: String,   // critical | high | medium | low
+    val type: String,
+    val priority: String,
     @Json(name = "planting_id") val plantingId: Int?,
     @Json(name = "crop_name") val cropName: String?,
     val message: String
@@ -101,9 +101,9 @@ data class RegisterRequest(
 @JsonClass(generateAdapter = true)
 data class Reminder(
     val id: Int,
-    val type: String?,                                // watering | fertilizing | treatment | custom
+    val type: String?,
     val message: String?,
-    @Json(name = "remind_at") val remindAt: String,  // ISO 8601: "2026-06-15T08:00:00Z"
+    @Json(name = "remind_at") val remindAt: String,
     @Json(name = "is_sent") val isSent: Boolean?,
     @Json(name = "planting_id") val plantingId: Int?,
     @Json(name = "crop_name") val cropName: String?
@@ -117,11 +117,13 @@ data class Planting(
     @Json(name = "crop_id") val cropId: Int,
     @Json(name = "crop_name") val cropName: String?,
     @Json(name = "garden_id") val gardenId: Int,
-    val stage: String,             // sowing | sprouted | growing | flowering | harvesting | done
-    @Json(name = "planted_at") val sownAt: String?,     // колонка planted_at в БД
+    val stage: String,
+    @Json(name = "planted_at") val sownAt: String?,
     @Json(name = "expected_harvest_at") val expectedHarvestAt: String?,
     val notes: String?,
-    @Json(name = "last_action_at") val lastActionAt: String? = null
+    @Json(name = "last_action_at") val lastActionAt: String? = null,
+    val quantity: Int? = 1,
+    val conditions: String? = "soil"   // soil | greenhouse
 )
 
 // --- Crop ---
@@ -140,7 +142,6 @@ data class WateringStage(
     @Json(name = "amount_l_m2") val amountLM2: Int?
 )
 
-// watering_details содержит стадии + строковый ключ "notes" — типизируем явно
 @JsonClass(generateAdapter = true)
 data class WateringDetails(
     val seedling: WateringStage? = null,
@@ -154,3 +155,168 @@ data class WateringDetails(
 
 @JsonClass(generateAdapter = true)
 data class FertilizingEntry(
+    val stage: String?,
+    val timing: String?,
+    @Json(name = "fertilizer_type") val fertilizerType: String?,
+    @Json(name = "product_example") val productExample: String?,
+    val dose: String?,
+    val method: String?,   // root | foliar
+    val notes: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class CropDisease(
+    val name: String,
+    val symptoms: String?,
+    val conditions: String?,
+    val treatment: String?,
+    val prevention: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class CropPest(
+    val name: String,
+    val signs: String?,
+    val treatment: String?,
+    val prevention: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class Crop(
+    val id: Int,
+    val name: String,
+    val category: String,
+    @Json(name = "sowing_start_day") val sowingStartDay: Int?,
+    @Json(name = "sowing_end_day") val sowingEndDay: Int?,
+    @Json(name = "transplant_days") val transplantDays: Int?,
+    @Json(name = "harvest_days") val harvestDays: Int?,
+    @Json(name = "watering_freq_days") val wateringFreqDays: Int?,
+    @Json(name = "frost_sensitive") val frostSensitive: Boolean?,
+    @Json(name = "companion_crops") val companionCrops: String?,
+    val notes: String?,
+    @Json(name = "climate_zones") val climateZones: Map<String, ClimateZoneWindow>? = null,
+    @Json(name = "watering_details") val wateringDetails: WateringDetails? = null,
+    @Json(name = "fertilizing_schedule") val fertilizingSchedule: List<FertilizingEntry>? = null,
+    val diseases: List<CropDisease>? = null,
+    val pests: List<CropPest>? = null,
+    @Json(name = "good_neighbors") val goodNeighbors: List<String>? = null,
+    @Json(name = "bad_neighbors") val badNeighbors: List<String>? = null,
+    @Json(name = "good_predecessors") val goodPredecessors: List<String>? = null
+)
+
+// --- Planting requests ---
+
+@JsonClass(generateAdapter = true)
+data class CreatePlantingRequest(
+    @Json(name = "crop_id") val cropId: Int,
+    @Json(name = "garden_id") val gardenId: Int,
+    val stage: String = "sowing",
+    @Json(name = "planted_at") val sownAt: String?,
+    val notes: String? = null,
+    val quantity: Int = 1,
+    val conditions: String = "soil"
+)
+
+// --- UpdatePlantingInfoRequest ---
+
+@JsonClass(generateAdapter = true)
+data class UpdatePlantingInfoRequest(
+    @Json(name = "planted_at") val plantedAt: String? = null,
+    val quantity: Int? = null,
+    val conditions: String? = null
+)
+
+// --- ActionLog ---
+
+@JsonClass(generateAdapter = true)
+data class ActionLog(
+    val id: Int,
+    @Json(name = "planting_id") val plantingId: Int,
+    @Json(name = "crop_name") val cropName: String?,
+    @Json(name = "action_type") val type: String,
+    val notes: String?,
+    @Json(name = "logged_at") val loggedAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateActionRequest(
+    @Json(name = "planting_id") val plantingId: Int,
+    val type: String,
+    val notes: String? = null
+)
+
+// --- Reminder request ---
+
+@JsonClass(generateAdapter = true)
+data class CreateReminderRequest(
+    val type: String,
+    val message: String? = null,
+    @Json(name = "remind_at") val remindAt: String,
+    @Json(name = "planting_id") val plantingId: Int? = null
+)
+
+// --- Harvest ---
+
+@JsonClass(generateAdapter = true)
+data class Harvest(
+    val id: Int,
+    @Json(name = "planting_id") val plantingId: Int,
+    @Json(name = "crop_name") val cropName: String?,
+    @Json(name = "weight_kg") val weightKg: Double?,
+    val quantity: Int?,
+    val notes: String?,
+    @Json(name = "harvested_at") val harvestedAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateHarvestRequest(
+    @Json(name = "planting_id") val plantingId: Int,
+    @Json(name = "weight_kg") val weightKg: Double? = null,
+    val quantity: Int? = null,
+    val notes: String? = null
+)
+
+// --- Analytics ---
+
+@JsonClass(generateAdapter = true)
+data class AnalyticsSummary(
+    val streak: Int,
+    @Json(name = "total_actions") val totalActions: Int,
+    @Json(name = "total_harvests") val totalHarvests: Int,
+    @Json(name = "activity_by_day") val activityByDay: List<ActivityDay>,
+    val onboarding: OnboardingProgress
+)
+
+@JsonClass(generateAdapter = true)
+data class ActivityDay(
+    val date: String,
+    val count: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class OnboardingProgress(
+    val garden: Boolean,
+    val planting: Boolean,
+    val action: Boolean,
+    val harvest: Boolean
+)
+
+// --- Garden ---
+
+@JsonClass(generateAdapter = true)
+data class Garden(
+    val id: Int,
+    val name: String,
+    val region: String?,
+    @Json(name = "soil_type") val soilType: String?,
+    @Json(name = "climate_zone") val climateZone: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateGardenRequest(
+    val name: String,
+    val region: String?,
+    val city: String? = null,
+    @Json(name = "soil_type") val soilType: String?,
+    @Json(name = "climate_zone") val climateZone: String?
+)

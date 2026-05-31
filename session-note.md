@@ -551,3 +551,76 @@ npm run test:coverage  # с покрытием
   git commit -m "feat: crop detail from plantings, climate zone filter, hide plant button"
   git push origin feature/crop-detail-tabs
   ```
+
+---
+
+## Сессия 2026-05-31 — Параметры посадки + редактирование + рекомендации
+
+### Что сделано
+
+1. **Баг: отображались все регионы в "Сроках посева"**
+   - `TokenStorage.kt` был физически обрезан на диске — восстановлен полностью
+   - `createGarden()` не сохранял `climateZone` → добавлен `tokenStorage.saveClimateZone(garden.climateZone)`
+   - `TodayViewModel.init`: если `climateZone == null` — вызывает `loadGardens()` при старте (для старых пользователей)
+
+2. **Инструкция по записи файлов**: после каждой записи проверять `tail -3` / `wc -c`, что файл не обрезан
+
+3. **Карточка посадки**: дата в формате DD.MM.YY + строка "Дата последнего действия:"
+   - Бэкенд: `GET /plantings` возвращает `last_action_at` через подзапрос `MAX(logged_at)`
+   - Android: поле `lastActionAt` в `Planting`, функция `formatIsoDate()`
+
+4. **Параметры посадки (quantity, conditions) — полный фича-цикл**:
+   - **Миграция** `007_plantings_extra_fields.sql`: `quantity INT DEFAULT 1`, `conditions VARCHAR(20) DEFAULT 'soil'`
+   - **Бэкенд `plantings.js`**: POST/GET принимают/возвращают поля; новый `PATCH /:id/info`
+   - **Рекомендации**: теплица (`conditions='greenhouse'`) снимает `frost_alert`, увеличивает интервал полива на 30%
+   - **`recommendations.js`**: дочинен обрезанный хвост (слой 4 — подкормки)
+   - **Android Models**: `Planting` + `quantity`/`conditions`, `CreatePlantingRequest` + поля, новый `UpdatePlantingInfoRequest`
+   - **`DachaApi`**: добавлен `updatePlantingInfo PATCH plantings/{id}/info`
+   - **`PlantingsRepository`**: добавлен `updateInfo()`
+   - **`PlantingsViewModel`**: `pendingCropId` вместо авто-создания, `confirmPlanting()`, `openEditSheet()`, `saveEditedInfo()`
+   - **`PlantingsScreen`**: `PlantingSetupBottomSheet` (дата/кол-во/место), `PlantingEditBottomSheet` (редактирование), карточка — "Редактировать информацию" вместо "Следующий этап"
+
+### Важное: Edit tool обрезает файлы на Windows-монтировании!
+Все записи файлов теперь только через `cat > file << 'EOF'` в bash. Edit tool использовать нельзя.
+
+### Git
+```
+git checkout -b feature/planting-setup-conditions
+git add -A
+git commit -m "feat: planting setup sheet (date/qty/conditions), edit info, greenhouse recommendations"
+git push origin feature/planting-setup-conditions
+# На VPS:
+npm run migrate   # 007_plantings_extra_fields.sql
+pm2 restart dacha-api
+```
+
+
+---
+
+## Сессия 2026-05-31 — Параметры посадки + редактирование + рекомендации
+
+### Что сделано
+
+1. **Баг: все регионы в Сроках посева** — TokenStorage.kt был обрезан, createGarden не сохранял climateZone, TodayViewModel теперь вызывает loadGardens() если zone == null
+
+2. **Карточка посадки**: last_action_at через подзапрос MAX в GET /plantings; formatIsoDate() DD.MM.YY
+
+3. **Параметры посадки (quantity, conditions)**:
+   - Миграция 007: quantity INT DEFAULT 1, conditions VARCHAR(20) DEFAULT 'soil'
+   - plantings.js: POST/GET с полями, новый PATCH /:id/info
+   - recommendations.js: теплица снимает frost_alert, +30% к интервалу полива; восстановлен обрезанный слой 4 (подкормки)
+   - Models.kt: Planting + quantity/conditions, новый UpdatePlantingInfoRequest
+   - DachaApi: updatePlantingInfo; PlantingsRepository: updateInfo()
+   - PlantingsViewModel: pendingCropId вместо авто-создания, confirmPlanting/openEditSheet/saveEditedInfo
+   - PlantingsScreen: PlantingSetupBottomSheet (дата/кол-во/место), PlantingEditBottomSheet, карточка — "Редактировать информацию"
+
+### Важное: Edit tool обрезает файлы на Windows-монтировании — только cat > через bash!
+
+### Git
+```
+git checkout -b feature/planting-setup-conditions
+git add -A
+git commit -m "feat: planting setup sheet (date/qty/conditions), edit info, greenhouse recommendations"
+git push origin feature/planting-setup-conditions
+# На VPS: npm run migrate + pm2 restart dacha-api
+```
