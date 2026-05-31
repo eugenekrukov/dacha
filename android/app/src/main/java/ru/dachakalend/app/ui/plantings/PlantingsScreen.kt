@@ -96,8 +96,9 @@ fun PlantingsScreen(
                 items(state.plantings, key = { it.id }) { planting ->
                     PlantingCard(
                         planting = planting,
-                        onLogAction = { viewModel.openActionSheet(planting) },
-                        onEditInfo  = { viewModel.openEditSheet(planting) },
+                        onLogAction  = { viewModel.openActionSheet(planting) },
+                        onEditInfo   = { viewModel.openEditSheet(planting) },
+                        onDelete     = { viewModel.requestDelete(planting) },
                         onCropDetail = { onCropDetail(planting.cropId) }
                     )
                 }
@@ -121,6 +122,23 @@ fun PlantingsScreen(
         )
     }
 
+    // Диалог подтверждения удаления
+    state.confirmDeletePlanting?.let { planting ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissDelete() },
+            title = { Text("Удалить посадку?") },
+            text = { Text("«${planting.cropName ?: "Посадка"}» будет удалена без возможности восстановления.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmDelete(planting.id) }) {
+                    Text("Удалить", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissDelete() }) { Text("Отмена") }
+            }
+        )
+    }
+
     // Шторка редактирования существующей посадки
     state.editingPlanting?.let { planting ->
         PlantingEditBottomSheet(
@@ -138,6 +156,7 @@ private fun PlantingCard(
     planting: Planting,
     onLogAction: () -> Unit,
     onEditInfo: () -> Unit,
+    onDelete: () -> Unit,
     onCropDetail: () -> Unit = {}
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -184,6 +203,10 @@ private fun PlantingCard(
                         DropdownMenuItem(
                             text = { Text("Редактировать информацию") },
                             onClick = { menuExpanded = false; onEditInfo() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Удалить посадку", color = MaterialTheme.colorScheme.error) },
+                            onClick = { menuExpanded = false; onDelete() }
                         )
                     }
                 }

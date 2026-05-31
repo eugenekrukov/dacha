@@ -33,4 +33,11 @@ class PlantingsRepository @Inject constructor(private val api: DachaApi) {
     } catch (e: Exception) {
         Result.Error(e.message ?: "Ошибка обновления посадки")
     }
+
+    suspend fun deletePlanting(plantingId: Int): Result<Unit> = try {
+        api.deletePlanting(plantingId)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка удаления посадки")
+    }
 }

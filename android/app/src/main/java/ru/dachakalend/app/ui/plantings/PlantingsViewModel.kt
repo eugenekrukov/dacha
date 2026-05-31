@@ -123,6 +123,28 @@ class PlantingsViewModel @Inject constructor(
         }
     }
 
+    fun requestDelete(planting: Planting) {
+        _uiState.value = _uiState.value.copy(confirmDeletePlanting = planting)
+    }
+
+    fun dismissDelete() {
+        _uiState.value = _uiState.value.copy(confirmDeletePlanting = null)
+    }
+
+    fun confirmDelete(plantingId: Int) {
+        _uiState.value = _uiState.value.copy(confirmDeletePlanting = null)
+        viewModelScope.launch {
+            when (plantingsRepository.deletePlanting(plantingId)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(successMessage = "Посадка удалена")
+                    loadPlantings()
+                }
+                is Result.Error   -> Unit
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
     fun updateStage(plantingId: Int, stage: String) {
         viewModelScope.launch {
             when (plantingsRepository.updateStage(plantingId, stage)) {

@@ -55,6 +55,18 @@ module.exports = async function (fastify) {
     return result.rows[0]
   })
 
+  // DELETE /plantings/:id
+  fastify.delete('/:id', auth, async (request, reply) => {
+    const result = await fastify.db.query(
+      `DELETE FROM plantings WHERE id=$1
+       AND garden_id IN (SELECT id FROM gardens WHERE user_id=$2)
+       RETURNING id`,
+      [request.params.id, request.user.userId]
+    )
+    if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
+    return reply.code(200).send({ deleted: true })
+  })
+
   // PATCH /plantings/:id/info — редактирование даты, количества, условий
   fastify.patch('/:id/info', auth, async (request, reply) => {
     const { planted_at, quantity, conditions } = request.body
