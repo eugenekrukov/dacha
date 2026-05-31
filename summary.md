@@ -65,6 +65,26 @@
 - [x] Экспорт истории действий (`GET /actions/export` CSV + Share sheet) и экран аналитики (`AnalyticsScreen` — streak, счётчики, онбординг-прогресс, график активности)
 - **Статус**: ✅ Завершён
 
+### Post-MVP (2026-05-31)
+- [x] Фикс Сроков посева — `TokenStorage.kt` восстановлен, `climateZone` сохраняется при создании и загрузке участка
+- [x] Карточка посадки: дата DD.MM.YY + дата последнего действия (`last_action_at` подзапросом)
+- [x] Параметры посадки: `quantity`, `conditions` (грунт/теплица) — миграция 007, `PlantingSetupBottomSheet`, `PlantingEditBottomSheet`, PATCH `/plantings/:id/info`
+- [x] Рекомендации учитывают условия: теплица снимает frost_alert, +30% к интервалу полива
+- [x] Удаление посадки с подтверждением (DELETE `/plantings/:id`)
+- [x] Фикс `ActionLogViewModel` — сброс состояния при открытии шторки (кнопка переставала работать после первого действия)
+- [x] Экран "Информация": расписание работ с датами (care_tasks, миграция 008, 20 культур), последние 5 действий, кнопка "О культуре"
+- [x] Правило: Edit tool обрезает файлы на Windows-монтировании — только `cat > file` через bash
+
+### Post-MVP (2026-05-31, сессия 2)
+- [x] Admin-guard для `POST /crops` и `PUT /crops/:id` — декоратор `requireAdmin`, переменная `ADMIN_EMAIL` в `.env`
+- [x] Фикс `action_type`: бэкенд искал `'watered'`/`'fertilized'`, в БД хранится `'watering'`/`'fertilizing'` — исправлено в `today.js` и `recommendations.js`
+- [x] Фикс рекомендаций: fallback `999` дней заменён на `daysSincePlanting` (полив и подкормка)
+- [x] Фикс моргания экрана после закрытия шторки "Записать действие" — `loadPlantings(silent=true)` не сбрасывает список
+- [x] Фикс сортировки расписания работ — сортировка по `LocalDate`, а не по строке `"dd.MM.yy"`
+- [x] Восстановлена кодировка UTF-8 в `recommendations.js`, `today.js`, `crops.js`, `app.js` (испорчены PowerShell `Set-Content`)
+- [x] `CONVENTIONS.md` актуализирован: `CalendarRepository`, раздел 5a (SQL enum-значения), уточнение по `runCatching`
+- [x] Правило: бэкенд `.js` писать только через Write tool или SSH — PowerShell `Set-Content` портит кириллицу
+
 ---
 
 ## Реализованные API Эндпоинты

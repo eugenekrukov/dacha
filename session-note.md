@@ -624,3 +624,51 @@ git commit -m "feat: planting setup sheet (date/qty/conditions), edit info, gree
 git push origin feature/planting-setup-conditions
 # На VPS: npm run migrate + pm2 restart dacha-api
 ```
+
+---
+
+## Сессия 2026-05-31 — Баг-фиксы и аудит конвенций
+
+### Что сделано
+
+1. **Admin-guard для справочника культур**
+   - Декоратор `requireAdmin` в `app.js` — проверяет `ADMIN_EMAIL` из `.env`
+   - `POST /crops` и `PUT /crops/:id` теперь доступны только администратору
+   - На VPS добавлен `ADMIN_EMAIL=krukov1@gmail.com` в `.env`
+
+2. **Фикс `action_type` в бэкенде**
+   - `today.js` и `recommendations.js` искали `action_type = 'watered'` / `'fertilized'`
+   - В БД хранится `'watering'` / `'fertilizing'` (Android пишет именно эти значения)
+   - Следствие: `lastWateredMap` всегда был пуст → рекомендации ложно показывали полив для всех посадок
+   - Задачи на день при этом могли быть пустыми (корректно для свежих посадок)
+
+3. **Фикс fallback 999 дней в рекомендациях**
+   - При отсутствии записи о поливе/подкормке использовался `999` → некорректное сообщение "прошло 999 дн."
+   - Заменено на `daysSincePlanting` — реальное время с посадки
+
+4. **Фикс моргания экрана после закрытия шторки "Записать действие"**
+   - `PlantingsViewModel.loadPlantings(silent=true)` — не сбрасывает `isLoading` и не очищает список при тихой перезагрузке
+   - `closeActionSheet()` теперь вызывает `loadPlantings(silent = true)`
+
+5. **Фикс сортировки расписания работ в PlantingInfoBottomSheet**
+   - `expandTasks` сортировал по строке `"dd.MM.yy"` (лексикографически) — неправильно
+   - Теперь накапливает `Triple(name, dateStr, LocalDate)`, сортирует по `LocalDate`
+
+6. **Восстановление кодировки UTF-8**
+   - PowerShell `Set-Content -Encoding utf8` портит кириллицу (re-encode UTF-8 как Windows-1252)
+   - Пострадавшие файлы: `recommendations.js`, `today.js`, `crops.js`, `app.js`
+   - Восстановлены через Write tool; правило зафиксировано в CONVENTIONS.md и памяти
+
+7. **Аудит и актуализация `CONVENTIONS.md`**
+   - Добавлен `CalendarRepository.getCalendarData()` в таблицу репозиториев
+   - Добавлен раздел **5a**: таблица канонических enum-значений в SQL (`watering`, `fertilizing`, `treatment`, `other`, стадии посадки)
+   - Уточнено: `runCatching` в UI для парсинга дат — допустимое исключение
+
+### Технические решения
+- SSH на VPS работает только из PowerShell (не bash) — Windows SSH-ключ в config
+- Бэкенд `.js` писать только через Write tool или SSH heredoc
+- `action_type` в БД: `watering | fertilizing | treatment | other` (источник: `ACTION_TYPES` в `ActionLogViewModel.kt`)
+
+### Следующие шаги
+- Пересобрать и установить APK с фиксами `action_type`
+- Смержить ветку `feature/planting-setup-conditions` в `main` после проверки на устройстве
