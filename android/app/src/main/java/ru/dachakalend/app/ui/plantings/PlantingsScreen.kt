@@ -96,11 +96,12 @@ fun PlantingsScreen(
             ) {
                 items(state.plantings, key = { it.id }) { planting ->
                     PlantingCard(
-                        planting     = planting,
-                        onLogAction  = { viewModel.openActionSheet(planting) },
-                        onEditInfo   = { viewModel.openEditSheet(planting) },
-                        onDelete     = { viewModel.requestDelete(planting) },
-                        onInfo       = { viewModel.openInfoSheet(planting) }
+                        planting       = planting,
+                        onLogAction    = { viewModel.openActionSheet(planting) },
+                        onEditInfo     = { viewModel.openEditSheet(planting) },
+                        onDelete       = { viewModel.requestDelete(planting) },
+                        onFinishSeason = { viewModel.requestFinishSeason(planting) },
+                        onInfo         = { viewModel.openInfoSheet(planting) }
                     )
                 }
             }
@@ -151,6 +152,23 @@ fun PlantingsScreen(
         )
     }
 
+    // Диалог подтверждения завершения сезона
+    state.confirmFinishSeason?.let { planting ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissFinishSeason() },
+            title = { Text("Завершить сезон?") },
+            text = { Text("«${planting.cropName ?: "Посадка"}» будет переведена в архив. Данные сохранятся.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmFinishSeason(planting.id) }) {
+                    Text("Завершить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissFinishSeason() }) { Text("Отмена") }
+            }
+        )
+    }
+
     // Шторка редактирования существующей посадки
     state.editingPlanting?.let { planting ->
         PlantingEditBottomSheet(
@@ -169,6 +187,7 @@ private fun PlantingCard(
     onLogAction: () -> Unit,
     onEditInfo: () -> Unit,
     onDelete: () -> Unit,
+    onFinishSeason: () -> Unit,
     onInfo: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -215,6 +234,10 @@ private fun PlantingCard(
                         DropdownMenuItem(
                             text = { Text("Редактировать информацию") },
                             onClick = { menuExpanded = false; onEditInfo() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("✅ Завершить сезон") },
+                            onClick = { menuExpanded = false; onFinishSeason() }
                         )
                         DropdownMenuItem(
                             text = { Text("Удалить посадку", color = MaterialTheme.colorScheme.error) },
