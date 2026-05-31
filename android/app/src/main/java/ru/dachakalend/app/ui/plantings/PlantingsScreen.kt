@@ -47,6 +47,7 @@ private fun formatIsoDate(iso: String): String = try {
 fun PlantingsScreen(
     onAddCrop: () -> Unit,
     onCropDetail: (Int) -> Unit = {},
+    onOpenCropDetail: (Int) -> Unit = onCropDetail,
     viewModel: PlantingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -95,11 +96,11 @@ fun PlantingsScreen(
             ) {
                 items(state.plantings, key = { it.id }) { planting ->
                     PlantingCard(
-                        planting = planting,
+                        planting     = planting,
                         onLogAction  = { viewModel.openActionSheet(planting) },
                         onEditInfo   = { viewModel.openEditSheet(planting) },
                         onDelete     = { viewModel.requestDelete(planting) },
-                        onCropDetail = { onCropDetail(planting.cropId) }
+                        onInfo       = { viewModel.openInfoSheet(planting) }
                     )
                 }
             }
@@ -119,6 +120,18 @@ fun PlantingsScreen(
         PlantingSetupBottomSheet(
             onConfirm = { date, qty, cond -> viewModel.confirmPlanting(cropId, date, qty, cond) },
             onDismiss = { viewModel.dismissSetupSheet() }
+        )
+    }
+
+    // Шторка информации о посадке
+    state.showInfoSheet?.let { planting ->
+        PlantingInfoBottomSheet(
+            planting     = planting,
+            onDismiss    = { viewModel.dismissInfoSheet() },
+            onCropDetail = { cropId ->
+                viewModel.dismissInfoSheet()
+                onOpenCropDetail(cropId)
+            }
         )
     }
 
@@ -157,7 +170,7 @@ private fun PlantingCard(
     onLogAction: () -> Unit,
     onEditInfo: () -> Unit,
     onDelete: () -> Unit,
-    onCropDetail: () -> Unit = {}
+    onInfo: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -216,8 +229,8 @@ private fun PlantingCard(
                 Button(onClick = onLogAction, modifier = Modifier.weight(1f)) {
                     Text("📝 Записать действие")
                 }
-                OutlinedButton(onClick = onCropDetail) {
-                    Text("О культуре")
+                OutlinedButton(onClick = onInfo) {
+                    Text("Информация")
                 }
             }
         }

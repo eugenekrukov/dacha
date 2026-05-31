@@ -123,6 +123,14 @@ class PlantingsViewModel @Inject constructor(
         }
     }
 
+    fun openInfoSheet(planting: Planting) {
+        _uiState.value = _uiState.value.copy(showInfoSheet = planting)
+    }
+
+    fun dismissInfoSheet() {
+        _uiState.value = _uiState.value.copy(showInfoSheet = null)
+    }
+
     fun requestDelete(planting: Planting) {
         _uiState.value = _uiState.value.copy(confirmDeletePlanting = planting)
     }

@@ -182,6 +182,13 @@ data class CropPest(
 )
 
 @JsonClass(generateAdapter = true)
+data class CareTask(
+    val name: String,
+    @Json(name = "day_offset") val dayOffset: Int,
+    @Json(name = "repeat_days") val repeatDays: Int? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class Crop(
     val id: Int,
     val name: String,
@@ -201,7 +208,8 @@ data class Crop(
     val pests: List<CropPest>? = null,
     @Json(name = "good_neighbors") val goodNeighbors: List<String>? = null,
     @Json(name = "bad_neighbors") val badNeighbors: List<String>? = null,
-    @Json(name = "good_predecessors") val goodPredecessors: List<String>? = null
+    @Json(name = "good_predecessors") val goodPredecessors: List<String>? = null,
+    @Json(name = "care_tasks") val careTasks: List<CareTask>? = null
 )
 
 // --- Planting requests ---
