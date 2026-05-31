@@ -125,7 +125,20 @@ class MainActivity : ComponentActivity() {
                         // Main app
                         composable(Screen.Today.route) { TodayScreen() }
                         composable(Screen.Calendar.route) { CalendarScreen() }
+                        // Plantings — базовый маршрут (из BottomNav)
                         composable(Screen.Plantings.route) {
+                            PlantingsScreen(
+                                onAddCrop = { navController.navigate(Screen.Crops.route) }
+                            )
+                        }
+                        // Plantings — с newCropId (из CropDetail → сразу создаём посадку)
+                        composable(
+                            route = Screen.Plantings.routeWithArgs,
+                            arguments = listOf(navArgument(Screen.Plantings.ARG_NEW_CROP_ID) {
+                                type = NavType.IntType
+                                defaultValue = -1
+                            })
+                        ) {
                             PlantingsScreen(
                                 onAddCrop = { navController.navigate(Screen.Crops.route) }
                             )
@@ -150,8 +163,14 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("cropId") { type = NavType.IntType })
                         ) { backStackEntry ->
                             val cropId = backStackEntry.arguments?.getInt("cropId")
-                            // Берём crop из предыдущей записи стека через ViewModel
-                            val cropsEntry = navController.getBackStackEntry(Screen.Crops.route)
+                            // Берём crop из предыдущей записи стека через ViewModel.
+                            // try-catch обязателен: при навигации onPlant Crops убирается из стека,
+                            // и Compose делает ещё одну recomposition — без защиты будет IAE crash.
+                            val cropsEntry = try {
+                                navController.getBackStackEntry(Screen.Crops.route)
+                            } catch (e: Exception) {
+                                null
+                            } ?: return@composable
                             val cropsViewModel: CropsViewModel = hiltViewModel(cropsEntry)
                             val state by cropsViewModel.uiState.collectAsState()
                             val crop = state.selectedCrop
@@ -163,13 +182,13 @@ class MainActivity : ComponentActivity() {
                                         navController.popBackStack()
                                     },
                                     onPlant = { selectedCrop ->
-                                        // Переходим на посадки и сразу создаём посадку
-                                        navController.navigate(Screen.Plantings.route) {
-                                            popUpTo(Screen.Crops.route) { inclusive = true }
+                                        // Передаём cropId через nav argument — PlantingsViewModel
+                                        // получит его через SavedStateHandle и сразу создаст посадку
+                                        navController.navigate(
+                                            Screen.Plantings.withNewCrop(selectedCrop.id)
+                                        ) {
+                                            popUpTo(Screen.Today.route)
                                         }
-                                        // PlantingsViewModel создаст посадку через StateFlow
-                                        // cropId сохраняем в SharedPreferences или передаём через SavedStateHandle
-                                        // Упрощённо: возврат на Plantings, где юзер нажмёт + снова
                                     }
                                 )
                             }

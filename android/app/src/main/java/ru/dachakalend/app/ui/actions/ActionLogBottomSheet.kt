@@ -18,23 +18,31 @@ import ru.dachakalend.app.data.model.Planting
 fun ActionLogBottomSheet(
     planting: Planting,
     onDismiss: () -> Unit,
+    preselectedType: String? = null,
     viewModel: ActionLogViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     var notes by remember { mutableStateOf("") }
-    var selectedType by remember { mutableStateOf<String?>(null) }
+    var selectedType by remember { mutableStateOf(preselectedType) }
 
     // Закрываем после успеха
     LaunchedEffect(state.success) {
         if (state.success) onDismiss()
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .navigationBarsPadding()  // отступ под системную навигацию (жесты / кнопки)
+                .imePadding()             // отступ при появлении клавиатуры
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(

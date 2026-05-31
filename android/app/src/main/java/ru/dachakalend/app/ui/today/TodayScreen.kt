@@ -17,10 +17,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items as lazyRowItems
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayTask
 import ru.dachakalend.app.data.model.WeatherSummary
+import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 import ru.dachakalend.app.ui.theme.taskColor
 
 @Composable
@@ -34,18 +39,63 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
             weather = state.data.today.weather,
             tasks = state.data.today.tasks,
             recommendations = state.data.recommendations,
+            plantings = state.data.plantings,
             onRefresh = { viewModel.loadToday() }
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TodayContent(
     weather: WeatherSummary?,
     tasks: List<TodayTask>,
     recommendations: List<Recommendation>,
+    plantings: List<Planting>,
     onRefresh: () -> Unit
 ) {
+    // Состояния для быстрых действий
+    var quickActionType by remember { mutableStateOf<String?>(null) }
+    var selectedPlanting by remember { mutableStateOf<Planting?>(null) }
+    var showPlantingPicker by remember { mutableStateOf(false) }
+
+    // Запрос быстрого действия: тип задаётся, посадку выбираем или сразу открываем шит
+    fun onQuickAction(type: String) {
+        quickActionType = type
+        when {
+            plantings.isEmpty() -> { /* ничего — кнопка задизейблена */ }
+            plantings.size == 1 -> selectedPlanting = plantings.first()
+            else                -> showPlantingPicker = true
+        }
+    }
+
+    // Шит выбора посадки (если > 1)
+    if (showPlantingPicker) {
+        PlantingPickerBottomSheet(
+            plantings = plantings,
+            onSelect = { planting ->
+                selectedPlanting = planting
+                showPlantingPicker = false
+            },
+            onDismiss = {
+                showPlantingPicker = false
+                quickActionType = null
+            }
+        )
+    }
+
+    // Шит записи действия
+    if (selectedPlanting != null && quickActionType != null) {
+        ActionLogBottomSheet(
+            planting = selectedPlanting!!,
+            preselectedType = quickActionType,
+            onDismiss = {
+                selectedPlanting = null
+                quickActionType = null
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -103,7 +153,10 @@ private fun TodayContent(
 
         // Быстрые действия
         item {
-            QuickActionsRow()
+            QuickActionsRow(
+                enabled = plantings.isNotEmpty(),
+                onAction = { type -> onQuickAction(type) }
+            )
         }
     }
 }
@@ -240,7 +293,17 @@ private fun TaskCard(task: TodayTask) {
 }
 
 @Composable
-private fun QuickActionsRow() {
+private fun QuickActionsRow(
+    enabled: Boolean,
+    onAction: (type: String) -> Unit
+) {
+    // type → (icon, label, tint)
+    val actions = listOf(
+        Triple("watering",    Pair(Icons.Default.WaterDrop, "Полил"),    MaterialTheme.colorScheme.primary),
+        Triple("fertilizing", Pair(Icons.Default.Spa,       "Подкормил"), Color(0xFF8D6E63)),
+        Triple("treatment",   Pair(Icons.Default.BugReport, "Обработал"), Color(0xFFE53935))
+    )
+
     Text(
         text = "Быстрые действия",
         style = MaterialTheme.typography.titleMedium,
@@ -251,26 +314,84 @@ private fun QuickActionsRow() {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        listOf(
-            Triple(Icons.Default.WaterDrop, "Полил", MaterialTheme.colorScheme.primary),
-            Triple(Icons.Default.Spa, "Подкормил", Color(0xFF8D6E63)),
-            Triple(Icons.Default.BugReport, "Обработал", Color(0xFFE53935))
-        ).forEach { (icon, label, tint) ->
-            @Composable
-            fun QuickBtn() {
-                OutlinedButton(
-                    onClick = { /* TODO: Спринт 3 — ActionLog */ },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+        actions.forEach { (type, iconLabel, tint) ->
+            val (icon, label) = iconLabel
+            OutlinedButton(
+                onClick = { onAction(type) },
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(icon, contentDescription = label, tint = if (enabled) tint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f), modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.height(2.dp))
+                    Text(label, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+    if (!enabled) {
+        Text(
+            text = "Добавьте посадку, чтобы фиксировать действия",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlantingPickerBottomSheet(
+    plantings: List<Planting>,
+    onSelect: (Planting) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Для какой культуры?",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            plantings.forEach { planting ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(planting) },
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.height(2.dp))
-                        Text(label, fontSize = 12.sp)
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("🌱", fontSize = 20.sp)
+                        Column {
+                            Text(
+                                text = planting.cropName ?: "Посадка #${planting.id}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = planting.stage,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
-            QuickBtn()
+            Spacer(Modifier.height(8.dp))
         }
     }
 }

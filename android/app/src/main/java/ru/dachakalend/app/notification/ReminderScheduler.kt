@@ -21,7 +21,7 @@ class ReminderScheduler @Inject constructor(private val context: Context) {
         if (delayMs <= 0) return
 
         val data = workDataOf(
-            ReminderWorker.KEY_TITLE to reminder.title,
+            ReminderWorker.KEY_TITLE to (reminder.message ?: reminder.type ?: "Напоминание"),
             ReminderWorker.KEY_MESSAGE to (reminder.message ?: ""),
             ReminderWorker.KEY_ID to reminder.id
         )

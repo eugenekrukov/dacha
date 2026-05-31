@@ -101,11 +101,12 @@ data class RegisterRequest(
 @JsonClass(generateAdapter = true)
 data class Reminder(
     val id: Int,
-    val title: String,
+    val type: String?,                                // watering | fertilizing | treatment | custom
     val message: String?,
     @Json(name = "remind_at") val remindAt: String,  // ISO 8601: "2026-06-15T08:00:00Z"
     @Json(name = "is_sent") val isSent: Boolean?,
-    @Json(name = "planting_id") val plantingId: Int?
+    @Json(name = "planting_id") val plantingId: Int?,
+    @Json(name = "crop_name") val cropName: String?
 )
 
 // --- Planting ---
@@ -117,7 +118,7 @@ data class Planting(
     @Json(name = "crop_name") val cropName: String?,
     @Json(name = "garden_id") val gardenId: Int,
     val stage: String,             // sowing | sprouted | growing | flowering | harvesting | done
-    @Json(name = "sown_at") val sownAt: String?,
+    @Json(name = "planted_at") val sownAt: String?,     // колонка planted_at в БД
     @Json(name = "expected_harvest_at") val expectedHarvestAt: String?,
     val notes: String?
 )
@@ -146,7 +147,7 @@ data class CreatePlantingRequest(
     @Json(name = "crop_id") val cropId: Int,
     @Json(name = "garden_id") val gardenId: Int,
     val stage: String = "sowing",
-    @Json(name = "sown_at") val sownAt: String?,   // ISO date "2026-05-28"
+    @Json(name = "planted_at") val sownAt: String?,  // колонка planted_at в БД
     val notes: String? = null
 )
 
@@ -157,7 +158,7 @@ data class ActionLog(
     val id: Int,
     @Json(name = "planting_id") val plantingId: Int,
     @Json(name = "crop_name") val cropName: String?,
-    val type: String,       // watering | fertilizing | treatment | other
+    @Json(name = "action_type") val type: String,  // watering | fertilizing | treatment | other
     val notes: String?,
     @Json(name = "logged_at") val loggedAt: String
 )
@@ -173,7 +174,7 @@ data class CreateActionRequest(
 
 @JsonClass(generateAdapter = true)
 data class CreateReminderRequest(
-    val title: String,
+    val type: String,                                  // watering | fertilizing | treatment | custom
     val message: String? = null,
     @Json(name = "remind_at") val remindAt: String,   // ISO 8601
     @Json(name = "planting_id") val plantingId: Int? = null
@@ -231,15 +232,16 @@ data class OnboardingProgress(
 data class Garden(
     val id: Int,
     val name: String,
-    val location: String?,
-    val region: String?
+    val region: String?,
+    @Json(name = "soil_type") val soilType: String?,
+    @Json(name = "climate_zone") val climateZone: String?
 )
 
 @JsonClass(generateAdapter = true)
 data class CreateGardenRequest(
     val name: String,
-    val location: String?,
     val region: String?,
+    val city: String? = null,
     @Json(name = "soil_type") val soilType: String?,
     @Json(name = "climate_zone") val climateZone: String?
 )

@@ -28,6 +28,7 @@ fun CreateGardenScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     var gardenName by remember { mutableStateOf("") }
+    var cityName by remember { mutableStateOf("") }
     var selectedRegion by remember { mutableStateOf("") }
     var regionExpanded by remember { mutableStateOf(false) }
 
@@ -65,6 +66,18 @@ fun CreateGardenScreen(
             onValueChange = { gardenName = it },
             label = { Text("Название участка") },
             placeholder = { Text("Например: Дача в Подмосковье") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = cityName,
+            onValueChange = { cityName = it },
+            label = { Text("Ваш город или посёлок") },
+            placeholder = { Text("Например: Сергиев Посад") },
+            supportingText = { Text("Для точного определения координат") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -113,7 +126,7 @@ fun CreateGardenScreen(
         Spacer(Modifier.height(32.dp))
 
         Button(
-            onClick = { viewModel.createGarden(gardenName, selectedRegion) },
+            onClick = { viewModel.createGarden(gardenName, selectedRegion, cityName) },
             modifier = Modifier.fillMaxWidth().height(52.dp),
             enabled = uiState !is GardenUiState.Loading
         ) {

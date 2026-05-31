@@ -1,5 +1,6 @@
 package ru.dachakalend.app.ui.plantings
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,6 +13,7 @@ import ru.dachakalend.app.data.model.CreatePlantingRequest
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
+import ru.dachakalend.app.navigation.Screen
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -26,7 +28,8 @@ data class PlantingsUiState(
 @HiltViewModel
 class PlantingsViewModel @Inject constructor(
     private val plantingsRepository: PlantingsRepository,
-    private val tokenStorage: TokenStorage
+    private val tokenStorage: TokenStorage,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlantingsUiState())
@@ -34,6 +37,11 @@ class PlantingsViewModel @Inject constructor(
 
     init {
         loadPlantings()
+        // Если пришли из CropDetail — сразу создаём посадку
+        val newCropId = savedStateHandle.get<Int>(Screen.Plantings.ARG_NEW_CROP_ID)
+        if (newCropId != null && newCropId != -1) {
+            createPlanting(newCropId)
+        }
     }
 
     fun loadPlantings() {

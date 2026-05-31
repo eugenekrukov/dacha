@@ -8,13 +8,33 @@ module.exports = async function (fastify) {
 
   // POST /gardens
   fastify.post('/', auth, async (request, reply) => {
-    const { name, region, soil_type, climate_zone } = request.body
+    const { name, region, soil_type, climate_zone, city } = request.body
     const userId = request.user.userId
 
-    // Если координаты не переданы — определяем по региону
-    const coords = getCoordsForRegion(region)
-    const lat = request.body.lat ?? coords.lat
-    const lon = request.body.lon ?? coords.lon
+    // Приоритет координат: явные lat/lon → геокодинг city → regionCoords
+    let lat, lon
+    if (request.body.lat != null && request.body.lon != null) {
+      lat = request.body.lat
+      lon = request.body.lon
+    } else if (city) {
+      try {
+        const q = encodeURIComponent(city + ', Россия')
+        const resp = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'DachaKalendar/1.0 (support@dacha.studio1008.com)' } }
+        )
+        const data = await resp.json()
+        if (data.length > 0) {
+          lat = parseFloat(data[0].lat)
+          lon = parseFloat(data[0].lon)
+        }
+      } catch (_) { /* геокодинг не обязателен — падаем в regionCoords */ }
+    }
+    if (lat == null || lon == null) {
+      const coords = getCoordsForRegion(region)
+      lat = coords.lat
+      lon = coords.lon
+    }
 
     const result = await fastify.db.query(
       `INSERT INTO gardens (user_id, name, lat, lon, region, soil_type, climate_zone)
@@ -53,10 +73,30 @@ module.exports = async function (fastify) {
 
   // PUT /gardens/:id
   fastify.put('/:id', auth, async (request, reply) => {
-    const { name, region, soil_type, climate_zone } = request.body
-    const coords = getCoordsForRegion(region)
-    const lat = request.body.lat ?? coords.lat
-    const lon = request.body.lon ?? coords.lon
+    const { name, region, soil_type, climate_zone, city } = request.body
+    let lat, lon
+    if (request.body.lat != null && request.body.lon != null) {
+      lat = request.body.lat
+      lon = request.body.lon
+    } else if (city) {
+      try {
+        const q = encodeURIComponent(city + ', Россия')
+        const resp = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'DachaKalendar/1.0 (support@dacha.studio1008.com)' } }
+        )
+        const data = await resp.json()
+        if (data.length > 0) {
+          lat = parseFloat(data[0].lat)
+          lon = parseFloat(data[0].lon)
+        }
+      } catch (_) {}
+    }
+    if (lat == null || lon == null) {
+      const coords = getCoordsForRegion(region)
+      lat = coords.lat
+      lon = coords.lon
+    }
 
     const result = await fastify.db.query(
       `UPDATE gardens SET name=$1, lat=$2, lon=$3, region=$4, soil_type=$5, climate_zone=$6, updated_at=NOW()

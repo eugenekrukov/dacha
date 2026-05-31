@@ -26,13 +26,13 @@ class GardenRepository @Inject constructor(
         }
     }
 
-    suspend fun createGarden(name: String, region: String): Result<Garden> {
+    suspend fun createGarden(name: String, region: String, city: String? = null): Result<Garden> {
         return try {
             val garden = api.createGarden(
                 CreateGardenRequest(
                     name = name,
-                    location = null,
                     region = region,
+                    city = city?.ifBlank { null },
                     soilType = null,
                     climateZone = null
                 )

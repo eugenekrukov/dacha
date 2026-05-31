@@ -85,7 +85,7 @@ class CalendarViewModel @Inject constructor(
             runCatching {
                 val date = LocalDate.parse(reminder.remindAt.take(10))
                 result.getOrPut(date) { mutableListOf() }.add(
-                    DayEvent(date, reminder.title, "reminder")
+                    DayEvent(date, reminder.message ?: reminder.type ?: "Напоминание", "reminder")
                 )
             }
         }

@@ -61,6 +61,17 @@ async function fetchWeatherData(lat, lon) {
   if (!res.ok) throw new Error(`Open-Meteo error: ${res.status}`)
 
   const data = await res.json()
+  return parseWeatherData(data)
+}
+
+/**
+ * Парсит ответ Open-Meteo в нормализованный объект погоды.
+ * Вынесена отдельно для тестируемости без сетевых запросов.
+ *
+ * @param {Object} data — тело ответа Open-Meteo
+ * @returns {Object}
+ */
+function parseWeatherData(data) {
   const current = data.current
   const daily = data.daily
 
@@ -143,4 +154,4 @@ async function updateGardenWeather(db, garden) {
   return weather
 }
 
-module.exports = { fetchWeatherData, updateGardenWeather }
+module.exports = { fetchWeatherData, parseWeatherData, updateGardenWeather }

@@ -6,10 +6,11 @@ module.exports = async function (fastify) {
   // GET /crops — справочник культур (публичный)
   fastify.get('/', async (request) => {
     const { category } = request.query
-    let query = 'SELECT * FROM crops ORDER BY name ASC'
+    // DISTINCT ON (name) исключает дубликаты на случай повторного запуска миграций
+    let query = `SELECT DISTINCT ON (name) * FROM crops ORDER BY name ASC`
     const params = []
     if (category) {
-      query = 'SELECT * FROM crops WHERE category = $1 ORDER BY name ASC'
+      query = `SELECT DISTINCT ON (name) * FROM crops WHERE category = $1 ORDER BY name ASC`
       params.push(category)
     }
     const result = await fastify.db.query(query, params)

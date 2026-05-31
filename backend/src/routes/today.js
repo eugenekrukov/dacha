@@ -1,5 +1,7 @@
 'use strict'
 
+const { buildTasks, formatTasks } = require('../utils/todayLogic')
+
 /**
  * GET /today?garden_id=
  *
@@ -9,14 +11,6 @@
  *  - tasks      — топ-5 приоритетных задач дня (полив / пересадка / уборка / заморозки)
  *  - reminders  — напоминания на сегодня
  */
-
-const TASK_PRIORITY = {
-  frost_alert:    1,  // 🚨 угроза заморозков
-  transplant_due: 2,  // 🌱 пора пикировать / высаживать
-  watering_due:   3,  // 💧 нужен полив
-  harvest_due:    4,  // 🌾 пора убирать
-  reminder:       5,  // 📅 напоминание
-}
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
@@ -75,80 +69,7 @@ module.exports = async function (fastify) {
       })
     }
 
-    // ── 4. СБОРКА ЗАДАЧ ──────────────────────────────────────────────────────
-    const tasks = []
-
-    for (const p of plantings) {
-      const plantedAt = new Date(p.planted_at)
-      const daysSincePlanting = Math.floor((today - plantedAt) / 86400000)
-
-      // 🚨 Угроза заморозков
-      if (
-        p.frost_sensitive &&
-        weather &&
-        weather.frost_risk === true
-      ) {
-        tasks.push({
-          type: 'frost_alert',
-          priority: TASK_PRIORITY.frost_alert,
-          planting_id: p.id,
-          crop_name: p.crop_name,
-          message: `Угроза заморозков! Защитите ${p.crop_name}`,
-          icon: '🚨',
-        })
-      }
-
-      // 🌱 Пора пикировать / высаживать в грунт
-      if (
-        p.transplant_days &&
-        daysSincePlanting >= p.transplant_days &&
-        p.stage === 'sprouted'
-      ) {
-        tasks.push({
-          type: 'transplant_due',
-          priority: TASK_PRIORITY.transplant_due,
-          planting_id: p.id,
-          crop_name: p.crop_name,
-          message: `${p.crop_name} — пора пересаживать (${daysSincePlanting} дней)`,
-          icon: '🌱',
-        })
-      }
-
-      // 💧 Нужен полив
-      if (p.watering_freq_days) {
-        const lastWatered = lastWateredMap[p.id] || plantedAt
-        const daysSinceWatering = Math.floor((today - lastWatered) / 86400000)
-        if (daysSinceWatering >= p.watering_freq_days) {
-          tasks.push({
-            type: 'watering_due',
-            priority: TASK_PRIORITY.watering_due,
-            planting_id: p.id,
-            crop_name: p.crop_name,
-            message: `${p.crop_name} — нужен полив (${daysSinceWatering} дн. без воды)`,
-            icon: '💧',
-            days_overdue: daysSinceWatering - p.watering_freq_days,
-          })
-        }
-      }
-
-      // 🌾 Пора убирать урожай
-      if (
-        p.harvest_days &&
-        daysSincePlanting >= p.harvest_days &&
-        ['growing', 'flowering', 'harvesting'].includes(p.stage)
-      ) {
-        tasks.push({
-          type: 'harvest_due',
-          priority: TASK_PRIORITY.harvest_due,
-          planting_id: p.id,
-          crop_name: p.crop_name,
-          message: `${p.crop_name} — пора убирать урожай!`,
-          icon: '🌾',
-        })
-      }
-    }
-
-    // ── 5. НАПОМИНАНИЯ НА СЕГОДНЯ ────────────────────────────────────────────
+    // ── 4. НАПОМИНАНИЯ НА СЕГОДНЯ ────────────────────────────────────────────
     const remindersRes = await fastify.db.query(
       `SELECT r.id, r.type, r.message, r.remind_at, c.name as crop_name
        FROM reminders r
@@ -160,34 +81,18 @@ module.exports = async function (fastify) {
        ORDER BY r.remind_at ASC`,
       [request.user.userId]
     )
-    const reminders = remindersRes.rows.map(r => ({
+    const reminderTasks = remindersRes.rows.map(r => ({
       type: 'reminder',
-      priority: TASK_PRIORITY.reminder,
+      priority: 5,
       reminder_id: r.id,
       crop_name: r.crop_name,
       message: r.message || `Напоминание: ${r.type}`,
       remind_at: r.remind_at,
-      icon: '📅',
     }))
 
-    tasks.push(...reminders)
-
-    // ── 6. Сортировка: сначала высший приоритет, потом по просроченности ─────
-    tasks.sort((a, b) => {
-      if (a.priority !== b.priority) return a.priority - b.priority
-      return (b.days_overdue || 0) - (a.days_overdue || 0)
-    })
-
-    // ── 7. Итоговый ответ ─────────────────────────────────────────────────────
-    const topTasks = tasks.slice(0, 5).map(t => ({
-      type: t.type,
-      priority: t.priority,
-      title: t.message || t.type,
-      description: t.crop_name ? `Культура: ${t.crop_name}` : '',
-      planting_id: t.planting_id || null,
-      crop_name: t.crop_name || null,
-      days_overdue: t.days_overdue || null,
-    }))
+    // ── 5. СБОРКА И ФОРМАТИРОВАНИЕ ЗАДАЧ ─────────────────────────────────────
+    const rawTasks = buildTasks(plantings, weather, lastWateredMap, reminderTasks, today)
+    const topTasks = formatTasks(rawTasks)
 
     return {
       garden_id: garden.id,
@@ -205,8 +110,8 @@ module.exports = async function (fastify) {
           }
         : null,
       tasks: topTasks,
-      tasks_total: tasks.length,
-      reminders_today: reminders.length,
+      tasks_total: rawTasks.length,
+      reminders_today: reminderTasks.length,
       generated_at: today.toISOString(),
     }
   })

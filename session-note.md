@@ -325,6 +325,49 @@ git push origin main
 
 ---
 
+## Сессия 2026-05-30 — Тесты + баг-фикс посадок
+
+### Что сделано
+- Создан `TESTING.md` — полная структура тестов для бэкенда (Vitest + Supertest) и Android (MockK + Turbine). 60+ тест-кейсов по всем модулям MVP.
+- Добавлена задача по написанию тестов в `summary.md`.
+
+### Bug fixes
+1. **Фильтры культур не работали** — `CROP_CATEGORIES` в `CropsViewModel.kt` содержал неправильные ключи (`vegetables`, `greens`, `berries`, `flowers`), не совпадавшие с БД (`vegetable`, `herb`, `berry`, `flower`). Убрана несуществующая категория `fruits`.
+2. **Дублирование культур** — в таблице `crops` отсутствует `UNIQUE(name)`, поэтому `ON CONFLICT DO NOTHING` в seed не срабатывал. Добавлена миграция `004_unique_crops_name.sql` (удаляет дубли, добавляет constraint). В `crops.js` добавлен `DISTINCT ON (name)` как страховка.
+3. **Краш при посадке** — `onPlant` в `MainActivity` делал `popUpTo(Crops, inclusive=true)`, после чего `getBackStackEntry(Crops)` бросал `IllegalArgumentException`. Плюс `createPlanting()` вообще не вызывался. Решение: передаём `cropId` через nav argument (`plantings?newCropId={id}`), `PlantingsViewModel` получает его через `SavedStateHandle` и вызывает `createPlanting()` в `init`.
+
+### Файлы изменены
+- `android/.../CropsViewModel.kt` — исправлены ключи CROP_CATEGORIES
+- `backend/src/routes/crops.js` — добавлен DISTINCT ON (name)
+- `backend/src/db/migrations/004_unique_crops_name.sql` — новая миграция
+- `android/.../Navigation.kt` — Screen.Plantings добавлен routeWithArgs + withNewCrop()
+- `android/.../PlantingsViewModel.kt` — добавлен SavedStateHandle, auto-createPlanting
+- `android/.../MainActivity.kt` — исправлен onPlant + добавлен composable для routeWithArgs
+
+### Деплой
+```
+git checkout -b fix/crops-filter-duplicate-planting
+git add -A
+git commit -m "fix: crops filter keys, dedup via DISTINCT, planting via nav args"
+git push origin fix/crops-filter-duplicate-planting
+# На VPS: npm run migrate (004_unique_crops_name.sql)
+```
+
+---
+
+## Сессия 2026-05-30 (продолжение) — UI-фиксы
+
+### Что сделано
+- `ActionLogBottomSheet`: добавлен `skipPartiallyExpanded = true` — шторка сразу открывается полностью
+- `ActionLogBottomSheet`: добавлены `navigationBarsPadding()` + `imePadding()` — кнопка не перекрывается навбаром/клавиатурой
+- Зафиксирована задача на быстрые действия в `summary.md`
+
+### На следующую сессию
+- Реализовать быстрые действия на экране "Сегодня" (см. summary.md)
+- Смержить ветку `fix/crops-filter-duplicate-planting` в `main` после финального тестирования
+
+---
+
 ## Процесс завершения сессии (обязательно)
 
 В конце каждой сессии Claude обязан:
@@ -351,14 +394,85 @@ git push origin main
 
 ### Git
 ```
-git add -A
-git commit -m "feat(sprint5): analytics screen + CSV export — MVP complete"
-git push origin feature/sprint5-analytics-export
-# После проверки билда:
 git checkout main
 git merge --squash feature/sprint5-analytics-export
-git commit -m "feat(sprint5): analytics screen + CSV export — MVP complete"
+git commit -m "feat(sprint5): analytics + CSV export — MVP complete"
 git push origin main
-git branch -d feature/sprint5-analytics-export
-git push origin --delete feature/sprint5-analytics-export
+# VPS: cd /var/www/dacha-api && git pull origin main && pm2 reload dacha-api ✅
+```
+
+### Доп. правка
+- Убрана вкладка "Статистика" из BottomNav (`Navigation.kt`) — экран скрыт, маршрут сохранён
+- Требует пересборки APK
+
+---
+
+## Сессия 2026-05-31 — Быстрые действия + геокодирование
+
+### Что сделано
+
+**Быстрые действия на TodayScreen:**
+- `ActionLogBottomSheet.kt` — добавлен параметр `preselectedType: String? = null`; `selectedType` инициализируется из него
+- `TodayViewModel.kt` — добавлены зависимости `PlantingsRepository` и `TokenStorage`; посадки грузятся параллельно с `/today` и `/recommendations`; `TodayScreenData` получил поле `plantings: List<Planting>`
+- `TodayScreen.kt`:
+  - `TodayContent` получил параметр `plantings`
+  - `QuickActionsRow` переработан: принимает `enabled` и `onAction(type)`; кнопки задизейблены если посадок нет, подпись "Добавьте посадку..."
+  - Новый composable `PlantingPickerBottomSheet` — список посадок для выбора (показывается если посадок > 1)
+  - Логика: 0 посадок → кнопки задизейблены; 1 посадка → сразу открывается ActionLogBottomSheet; > 1 → сначала PlantingPickerBottomSheet
+
+**Геокодирование:**
+- `backend/src/routes/gardens.js` — `POST /gardens` и `PUT /gardens/:id` принимают поле `city`; если передан — геокодинг через Nominatim OSM (Node.js 20 native fetch); fallback → regionCoords
+- `Models.kt` — `CreateGardenRequest` получил поле `city: String? = null`
+- `GardenRepository.kt` — `createGarden(name, region, city?)` передаёт city в запрос
+- `GardenViewModel.kt` — `createGarden(name, region, city?)`
+- `CreateGardenScreen.kt` — новое поле "Ваш город или посёлок" (опциональное, с подсказкой)
+
+### Git
+```
+git checkout -b feature/quick-actions-geocoding
+git add -A
+git commit -m "feat: quick actions on TodayScreen, geocoding via Nominatim in onboarding"
+git push origin feature/quick-actions-geocoding
+```
+
+---
+
+## Сессия 2026-05-31 — Тесты
+
+### Что сделано
+
+**Рефакторинг для тестируемости:**
+- `today.js` — импортирует `buildTasks` / `formatTasks` из `utils/todayLogic.js`; инлайн-логика удалена
+- `weatherService.js` — `parseWeatherData(data)` вынесена как отдельная экспортируемая функция; `fetchWeatherData` вызывает её внутри
+
+**Новые файлы:**
+- `backend/src/utils/todayLogic.js` — чистые функции `buildTasks` + `formatTasks`, без БД
+- `backend/src/__tests__/unit/todayLogic.test.js` — 15 тест-кейсов: заморозки, полив, пересадка, урожай, сортировка, лимит
+- `backend/src/__tests__/unit/weatherService.test.js` — 12 тест-кейсов: parseWeatherData + fetchWeatherData с моком node-fetch
+- `backend/src/__tests__/helpers/buildApp.js` — фабрика Fastify-инстанса с мок-БД для интеграционных тестов
+- `backend/src/__tests__/auth.test.js` — 8 тест-кейсов: register/login/me
+- `backend/src/__tests__/today.test.js` — 11 тест-кейсов: /today endpoint end-to-end через supertest
+- `android/app/src/test/.../AuthViewModelTest.kt` — 7 тест-кейсов (MockK + Turbine)
+- `android/app/src/test/.../TodayViewModelTest.kt` — 5 тест-кейсов
+- `android/app/src/test/.../ActionLogViewModelTest.kt` — 4 тест-кейса
+
+**package.json:** добавлены `"test"`, `"test:watch"`, `"test:coverage"` + devDeps: vitest 1.6, supertest 7.0
+**build.gradle.kts:** добавлены junit4, coroutines-test, mockk, turbine
+
+### Git
+```
+git add -A
+git commit -m "test: backend unit+integration tests, Android ViewModel tests"
+git push origin feature/quick-actions-geocoding
+```
+
+### Запуск тестов
+```bash
+# Бэкенд (локально в папке backend/)
+npm install
+npm test               # все тесты
+npm run test:coverage  # с покрытием
+
+# Android (в Android Studio или терминале)
+./gradlew test
 ```

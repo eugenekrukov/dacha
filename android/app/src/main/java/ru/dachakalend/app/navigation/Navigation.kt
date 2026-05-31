@@ -17,7 +17,12 @@ sealed class Screen(val route: String) {
     // Main app
     object Today : Screen("today")
     object Calendar : Screen("calendar")
-    object Plantings : Screen("plantings")
+    object Plantings : Screen("plantings") {
+        // Опциональный аргумент: если пришли из CropDetail — сразу создаём посадку
+        const val ARG_NEW_CROP_ID = "newCropId"
+        val routeWithArgs = "plantings?$ARG_NEW_CROP_ID={$ARG_NEW_CROP_ID}"
+        fun withNewCrop(cropId: Int) = "plantings?$ARG_NEW_CROP_ID=$cropId"
+    }
     object Harvest : Screen("harvest")
 
     // Sprint 5
@@ -41,7 +46,6 @@ val bottomNavItems = listOf(
     BottomNavItem(Screen.Calendar, "Календарь", Icons.Default.CalendarMonth),
     BottomNavItem(Screen.Plantings, "Посадки", Icons.Default.Grass),
     BottomNavItem(Screen.Harvest, "Урожай", Icons.Default.Spa),
-    BottomNavItem(Screen.Analytics, "Статистика", Icons.Default.BarChart),
 )
 
 // Экраны, на которых не показывается BottomBar

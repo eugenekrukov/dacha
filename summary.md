@@ -55,7 +55,9 @@
 - **Статус**: ✅ Завершён
 
 ### После MVP (технический долг)
-- [ ] **Геокодирование по населённому пункту** — в онбординге добавить поле "Ваш город/посёлок" и геокодировать через [DaData](https://dadata.ru/api/suggest/address/) (10 000 запросов/день бесплатно) или Nominatim/OSM (без ключа, 1 req/s). Яндекс Геокодер не подходит для prod — лимит 1000 req/day на бесплатном тарифе.
+- [x] **Геокодирование по населённому пункту** — поле "Ваш город/посёлок" в CreateGardenScreen; геокодинг через Nominatim OSM (native fetch Node.js 20); fallback → regionCoords.
+- [x] **Написать тесты** — структура описана в `TESTING.md`. Приоритет: бэкенд unit-тесты (todayLogic, weatherService), потом интеграционные (auth, today), потом Android ViewModels. Инструменты: Vitest + Supertest (backend), MockK + Turbine (Android).
+- [x] **Быстрые действия на экране "Сегодня"** — реализованы. Кнопки открывают ActionLogBottomSheet с preselectedType; PlantingPickerBottomSheet при > 1 посадки; кнопки задизейблены если посадок нет.
 
 ### Спринт 5. Урожай и бета (Длительность: 1 неделя)
 *Результат: Сбор фидбэка, аналитика закрытого релиза.*
@@ -88,32 +90,4 @@ android/
 │           ├── App.kt              # @HiltAndroidApp
 │           ├── MainActivity.kt     # BottomNav + NavHost (4 вкладки)
 │           ├── navigation/         # Screen sealed class, bottomNavItems
-│           ├── data/
-│           │   ├── api/            # DachaApi (Retrofit), AuthInterceptor
-│           │   ├── model/          # Models.kt (TodayResponse, TodayTask, WeatherSummary, Garden...)
-│           │   ├── local/          # TokenStorage (SharedPreferences)
-│           │   └── repository/     # TodayRepository + sealed Result<T>
-│           ├── di/                 # NetworkModule (Hilt)
-│           └── ui/
-│               ├── theme/          # DachaCalendarTheme, taskColor()
-│               ├── today/          # TodayScreen + TodayViewModel
-│               ├── calendar/       # заглушка (Спринт 2)
-│               ├── plantings/      # заглушка (Спринт 3)
-│               └── harvest/        # заглушка (Спринт 5)
-
-backend/
-├── src/
-│   ├── app.js                  # точка входа Fastify
-│   ├── plugins/db.js           # PostgreSQL pool
-│   ├── routes/                 # все API-роуты
-│   └── db/
-│       ├── migrate.js          # runner миграций
-│       └── migrations/
-│           ├── 001_init.sql    # схема всех таблиц
-│           └── 002_seed_crops.sql
-├── scripts/deploy.sh
-├── ecosystem.config.js         # pm2 конфиг
-├── nginx.conf.example
-├── .env.example
-└── package.json
-```
+│           
