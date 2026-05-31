@@ -139,6 +139,18 @@ data class WateringStage(
     @Json(name = "amount_l_m2") val amountLM2: Int?
 )
 
+// watering_details содержит стадии + строковый ключ "notes" — типизируем явно
+@JsonClass(generateAdapter = true)
+data class WateringDetails(
+    val seedling: WateringStage? = null,
+    val sprouted: WateringStage? = null,
+    val growing: WateringStage? = null,
+    val flowering: WateringStage? = null,
+    val fruiting: WateringStage? = null,
+    val harvesting: WateringStage? = null,
+    val notes: String? = null
+)
+
 @JsonClass(generateAdapter = true)
 data class FertilizingEntry(
     val stage: String?,
@@ -182,7 +194,7 @@ data class Crop(
     val notes: String?,
     // Расширенные поля (v2)
     @Json(name = "climate_zones") val climateZones: Map<String, ClimateZoneWindow>? = null,
-    @Json(name = "watering_details") val wateringDetails: Map<String, WateringStage>? = null,
+    @Json(name = "watering_details") val wateringDetails: WateringDetails? = null,
     @Json(name = "fertilizing_schedule") val fertilizingSchedule: List<FertilizingEntry>? = null,
     val diseases: List<CropDisease>? = null,
     val pests: List<CropPest>? = null,
