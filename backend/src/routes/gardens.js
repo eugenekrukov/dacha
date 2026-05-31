@@ -1,6 +1,6 @@
 'use strict'
 
-const { getCoordsForRegion } = require('../utils/regionCoords')
+const { getCoordsForRegion, getZoneForRegion } = require('../utils/regionCoords')
 const { updateGardenWeather } = require('../services/weatherService')
 
 module.exports = async function (fastify) {
@@ -40,7 +40,7 @@ module.exports = async function (fastify) {
       `INSERT INTO gardens (user_id, name, lat, lon, region, soil_type, climate_zone)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [userId, name, lat, lon, region, soil_type ?? null, climate_zone ?? null]
+      [userId, name, lat, lon, region, soil_type ?? null, climate_zone ?? getZoneForRegion(region)]
     )
     const garden = result.rows[0]
 
@@ -58,7 +58,11 @@ module.exports = async function (fastify) {
       'SELECT * FROM gardens WHERE user_id = $1 ORDER BY created_at DESC',
       [request.user.userId]
     )
-    return result.rows
+    // Если climate_zone не задана — подставляем по региону
+    return result.rows.map(g => ({
+      ...g,
+      climate_zone: g.climate_zone ?? getZoneForRegion(g.region)
+    }))
   })
 
   // GET /gardens/:id
@@ -101,7 +105,7 @@ module.exports = async function (fastify) {
     const result = await fastify.db.query(
       `UPDATE gardens SET name=$1, lat=$2, lon=$3, region=$4, soil_type=$5, climate_zone=$6, updated_at=NOW()
        WHERE id=$7 AND user_id=$8 RETURNING *`,
-      [name, lat, lon, region, soil_type, climate_zone, request.params.id, request.user.userId]
+      [name, lat, lon, region, soil_type, climate_zone ?? getZoneForRegion(region), request.params.id, request.user.userId]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
     return result.rows[0]

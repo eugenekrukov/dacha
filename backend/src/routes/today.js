@@ -60,7 +60,7 @@ module.exports = async function (fastify) {
       const actionsRes = await fastify.db.query(
         `SELECT DISTINCT ON (planting_id) planting_id, logged_at
          FROM action_logs
-         WHERE planting_id = ANY($1) AND action_type = 'watered'
+         WHERE planting_id = ANY($1) AND action_type = 'watering'
          ORDER BY planting_id, logged_at DESC`,
         [ids]
       )

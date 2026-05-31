@@ -3,6 +3,7 @@ package ru.dachakalend.app.data.repository
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.model.CreatePlantingRequest
 import ru.dachakalend.app.data.model.Planting
+import ru.dachakalend.app.data.model.UpdatePlantingInfoRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,5 +26,18 @@ class PlantingsRepository @Inject constructor(private val api: DachaApi) {
         Result.Success(api.updatePlantingStage(plantingId, mapOf("stage" to stage)))
     } catch (e: Exception) {
         Result.Error(e.message ?: "Ошибка обновления стадии")
+    }
+
+    suspend fun updateInfo(plantingId: Int, request: UpdatePlantingInfoRequest): Result<Planting> = try {
+        Result.Success(api.updatePlantingInfo(plantingId, request))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка обновления посадки")
+    }
+
+    suspend fun deletePlanting(plantingId: Int): Result<Unit> = try {
+        api.deletePlanting(plantingId)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка удаления посадки")
     }
 }

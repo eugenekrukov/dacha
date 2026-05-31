@@ -12,6 +12,7 @@ import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayResponse
+import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.RecommendationsRepository
 import ru.dachakalend.app.data.repository.Result
@@ -36,6 +37,7 @@ class TodayViewModel @Inject constructor(
     private val todayRepository: TodayRepository,
     private val recommendationsRepository: RecommendationsRepository,
     private val plantingsRepository: PlantingsRepository,
+    private val gardenRepository: GardenRepository,
     private val tokenStorage: TokenStorage,
     private val api: DachaApi
 ) : ViewModel() {
@@ -44,6 +46,11 @@ class TodayViewModel @Inject constructor(
     val uiState: StateFlow<TodayUiState> = _uiState
 
     init {
+        // Если climateZone ещё не сохранён (например, после первого онбординга),
+        // подгружаем участок с сервера — там зона уже рассчитана бэкендом.
+        if (tokenStorage.getClimateZone() == null) {
+            viewModelScope.launch { gardenRepository.loadGardens() }
+        }
         loadToday()
         registerPushToken()
     }

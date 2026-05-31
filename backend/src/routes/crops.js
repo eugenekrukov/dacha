@@ -2,6 +2,7 @@
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
+  const adminAuth = { onRequest: [fastify.requireAdmin] }
 
   // GET /crops — справочник культур (публичный)
   fastify.get('/', async (request) => {
@@ -24,8 +25,8 @@ module.exports = async function (fastify) {
     return result.rows[0]
   })
 
-  // POST /crops — добавление в справочник (admin-use only, пока без guard)
-  fastify.post('/', auth, async (request, reply) => {
+  // POST /crops — добавление в справочник (admin only)
+  fastify.post('/', adminAuth, async (request, reply) => {
     const { name, category, sowing_start_day, sowing_end_day, transplant_days, harvest_days, watering_freq_days, frost_sensitive, companion_crops, notes } = request.body
     const result = await fastify.db.query(
       `INSERT INTO crops (name, category, sowing_start_day, sowing_end_day, transplant_days, harvest_days, watering_freq_days, frost_sensitive, companion_crops, notes)
@@ -35,8 +36,8 @@ module.exports = async function (fastify) {
     return reply.code(201).send(result.rows[0])
   })
 
-  // PUT /crops/:id — обновление культуры (admin-use only)
-  fastify.put('/:id', auth, async (request, reply) => {
+  // PUT /crops/:id — обновление культуры (admin only)
+  fastify.put('/:id', adminAuth, async (request, reply) => {
     const ALLOWED = [
       'name', 'category', 'sowing_start_day', 'sowing_end_day', 'transplant_days',
       'harvest_days', 'watering_freq_days', 'frost_sensitive', 'notes',

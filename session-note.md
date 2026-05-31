@@ -511,3 +511,164 @@ npm run test:coverage  # с покрытием
 - Ветка `feature/quick-actions-geocoding` смержена в `main`
 - Бэкенд задеплоен на VPS (`/var/www/dacha-api`), `pm2 reload dacha-api` выполнен
 - Конфликты при pull разрешены (`package-lock.json` — theirs, документация — ours)
+
+---
+
+## Сессия 2026-05-31 — CropDetail с посадок + климатическая зона
+
+### Что сделано
+
+**Доступ к карточке культуры с экрана посадок:**
+- `PlantingsScreen` — добавлена кнопка "О культуре" в каждой карточке посадки (рядом с "Записать действие")
+- `PlantingsScreen` — новый параметр `onCropDetail: (Int) -> Unit`
+- `CropsViewModel` — добавлен `loadCropById(cropId)`: загружает культуру напрямую по id без зависимости от стека навигации
+- `MainActivity (CropDetail composable)` — переписан: использует собственный `CropsViewModel` + `LaunchedEffect(cropId)`, показывает спиннер во время загрузки. Убрана хрупкая привязка к `getBackStackEntry(Crops)`
+
+**Фильтрация по климатической зоне:**
+- `TokenStorage` — добавлены `saveClimateZone` / `getClimateZone`
+- `GardenRepository` — при `GET /gardens` сохраняет `climateZone` первого сада
+- `CropsRepository` — добавлен `getClimateZone()` (делегирует к TokenStorage)
+- `CropsUiState` — новое поле `climateZone: String?`
+- `CropDetailScreen / CareTab` — принимают `climateZone`; если зона известна и есть данные — показывается только одна строка "Посев" для нужной зоны; иначе все зоны как раньше
+- `backend/src/utils/regionCoords.js` — добавлен `REGION_ZONE` (маппинг регионов → зоны 3–6) и `getZoneForRegion(region)`
+- `backend/src/routes/gardens.js` — `GET /gardens` возвращает `climate_zone ?? getZoneForRegion(region)` (fallback для старых записей без зоны); `POST/PUT` сохраняют зону автоматически
+- Проверено: Новосибирская область → `climate_zone: "4"` ✅
+
+**Кнопка "Посадить" только в справочнике:**
+- `CropDetailScreen.onPlant` — стал nullable; `bottomBar` скрыт когда `onPlant = null`
+- `Navigation.kt` — маршрут `CropDetail` получил аргумент `showPlantButton: Boolean`
+- С посадок → `showPlantButton=false` (кнопка скрыта); из справочника → `showPlantButton=true`
+
+### Деплой
+- `backend/src/routes/gardens.js` и `utils/regionCoords.js` перезаписаны напрямую на VPS (merge повредил файлы)
+- `pm2 restart dacha-api` выполнен, API отвечает ✅
+
+### Осталось
+- Закоммитить локально (после удаления `.git/index.lock`):
+  ```bash
+  del "C:\Projects\Dacha\Календарь дачника\.git\index.lock"
+  git add -A
+  git commit -m "feat: crop detail from plantings, climate zone filter, hide plant button"
+  git push origin feature/crop-detail-tabs
+  ```
+
+---
+
+## Сессия 2026-05-31 — Параметры посадки + редактирование + рекомендации
+
+### Что сделано
+
+1. **Баг: отображались все регионы в "Сроках посева"**
+   - `TokenStorage.kt` был физически обрезан на диске — восстановлен полностью
+   - `createGarden()` не сохранял `climateZone` → добавлен `tokenStorage.saveClimateZone(garden.climateZone)`
+   - `TodayViewModel.init`: если `climateZone == null` — вызывает `loadGardens()` при старте (для старых пользователей)
+
+2. **Инструкция по записи файлов**: после каждой записи проверять `tail -3` / `wc -c`, что файл не обрезан
+
+3. **Карточка посадки**: дата в формате DD.MM.YY + строка "Дата последнего действия:"
+   - Бэкенд: `GET /plantings` возвращает `last_action_at` через подзапрос `MAX(logged_at)`
+   - Android: поле `lastActionAt` в `Planting`, функция `formatIsoDate()`
+
+4. **Параметры посадки (quantity, conditions) — полный фича-цикл**:
+   - **Миграция** `007_plantings_extra_fields.sql`: `quantity INT DEFAULT 1`, `conditions VARCHAR(20) DEFAULT 'soil'`
+   - **Бэкенд `plantings.js`**: POST/GET принимают/возвращают поля; новый `PATCH /:id/info`
+   - **Рекомендации**: теплица (`conditions='greenhouse'`) снимает `frost_alert`, увеличивает интервал полива на 30%
+   - **`recommendations.js`**: дочинен обрезанный хвост (слой 4 — подкормки)
+   - **Android Models**: `Planting` + `quantity`/`conditions`, `CreatePlantingRequest` + поля, новый `UpdatePlantingInfoRequest`
+   - **`DachaApi`**: добавлен `updatePlantingInfo PATCH plantings/{id}/info`
+   - **`PlantingsRepository`**: добавлен `updateInfo()`
+   - **`PlantingsViewModel`**: `pendingCropId` вместо авто-создания, `confirmPlanting()`, `openEditSheet()`, `saveEditedInfo()`
+   - **`PlantingsScreen`**: `PlantingSetupBottomSheet` (дата/кол-во/место), `PlantingEditBottomSheet` (редактирование), карточка — "Редактировать информацию" вместо "Следующий этап"
+
+### Важное: Edit tool обрезает файлы на Windows-монтировании!
+Все записи файлов теперь только через `cat > file << 'EOF'` в bash. Edit tool использовать нельзя.
+
+### Git
+```
+git checkout -b feature/planting-setup-conditions
+git add -A
+git commit -m "feat: planting setup sheet (date/qty/conditions), edit info, greenhouse recommendations"
+git push origin feature/planting-setup-conditions
+# На VPS:
+npm run migrate   # 007_plantings_extra_fields.sql
+pm2 restart dacha-api
+```
+
+
+---
+
+## Сессия 2026-05-31 — Параметры посадки + редактирование + рекомендации
+
+### Что сделано
+
+1. **Баг: все регионы в Сроках посева** — TokenStorage.kt был обрезан, createGarden не сохранял climateZone, TodayViewModel теперь вызывает loadGardens() если zone == null
+
+2. **Карточка посадки**: last_action_at через подзапрос MAX в GET /plantings; formatIsoDate() DD.MM.YY
+
+3. **Параметры посадки (quantity, conditions)**:
+   - Миграция 007: quantity INT DEFAULT 1, conditions VARCHAR(20) DEFAULT 'soil'
+   - plantings.js: POST/GET с полями, новый PATCH /:id/info
+   - recommendations.js: теплица снимает frost_alert, +30% к интервалу полива; восстановлен обрезанный слой 4 (подкормки)
+   - Models.kt: Planting + quantity/conditions, новый UpdatePlantingInfoRequest
+   - DachaApi: updatePlantingInfo; PlantingsRepository: updateInfo()
+   - PlantingsViewModel: pendingCropId вместо авто-создания, confirmPlanting/openEditSheet/saveEditedInfo
+   - PlantingsScreen: PlantingSetupBottomSheet (дата/кол-во/место), PlantingEditBottomSheet, карточка — "Редактировать информацию"
+
+### Важное: Edit tool обрезает файлы на Windows-монтировании — только cat > через bash!
+
+### Git
+```
+git checkout -b feature/planting-setup-conditions
+git add -A
+git commit -m "feat: planting setup sheet (date/qty/conditions), edit info, greenhouse recommendations"
+git push origin feature/planting-setup-conditions
+# На VPS: npm run migrate + pm2 restart dacha-api
+```
+
+---
+
+## Сессия 2026-05-31 — Баг-фиксы и аудит конвенций
+
+### Что сделано
+
+1. **Admin-guard для справочника культур**
+   - Декоратор `requireAdmin` в `app.js` — проверяет `ADMIN_EMAIL` из `.env`
+   - `POST /crops` и `PUT /crops/:id` теперь доступны только администратору
+   - На VPS добавлен `ADMIN_EMAIL=krukov1@gmail.com` в `.env`
+
+2. **Фикс `action_type` в бэкенде**
+   - `today.js` и `recommendations.js` искали `action_type = 'watered'` / `'fertilized'`
+   - В БД хранится `'watering'` / `'fertilizing'` (Android пишет именно эти значения)
+   - Следствие: `lastWateredMap` всегда был пуст → рекомендации ложно показывали полив для всех посадок
+   - Задачи на день при этом могли быть пустыми (корректно для свежих посадок)
+
+3. **Фикс fallback 999 дней в рекомендациях**
+   - При отсутствии записи о поливе/подкормке использовался `999` → некорректное сообщение "прошло 999 дн."
+   - Заменено на `daysSincePlanting` — реальное время с посадки
+
+4. **Фикс моргания экрана после закрытия шторки "Записать действие"**
+   - `PlantingsViewModel.loadPlantings(silent=true)` — не сбрасывает `isLoading` и не очищает список при тихой перезагрузке
+   - `closeActionSheet()` теперь вызывает `loadPlantings(silent = true)`
+
+5. **Фикс сортировки расписания работ в PlantingInfoBottomSheet**
+   - `expandTasks` сортировал по строке `"dd.MM.yy"` (лексикографически) — неправильно
+   - Теперь накапливает `Triple(name, dateStr, LocalDate)`, сортирует по `LocalDate`
+
+6. **Восстановление кодировки UTF-8**
+   - PowerShell `Set-Content -Encoding utf8` портит кириллицу (re-encode UTF-8 как Windows-1252)
+   - Пострадавшие файлы: `recommendations.js`, `today.js`, `crops.js`, `app.js`
+   - Восстановлены через Write tool; правило зафиксировано в CONVENTIONS.md и памяти
+
+7. **Аудит и актуализация `CONVENTIONS.md`**
+   - Добавлен `CalendarRepository.getCalendarData()` в таблицу репозиториев
+   - Добавлен раздел **5a**: таблица канонических enum-значений в SQL (`watering`, `fertilizing`, `treatment`, `other`, стадии посадки)
+   - Уточнено: `runCatching` в UI для парсинга дат — допустимое исключение
+
+### Технические решения
+- SSH на VPS работает только из PowerShell (не bash) — Windows SSH-ключ в config
+- Бэкенд `.js` писать только через Write tool или SSH heredoc
+- `action_type` в БД: `watering | fertilizing | treatment | other` (источник: `ACTION_TYPES` в `ActionLogViewModel.kt`)
+
+### Следующие шаги
+- Пересобрать и установить APK с фиксами `action_type`
+- Смержить ветку `feature/planting-setup-conditions` в `main` после проверки на устройстве

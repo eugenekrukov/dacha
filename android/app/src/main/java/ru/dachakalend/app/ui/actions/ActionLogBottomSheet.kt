@@ -24,13 +24,17 @@ fun ActionLogBottomSheet(
     val state by viewModel.uiState.collectAsState()
     var notes by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf(preselectedType) }
-
-    // Закрываем после успеха
-    LaunchedEffect(state.success) {
-        if (state.success) onDismiss()
-    }
-
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Сбрасываем состояние при открытии (ViewModel живёт дольше шторки)
+    LaunchedEffect(Unit) { viewModel.reset() }
+    // Закрываем после успеха — сначала анимация, потом убираем composable
+    LaunchedEffect(state.success) {
+        if (state.success) {
+            sheetState.hide()
+            onDismiss()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -115,7 +119,7 @@ fun ActionLogBottomSheet(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Сохранить", style = MaterialTheme.typography.titleMedium)
+                    Text("Сохранить")
                 }
             }
         }

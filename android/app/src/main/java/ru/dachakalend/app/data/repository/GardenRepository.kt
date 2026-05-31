@@ -19,6 +19,7 @@ class GardenRepository @Inject constructor(
             val gardens = api.getGardens()
             if (gardens.isNotEmpty()) {
                 tokenStorage.saveGardenId(gardens.first().id)
+                tokenStorage.saveClimateZone(gardens.first().climateZone)
             }
             Result.Success(gardens)
         } catch (e: Exception) {
@@ -38,6 +39,7 @@ class GardenRepository @Inject constructor(
                 )
             )
             tokenStorage.saveGardenId(garden.id)
+            tokenStorage.saveClimateZone(garden.climateZone)
             Result.Success(garden)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Ошибка создания участка")
