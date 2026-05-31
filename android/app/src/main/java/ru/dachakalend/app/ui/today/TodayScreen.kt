@@ -31,6 +31,7 @@ import ru.dachakalend.app.ui.theme.taskColor
 @Composable
 fun TodayScreen(
     onEditGarden: () -> Unit = {},
+    onAddPlanting: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -44,7 +45,8 @@ fun TodayScreen(
             recommendations = state.data.recommendations,
             plantings = state.data.plantings,
             onRefresh = { viewModel.loadToday() },
-            onEditGarden = onEditGarden
+            onEditGarden = onEditGarden,
+            onAddPlanting = onAddPlanting
         )
     }
 }
@@ -57,7 +59,8 @@ private fun TodayContent(
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
     onRefresh: () -> Unit,
-    onEditGarden: () -> Unit = {}
+    onEditGarden: () -> Unit = {},
+    onAddPlanting: () -> Unit = {}
 ) {
     // Состояния для быстрых действий
     var quickActionType by remember { mutableStateOf<String?>(null) }
@@ -150,7 +153,10 @@ private fun TodayContent(
             }
         } else {
             item {
-                EmptyTasksCard()
+                EmptyTasksCard(
+                    hasPlantings = plantings.isNotEmpty(),
+                    onAddPlanting = onAddPlanting
+                )
             }
         }
 
@@ -471,7 +477,10 @@ private fun RecommendationCard(rec: Recommendation) {
 }
 
 @Composable
-private fun EmptyTasksCard() {
+private fun EmptyTasksCard(
+    hasPlantings: Boolean = true,
+    onAddPlanting: () -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -481,13 +490,34 @@ private fun EmptyTasksCard() {
             modifier = Modifier.padding(24.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("🌱", fontSize = 32.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Всё в порядке! Задач нет",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
+            if (hasPlantings) {
+                Text("🌱", fontSize = 32.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Всё в порядке! Задач нет",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            } else {
+                Text("🌱", fontSize = 32.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "У вас пока нет посадок",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Добавьте первую культуру, чтобы получать задачи и рекомендации",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = onAddPlanting) {
+                    Text("Добавить посадку")
+                }
+            }
         }
     }
 }

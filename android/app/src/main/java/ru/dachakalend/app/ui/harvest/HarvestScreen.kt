@@ -19,7 +19,10 @@ import ru.dachakalend.app.data.model.Planting
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HarvestScreen(viewModel: HarvestViewModel = hiltViewModel()) {
+fun HarvestScreen(
+    onAddPlanting: () -> Unit = {},
+    viewModel: HarvestViewModel = hiltViewModel()
+) {
     val state by viewModel.uiState.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -51,7 +54,10 @@ fun HarvestScreen(viewModel: HarvestViewModel = hiltViewModel()) {
         ) {
             when {
                 state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                state.harvests.isEmpty() -> EmptyHarvestState(modifier = Modifier.align(Alignment.Center))
+                state.harvests.isEmpty() -> EmptyHarvestState(
+                    modifier = Modifier.align(Alignment.Center),
+                    onAddPlanting = onAddPlanting
+                )
                 else -> HarvestList(harvests = state.harvests)
             }
         }
@@ -70,7 +76,10 @@ fun HarvestScreen(viewModel: HarvestViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun EmptyHarvestState(modifier: Modifier = Modifier) {
+private fun EmptyHarvestState(
+    modifier: Modifier = Modifier,
+    onAddPlanting: () -> Unit = {}
+) {
     Column(
         modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -83,10 +92,15 @@ private fun EmptyHarvestState(modifier: Modifier = Modifier) {
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            "Нажмите + чтобы добавить первую запись",
+            "Сначала добавьте посадку, затем фиксируйте сбор урожая",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onAddPlanting) {
+            Text("Добавить посадку")
+        }
     }
 }
 

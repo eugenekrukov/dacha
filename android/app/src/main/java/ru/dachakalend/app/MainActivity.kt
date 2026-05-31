@@ -136,7 +136,8 @@ class MainActivity : ComponentActivity() {
                         // Main app
                         composable(Screen.Today.route) {
                             TodayScreen(
-                                onEditGarden = { navController.navigate(Screen.GardenEdit.route) }
+                                onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
+                                onAddPlanting = { navController.navigate(Screen.Crops.route) }
                             )
                         }
                         composable(Screen.Calendar.route) { CalendarScreen() }
@@ -160,7 +161,11 @@ class MainActivity : ComponentActivity() {
                                 onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) }
                             )
                         }
-                        composable(Screen.Harvest.route) { HarvestScreen() }
+                        composable(Screen.Harvest.route) {
+                            HarvestScreen(
+                                onAddPlanting = { navController.navigate(Screen.Crops.route) }
+                            )
+                        }
                         composable(Screen.Analytics.route) { AnalyticsScreen() }
 
                         // Справочник культур
