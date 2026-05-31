@@ -1,12 +1,13 @@
-'use strict'
+﻿'use strict'
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
+  const adminAuth = { onRequest: [fastify.requireAdmin] }
 
-  // GET /crops — справочник культур (публичный)
+  // GET /crops вЂ” СЃРїСЂР°РІРѕС‡РЅРёРє РєСѓР»СЊС‚СѓСЂ (РїСѓР±Р»РёС‡РЅС‹Р№)
   fastify.get('/', async (request) => {
     const { category } = request.query
-    // DISTINCT ON (name) исключает дубликаты на случай повторного запуска миграций
+    // DISTINCT ON (name) РёСЃРєР»СЋС‡Р°РµС‚ РґСѓР±Р»РёРєР°С‚С‹ РЅР° СЃР»СѓС‡Р°Р№ РїРѕРІС‚РѕСЂРЅРѕРіРѕ Р·Р°РїСѓСЃРєР° РјРёРіСЂР°С†РёР№
     let query = `SELECT DISTINCT ON (name) * FROM crops ORDER BY name ASC`
     const params = []
     if (category) {
@@ -24,8 +25,8 @@ module.exports = async function (fastify) {
     return result.rows[0]
   })
 
-  // POST /crops — добавление в справочник (admin-use only, пока без guard)
-  fastify.post('/', auth, async (request, reply) => {
+  // POST /crops вЂ” РґРѕР±Р°РІР»РµРЅРёРµ РІ СЃРїСЂР°РІРѕС‡РЅРёРє (admin-use only, РїРѕРєР° Р±РµР· guard)
+  fastify.post('/', adminAuth, async (request, reply) => {
     const { name, category, sowing_start_day, sowing_end_day, transplant_days, harvest_days, watering_freq_days, frost_sensitive, companion_crops, notes } = request.body
     const result = await fastify.db.query(
       `INSERT INTO crops (name, category, sowing_start_day, sowing_end_day, transplant_days, harvest_days, watering_freq_days, frost_sensitive, companion_crops, notes)
@@ -35,8 +36,8 @@ module.exports = async function (fastify) {
     return reply.code(201).send(result.rows[0])
   })
 
-  // PUT /crops/:id — обновление культуры (admin-use only)
-  fastify.put('/:id', auth, async (request, reply) => {
+  // PUT /crops/:id вЂ” РѕР±РЅРѕРІР»РµРЅРёРµ РєСѓР»СЊС‚СѓСЂС‹ (admin-use only)
+  fastify.put('/:id', adminAuth, async (request, reply) => {
     const ALLOWED = [
       'name', 'category', 'sowing_start_day', 'sowing_end_day', 'transplant_days',
       'harvest_days', 'watering_freq_days', 'frost_sensitive', 'notes',
@@ -66,3 +67,4 @@ module.exports = async function (fastify) {
     return result.rows[0]
   })
 }
+

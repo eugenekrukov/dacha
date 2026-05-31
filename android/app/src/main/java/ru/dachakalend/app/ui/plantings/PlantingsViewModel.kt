@@ -1,4 +1,4 @@
-package ru.dachakalend.app.ui.plantings
+﻿package ru.dachakalend.app.ui.plantings
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -24,13 +24,13 @@ data class PlantingsUiState(
     val error: String? = null,
     val showActionSheet: Planting? = null,
     val successMessage: String? = null,
-    // Шторка создания посадки (при нажатии "Посадить")
+    // РЁС‚РѕСЂРєР° СЃРѕР·РґР°РЅРёСЏ РїРѕСЃР°РґРєРё (РїСЂРё РЅР°Р¶Р°С‚РёРё "РџРѕСЃР°РґРёС‚СЊ")
     val pendingCropId: Int? = null,
-    // Шторка редактирования посадки (в 3 точках)
+    // РЁС‚РѕСЂРєР° СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ РїРѕСЃР°РґРєРё (РІ 3 С‚РѕС‡РєР°С…)
     val editingPlanting: Planting? = null,
-    // Шторка информации о посадке
+    // РЁС‚РѕСЂРєР° РёРЅС„РѕСЂРјР°С†РёРё Рѕ РїРѕСЃР°РґРєРµ
     val showInfoSheet: Planting? = null,
-    // Диалог подтверждения удаления
+    // Р”РёР°Р»РѕРі РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ СѓРґР°Р»РµРЅРёСЏ
     val confirmDeletePlanting: Planting? = null
 )
 
@@ -46,16 +46,16 @@ class PlantingsViewModel @Inject constructor(
 
     init {
         loadPlantings()
-        // Если пришли из CropDetail — открываем шторку настройки посадки
+        // Р•СЃР»Рё РїСЂРёС€Р»Рё РёР· CropDetail вЂ” РѕС‚РєСЂС‹РІР°РµРј С€С‚РѕСЂРєСѓ РЅР°СЃС‚СЂРѕР№РєРё РїРѕСЃР°РґРєРё
         val newCropId = savedStateHandle.get<Int>(Screen.Plantings.ARG_NEW_CROP_ID)
         if (newCropId != null && newCropId != -1) {
             _uiState.value = _uiState.value.copy(pendingCropId = newCropId)
         }
     }
 
-    fun loadPlantings() {
+    fun loadPlantings(silent: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            if (!silent) _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             val gardenId = tokenStorage.getGardenId().takeIf { it != -1 }
             when (val result = plantingsRepository.getPlantings(gardenId)) {
                 is Result.Success -> _uiState.value = _uiState.value.copy(plantings = result.data, isLoading = false)
@@ -65,7 +65,7 @@ class PlantingsViewModel @Inject constructor(
         }
     }
 
-    /** Подтверждение из PlantingSetupBottomSheet */
+    /** РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РёР· PlantingSetupBottomSheet */
     fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String) {
         _uiState.value = _uiState.value.copy(pendingCropId = null)
         createPlanting(cropId, date, quantity, conditions)
@@ -79,7 +79,7 @@ class PlantingsViewModel @Inject constructor(
         viewModelScope.launch {
             val gardenId = tokenStorage.getGardenId()
             if (gardenId == -1) {
-                _uiState.value = _uiState.value.copy(error = "Участок не найден")
+                _uiState.value = _uiState.value.copy(error = "РЈС‡Р°СЃС‚РѕРє РЅРµ РЅР°Р№РґРµРЅ")
                 return@launch
             }
             val request = CreatePlantingRequest(
@@ -91,7 +91,7 @@ class PlantingsViewModel @Inject constructor(
             )
             when (val result = plantingsRepository.createPlanting(request)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(successMessage = "Посадка добавлена!")
+                    _uiState.value = _uiState.value.copy(successMessage = "РџРѕСЃР°РґРєР° РґРѕР±Р°РІР»РµРЅР°!")
                     loadPlantings()
                 }
                 is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message)
@@ -118,7 +118,7 @@ class PlantingsViewModel @Inject constructor(
             )
             when (plantingsRepository.updateInfo(plantingId, request)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(successMessage = "Посадка обновлена!")
+                    _uiState.value = _uiState.value.copy(successMessage = "РџРѕСЃР°РґРєР° РѕР±РЅРѕРІР»РµРЅР°!")
                     loadPlantings()
                 }
                 is Result.Error   -> Unit
@@ -148,7 +148,7 @@ class PlantingsViewModel @Inject constructor(
         viewModelScope.launch {
             when (plantingsRepository.deletePlanting(plantingId)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(successMessage = "Посадка удалена")
+                    _uiState.value = _uiState.value.copy(successMessage = "РџРѕСЃР°РґРєР° СѓРґР°Р»РµРЅР°")
                     loadPlantings()
                 }
                 is Result.Error   -> Unit
@@ -173,10 +173,11 @@ class PlantingsViewModel @Inject constructor(
 
     fun closeActionSheet() {
         _uiState.value = _uiState.value.copy(showActionSheet = null)
-        loadPlantings()
+        loadPlantings(silent = true)
     }
 
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(successMessage = null, error = null)
     }
 }
+

@@ -1,4 +1,4 @@
-'use strict'
+﻿'use strict'
 
 require('dotenv').config()
 
@@ -31,6 +31,19 @@ app.decorate('authenticate', async function (request, reply) {
   }
 })
 
+
+// Admin guard decorator
+app.decorate('requireAdmin', async function (request, reply) {
+  try {
+    await request.jwtVerify()
+  } catch (err) {
+    return reply.send(err)
+  }
+  const adminEmail = process.env.ADMIN_EMAIL
+  if (!adminEmail || request.user.email !== adminEmail) {
+    return reply.code(403).send({ error: 'Forbidden: admin only' })
+  }
+})
 // Routes
 app.register(require('./routes/auth'), { prefix: '/auth' })
 app.register(require('./routes/gardens'), { prefix: '/gardens' })
@@ -48,7 +61,7 @@ app.register(require('./routes/analytics'), { prefix: '/analytics' })
 // Health check
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
-// Weather background job — стартует после инициализации БД
+// Weather background job вЂ” СЃС‚Р°СЂС‚СѓРµС‚ РїРѕСЃР»Рµ РёРЅРёС†РёР°Р»РёР·Р°С†РёРё Р‘Р”
 const { startWeatherJob } = require('./jobs/weatherJob')
 app.addHook('onReady', async () => {
   startWeatherJob(app.db)
@@ -67,3 +80,4 @@ const start = async () => {
 }
 
 start()
+
