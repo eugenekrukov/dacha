@@ -47,16 +47,17 @@ private fun offsetDate(base: LocalDate, days: Int): String {
 // Разворачиваем повторяющиеся задачи до harvestDays (или 120 дней)
 private fun expandTasks(tasks: List<CareTask>, planted: LocalDate, harvestDays: Int?): List<Pair<String, String>> {
     val limit = harvestDays ?: 120
-    val result = mutableListOf<Pair<String, String>>()
+    val result = mutableListOf<Triple<String, String, LocalDate>>()
     for (task in tasks) {
         var offset = task.dayOffset
         while (offset <= limit) {
-            result += task.name to offsetDate(planted, offset)
+            val date = planted.plusDays(offset.toLong())
+            result += Triple(task.name, offsetDate(planted, offset), date)
             if (task.repeatDays == null) break
             offset += task.repeatDays
         }
     }
-    return result.sortedBy { it.second }
+    return result.sortedBy { it.third }.map { it.first to it.second }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
