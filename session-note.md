@@ -1,4 +1,4 @@
-# Протокол рабочей сессии разработчика
+﻿# Протокол рабочей сессии разработчика
 
 **Дата последней сессии**: 2026-05-31  
 
@@ -593,38 +593,6 @@ git push origin feature/planting-setup-conditions
 npm run migrate   # 007_plantings_extra_fields.sql
 pm2 restart dacha-api
 ```
-
-
----
-
-## Сессия 2026-05-31 — Параметры посадки + редактирование + рекомендации
-
-### Что сделано
-
-1. **Баг: все регионы в Сроках посева** — TokenStorage.kt был обрезан, createGarden не сохранял climateZone, TodayViewModel теперь вызывает loadGardens() если zone == null
-
-2. **Карточка посадки**: last_action_at через подзапрос MAX в GET /plantings; formatIsoDate() DD.MM.YY
-
-3. **Параметры посадки (quantity, conditions)**:
-   - Миграция 007: quantity INT DEFAULT 1, conditions VARCHAR(20) DEFAULT 'soil'
-   - plantings.js: POST/GET с полями, новый PATCH /:id/info
-   - recommendations.js: теплица снимает frost_alert, +30% к интервалу полива; восстановлен обрезанный слой 4 (подкормки)
-   - Models.kt: Planting + quantity/conditions, новый UpdatePlantingInfoRequest
-   - DachaApi: updatePlantingInfo; PlantingsRepository: updateInfo()
-   - PlantingsViewModel: pendingCropId вместо авто-создания, confirmPlanting/openEditSheet/saveEditedInfo
-   - PlantingsScreen: PlantingSetupBottomSheet (дата/кол-во/место), PlantingEditBottomSheet, карточка — "Редактировать информацию"
-
-### Важное: Edit tool обрезает файлы на Windows-монтировании — только cat > через bash!
-
-### Git
-```
-git checkout -b feature/planting-setup-conditions
-git add -A
-git commit -m "feat: planting setup sheet (date/qty/conditions), edit info, greenhouse recommendations"
-git push origin feature/planting-setup-conditions
-# На VPS: npm run migrate + pm2 restart dacha-api
-```
-
 ---
 
 ## Сессия 2026-05-31 — Баг-фиксы и аудит конвенций
@@ -672,3 +640,34 @@ git push origin feature/planting-setup-conditions
 ### Следующие шаги
 - Пересобрать и установить APK с фиксами `action_type`
 - Смержить ветку `feature/planting-setup-conditions` в `main` после проверки на устройстве
+
+
+---
+
+## Сессия 2026-05-31 — GardenEditScreen + Push полив/подкормка
+
+### Что сделано
+
+1. **GardenEditScreen** — экран редактирования участка
+   - `UpdateGardenRequest` в Models.kt, `PUT gardens/{id}` в DachaApi
+   - `GardenRepository.updateGarden()` + `getCurrentGardenId()`
+   - `GardenEditViewModel` (загружает участок, сохраняет через PUT)
+   - `GardenEditScreen` — форма с предзаполненными полями (название, город, регион), TopAppBar
+   - `Screen.GardenEdit` в Navigation.kt, добавлен в `screensWithoutBottomBar`
+   - Кнопка ⚙️ в заголовке TodayScreen → переход на GardenEdit
+   - BUILD SUCCESSFUL ✅
+
+2. **Push watering_due / fertilizing_due**
+   - `pushService.js`: рефакторинг `getTokensForGarden`, добавлены `sendWateringAlert` и `sendFertilizingAlert`
+   - `careRemindersJob.js`: ежедневный cron 09:00 — проверяет все активные посадки, теплица +30% к интервалу, дедупликация
+   - `009_care_alert_log.sql`: таблица + индекс для защиты от дублей (1 пуш/посадка/тип/день)
+   - `app.js`: `startCareRemindersJob` зарегистрирован в onReady
+   - Задеплоено на VPS, логи: `[care-job] Запущен: проверка полива/подкормки каждый день в 09:00` ✅
+
+3. **Гит и деплой**
+   - Смержены ветки `feature/planting-setup-conditions`, `feature/garden-edit`, `feature/care-push-notifications` → main
+   - `main` синхронизирован с VPS и GitHub
+
+### Технические решения
+- Функциональный индекс `(sent_at::date)` в PostgreSQL требует IMMUTABLE — заменён на обычный по `sent_at`
+- SSH на VPS: только PowerShell (не bash), миграции через `sudo -u postgres psql -d dacha_db`
