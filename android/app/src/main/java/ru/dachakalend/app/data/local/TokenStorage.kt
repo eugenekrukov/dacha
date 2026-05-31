@@ -18,6 +18,7 @@ class TokenStorage @Inject constructor(
 
     fun saveGardenId(id: Int) = prefs.edit { putInt(KEY_GARDEN_ID, id) }
     fun getGardenId(): Int = prefs.getInt(KEY_GARDEN_ID, -1)
+    fun hasGarden(): Boolean = getGardenId() != -1
 
     fun saveClimateZone(zone: String?) = prefs.edit { putString(KEY_CLIMATE_ZONE, zone) }
     fun getClimateZone(): String? = prefs.getString(KEY_CLIMATE_ZONE, null)

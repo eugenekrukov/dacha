@@ -39,6 +39,7 @@ class GardenRepository @Inject constructor(
                 )
             )
             tokenStorage.saveGardenId(garden.id)
+            tokenStorage.saveClimateZone(garden.climateZone)
             Result.Success(garden)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Ошибка создания участка")
