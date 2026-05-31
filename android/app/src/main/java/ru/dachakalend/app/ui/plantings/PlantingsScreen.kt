@@ -129,7 +129,6 @@ fun PlantingsScreen(
             planting     = planting,
             onDismiss    = { viewModel.dismissInfoSheet() },
             onCropDetail = { cropId ->
-                viewModel.dismissInfoSheet()
                 onOpenCropDetail(cropId)
             }
         )

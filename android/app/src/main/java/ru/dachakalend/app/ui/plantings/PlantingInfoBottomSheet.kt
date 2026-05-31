@@ -141,7 +141,7 @@ fun PlantingInfoBottomSheet(
 
                     if (taskDates.isNotEmpty()) {
                         InfoSection(title = "Расписание работ") {
-                            taskDates.forEach { (name, date) ->
+                            taskDates.sortedBy { it.second }.forEach { (name, date) ->
                                 InfoRow2(name, date)
                             }
                         }

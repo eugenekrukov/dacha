@@ -27,7 +27,11 @@ data class PlantingsUiState(
     // Шторка создания посадки (при нажатии "Посадить")
     val pendingCropId: Int? = null,
     // Шторка редактирования посадки (в 3 точках)
-    val editingPlanting: Planting? = null
+    val editingPlanting: Planting? = null,
+    // Шторка информации о посадке
+    val showInfoSheet: Planting? = null,
+    // Диалог подтверждения удаления
+    val confirmDeletePlanting: Planting? = null
 )
 
 @HiltViewModel
