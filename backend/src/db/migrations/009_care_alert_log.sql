@@ -9,5 +9,5 @@ CREATE TABLE IF NOT EXISTS care_alert_log (
 );
 
 -- Индекс для быстрой проверки "отправляли ли сегодня"
-CREATE INDEX IF NOT EXISTS idx_care_alert_log_planting_type_date
-  ON care_alert_log (planting_id, alert_type, (sent_at::date));
+CREATE INDEX IF NOT EXISTS idx_care_alert_log_planting_type
+  ON care_alert_log (planting_id, alert_type, sent_at);
