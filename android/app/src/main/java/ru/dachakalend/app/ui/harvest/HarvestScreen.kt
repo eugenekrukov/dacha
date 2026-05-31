@@ -113,6 +113,9 @@ private fun HarvestList(harvests: List<Harvest>) {
         item {
             HarvestSummaryCard(harvests)
         }
+        item {
+            HarvestByCropCard(harvests)
+        }
         items(harvests, key = { it.id }) { harvest ->
             HarvestCard(harvest)
         }
@@ -172,6 +175,65 @@ private fun HarvestSummaryCard(harvests: List<Harvest>) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HarvestByCropCard(harvests: List<Harvest>) {
+    if (harvests.isEmpty()) return
+
+    // Группируем по cropName
+    val grouped = harvests.groupBy { it.cropName ?: "Без названия" }
+        .map { (cropName, items) ->
+            Triple(
+                cropName,
+                items.mapNotNull { it.weightKg }.sum(),
+                items.mapNotNull { it.quantity }.sum()
+            )
+        }
+        .sortedByDescending { it.second + it.third }
+
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "По культурам",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Свернуть" else "Развернуть")
+                }
+            }
+            if (expanded) {
+                grouped.forEach { (cropName, kg, pcs) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(cropName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Text(
+                            buildString {
+                                if (kg > 0) append("%.1f кг".format(kg))
+                                if (kg > 0 && pcs > 0) append(" · ")
+                                if (pcs > 0) append("$pcs шт")
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    HorizontalDivider(thickness = 0.5.dp)
+                }
             }
         }
     }
