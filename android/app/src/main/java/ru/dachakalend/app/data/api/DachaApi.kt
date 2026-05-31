@@ -24,6 +24,9 @@ interface DachaApi {
     @POST("gardens")
     suspend fun createGarden(@Body request: CreateGardenRequest): Garden
 
+    @PUT("gardens/{id}")
+    suspend fun updateGarden(@Path("id") id: Int, @Body request: UpdateGardenRequest): Garden
+
     // Crops
     @GET("crops")
     suspend fun getCrops(@Query("category") category: String? = null): List<Crop>

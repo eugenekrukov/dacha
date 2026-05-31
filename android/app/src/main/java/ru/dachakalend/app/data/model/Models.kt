@@ -328,3 +328,12 @@ data class CreateGardenRequest(
     @Json(name = "soil_type") val soilType: String?,
     @Json(name = "climate_zone") val climateZone: String?
 )
+
+@JsonClass(generateAdapter = true)
+data class UpdateGardenRequest(
+    val name: String,
+    val region: String?,
+    val city: String? = null,
+    @Json(name = "soil_type") val soilType: String? = null,
+    @Json(name = "climate_zone") val climateZone: String? = null
+)

@@ -31,6 +31,7 @@ import ru.dachakalend.app.ui.crops.CropDetailScreen
 import ru.dachakalend.app.ui.crops.CropsScreen
 import ru.dachakalend.app.ui.crops.CropsViewModel
 import ru.dachakalend.app.ui.garden.CreateGardenScreen
+import ru.dachakalend.app.ui.garden.GardenEditScreen
 import ru.dachakalend.app.ui.analytics.AnalyticsScreen
 import ru.dachakalend.app.ui.harvest.HarvestScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
@@ -125,9 +126,19 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                        composable(Screen.GardenEdit.route) {
+                            GardenEditScreen(
+                                onSaved = { navController.popBackStack() },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
 
                         // Main app
-                        composable(Screen.Today.route) { TodayScreen() }
+                        composable(Screen.Today.route) {
+                            TodayScreen(
+                                onEditGarden = { navController.navigate(Screen.GardenEdit.route) }
+                            )
+                        }
                         composable(Screen.Calendar.route) { CalendarScreen() }
                         // Plantings — базовый маршрут (из BottomNav)
                         composable(Screen.Plantings.route) {
