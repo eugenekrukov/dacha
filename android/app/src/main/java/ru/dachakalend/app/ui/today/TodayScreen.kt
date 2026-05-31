@@ -29,7 +29,10 @@ import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 import ru.dachakalend.app.ui.theme.taskColor
 
 @Composable
-fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
+fun TodayScreen(
+    onEditGarden: () -> Unit = {},
+    viewModel: TodayViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
 
     when (val state = uiState) {
@@ -40,7 +43,8 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
             tasks = state.data.today.tasks,
             recommendations = state.data.recommendations,
             plantings = state.data.plantings,
-            onRefresh = { viewModel.loadToday() }
+            onRefresh = { viewModel.loadToday() },
+            onEditGarden = onEditGarden
         )
     }
 }
@@ -52,7 +56,8 @@ private fun TodayContent(
     tasks: List<TodayTask>,
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onEditGarden: () -> Unit = {}
 ) {
     // Состояния для быстрых действий
     var quickActionType by remember { mutableStateOf<String?>(null) }
@@ -104,12 +109,25 @@ private fun TodayContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text(
-                text = "Сегодня",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Сегодня",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                IconButton(onClick = onEditGarden) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Редактировать участок",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
         }
 
         // Погодная карточка

@@ -14,6 +14,9 @@ sealed class Screen(val route: String) {
     object Register : Screen("register")
     object CreateGarden : Screen("create_garden")
 
+    // Garden edit
+    object GardenEdit : Screen("garden_edit")
+
     // Main app
     object Today : Screen("today")
     object Calendar : Screen("calendar")
@@ -52,11 +55,11 @@ val bottomNavItems = listOf(
 )
 
 // Экраны, на которых не показывается BottomBar
-// Экраны, на которых не показывается BottomBar
 val screensWithoutBottomBar = setOf(
     Screen.Login.route,
     Screen.Register.route,
     Screen.CreateGarden.route,
+    Screen.GardenEdit.route,
     Screen.Crops.route,
     Screen.CropDetail.routeWithArgs
 )
