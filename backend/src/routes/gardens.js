@@ -22,9 +22,23 @@ module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
   // POST /gardens
+  // Бесплатный план: максимум 3 участка.
+  // Если участок уже есть — возвращаем первый существующий вместо создания нового.
   fastify.post('/', auth, async (request, reply) => {
     const { name, region, soil_type, climate_zone, city, garden_type } = request.body
     const userId = request.user.userId
+
+    // Проверяем лимит участков
+    const existing = await fastify.db.query(
+      'SELECT * FROM gardens WHERE user_id=$1 ORDER BY created_at ASC LIMIT 3',
+      [userId]
+    )
+    if (existing.rows.length >= 3) {
+      return reply.code(409).send({
+        error: 'Достигнут лимит участков',
+        existing_garden: existing.rows[0]
+      })
+    }
 
     let lat = request.body.lat
     let lon = request.body.lon
@@ -61,7 +75,12 @@ module.exports = async function (fastify) {
   // GET /gardens
   fastify.get('/', auth, async (request) => {
     const result = await fastify.db.query(
-      'SELECT * FROM gardens WHERE user_id = $1 ORDER BY created_at DESC',
+      `SELECT g.*, COUNT(p.id) AS planting_count
+       FROM gardens g
+       LEFT JOIN plantings p ON p.garden_id = g.id
+       WHERE g.user_id = $1
+       GROUP BY g.id
+       ORDER BY planting_count DESC, g.created_at ASC`,
       [request.user.userId]
     )
     return result.rows.map(g => ({

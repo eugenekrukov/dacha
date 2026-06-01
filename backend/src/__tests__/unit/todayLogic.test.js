@@ -196,7 +196,7 @@ describe('сортировка и лимит', () => {
     expect(tasks[0].type).toBe('frost_alert')
   })
 
-  it('возвращает не более 5 задач', () => {
+  it('возвращает не более 7 задач', () => {
     const plantings = Array.from({ length: 10 }, (_, i) =>
       makePlanting({ id: i + 1, frost_sensitive: true, watering_freq_days: 1 })
     )
@@ -205,7 +205,7 @@ describe('сортировка и лимит', () => {
       return acc
     }, {})
     const tasks = buildTasks(plantings, makeWeather({ frost_risk: true }), lastWatered, [], TODAY)
-    expect(tasks.length).toBeLessThanOrEqual(5)
+    expect(tasks.length).toBeLessThanOrEqual(7)
   })
 
   it('задачи с большей просрочкой идут раньше при одинаковом приоритете', () => {

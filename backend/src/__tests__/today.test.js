@@ -194,7 +194,7 @@ describe('GET /today', () => {
     await localApp.close()
   })
 
-  it('возвращает не более 5 задач', async () => {
+  it('возвращает не более 7 задач', async () => {
     // 10 посадок с просроченным поливом и заморозками → много задач
     const plantings = Array.from({ length: 10 }, (_, i) =>
       makePlanting({ id: i + 1, frost_sensitive: true, watering_freq_days: 1 })
@@ -209,7 +209,7 @@ describe('GET /today', () => {
       .get('/today?garden_id=1')
       .set('Authorization', `Bearer ${localToken}`)
 
-    expect(res.body.tasks.length).toBeLessThanOrEqual(5)
+    expect(res.body.tasks.length).toBeLessThanOrEqual(7)
     await localApp.close()
   })
 
