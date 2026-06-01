@@ -317,6 +317,16 @@ data class OnboardingProgress(
     val harvest: Boolean
 )
 
+// --- Geocode ---
+
+@JsonClass(generateAdapter = true)
+data class GeocodeSuggestion(
+    val name: String,
+    @Json(name = "display_name") val displayName: String,
+    val lat: Double,
+    val lon: Double
+)
+
 // --- Garden ---
 
 @JsonClass(generateAdapter = true)

@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.Garden
+import ru.dachakalend.app.data.model.GeocodeSuggestion
 import ru.dachakalend.app.data.repository.GardenRepository
+import ru.dachakalend.app.data.repository.GeocoderRepository
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 
@@ -15,7 +18,7 @@ sealed class GardenEditUiState {
     object Loading : GardenEditUiState()
     data class Loaded(val garden: Garden) : GardenEditUiState()
     object Saving : GardenEditUiState()
-    object Saved : GardenEditUiState()
+    data class Saved(val message: String? = null) : GardenEditUiState()
     object GettingLocation : GardenEditUiState()
     data class LocationFound(val lat: Double, val lon: Double, val garden: Garden) : GardenEditUiState()
     data class Error(val message: String) : GardenEditUiState()
@@ -23,14 +26,19 @@ sealed class GardenEditUiState {
 
 @HiltViewModel
 class GardenEditViewModel @Inject constructor(
-    private val gardenRepository: GardenRepository
+    private val gardenRepository: GardenRepository,
+    private val geocoderRepository: GeocoderRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<GardenEditUiState>(GardenEditUiState.Loading)
     val uiState: StateFlow<GardenEditUiState> = _uiState
 
+    private val _suggestions = MutableStateFlow<List<GeocodeSuggestion>>(emptyList())
+    val suggestions: StateFlow<List<GeocodeSuggestion>> = _suggestions.asStateFlow()
+
     private var pendingLat: Double? = null
     private var pendingLon: Double? = null
+    private var coordinateSource: String = "region"
 
     init { loadCurrentGarden() }
 
@@ -49,9 +57,29 @@ class GardenEditViewModel @Inject constructor(
         }
     }
 
+    fun searchCity(query: String) {
+        if (query.length < 2) { _suggestions.value = emptyList(); return }
+        viewModelScope.launch {
+            when (val r = geocoderRepository.suggest(query)) {
+                is Result.Success -> _suggestions.value = r.data
+                else -> _suggestions.value = emptyList()
+            }
+        }
+    }
+
+    fun clearSuggestions() { _suggestions.value = emptyList() }
+
+    fun onSuggestionSelected(s: GeocodeSuggestion) {
+        pendingLat = s.lat
+        pendingLon = s.lon
+        coordinateSource = "city"
+        _suggestions.value = emptyList()
+    }
+
     fun onLocationObtained(lat: Double, lon: Double) {
         pendingLat = lat
         pendingLon = lon
+        coordinateSource = "gps"
         val garden = currentGarden() ?: return
         _uiState.value = GardenEditUiState.LocationFound(lat, lon, garden)
     }
@@ -61,29 +89,28 @@ class GardenEditViewModel @Inject constructor(
         _uiState.value = GardenEditUiState.Loaded(garden)
     }
 
-    private fun currentGarden(): ru.dachakalend.app.data.model.Garden? =
+    fun saveGarden(name: String, region: String, city: String?, gardenType: String? = null) {
+        if (name.isBlank()) { _uiState.value = GardenEditUiState.Error("Введите название участка"); return }
+        val gardenId = gardenRepository.getCurrentGardenId()
+        if (gardenId == -1) { _uiState.value = GardenEditUiState.Error("Участок не найден"); return }
+        viewModelScope.launch {
+            _uiState.value = GardenEditUiState.Saving
+            when (val result = gardenRepository.updateGarden(gardenId, name, region, city, gardenType, pendingLat, pendingLon)) {
+                is Result.Success -> _uiState.value = GardenEditUiState.Saved(saveMessage(city))
+                is Result.Error   -> _uiState.value = GardenEditUiState.Error(result.message)
+                is Result.Loading -> _uiState.value = GardenEditUiState.Saving
+            }
+        }
+    }
+
+    private fun currentGarden(): Garden? =
         (_uiState.value as? GardenEditUiState.Loaded)?.garden
             ?: (_uiState.value as? GardenEditUiState.LocationFound)?.garden
 
-    fun saveGarden(name: String, region: String, city: String?, gardenType: String? = null) {
-        if (name.isBlank()) {
-            _uiState.value = GardenEditUiState.Error("Введите название участка")
-            return
-        }
-        val gardenId = gardenRepository.getCurrentGardenId()
-        if (gardenId == -1) {
-            _uiState.value = GardenEditUiState.Error("Участок не найден")
-            return
-        }
-        viewModelScope.launch {
-            _uiState.value = GardenEditUiState.Saving
-            _uiState.value = when (val result = gardenRepository.updateGarden(
-                gardenId, name, region, city, gardenType, pendingLat, pendingLon
-            )) {
-                is Result.Success -> GardenEditUiState.Saved
-                is Result.Error   -> GardenEditUiState.Error(result.message)
-                is Result.Loading -> GardenEditUiState.Saving
-            }
-        }
+    private fun saveMessage(city: String?) = when {
+        coordinateSource == "gps"  -> "✓ GPS-координаты сохранены — прогноз будет точным"
+        coordinateSource == "city" -> "✓ Координаты определены по городу"
+        !city.isNullOrBlank()      -> "⚠️ Город не найден — используется центр региона"
+        else                       -> null
     }
 }

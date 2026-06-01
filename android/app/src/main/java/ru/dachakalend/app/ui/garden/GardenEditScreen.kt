@@ -37,9 +37,11 @@ fun GardenEditScreen(
     onBack: () -> Unit,
     viewModel: GardenEditViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState     by viewModel.uiState.collectAsState()
+    val suggestions by viewModel.suggestions.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var gardenName      by remember { mutableStateOf("") }
     var cityName        by remember { mutableStateOf("") }
@@ -49,30 +51,31 @@ fun GardenEditScreen(
     var isGettingGps    by remember { mutableStateOf(false) }
     var gpsStatus       by remember { mutableStateOf<String?>(null) }
 
-    // Предзаполнение формы — включая city
     LaunchedEffect(uiState) {
-        if (!formInitialized) {
-            val garden = when (val s = uiState) {
-                is GardenEditUiState.Loaded         -> s.garden
-                is GardenEditUiState.LocationFound  -> s.garden
-                else -> null
-            }
-            if (garden != null) {
-                gardenName     = garden.name
-                selectedRegion = garden.region ?: ""
-                cityName       = garden.city ?: ""
-                formInitialized = true
-            }
+        val garden = when (val s = uiState) {
+            is GardenEditUiState.Loaded        -> s.garden
+            is GardenEditUiState.LocationFound -> s.garden
+            else -> null
         }
-        if (uiState is GardenEditUiState.LocationFound) {
-            val s = uiState as GardenEditUiState.LocationFound
-            gpsStatus = "✓ GPS: %.4f°N, %.4f°E".format(s.lat, s.lon)
-            isGettingGps = false
+        if (garden != null && !formInitialized) {
+            gardenName     = garden.name
+            selectedRegion = garden.region ?: ""
+            cityName       = garden.city ?: ""
+            formInitialized = true
         }
-        if (uiState is GardenEditUiState.Saved) onSaved()
+        when (val s = uiState) {
+            is GardenEditUiState.Saved -> {
+                s.message?.let { snackbarHostState.showSnackbar(it) }
+                onSaved()
+            }
+            is GardenEditUiState.LocationFound -> {
+                gpsStatus = "✓ GPS: %.4f°N, %.4f°E".format(s.lat, s.lon)
+                isGettingGps = false
+            }
+            else -> {}
+        }
     }
 
-    // Запрос разрешения GPS
     val locationPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -82,15 +85,11 @@ fun GardenEditScreen(
                 if (loc != null) viewModel.onLocationObtained(loc.first, loc.second)
                 else { viewModel.onLocationFailed(); isGettingGps = false; gpsStatus = "Координаты не определены" }
             }
-        } else {
-            isGettingGps = false
-            gpsStatus = "Разрешение отклонено — введите город вручную"
-        }
+        } else { isGettingGps = false; gpsStatus = "Разрешение отклонено — введите город вручную" }
     }
 
     fun requestGps() {
-        isGettingGps = true
-        gpsStatus = null
+        isGettingGps = true; gpsStatus = null
         val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
         if (fine == PackageManager.PERMISSION_GRANTED) {
             scope.launch {
@@ -99,16 +98,14 @@ fun GardenEditScreen(
                 else { viewModel.onLocationFailed(); isGettingGps = false; gpsStatus = "Координаты не определены" }
             }
         } else {
-            locationPermLauncher.launch(arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ))
+            locationPermLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         }
     }
 
     val isSaving = uiState is GardenEditUiState.Saving
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Редактировать участок") },
@@ -122,8 +119,7 @@ fun GardenEditScreen(
     ) { paddingValues ->
         when (uiState) {
             is GardenEditUiState.Loading -> Box(
-                Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
+                Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center
             ) { CircularProgressIndicator() }
 
             else -> {
@@ -137,34 +133,27 @@ fun GardenEditScreen(
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        "Исправьте данные участка",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+                    Text("Исправьте данные участка", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     Spacer(Modifier.height(4.dp))
 
                     OutlinedTextField(
-                        value = gardenName,
-                        onValueChange = { gardenName = it },
-                        label = { Text("Название участка") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        enabled = !isSaving
+                        value = gardenName, onValueChange = { gardenName = it },
+                        label = { Text("Название участка") }, modifier = Modifier.fillMaxWidth(),
+                        singleLine = true, enabled = !isSaving
                     )
 
-                    OutlinedTextField(
+                    // Поле города с автодополнением
+                    CityInputField(
                         value = cityName,
                         onValueChange = { cityName = it },
-                        label = { Text("Город или посёлок") },
-                        placeholder = { Text("Например: Сергиев Посад") },
-                        supportingText = { Text("Для точного прогноза погоды") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
+                        suggestions = suggestions,
+                        onSearch = { viewModel.searchCity(it) },
+                        onSuggestionSelected = { viewModel.onSuggestionSelected(it) },
+                        onClearSuggestions = { viewModel.clearSuggestions() },
                         enabled = !isSaving
                     )
 
-                    // GPS-кнопка
                     OutlinedButton(
                         onClick = { requestGps() },
                         modifier = Modifier.fillMaxWidth(),
@@ -172,47 +161,30 @@ fun GardenEditScreen(
                     ) {
                         if (isGettingGps) {
                             CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Определяем координаты...")
+                            Spacer(Modifier.width(8.dp)); Text("Определяем координаты...")
                         } else {
-                            Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Определить по GPS")
+                            Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp)); Text("Определить по GPS")
                         }
                     }
 
                     gpsStatus?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (it.startsWith("✓")) Color(0xFF2E7D32)
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text(it, style = MaterialTheme.typography.bodySmall,
+                            color = if (it.startsWith("✓")) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
-                    ExposedDropdownMenuBox(
-                        expanded = regionExpanded,
+                    ExposedDropdownMenuBox(expanded = regionExpanded,
                         onExpandedChange = { if (!isSaving) regionExpanded = !regionExpanded },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                        modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
-                            value = selectedRegion,
-                            onValueChange = {},
-                            readOnly = true,
+                            value = selectedRegion, onValueChange = {}, readOnly = true,
                             label = { Text("Регион") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = regionExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
-                            enabled = !isSaving
+                            modifier = Modifier.menuAnchor().fillMaxWidth(), enabled = !isSaving
                         )
-                        ExposedDropdownMenu(
-                            expanded = regionExpanded,
-                            onDismissRequest = { regionExpanded = false }
-                        ) {
+                        ExposedDropdownMenu(expanded = regionExpanded, onDismissRequest = { regionExpanded = false }) {
                             REGIONS.forEach { region ->
-                                DropdownMenuItem(
-                                    text = { Text(region) },
-                                    onClick = { selectedRegion = region; regionExpanded = false }
-                                )
+                                DropdownMenuItem(text = { Text(region) }, onClick = { selectedRegion = region; regionExpanded = false })
                             }
                         }
                     }
@@ -220,19 +192,14 @@ fun GardenEditScreen(
                     if (errorMessage != null) {
                         Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
-
                     Spacer(Modifier.height(4.dp))
 
                     Button(
                         onClick = { viewModel.saveGarden(gardenName, selectedRegion, cityName.ifBlank { null }) },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        enabled = !isSaving
+                        modifier = Modifier.fillMaxWidth().height(52.dp), enabled = !isSaving
                     ) {
-                        if (isSaving) {
-                            CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                        } else {
-                            Text("Сохранить", fontSize = 16.sp)
-                        }
+                        if (isSaving) CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                        else Text("Сохранить", fontSize = 16.sp)
                     }
                 }
             }

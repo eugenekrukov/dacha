@@ -17,6 +17,10 @@ interface DachaApi {
     @GET("auth/me")
     suspend fun getMe(): UserProfile
 
+    // Geocode
+    @GET("geocode/suggest")
+    suspend fun suggestCity(@Query("q") query: String): List<GeocodeSuggestion>
+
     // Gardens
     @GET("gardens")
     suspend fun getGardens(): List<Garden>
