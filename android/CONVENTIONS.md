@@ -302,7 +302,96 @@ val STAGE_LABELS = mapOf("sowing" to "Посеяно", ...)
 
 ---
 
-## 10. Деплой на VPS — обязательный порядок
+## 10. UI — Solar Dacha Design System
+
+> Полный манифест: `UI_MANIFEST.md` в корне проекта. Дизайн-система: `design-system/календарь-дачника/`.
+
+### Шрифты
+
+```kotlin
+// Импортировать из theme
+import ru.dachakalend.app.ui.theme.NunitoFamily
+
+// ВСЕ тексты — только NunitoFamily
+// Минимальный вес: FontWeight.Bold (700)
+// Заголовки экранов: FontWeight.Black (900)
+// Вспомогательный текст: FontWeight.SemiBold (600)
+Text(text = "...", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+
+// НЕ ИСПОЛЬЗОВАТЬ system fonts, Inter, Roboto
+// НЕ ИСПОЛЬЗОВАТЬ FontWeight.Normal или FontWeight.Medium
+```
+
+### Токены темы
+
+| Токен | Значение | Применение |
+|-------|---------|-----------|
+| `colorScheme.primary` | `#FF7B00` (оранжевый) | Кнопки, активные чипы, FAB |
+| `colorScheme.background` | `#FFF8EB` (кремовый) | Фон всех экранов |
+| `colorScheme.surface` | `Color.White` | Фон карточек (явно `Color.White` — не `surface`, т.к. Material3 добавляет tint) |
+| `colorScheme.tertiary` | `#2E7D32` (зелёный) | Стадия посадки, следующая задача |
+| `colorScheme.onSurfaceVariant` | `#9E7050` (коричневый) | Вспомогательный текст |
+
+### Карточки
+
+```kotlin
+Card(
+    modifier = Modifier.fillMaxWidth(),
+    shape    = RoundedCornerShape(22.dp),
+    colors   = CardDefaults.cardColors(containerColor = Color.White), // явно White!
+    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+)
+```
+
+### Кнопки
+
+```kotlin
+Button(
+    modifier = Modifier.fillMaxWidth().height(52.dp),
+    shape    = RoundedCornerShape(16.dp)
+) {
+    Text("Текст", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, softWrap = false)
+}
+```
+
+### FilterChip (пилюля)
+
+```kotlin
+FilterChip(
+    selected = ...,
+    onClick  = ...,
+    shape    = RoundedCornerShape(100.dp),
+    colors   = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primary,
+        selectedLabelColor     = Color.White
+    ),
+    label = { Text("Все", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+)
+```
+
+### Текст с переполнением (динамические данные)
+
+```kotlin
+Text(
+    text     = cropName,           // может быть длинным
+    maxLines = 1,
+    overflow = TextOverflow.Ellipsis,
+    softWrap = false               // кнопки — всегда softWrap = false
+)
+```
+
+### TokenStorage — новые методы
+
+| Метод | Описание |
+|-------|---------|
+| `getDismissedRecsForToday(): Set<String>` | Ключи рекомендаций, отклонённых СЕГОДНЯ |
+| `addDismissedRec(key: String)` | Добавить отклонённую рекомендацию (с датой, автоочистка старых) |
+| `savePendingTasks(tasks)` | Сохранить pending-задачи для badge и карточек посадок |
+| `getPendingTasks(): Map<Int,String>` | Загрузить pending-задачи |
+
+---
+
+## 11. Деплой на VPS — обязательный порядок
 
 **Нельзя делать `git pull` на VPS без предварительного коммита и пуша локально.**
 
