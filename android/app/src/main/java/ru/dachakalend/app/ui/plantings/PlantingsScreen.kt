@@ -232,6 +232,10 @@ private fun PlantingCard(
                         onDismissRequest = { menuExpanded = false }
                     ) {
                         DropdownMenuItem(
+                            text = { Text("ℹ️ Информация о посадке") },
+                            onClick = { menuExpanded = false; onInfo() }
+                        )
+                        DropdownMenuItem(
                             text = { Text("Редактировать информацию") },
                             onClick = { menuExpanded = false; onEditInfo() }
                         )
@@ -247,13 +251,11 @@ private fun PlantingCard(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onLogAction, modifier = Modifier.weight(1f)) {
-                    Text("📝 Записать действие")
-                }
-                OutlinedButton(onClick = onInfo) {
-                    Text("Информация")
-                }
+            Button(
+                onClick = onLogAction,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("📝 Записать действие")
             }
         }
     }
