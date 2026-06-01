@@ -18,6 +18,7 @@ import org.junit.Test
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.TodayResponse
+import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.RecommendationsRepository
 import ru.dachakalend.app.data.repository.Result
@@ -33,19 +34,23 @@ class TodayViewModelTest {
     private lateinit var todayRepo: TodayRepository
     private lateinit var recsRepo: RecommendationsRepository
     private lateinit var plantingsRepo: PlantingsRepository
+    private lateinit var gardenRepo: GardenRepository
     private lateinit var tokenStorage: TokenStorage
     private lateinit var api: DachaApi
 
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        todayRepo = mockk()
-        recsRepo = mockk()
+        todayRepo     = mockk()
+        recsRepo      = mockk()
         plantingsRepo = mockk()
-        tokenStorage = mockk()
-        api = mockk(relaxed = true)  // relaxed: все методы возвращают дефолтные значения
+        gardenRepo    = mockk()
+        tokenStorage  = mockk()
+        api           = mockk(relaxed = true)
 
-        every { tokenStorage.getGardenId() } returns 1
+        every { tokenStorage.getGardenId() }             returns 1
+        every { tokenStorage.getClimateZone() }          returns "4"
+        every { tokenStorage.saveActivePlantingsCount(any()) } returns Unit
     }
 
     @After
@@ -53,28 +58,28 @@ class TodayViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun buildViewModel() = TodayViewModel(todayRepo, recsRepo, plantingsRepo, tokenStorage, api)
+    private fun buildViewModel() = TodayViewModel(
+        todayRepo, recsRepo, plantingsRepo, gardenRepo, tokenStorage, api
+    )
 
     // ── Базовые состояния ─────────────────────────────────────────────────────
 
     @Test
     fun `initial state is Loading`() {
-        coEvery { todayRepo.getToday() } returns Result.Success(TodayResponse())
-        coEvery { recsRepo.getRecommendations() } returns Result.Success(emptyList())
-        coEvery { plantingsRepo.getPlantings(any()) } returns Result.Success(emptyList())
+        coEvery { todayRepo.getToday() }                returns Result.Success(TodayResponse())
+        coEvery { recsRepo.getRecommendations() }       returns Result.Success(emptyList())
+        coEvery { plantingsRepo.getPlantings(any()) }   returns Result.Success(emptyList())
 
         val vm = buildViewModel()
-        // init сразу вызывает loadToday(), но корутина ещё не запустилась
-        // поэтому начальное значение Loading
         assertEquals(TodayUiState.Loading, vm.uiState.value)
     }
 
     @Test
     fun `loadToday success sets Success state with data`() = runTest {
         val fakeToday = TodayResponse(gardenId = 1, tasks = emptyList())
-        coEvery { todayRepo.getToday() } returns Result.Success(fakeToday)
-        coEvery { recsRepo.getRecommendations() } returns Result.Success(emptyList())
-        coEvery { plantingsRepo.getPlantings(any()) } returns Result.Success(emptyList())
+        coEvery { todayRepo.getToday() }                returns Result.Success(fakeToday)
+        coEvery { recsRepo.getRecommendations() }       returns Result.Success(emptyList())
+        coEvery { plantingsRepo.getPlantings(any()) }   returns Result.Success(emptyList())
 
         buildViewModel().uiState.test {
             awaitItem()  // Loading (из init)
@@ -86,9 +91,9 @@ class TodayViewModelTest {
 
     @Test
     fun `loadToday today error sets Error state`() = runTest {
-        coEvery { todayRepo.getToday() } returns Result.Error("Нет сети")
-        coEvery { recsRepo.getRecommendations() } returns Result.Success(emptyList())
-        coEvery { plantingsRepo.getPlantings(any()) } returns Result.Success(emptyList())
+        coEvery { todayRepo.getToday() }                returns Result.Error("Нет сети")
+        coEvery { recsRepo.getRecommendations() }       returns Result.Success(emptyList())
+        coEvery { plantingsRepo.getPlantings(any()) }   returns Result.Success(emptyList())
 
         buildViewModel().uiState.test {
             awaitItem()  // Loading
@@ -100,9 +105,9 @@ class TodayViewModelTest {
 
     @Test
     fun `loadToday recs error still shows Success (recs are optional)`() = runTest {
-        coEvery { todayRepo.getToday() } returns Result.Success(TodayResponse())
-        coEvery { recsRepo.getRecommendations() } returns Result.Error("Ошибка")
-        coEvery { plantingsRepo.getPlantings(any()) } returns Result.Success(emptyList())
+        coEvery { todayRepo.getToday() }                returns Result.Success(TodayResponse())
+        coEvery { recsRepo.getRecommendations() }       returns Result.Error("Ошибка")
+        coEvery { plantingsRepo.getPlantings(any()) }   returns Result.Success(emptyList())
 
         buildViewModel().uiState.test {
             awaitItem()  // Loading
@@ -114,9 +119,9 @@ class TodayViewModelTest {
 
     @Test
     fun `loadToday includes plantings in Success state`() = runTest {
-        coEvery { todayRepo.getToday() } returns Result.Success(TodayResponse())
-        coEvery { recsRepo.getRecommendations() } returns Result.Success(emptyList())
-        coEvery { plantingsRepo.getPlantings(any()) } returns Result.Success(emptyList())
+        coEvery { todayRepo.getToday() }                returns Result.Success(TodayResponse())
+        coEvery { recsRepo.getRecommendations() }       returns Result.Success(emptyList())
+        coEvery { plantingsRepo.getPlantings(any()) }   returns Result.Success(emptyList())
 
         buildViewModel().uiState.test {
             awaitItem()
@@ -128,9 +133,9 @@ class TodayViewModelTest {
 
     @Test
     fun `loadToday sets Loading before requests`() = runTest {
-        coEvery { todayRepo.getToday() } returns Result.Success(TodayResponse())
-        coEvery { recsRepo.getRecommendations() } returns Result.Success(emptyList())
-        coEvery { plantingsRepo.getPlantings(any()) } returns Result.Success(emptyList())
+        coEvery { todayRepo.getToday() }                returns Result.Success(TodayResponse())
+        coEvery { recsRepo.getRecommendations() }       returns Result.Success(emptyList())
+        coEvery { plantingsRepo.getPlantings(any()) }   returns Result.Success(emptyList())
 
         buildViewModel().uiState.test {
             assertEquals(TodayUiState.Loading, awaitItem())

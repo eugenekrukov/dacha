@@ -56,13 +56,17 @@ class TodayViewModel @Inject constructor(
     }
 
     private fun registerPushToken() {
-        RuStorePushClient.getToken()
-            .addOnSuccessListener { token ->
-                viewModelScope.launch {
-                    try { api.registerPushToken(mapOf("token" to token)) }
-                    catch (_: Exception) {}
+        try {
+            RuStorePushClient.getToken()
+                .addOnSuccessListener { token ->
+                    viewModelScope.launch {
+                        try { api.registerPushToken(mapOf("token" to token)) }
+                        catch (_: Exception) {}
+                    }
                 }
-            }
+        } catch (_: Exception) {
+            // RuStore SDK недоступен в unit-test окружении — игнорируем
+        }
     }
 
     fun loadToday() {

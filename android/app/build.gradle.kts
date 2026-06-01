@@ -46,6 +46,21 @@ android {
         compose = true
         buildConfig = true
     }
+
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+            all {
+                it.jvmArgs(
+                    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+                    "--add-opens=java.base/java.util=ALL-UNNAMED",
+                    "-Djdk.attach.allowAttachSelf=true",
+                    "-Dfile.encoding=UTF-8"
+                )
+            }
+        }
+    }
 }
 
 kotlin {
