@@ -80,6 +80,11 @@ class TodayViewModel @Inject constructor(
             val todayResult     = todayDeferred.await()
             val recsResult      = recsDeferred.await()
             val plantingsResult = plantingsDeferred.await()
+            // Сохраняем счётчик активных посадок для Badge в BottomNav
+            if (plantingsResult is Result.Success) {
+                val active = plantingsResult.data.count { it.stage != "done" }
+                tokenStorage.saveActivePlantingsCount(active)
+            }
             val allActions      = actionsDeferred.await()
 
             // Оставляем только действия за сегодня (по дате в loggedAt)

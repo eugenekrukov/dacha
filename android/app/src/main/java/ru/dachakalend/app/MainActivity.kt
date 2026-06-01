@@ -63,11 +63,15 @@ class MainActivity : ComponentActivity() {
 
                 val showBottomBar = currentRoute !in screensWithoutBottomBar
 
+                // Badge: читаем счётчик посадок (обновляется при каждой перерисовке BottomNav)
+                val activePlantings = tokenStorage.getActivePlantingsCount()
+
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
                             NavigationBar {
                                 bottomNavItems.forEach { item ->
+                                    val showBadge = item.screen == Screen.Plantings && activePlantings > 0
                                     NavigationBarItem(
                                         selected = currentRoute == item.screen.route,
                                         onClick = {
@@ -77,7 +81,17 @@ class MainActivity : ComponentActivity() {
                                                 restoreState = true
                                             }
                                         },
-                                        icon = { Icon(item.icon, contentDescription = item.label) },
+                                        icon = {
+                                            if (showBadge) {
+                                                BadgedBox(badge = {
+                                                    Badge { Text(activePlantings.toString()) }
+                                                }) {
+                                                    Icon(item.icon, contentDescription = item.label)
+                                                }
+                                            } else {
+                                                Icon(item.icon, contentDescription = item.label)
+                                            }
+                                        },
                                         label = { Text(item.label) }
                                     )
                                 }
