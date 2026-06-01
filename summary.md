@@ -31,10 +31,10 @@
 
 | # | Задача | Почему важно |
 |---|--------|-------------|
-| 1 | **Deep links из push → нужный экран** | Критерий готовности MVP п.7. Push открывает приложение, но не ведёт к посадке |
-| 2 | **Экран настроек** — уведомления, единицы измерения, экспорт CSV | Экран 7 в ТЗ. Без него нет управления подпиской и типами пушей |
-| 3 | **Управление типами уведомлений** (вкл/выкл frost, watering, fertilizing) | Прямое требование §7 push-правил ТЗ |
-| 4 | **Push при жаре** (`heat_alert`, t ≥ 35°C) | `heat_risk` уже есть в БД, паттерн frost_alert готов |
+| 1 | ✅ **Deep links из push → нужный экран** | frost/heat → Today, watering/fertilizing → Plantings |
+| 2 | ✅ **Экран настроек** — уведомления | Доступен через ⚙️ на TodayScreen |
+| 3 | ✅ **Управление типами уведомлений** (вкл/выкл frost/heat/watering/fertilizing) | Хранится в SharedPreferences, проверяется в DachaPushService |
+| 4 | ✅ **Push при жаре** (`heat_alert`, t ≥ 35°C) | sendHeatAlert() + weatherJob.js |
 
 ### 🟡 Важно (Should из ТЗ)
 

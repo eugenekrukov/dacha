@@ -722,3 +722,32 @@ pm2 restart dacha-api
 ### Git
 - Все изменения смержены в `main` и запушены на GitHub
 - Ветки: `fix/build-review`, `feature/todo-ux`, `feature/garden-edit`, `feature/care-push-notifications`
+
+---
+
+## Сессия 2026-06-01 — Критические пункты to-do
+
+### Что сделано
+
+1. **Push при жаре (heat_alert)**
+   - `pushService.js`: добавлена `sendHeatAlert(db, gardenId, tempC)` — паттерн аналогичен `sendFrostAlert`
+   - `weatherJob.js`: после обновления погоды проверяет `weather.heat_risk` и вызывает `sendHeatAlert`
+
+2. **Экран настроек + управление типами уведомлений**
+   - `TokenStorage`: добавлены `isNotificationEnabled(type)` / `setNotificationEnabled(type, enabled)`; константы `NOTIF_FROST/HEAT/WATERING/FERTILIZE`
+   - `SettingsViewModel` + `SettingsScreen`: 4 тогла (заморозки / жара / полив / подкормка), сохраняются локально в SharedPreferences
+   - Доступен через иконку ⚙️ на TodayScreen (рядом добавлена ✏️ для редактирования участка)
+   - `Navigation.kt`: добавлен `Screen.Settings`, включён в `screensWithoutBottomBar`
+
+3. **Deep links из push → нужный экран**
+   - `NotificationHelper.showWithDeepLink`: создаёт `PendingIntent` с `push_type` + `garden_id` в Intent extras
+   - `DachaPushService.onMessageReceived`: проверяет `isNotificationEnabled(type)` перед показом, вызывает `showWithDeepLink`
+   - `MainActivity.onCreate`: читает `intent.getStringExtra(EXTRA_PUSH_TYPE)`, навигирует через `LaunchedEffect`: `frost_alert/heat_alert → Today`, `watering_due/fertilizing_due → Plantings`
+
+### Билд
+- `BUILD SUCCESSFUL` без ошибок (2 предупреждения устранены: `hasGarden` extension, `ArrowBack` AutoMirrored)
+
+### Git и деплой
+- Ветка `feature/critical-settings-deeplinks-heat` смержена в `main`
+- Запушено на GitHub, задеплоено на VPS (`pm2 restart dacha-api` ✅)
+
