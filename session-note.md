@@ -671,3 +671,54 @@ pm2 restart dacha-api
 ### Технические решения
 - Функциональный индекс `(sent_at::date)` в PostgreSQL требует IMMUTABLE — заменён на обычный по `sent_at`
 - SSH на VPS: только PowerShell (не bash), миграции через `sudo -u postgres psql -d dacha_db`
+
+
+---
+
+## Сессия 2026-06-01 — Анализ ТЗ, to-do, технический долг, билд-ревью
+
+### Что сделано
+
+1. **Анализ ТЗ**
+   - Прочитан оригинальный PDF с ТЗ
+   - Составлена таблица отклонений: что не реализовано, что иначе, что сверх ТЗ
+   - Сформирован приоритизированный to-do (17 пунктов, 🔴/🟡/🟢)
+   - to-do добавлен в `summary.md`
+
+2. **Технический долг (пп 18–20)**
+   - Backend: `npm test` — 55 тестов, 4 файла, все PASSED ✅. Покрытие: auth 100%, todayLogic 100%, today.js 95%
+   - Android: `TodayViewModelTest` обновлён под новую сигнатуру (добавлен `GardenRepository`)
+   - `TodayViewModel.registerPushToken`: обёрнут в try-catch для test-safe запуска
+   - `testOptions`: `isReturnDefaultValues=true`, `--add-opens` для mockk+JDK21
+   - Известное ограничение: Android unit tests не запускаются через `./gradlew test` из-за кириллицы в пути + AGP 9 + Windows — задокументировано в `ARCHITECTURE.md`
+   - `ARCHITECTURE.md` создан: полный архитектурный документ (стек, структура, API, БД, инфраструктура)
+   - `certbot.timer` активен (twice daily) — автопродление работает ✅
+   - Context7 MCP прописан в `~/.claude/settings.json`
+
+3. **10 пунктов to-do (бэклог)**
+   - CTA "Добавить посадку" на TodayScreen и HarvestScreen ✅
+   - Поиск в справочнике культур (client-side фильтрация) ✅
+   - Онбординг: Snackbar после CreateGardenScreen ✅
+   - Кнопка "Завершить сезон" в меню карточки посадки ✅
+   - Сводный журнал "Сделано сегодня" на TodayScreen ✅
+   - Урожай с группировкой по культуре (expandable карточка) ✅
+   - Маркеры полива на календаре из расчётных дат (wateringFreqDays) ✅
+   - Badge с числом посадок с просроченными задачами ✅
+   - Карточка посадки: 1 кнопка вместо 2 ✅
+   - Дневной вид календаря (уже был) ✅
+
+4. **5 правок после билд-ревью**
+   - Рефреш после записи действия: `onDismiss` вызывает `onRefresh()`
+   - Стадия культуры по-русски: `STAGE_LABELS` в PlantingPickerBottomSheet
+   - Клик по карточке задачи → открывает `ActionLogBottomSheet` с предвыбранным типом + иконка ChevronRight
+   - Календарь: `CalendarRepository` загружает `/today`, задачи дня добавляются на текущую дату; новые цвета для типов событий
+   - Badge + "Требуется:": `TokenStorage.savePendingTasks(Map<Int,String>)`, `TodayViewModel` сохраняет после загрузки, `PlantingsViewModel` читает, карточка посадки показывает красным "💧 Требуется полив" и т.п.
+
+### Технические решения
+- `TokenStorage.pendingTasks` — формат `"plantingId:actionType,..."` в SharedPreferences
+- Badge вкладки "Посадки" = `getPendingCount()` (посадки с просроченными задачами)
+- Android unit tests: `ClassNotFoundException` при `./gradlew test` — системная проблема (кириллица в пути + AGP 9 + Windows). Обходной путь: Android Studio или переместить проект в ASCII-путь
+
+### Git
+- Все изменения смержены в `main` и запушены на GitHub
+- Ветки: `fix/build-review`, `feature/todo-ux`, `feature/garden-edit`, `feature/care-push-notifications`
