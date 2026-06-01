@@ -36,7 +36,7 @@ fun RegisterScreen(
     var passwordVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Success) {
+        if (uiState is AuthUiState.SuccessNoGarden || uiState is AuthUiState.SuccessHasGarden) {
             viewModel.resetState()
             onRegisterSuccess()
         }

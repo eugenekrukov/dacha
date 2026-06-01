@@ -118,14 +118,15 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Login.route) {
                             LoginScreen(
                                 onLoginSuccess = {
-                                    if (tokenStorage.hasGarden()) {
-                                        navController.navigate(Screen.Today.route) {
-                                            popUpTo(Screen.Login.route) { inclusive = true }
-                                        }
-                                    } else {
-                                        navController.navigate(Screen.CreateGarden.route) {
-                                            popUpTo(Screen.Login.route) { inclusive = true }
-                                        }
+                                    // SuccessHasGarden: gardenId уже восстановлен в AuthViewModel
+                                    navController.navigate(Screen.Today.route) {
+                                        popUpTo(Screen.Login.route) { inclusive = true }
+                                    }
+                                },
+                                onLoginNeedGarden = {
+                                    // SuccessNoGarden: нет участка на сервере
+                                    navController.navigate(Screen.CreateGarden.route) {
+                                        popUpTo(Screen.Login.route) { inclusive = true }
                                     }
                                 },
                                 onGoToRegister = { navController.navigate(Screen.Register.route) }

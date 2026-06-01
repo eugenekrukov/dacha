@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
@@ -46,6 +47,14 @@ class TodayViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<TodayUiState>(TodayUiState.Loading)
     val uiState: StateFlow<TodayUiState> = _uiState
+
+    // Рекомендации, отклонённые свайпом (хранятся до следующего обновления)
+    private val _dismissedRecs = MutableStateFlow<Set<String>>(emptySet())
+    val dismissedRecs: StateFlow<Set<String>> = _dismissedRecs.asStateFlow()
+
+    fun dismissRecommendation(key: String) {
+        _dismissedRecs.value = _dismissedRecs.value + key
+    }
 
     init {
         if (tokenStorage.getClimateZone() == null) {

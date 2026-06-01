@@ -29,6 +29,7 @@ import ru.dachakalend.app.data.model.WeatherSummary
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 import ru.dachakalend.app.ui.theme.taskColor
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodayScreen(
     showOnboardingHint: Boolean = false,
@@ -38,7 +39,8 @@ fun TodayScreen(
     onAddPlanting: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState       by viewModel.uiState.collectAsState()
+    val dismissedRecs by viewModel.dismissedRecs.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Показать подсказку онбординга один раз
@@ -64,10 +66,15 @@ fun TodayScreen(
             is TodayUiState.Success -> TodayContent(
                 weather = state.data.today.weather,
                 tasks = state.data.today.tasks,
-                recommendations = state.data.recommendations,
+                recommendations = state.data.recommendations.filterNot {
+                    "${it.type}:${it.cropName}:${it.message.take(30)}" in dismissedRecs
+                },
                 plantings = state.data.plantings,
                 todayActions = state.data.todayActions,
                 onRefresh = { viewModel.loadToday() },
+                onDismissRec = { rec ->
+                    viewModel.dismissRecommendation("${rec.type}:${rec.cropName}:${rec.message.take(30)}")
+                },
                 onEditGarden = onEditGarden,
                 onOpenSettings = onOpenSettings,
                 onOpenJournal = onOpenJournal,
@@ -86,6 +93,7 @@ private fun TodayContent(
     plantings: List<Planting>,
     todayActions: List<ActionLog> = emptyList(),
     onRefresh: () -> Unit,
+    onDismissRec: (Recommendation) -> Unit = {},
     onEditGarden: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenJournal: () -> Unit = {},
@@ -225,8 +233,37 @@ private fun TodayContent(
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            items(recommendations) { rec ->
-                RecommendationCard(rec)
+            items(recommendations, key = { "${it.type}:${it.cropName}:${it.message.take(30)}" }) { rec ->
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = { value ->
+                        if (value == SwipeToDismissBoxValue.EndToStart ||
+                            value == SwipeToDismissBoxValue.StartToEnd) {
+                            onDismissRec(rec)
+                            true
+                        } else false
+                    }
+                )
+                SwipeToDismissBox(
+                    state = dismissState,
+                    backgroundContent = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.errorContainer),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Удалить",
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            )
+                        }
+                    }
+                ) {
+                    RecommendationCard(rec)
+                }
             }
         }
 

@@ -7,19 +7,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.repository.AuthRepository
+import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 
 sealed class AuthUiState {
     object Idle : AuthUiState()
     object Loading : AuthUiState()
-    object Success : AuthUiState()
+    // После логина — есть ли уже участок на сервере
+    object SuccessHasGarden : AuthUiState()
+    object SuccessNoGarden : AuthUiState()
     data class Error(val message: String) : AuthUiState()
 }
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val gardenRepository: GardenRepository   // восстановление gardenId после логина
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -32,10 +36,17 @@ class AuthViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            _uiState.value = when (val result = authRepository.login(email, password)) {
-                is Result.Success -> AuthUiState.Success
-                is Result.Error   -> AuthUiState.Error(result.message)
-                is Result.Loading -> AuthUiState.Loading
+            when (val result = authRepository.login(email, password)) {
+                is Result.Success -> {
+                    // Восстанавливаем gardenId с сервера — иначе после logout все данные теряются
+                    gardenRepository.loadGardens()
+                    _uiState.value = if (gardenRepository.hasGarden())
+                        AuthUiState.SuccessHasGarden
+                    else
+                        AuthUiState.SuccessNoGarden
+                }
+                is Result.Error   -> _uiState.value = AuthUiState.Error(result.message)
+                is Result.Loading -> _uiState.value = AuthUiState.Loading
             }
         }
     }
@@ -52,14 +63,12 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             _uiState.value = when (val result = authRepository.register(name, email, password)) {
-                is Result.Success -> AuthUiState.Success
+                is Result.Success -> AuthUiState.SuccessNoGarden // новый пользователь — нет участка
                 is Result.Error   -> AuthUiState.Error(result.message)
                 is Result.Loading -> AuthUiState.Loading
             }
         }
     }
 
-    fun resetState() {
-        _uiState.value = AuthUiState.Idle
-    }
+    fun resetState() { _uiState.value = AuthUiState.Idle }
 }
