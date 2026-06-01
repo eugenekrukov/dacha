@@ -1,4 +1,4 @@
-package ru.dachakalend.app.ui.analytics
+﻿package ru.dachakalend.app.ui.analytics
 
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -22,13 +22,14 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.ActivityDay
 import ru.dachakalend.app.data.model.AnalyticsSummary
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 @Composable
 fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // Запуск Share-интента
     LaunchedEffect(state.shareIntent) {
         state.shareIntent?.let {
             context.startActivity(it)
@@ -41,14 +42,21 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
         state.error?.let { snackbarHostState.showSnackbar(it) }
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
         ) {
             when {
-                state.isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                state.isLoading -> CircularProgressIndicator(
+                    Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.primary
+                )
                 state.summary != null -> AnalyticsContent(
                     summary = state.summary!!,
                     isExporting = state.isExporting,
@@ -66,13 +74,27 @@ private fun AnalyticsContent(
     onExport: () -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Итоговые метрики
         item {
-            Text("Моя статистика", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(vertical = 8.dp)
+            ) {
+                Text(
+                    "Статистика",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 28.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -94,27 +116,31 @@ private fun AnalyticsContent(
             }
         }
 
-        // Онбординг-прогресс
         item {
             OnboardingCard(summary)
         }
 
-        // График активности
         if (summary.activityByDay.isNotEmpty()) {
             item {
-                Text("Активность за 30 дней", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Активность за 30 дней",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             }
             item {
                 ActivityChart(days = summary.activityByDay)
             }
         }
 
-        // Экспорт
         item {
             Button(
                 onClick = onExport,
                 enabled = !isExporting,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 if (isExporting) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
@@ -122,7 +148,12 @@ private fun AnalyticsContent(
                 }
                 Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Экспорт истории действий (CSV)")
+                Text(
+                    "Экспорт истории действий (CSV)",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    softWrap = false
+                )
             }
         }
     }
@@ -130,16 +161,32 @@ private fun AnalyticsContent(
 
 @Composable
 private fun StatCard(modifier: Modifier = Modifier, label: String, value: String) {
-    Card(modifier = modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                value,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(Modifier.height(4.dp))
-            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                label,
+                fontFamily = NunitoFamily,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -155,16 +202,24 @@ private fun OnboardingCard(summary: AnalyticsSummary) {
     val done = steps.count { it.second }
     val total = steps.size
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 "Прогресс ($done/$total)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground
             )
             LinearProgressIndicator(
                 progress = { done.toFloat() / total },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary
             )
             steps.forEach { (label, completed) ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -173,7 +228,13 @@ private fun OnboardingCard(summary: AnalyticsSummary) {
                         fontSize = 16.sp,
                         modifier = Modifier.width(28.dp)
                     )
-                    Text(label, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        label,
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                 }
             }
         }
@@ -185,7 +246,12 @@ private fun ActivityChart(days: List<ActivityDay>) {
     val maxCount = days.maxOf { it.count }.coerceAtLeast(1)
     val barColor = MaterialTheme.colorScheme.primary
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
@@ -213,3 +279,5 @@ private fun ActivityChart(days: List<ActivityDay>) {
         }
     }
 }
+
+

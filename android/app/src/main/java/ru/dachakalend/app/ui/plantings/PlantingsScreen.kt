@@ -1,23 +1,33 @@
-package ru.dachakalend.app.ui.plantings
+﻿package ru.dachakalend.app.ui.plantings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -63,8 +73,13 @@ fun PlantingsScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddCrop) {
+            FloatingActionButton(
+                onClick = onAddCrop,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Добавить посадку")
             }
         },
@@ -74,38 +89,78 @@ fun PlantingsScreen(
             state.isLoading -> Box(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator() }
+            ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
 
             state.plantings.isEmpty() -> Box(
-                Modifier.fillMaxSize().padding(padding),
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Посадок пока нет", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Посадок пока нет",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "Нажмите + чтобы добавить первую культуру",
-                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
             else -> LazyColumn(
-                modifier = Modifier.padding(padding),
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(padding),
                 contentPadding = PaddingValues(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                    ) {
+                        Text(
+                            "Посадки",
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 28.sp,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+                item {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         item {
                             FilterChip(
                                 selected = state.stageFilter == null,
                                 onClick = { viewModel.setStageFilter(null) },
-                                label = { Text("Все") }
+                                shape = RoundedCornerShape(100.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = Color.White
+                                ),
+                                label = {
+                                    Text(
+                                        "Все",
+                                        fontFamily = NunitoFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        softWrap = false
+                                    )
+                                }
                             )
                         }
                         items(STAGE_ORDER.dropLast(1)) { stage ->
@@ -114,7 +169,19 @@ fun PlantingsScreen(
                                 onClick = {
                                     viewModel.setStageFilter(if (state.stageFilter == stage) null else stage)
                                 },
-                                label = { Text(STAGE_LABELS[stage] ?: stage) }
+                                shape = RoundedCornerShape(100.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = Color.White
+                                ),
+                                label = {
+                                    Text(
+                                        STAGE_LABELS[stage] ?: stage,
+                                        fontFamily = NunitoFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        softWrap = false
+                                    )
+                                }
                             )
                         }
                     }
@@ -165,15 +232,28 @@ fun PlantingsScreen(
     state.confirmDeletePlanting?.let { planting ->
         AlertDialog(
             onDismissRequest = { viewModel.dismissDelete() },
-            title = { Text("Удалить посадку?") },
-            text = { Text("«${planting.cropName ?: "Посадка"}» будет удалена без возможности восстановления.") },
+            title = {
+                Text(
+                    "Удалить посадку?",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = {
+                Text(
+                    "«${planting.cropName ?: "Посадка"}» будет удалена без возможности восстановления.",
+                    fontFamily = NunitoFamily
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { viewModel.confirmDelete(planting.id) }) {
-                    Text("Удалить", color = MaterialTheme.colorScheme.error)
+                    Text("Удалить", color = MaterialTheme.colorScheme.error, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissDelete() }) { Text("Отмена") }
+                TextButton(onClick = { viewModel.dismissDelete() }) {
+                    Text("Отмена", fontFamily = NunitoFamily)
+                }
             }
         )
     }
@@ -182,15 +262,28 @@ fun PlantingsScreen(
     state.confirmFinishSeason?.let { planting ->
         AlertDialog(
             onDismissRequest = { viewModel.dismissFinishSeason() },
-            title = { Text("Завершить сезон?") },
-            text = { Text("«${planting.cropName ?: "Посадка"}» будет переведена в архив. Данные сохранятся.") },
+            title = {
+                Text(
+                    "Завершить сезон?",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = {
+                Text(
+                    "«${planting.cropName ?: "Посадка"}» будет переведена в архив. Данные сохранятся.",
+                    fontFamily = NunitoFamily
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { viewModel.confirmFinishSeason(planting.id) }) {
-                    Text("Завершить")
+                    Text("Завершить", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissFinishSeason() }) { Text("Отмена") }
+                TextButton(onClick = { viewModel.dismissFinishSeason() }) {
+                    Text("Отмена", fontFamily = NunitoFamily)
+                }
             }
         )
     }
@@ -208,11 +301,12 @@ fun PlantingsScreen(
 // ─── Карточка посадки ────────────────────────────────────────────────────────
 
 private val PENDING_ACTION_LABELS = mapOf(
-    "watering_due"    to "💧 Требуется полив",
-    "fertilizing_due" to "🌿 Требуется подкормка",
-    "transplant_due"  to "🌱 Требуется пересадка",
-    "harvest_due"     to "🌾 Пора собирать урожай",
-    "frost_alert"     to "❄️ Угроза заморозков"
+    "watering_due"    to "Требуется полив",
+    "fertilizing_due" to "Требуется подкормка",
+    "transplant_due"  to "Требуется пересадка",
+    "harvest_due"     to "Пора собирать урожай",
+    "care_task_due"   to "Требует ухода",
+    "frost_alert"     to "Угроза заморозков"
 )
 
 @Composable
@@ -228,47 +322,78 @@ private fun PlantingCard(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White,
+            disabledContainerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
+            // ── Верхний ряд: имя + бейдж стадии + меню ──
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Имя культуры
                     Text(
                         planting.cropName ?: "Культура #${planting.cropId}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 17.sp,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        STAGE_LABELS[planting.stage] ?: planting.stage,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    planting.sownAt?.let {
+                    // Компактная мета: дата посева · кол-во
+                    val metaParts = buildList {
+                        planting.sownAt?.let { add(formatIsoDate(it)) }
+                        planting.quantity?.let { if (it > 1) add("$it раст.") }
+                    }
+                    if (metaParts.isNotEmpty()) {
                         Text(
-                            formatIsoDate(it),
-                            style = MaterialTheme.typography.bodySmall,
+                            metaParts.joinToString(" · "),
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Text(
-                        "Дата последнего действия: ${planting.lastActionAt?.let { formatIsoDate(it) } ?: "—"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (pendingAction != null) {
-                        Spacer(Modifier.height(2.dp))
+                    // Последнее действие
+                    planting.lastActionAt?.let {
                         Text(
-                            text = PENDING_ACTION_LABELS[pendingAction] ?: pendingAction,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.SemiBold
+                            "Последнее действие: ${formatIsoDate(it)}",
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    // Следующий шаг
+                    // Требуется действие
+                    if (pendingAction != null) {
+                        val pendingLabel = if (pendingAction == "care_task_due") {
+                            planting.nextCareTask?.name?.let { "Требуется: $it" }
+                                ?: PENDING_ACTION_LABELS[pendingAction] ?: pendingAction
+                        } else {
+                            PENDING_ACTION_LABELS[pendingAction] ?: pendingAction
+                        }
+                        Text(
+                            text = pendingLabel,
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    // Следующая задача
                     planting.nextCareTask?.let { next ->
-                        Spacer(Modifier.height(4.dp))
                         val whenText = when {
                             next.daysUntil <= 0 -> "сегодня"
                             next.daysUntil == 1 -> "завтра"
@@ -276,45 +401,94 @@ private fun PlantingCard(
                         }
                         Text(
                             text = "→ ${next.name}: $whenText",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.secondary,
-                            fontWeight = FontWeight.Medium
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Меню")
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
+                // Правая колонка: бейдж стадии + меню
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Pill-бейдж стадии
+                    val isUrgent = pendingAction != null
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isUrgent)
+                            MaterialTheme.colorScheme.errorContainer
+                        else
+                            MaterialTheme.colorScheme.primaryContainer
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("ℹ️ Информация о посадке") },
-                            onClick = { menuExpanded = false; onInfo() }
+                        Text(
+                            text = if (isUrgent) "Уход!" else (STAGE_LABELS[planting.stage] ?: planting.stage),
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = if (isUrgent)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            softWrap = false
                         )
-                        DropdownMenuItem(
-                            text = { Text("Редактировать информацию") },
-                            onClick = { menuExpanded = false; onEditInfo() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("✅ Завершить сезон") },
-                            onClick = { menuExpanded = false; onFinishSeason() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Удалить посадку", color = MaterialTheme.colorScheme.error) },
-                            onClick = { menuExpanded = false; onDelete() }
-                        )
+                    }
+                    Box {
+                        IconButton(
+                            onClick = { menuExpanded = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Меню", modifier = Modifier.size(18.dp))
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("ℹ️ Информация о посадке", fontFamily = NunitoFamily) },
+                                onClick = { menuExpanded = false; onInfo() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Редактировать информацию", fontFamily = NunitoFamily) },
+                                onClick = { menuExpanded = false; onEditInfo() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("✅ Завершить сезон", fontFamily = NunitoFamily) },
+                                onClick = { menuExpanded = false; onFinishSeason() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Удалить посадку", fontFamily = NunitoFamily, color = MaterialTheme.colorScheme.error) },
+                                onClick = { menuExpanded = false; onDelete() }
+                            )
+                        }
                     }
                 }
             }
             Spacer(Modifier.height(12.dp))
             Button(
                 onClick = onLogAction,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text("📝 Записать действие")
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Записать действие",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -336,7 +510,8 @@ private fun PlantingSetupBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -348,14 +523,18 @@ private fun PlantingSetupBottomSheet(
                 .imePadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Параметры посадки", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                "Параметры посадки",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
 
-            // Дата посадки
             OutlinedTextField(
                 value = dateDisplay,
                 onValueChange = { input ->
                     dateDisplay = input
-                    // Парсим DD.MM.YYYY → ISO
                     runCatching {
                         val parts = input.split(".")
                         if (parts.size == 3) {
@@ -364,33 +543,49 @@ private fun PlantingSetupBottomSheet(
                         }
                     }
                 },
-                label = { Text("Дата посадки") },
-                placeholder = { Text("ДД.ММ.ГГГГ") },
+                label = { Text("Дата посадки", fontFamily = NunitoFamily) },
+                placeholder = { Text("ДД.ММ.ГГГГ", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
             )
 
-            // Количество
             OutlinedTextField(
                 value = quantity,
                 onValueChange = { if (it.all(Char::isDigit)) quantity = it },
-                label = { Text("Количество растений") },
+                label = { Text("Количество растений", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
             )
 
-            // Условия
-            Text("Место посадки", style = MaterialTheme.typography.labelLarge)
+            Text(
+                "Место посадки",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = conditions == "soil",
                     onClick = { conditions = "soil" },
-                    label = { Text("🌱 Грунт") }
+                    shape = RoundedCornerShape(100.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    ),
+                    label = { Text("🌱 Грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                 )
                 FilterChip(
                     selected = conditions == "greenhouse",
                     onClick = { conditions = "greenhouse" },
-                    label = { Text("🏠 Теплица") }
+                    shape = RoundedCornerShape(100.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    ),
+                    label = { Text("🏠 Теплица", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                 )
             }
 
@@ -399,9 +594,21 @@ private fun PlantingSetupBottomSheet(
                 onClick = {
                     onConfirm(date, quantity.toIntOrNull() ?: 1, conditions)
                 },
-                modifier = Modifier.fillMaxWidth().height(52.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text("🌱 Посадить", style = MaterialTheme.typography.titleMedium)
+                Icon(
+                    imageVector = Icons.Default.Spa,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Посадить",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    softWrap = false
+                )
             }
         }
     }
@@ -418,7 +625,6 @@ private fun PlantingEditBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Инициализируем из текущих данных посадки
     val initialDate = planting.sownAt?.take(10) ?: LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
     val initialDateDisplay = runCatching {
         val ld = LocalDate.parse(initialDate)
@@ -432,7 +638,8 @@ private fun PlantingEditBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -446,11 +653,12 @@ private fun PlantingEditBottomSheet(
         ) {
             Text(
                 "Редактировать: ${planting.cropName ?: "посадку"}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.onBackground
             )
 
-            // Дата посадки
             OutlinedTextField(
                 value = dateDisplay,
                 onValueChange = { input ->
@@ -463,43 +671,67 @@ private fun PlantingEditBottomSheet(
                         }
                     }
                 },
-                label = { Text("Дата посадки") },
-                placeholder = { Text("ДД.ММ.ГГГГ") },
+                label = { Text("Дата посадки", fontFamily = NunitoFamily) },
+                placeholder = { Text("ДД.ММ.ГГГГ", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
             )
 
-            // Количество
             OutlinedTextField(
                 value = quantity,
                 onValueChange = { if (it.all(Char::isDigit)) quantity = it },
-                label = { Text("Количество растений") },
+                label = { Text("Количество растений", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
             )
 
-            // Условия
-            Text("Место посадки", style = MaterialTheme.typography.labelLarge)
+            Text(
+                "Место посадки",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = conditions == "soil",
                     onClick = { conditions = "soil" },
-                    label = { Text("🌱 Грунт") }
+                    shape = RoundedCornerShape(100.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    ),
+                    label = { Text("🌱 Грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                 )
                 FilterChip(
                     selected = conditions == "greenhouse",
                     onClick = { conditions = "greenhouse" },
-                    label = { Text("🏠 Теплица") }
+                    shape = RoundedCornerShape(100.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    ),
+                    label = { Text("🏠 Теплица", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                 )
             }
 
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick = { onConfirm(date, quantity.toIntOrNull() ?: 1, conditions) },
-                modifier = Modifier.fillMaxWidth().height(52.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Сохранить", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Сохранить",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    softWrap = false
+                )
             }
         }
     }
 }
+
+

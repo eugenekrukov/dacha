@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Календарь дачника — Design × shadcn × Lucide</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Fraunces:wght@700;900&family=Architects+Daughter&family=Nunito:wght@700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+/* ─── Reset & Base ───────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #111; min-height: 100vh; padding: 28px 20px 80px; }
+button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+/* ─── Page header ───────────────────────────────────── */
+.page-header { text-align: center; margin-bottom: 28px; }
+.page-header h1 { color: #fff; font-family: 'Montserrat', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: .5px; }
+.page-header p  { color: #444; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+
+/* ─── Variant tabs ───────────────────────────────────── */
+.vtabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 36px; flex-wrap: wrap; }
+.vtab {
+  padding: 10px 22px; border-radius: 100px; border: none;
+  font-size: 12px; font-weight: 800; letter-spacing: .3px;
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .25s, opacity .2s;
+  opacity: .55;
+}
+.vtab.on { opacity: 1; transform: translateY(-3px) scale(1.05); }
+.vtab:hover { opacity: .85; transform: translateY(-2px); }
+
+/* ─── Variant wrapper ───────────────────────────────── */
+.variant { display: none; }
+.variant.on { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; }
+
+/* ─── Phone shell ───────────────────────────────────── */
+.phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.screen-label { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: #444; }
+.phone {
+  width: 390px; height: 844px; border-radius: 52px; overflow: hidden; position: relative;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 48px 100px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.07);
+  flex-shrink: 0;
+}
+.pscroll { height: 100%; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; }
+.pscroll::-webkit-scrollbar { display: none; }
+
+/* ─── Animations ────────────────────────────────────── */
+@keyframes slideUp   { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:translateY(0) } }
+@keyframes fadeScale { from { opacity:0; transform:scale(.94) } to { opacity:1; transform:scale(1) } }
+@keyframes sway      { 0%,100%{transform:rotate(-5deg) scale(1)} 50%{transform:rotate(5deg) scale(1.06)} }
+@keyframes shimmer   { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+@keyframes pulse     { 0%,100%{opacity:1} 50%{opacity:.5} }
+@keyframes draw      { from{stroke-dashoffset:100} to{stroke-dashoffset:0} }
+
+.anim-1 { animation: slideUp .4s .05s ease both; }
+.anim-2 { animation: slideUp .4s .12s ease both; }
+.anim-3 { animation: slideUp .4s .19s ease both; }
+.anim-4 { animation: slideUp .4s .26s ease both; }
+.anim-5 { animation: slideUp .4s .33s ease both; }
+.anim-6 { animation: slideUp .4s .40s ease both; }
+
+/* ─── Shared nav ─────────────────────────────────────── */
+.nav { display: flex; flex-shrink: 0; padding-bottom: 16px; }
+.ni  { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+       padding: 10px 0 0; font-size: 10px; font-weight: 800;
+       border: none; background: none; font-family: inherit;
+       transition: transform .2s cubic-bezier(.34,1.56,.64,1); letter-spacing: .2px; }
+.ni:active { transform: scale(.88); }
+.ni svg    { width: 22px; height: 22px; }
+
+
+/* ══════════════════════════════════════════════════════
+   V1 — ORGANIC GARDEN
+   shadcn Nature × Tangerine  |  Montserrat  |  Warm green + burnt orange
+   Card pattern: white, radius 14px, border #e0d6c9, soft shadow
+══════════════════════════════════════════════════════ */
+.v1 {
+  --bg:      #f8f5f0;
+  --card:    #ffffff;
+  --border:  #e0d6c9;
+  --primary: #2e7d32;
+  --accent:  #e05d38;
+  --text:    #3e2723;
+  --muted:   #8d6e63;
+  --rad:     14px;
+  --shadow:  0 2px 12px rgba(62,39,35,.08), 0 1px 3px rgba(0,0,0,.04);
+  --font:    'Montserrat', sans-serif;
+}
+.v1 .phone { background: var(--bg); }
+
+/* Status bar */
+.v1-sbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 24px 6px; font-size: 13px; font-weight: 700;
+  background: var(--bg); color: var(--text); flex-shrink: 0;
+}
+
+/* Hero — split diagonal green/orange */
+.v1-hero {
+  background: linear-gradient(158deg, #1b5e20 0%, #2e7d32 45%, #e05d38 100%);
+  padding: 12px 22px 48px; position: relative; overflow: hidden; flex-shrink: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 88%, 0 100%);
+}
+.v1-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    -45deg, rgba(255,255,255,.04) 0, rgba(255,255,255,.04) 1px,
+    transparent 0, transparent 8px);
+}
+.v1-hero-inner { position: relative; z-index: 1; }
+.v1-date { font-family: var(--font); font-size: 11px; font-weight: 700; color: rgba(255,255,255,.75); letter-spacing: 2px; text-transform: uppercase; }
+.v1-title { font-family: 'Fraunces', serif; font-size: 46px; color: #fff; line-height: .95; margin-top: 4px; letter-spacing: -.5px; text-shadow: 0 3px 16px rgba(0,0,0,.3); }
+.v1-title em { font-style: italic; color: #ffd54f; }
+.v1-weather { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.v1-temp { font-family: var(--font); font-size: 28px; font-weight: 800; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,.2); }
+.v1-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 100px;
+  font-family: var(--font); font-size: 12px; font-weight: 700;
+}
+.v1-chip-muted { background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.35); color: rgba(255,255,255,.95); }
+.v1-chip-alert { background: #fff; color: #1565C0; font-weight: 800; }
+
+/* Content */
+.v1-body { padding: 18px 16px 0; flex: 1; font-family: var(--font); }
+.v1-section {
+  font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: 2px;
+  text-transform: uppercase; margin: 18px 0 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.v1-section::after { content: ''; flex: 1; height: 1.5px; background: var(--border); border-radius: 1px; }
+
+/* shadcn Card pattern */
+.v1-card {
+  background: var(--card); border-radius: var(--rad);
+  border: 1.5px solid var(--border); box-shadow: var(--shadow);
+  padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 13px;
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s; cursor: pointer;
+}
+.v1-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(62,39,35,.12); }
+.v1-card:active { transform: scale(.97); }
+.v1-ico { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.v1-ico-w { background: #e3f2fd; }
+.v1-ico-f { background: #fff8e1; }
+.v1-ico-s { background: #fce4ec; }
+.v1-ct { font-size: 15px; font-weight: 800; color: var(--text); }
+.v1-cs { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+
+/* shadcn Badge pattern */
+.badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 100px; padding: 3px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.v1-badge-over { background: var(--accent); color: #fff; }
+.v1-badge-stage { background: #e8f5e9; color: var(--primary); border: 1px solid #c8e6c9; }
+.v1-badge-warn  { background: #fff8e1; color: #e65100; border: 1px solid #ffe0b2; }
+.v1-badge-ok    { background: #e8f5e9; color: var(--primary); }
+
+/* Quick action buttons */
+.v1-actions { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.v1-btn {
+  height: 76px; border-radius: 16px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font); font-size: 12px; font-weight: 800; color: #fff;
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
+}
+.v1-btn:hover  { transform: translateY(-4px); }
+.v1-btn:active { transform: scale(.9); }
+.v1-btn-w { background: linear-gradient(145deg,#42b3f5,#1565C0); box-shadow: 0 6px 18px rgba(21,101,192,.38); }
+.v1-btn-f { background: linear-gradient(145deg,#ffca28,#e65100); box-shadow: 0 6px 18px rgba(230,81,0,.36); }
+.v1-btn-t { background: linear-gradient(145deg,#81c784,#2e7d32); box-shadow: 0 6px 18px rgba(46,125,50,.36); }
+.v1-btn-ico { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; }
+
+/* Rec card */
+.v1-rec {
+  background: #f1f8e9; border: 1.5px solid #c5e1a5; border-radius: var(--rad);
+  padding: 14px 15px; display: flex; gap: 12px; margin-bottom: 10px;
+  transition: transform .2s;
+}
+.v1-rec:hover { transform: translateX(4px); }
+.v1-rec-ico { width: 44px; height: 44px; border-radius: 12px; background: #a5d6a7; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.v1-rec-title { font-size: 14px; font-weight: 800; color: #1b5e20; }
+.v1-rec-text  { font-size: 12px; font-weight: 600; color: #388e3c; margin-top: 3px; line-height: 1.5; }
+
+/* Journal row */
+.v1-jrow { padding: 11px 0; border-bottom: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.v1-jt { font-size: 14px; font-weight: 700; color: var(--text); }
+.v1-jd { font-size: 12px; font-weight: 600; color: var(--muted); }
+
+/* Plantings screen */
+.v1-filters { display: flex; gap: 8px; padding: 0 16px 12px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.v1-filters::-webkit-scrollbar { display: none; }
+.v1-filter {
+  padding: 7px 16px; border-radius: 100px; font-family: var(--font);
+  font-size: 12px; font-weight: 700; white-space: nowrap;
+  border: 1.5px solid var(--border); background: var(--card); color: var(--muted);
+  transition: all .2s;
+}
+.v1-filter.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+.v1-filter:hover:not(.on) { border-color: var(--primary); color: var(--primary); }
+
+.v1-plant {
+  background: var(--card); border-radius: var(--rad); border: 1.5px solid var(--border);
+  box-shadow: var(--shadow); margin-bottom: 10px; overflow: hidden;
+}
+.v1-plant-body { padding: 14px 16px; }
+.v1-plant-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.v1-plant-name { font-size: 16px; font-weight: 800; color: var(--text); }
+.v1-plant-meta { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+.v1-plant-next { font-size: 12px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.v1-plant-btn {
+  margin: 10px 16px 14px; height: 48px; border-radius: 12px;
+  background: var(--primary); color: #fff; width: calc(100% - 32px);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font); font-size: 14px; font-weight: 800;
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
+  box-shadow: 0 4px 12px rgba(46,125,50,.3);
+}
+.v1-plant-btn:hover  { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(46,125,50,.4); }
+.v1-plant-btn:active { transform: scale(.97); }
+
+/* V1 Nav */
+.v1 .nav { background: var(--card); border-top: 1.5px solid var(--border); }
+.v1 .ni { color: var(--muted); }
+.v1 .ni.on { color: var(--primary); }
+
+
+/* ══════════════════════════════════════════════════════
+   V2 — ДАЧНЫЙ ЖУРНАЛ
+   shadcn Notebook  |  Architects Daughter  |  Paper + pencil + stickers
+   Card pattern: white, 2px #747272 border, pencil offset shadow
+══════════════════════════════════════════════════════ */
+.v2 {
+  --bg:      #f6f4ef;
+  --card:    #ffffff;
+  --border:  #b0a898;
+  --primary: #3e6b3a;
+  --accent:  #f3eac8;
+  --text:    #2d2416;
+  --muted:   #7a6a52;
+  --rad:     10px;
+  --font:    'Architects Daughter', sans-serif;
+  --serif:   'Fraunces', serif;
+}
+.v2 .phone { background: var(--bg); }
+
+/* Notebook lines background */
+.v2-lines {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image: repeating-linear-gradient(
+    transparent, transparent 27px, rgba(176,168,152,.25) 27px, rgba(176,168,152,.25) 28px);
+}
+.v2-content { position: relative; z-index: 1; }
+
+.v2-sbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 24px 6px; font-size: 12px; font-weight: 700;
+  font-family: var(--font); color: var(--muted); flex-shrink: 0;
+  background: #ede9e0;
+  border-bottom: 2px solid var(--border);
+  position: relative; z-index: 1;
+}
+/* Red margin line */
+.v2-sbar::before {
+  content: ''; position: absolute; left: 44px; top: 0; bottom: 0;
+  width: 2px; background: rgba(211,47,47,.25);
+}
+
+/* Stamp-style header */
+.v2-header {
+  background: var(--primary); padding: 14px 20px 18px;
+  position: relative; z-index: 1; overflow: hidden;
+}
+.v2-header::after {
+  content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+  height: 8px;
+  background: var(--bg);
+  clip-path: polygon(0 100%, 2.5% 0, 5% 100%, 7.5% 0, 10% 100%, 12.5% 0, 15% 100%, 17.5% 0, 20% 100%, 22.5% 0, 25% 100%, 27.5% 0, 30% 100%, 32.5% 0, 35% 100%, 37.5% 0, 40% 100%, 42.5% 0, 45% 100%, 47.5% 0, 50% 100%, 52.5% 0, 55% 100%, 57.5% 0, 60% 100%, 62.5% 0, 65% 100%, 67.5% 0, 70% 100%, 72.5% 0, 75% 100%, 77.5% 0, 80% 100%, 82.5% 0, 85% 100%, 87.5% 0, 90% 100%, 92.5% 0, 95% 100%, 97.5% 0, 100% 100%);
+}
+.v2-date { font-family: var(--font); font-size: 11px; color: rgba(255,255,255,.7); letter-spacing: 2px; text-transform: uppercase; }
+.v2-title { font-family: var(--font); font-size: 32px; color: #fff; line-height: 1.1; margin-top: 4px; }
+.v2-title span { color: #ffd54f; }
+
+/* Weather — sticker style */
+.v2-weather-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.v2-sticker {
+  background: var(--accent); border: 2px solid #d4a017;
+  border-radius: 8px; padding: 6px 12px;
+  font-family: var(--font); font-size: 14px; font-weight: 700; color: var(--text);
+  display: inline-flex; align-items: center; gap: 6px;
+  transform: rotate(-1.5deg);
+  box-shadow: 2px 2px 0 rgba(0,0,0,.15);
+}
+.v2-sticker-blue { background: #dde9f8; border-color: #90afd4; color: #1a3a6b; transform: rotate(1deg); }
+.v2-sticker-red  { background: #fde8e8; border-color: #e57373; color: #b71c1c; transform: rotate(-.5deg); }
+
+/* Body */
+.v2-body { padding: 16px 16px 0; flex: 1; position: relative; z-index: 1; font-family: var(--font); }
+.v2-section {
+  font-size: 13px; color: var(--muted); margin: 18px 0 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.v2-section::before { content: '//'; color: var(--primary); font-weight: 900; }
+.v2-section::after  { content: ''; flex: 1; border-bottom: 2px dashed var(--border); }
+
+/* Notebook card — pencil shadow */
+.v2-card {
+  background: var(--card); border-radius: var(--rad);
+  border: 2px solid var(--border); padding: 14px 15px;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
+  box-shadow: 3px 4px 0 rgba(100,80,50,.15);
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+  cursor: pointer; position: relative;
+}
+.v2-card:hover  { transform: translate(-2px,-2px); }
+.v2-card:active { transform: scale(.97); }
+.v2-card-corner {
+  position: absolute; top: 0; right: 0;
+  width: 0; height: 0;
+  border-style: solid;
+  border-width: 0 22px 22px 0;
+  border-color: transparent var(--accent) transparent transparent;
+}
+.v2-ico { width: 46px; height: 46px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2px solid; }
+.v2-ico-w { background: #e8f4ff; border-color: #90c4e4; }
+.v2-ico-f { background: #fff8e1; border-color: #ffcc02; }
+.v2-ico-s { background: #fdecea; border-color: #e57373; }
+.v2-ct { font-size: 16px; color: var(--text); }
+.v2-cs { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Notebook badge */
+.v2-badge-over { background: #fdecea; color: #b71c1c; border: 2px solid #ef9a9a; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 900; }
+.v2-badge-stage { background: var(--accent); color: var(--primary); border: 2px solid #c4a21a; border-radius: 6px; padding: 2px 8px; font-size: 11px; }
+
+/* Quick action — large pill buttons */
+.v2-actions { display: flex; flex-direction: column; gap: 9px; }
+.v2-btn {
+  height: 58px; border-radius: var(--rad); display: flex; align-items: center;
+  gap: 14px; padding: 0 18px; font-family: var(--font); font-size: 16px; color: #fff;
+  border: 2px solid; box-shadow: 4px 4px 0;
+  transition: transform .15s, box-shadow .15s;
+}
+.v2-btn:hover  { transform: translate(-2px,-2px); }
+.v2-btn:active { transform: translate(4px,4px); box-shadow: 0 0 0 !important; }
+.v2-btn-w { background: #1565C0; border-color: #0d47a1; box-shadow: 4px 4px 0 #0d47a1; }
+.v2-btn-f { background: #e65100; border-color: #bf360c; box-shadow: 4px 4px 0 #bf360c; }
+.v2-btn-t { background: var(--primary); border-color: #1b5e20; box-shadow: 4px 4px 0 #1b5e20; }
+
+/* Rec */
+.v2-rec {
+  background: var(--accent); border: 2px solid #c4a21a; border-radius: var(--rad);
+  padding: 13px 14px; display: flex; gap: 12px; margin-bottom: 10px;
+  box-shadow: 3px 4px 0 rgba(100,80,50,.15);
+  transform: rotate(-.2deg);
+}
+.v2-rec-title { font-size: 14px; color: #3e2723; }
+.v2-rec-text  { font-size: 12px; color: #6d4c41; margin-top: 3px; line-height: 1.5; }
+
+/* Journal */
+.v2-jrow { padding: 10px 0; border-bottom: 2px dashed var(--border); display: flex; align-items: center; justify-content: space-between; }
+.v2-jt { font-size: 13px; color: var(--text); }
+.v2-jd { font-size: 11px; color: var(--muted); }
+
+/* Plantings */
+.v2-filters { display: flex; gap: 8px; padding: 0 16px 14px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; position: relative; z-index: 1; }
+.v2-filters::-webkit-scrollbar { display: none; }
+.v2-filter {
+  padding: 6px 14px; border-radius: 6px; font-family: var(--font); font-size: 12px;
+  white-space: nowrap; border: 2px solid var(--border); background: var(--card); color: var(--muted);
+  box-shadow: 2px 2px 0 var(--border); transition: all .15s;
+}
+.v2-filter.on { background: var(--primary); color: #fff; border-color: #1b5e20; box-shadow: 2px 2px 0 #1b5e20; }
+
+.v2-plant {
+  background: var(--card); border-radius: var(--rad); border: 2px solid var(--border);
+  margin-bottom: 12px; overflow: hidden; box-shadow: 4px 5px 0 rgba(100,80,50,.12);
+  position: relative; z-index: 1;
+}
+.v2-plant-body { padding: 14px 15px; }
+.v2-plant-name { font-size: 18px; color: var(--text); }
+.v2-plant-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.v2-plant-next { font-size: 12px; color: var(--primary); display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.v2-plant-btn {
+  margin: 8px 14px 13px; height: 46px; border-radius: 8px;
+  background: var(--primary); color: #fff; width: calc(100% - 28px);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font); font-size: 14px;
+  border: 2px solid #1b5e20; box-shadow: 3px 3px 0 #1b5e20;
+  transition: transform .15s, box-shadow .15s;
+}
+.v2-plant-btn:hover  { transform: translate(-2px,-2px); }
+.v2-plant-btn:active { transform: translate(3px,3px); box-shadow: 0 0 0; }
+
+/* V2 Nav */
+.v2 .nav { background: #ede9e0; border-top: 2px solid var(--border); position: relative; z-index: 1; }
+.v2 .ni { color: var(--muted); }
+.v2 .ni.on { color: var(--primary); }
+
+
+/* ══════════════════════════════════════════════════════
+   V3 — SOLAR DACHA
+   Custom bold  |  Nunito Black  |  Orange gradient hero + vivid cards
+   Card pattern: white, rounded-2xl, colored left border 4px, warm shadow
+══════════════════════════════════════════════════════ */
+.v3 {
+  --bg:      #fff9f0;
+  --card:    #ffffff;
+  --border:  rgba(255,180,50,.2);
+  --primary: #FF7B00;
+  --p2:      #FFC13B;
+  --text:    #2D1500;
+  --muted:   #9E7050;
+  --rad:     20px;
+  --font:    'Nunito', sans-serif;
+  --shadow:  0 4px 20px rgba(255,123,0,.10), 0 1px 4px rgba(0,0,0,.04);
+}
+.v3 .phone { background: var(--bg); }
+
+.v3-sbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 24px 6px; font-size: 12px; font-weight: 800;
+  background: linear-gradient(160deg,#FF7B00,#FFC13B);
+  color: rgba(255,255,255,.9); flex-shrink: 0;
+}
+
+/* Hero — diagonal clip + sunflower */
+.v3-hero {
+  background: linear-gradient(158deg, #FF7B00 0%, #FF9F2B 50%, #FFC13B 100%);
+  padding: 8px 22px 48px; position: relative; overflow: hidden; flex-shrink: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 87%, 0 100%);
+}
+.v3-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,.12) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+.v3-sunflower {
+  position: absolute; top: 6px; right: -6px; font-size: 88px;
+  animation: sway 5s ease-in-out infinite;
+  filter: drop-shadow(0 6px 20px rgba(0,0,0,.18));
+  z-index: 1;
+}
+.v3-hero-inner { position: relative; z-index: 2; }
+.v3-date  { font-family: var(--font); font-size: 11px; font-weight: 800; color: rgba(255,255,255,.8); letter-spacing: 1.5px; text-transform: uppercase; text-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.v3-title { font-family: var(--font); font-size: 42px; font-weight: 900; color: #fff; line-height: 1; letter-spacing: -.5px; text-shadow: 0 3px 14px rgba(150,50,0,.35); }
+.v3-temp  { font-family: var(--font); font-size: 26px; font-weight: 900; color: #fff; margin-top: 12px; text-shadow: 0 1px 6px rgba(0,0,0,.2); }
+.v3-chips { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.v3-chip  { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 100px; font-family: var(--font); font-size: 12px; font-weight: 800; }
+.v3-chip-muted { background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.4); color: rgba(255,255,255,.95); text-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.v3-chip-frost { background: rgba(255,255,255,.92); color: #0D47A1; }
+
+/* Body */
+.v3-body { padding: 18px 16px 0; flex: 1; font-family: var(--font); }
+.v3-section {
+  font-size: 12px; font-weight: 900; color: var(--text); letter-spacing: .3px;
+  margin: 18px 0 10px; display: flex; align-items: center; gap: 8px;
+  font-family: var(--font);
+}
+.v3-section .s-line { flex: 1; height: 2px; border-radius: 1px; background: linear-gradient(90deg, rgba(255,123,0,.25), transparent); }
+
+/* Card — left colored border */
+.v3-card {
+  background: var(--card); border-radius: var(--rad);
+  border: 1.5px solid var(--border); box-shadow: var(--shadow);
+  padding: 14px 16px 14px 20px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 13px;
+  position: relative; overflow: hidden; cursor: pointer;
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
+}
+.v3-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 4px 0 0 4px; }
+.v3-card:hover  { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(255,123,0,.16); }
+.v3-card:active { transform: scale(.97); }
+.v3-card-w::before { background: #1E88E5; }
+.v3-card-f::before { background: #FF9800; }
+.v3-card-s::before { background: #E53935; }
+.v3-ico { width: 50px; height: 50px; border-radius: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.v3-ico-w { background: linear-gradient(145deg,#e3f2fd,#bbdefb); }
+.v3-ico-f { background: linear-gradient(145deg,#fff8e1,#ffe082); }
+.v3-ico-s { background: linear-gradient(145deg,#fce4ec,#f8bbd0); }
+.v3-ct { font-size: 15px; font-weight: 900; color: var(--text); }
+.v3-cs { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 2px; }
+.v3-badge-over {
+  background-image: linear-gradient(90deg,#E53935,#FF5722,#E53935);
+  background-size: 200% 100%; animation: shimmer 2s linear infinite;
+  color: #fff; border-radius: 100px; padding: 3px 10px; font-size: 11px; font-weight: 900; margin-left: auto; white-space: nowrap;
+}
+.v3-badge-stage { background: #e8f5e9; color: #2e7d32; border-radius: 100px; padding: 3px 10px; font-size: 11px; font-weight: 800; }
+.v3-badge-warn  { background: #fff3e0; color: #e65100; border-radius: 100px; padding: 3px 10px; font-size: 11px; font-weight: 800; }
+
+/* Quick action buttons */
+.v3-actions { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.v3-btn {
+  height: 78px; border-radius: var(--rad); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font); font-size: 12px; font-weight: 900; color: #fff;
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
+  text-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.v3-btn:hover  { transform: translateY(-5px) scale(1.03); }
+.v3-btn:active { transform: scale(.9); }
+.v3-btn-w { background: linear-gradient(145deg,#42b3f5,#1565C0); box-shadow: 0 8px 20px rgba(21,101,192,.4); }
+.v3-btn-f { background: linear-gradient(145deg,#ffd54f,#e65100); box-shadow: 0 8px 20px rgba(230,81,0,.4); }
+.v3-btn-t { background: linear-gradient(145deg,#81c784,#2e7d32); box-shadow: 0 8px 20px rgba(46,125,50,.4); }
+.v3-btn-ico { width: 38px; height: 38px; border-radius: 12px; background: rgba(255,255,255,.22); display: flex; align-items: center; justify-content: center; }
+
+/* Rec */
+.v3-rec {
+  background: #f1fbf3; border: 1.5px solid #a5d6a7; border-radius: var(--rad);
+  padding: 14px 15px; display: flex; gap: 12px; margin-bottom: 10px;
+  transition: transform .2s;
+}
+.v3-rec:hover { transform: translateX(4px); }
+.v3-rec-ico { width: 44px; height: 44px; border-radius: 14px; background: #a5d6a7; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.v3-rec-title { font-size: 14px; font-weight: 900; color: #1b5e20; }
+.v3-rec-text  { font-size: 12px; font-weight: 700; color: #2e7d32; margin-top: 3px; line-height: 1.5; }
+
+/* Journal */
+.v3-jrow { padding: 11px 0; border-bottom: 1.5px solid rgba(255,180,50,.2); display: flex; align-items: center; justify-content: space-between; }
+.v3-jt { font-size: 14px; font-weight: 800; color: var(--text); }
+.v3-jd { font-size: 12px; font-weight: 700; color: var(--muted); }
+
+/* Plantings */
+.v3-filters { display: flex; gap: 8px; padding: 0 16px 14px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.v3-filters::-webkit-scrollbar { display: none; }
+.v3-filter {
+  padding: 7px 16px; border-radius: 100px; font-family: var(--font); font-size: 12px; font-weight: 800;
+  white-space: nowrap; border: 1.5px solid var(--border); background: var(--card); color: var(--muted);
+  transition: all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.v3-filter.on { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 12px rgba(255,123,0,.3); }
+
+.v3-plant {
+  background: var(--card); border-radius: var(--rad); border: 1.5px solid var(--border);
+  box-shadow: var(--shadow); margin-bottom: 10px; overflow: hidden;
+}
+.v3-plant-body { padding: 14px 16px; }
+.v3-plant-top  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.v3-plant-name { font-size: 16px; font-weight: 900; color: var(--text); }
+.v3-plant-meta { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 2px; }
+.v3-plant-next { font-size: 12px; font-weight: 800; color: #2e7d32; display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.v3-plant-btn {
+  margin: 8px 16px 14px; height: 50px; border-radius: 14px;
+  background: var(--primary); color: #fff; width: calc(100% - 32px);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font); font-size: 14px; font-weight: 900;
+  box-shadow: 0 6px 16px rgba(255,123,0,.35);
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
+}
+.v3-plant-btn:hover  { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(255,123,0,.45); }
+.v3-plant-btn:active { transform: scale(.97); }
+
+/* V3 Nav */
+.v3 .nav { background: var(--card); border-top: 2px solid rgba(255,180,50,.2); }
+.v3 .ni { color: #c4a070; }
+.v3 .ni.on { color: var(--primary); }
+
+
+/* ─── Header for plantings ───────────────────────────── */
+.screen-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 16px 12px; flex-shrink: 0;
+}
+.screen-header-title { font-size: 24px; font-weight: 900; }
+.v1 .screen-header-title { font-family: 'Fraunces', serif; color: #3e2723; }
+.v2 .screen-header-title { font-family: 'Architects Daughter'; color: #2d2416; }
+.v3 .screen-header-title { font-family: 'Nunito', sans-serif; color: #2D1500; }
+.screen-header-btn {
+  width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+.v1 .screen-header-btn { background: #e8f5e9; }
+.v2 .screen-header-btn { background: var(--accent); border: 2px solid #c4a21a; }
+.v3 .screen-header-btn { background: rgba(255,123,0,.1); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <p>shadcn-ui × Lucide × frontend-design skill</p>
+  <h1>Календарь дачника — Design System</h1>
+</div>
+
+<div class="vtabs">
+  <button class="vtab on"  id="vt1" onclick="showV(1)" style="background:#2e7d32;color:#fff">🌿 Organic Garden</button>
+  <button class="vtab"     id="vt2" onclick="showV(2)" style="background:#3e6b3a;color:#f3eac8">📓 Дачный журнал</button>
+  <button class="vtab"     id="vt3" onclick="showV(3)" style="background:#FF7B00;color:#fff">☀️ Solar Dacha</button>
+</div>
+
+
+<!-- ══════════ V1: ORGANIC GARDEN ══════════ -->
+<div class="variant v1 on" id="var1">
+
+  <!-- TODAY -->
+  <div class="phone-wrap">
+    <p class="screen-label" style="color:#6d9b70">Сегодня</p>
+    <div class="phone v1">
+      <div class="pscroll">
+        <div class="v1-sbar">
+          <span>9:41</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <i data-lucide="signal" style="width:16px;height:16px;color:#8d6e63"></i>
+            <i data-lucide="battery-medium" style="width:18px;height:18px;color:#8d6e63"></i>
+          </div>
+        </div>
+
+        <div class="v1-hero anim-1">
+          <div class="v1-hero-inner">
+            <div class="v1-date">Понедельник · 2 июня 2026</div>
+            <div class="v1-title">Сегодня<br><em>на даче</em></div>
+            <div class="v1-weather">
+              <span class="v1-temp">+8° / +22°</span>
+              <span class="v1-chip v1-chip-muted"><i data-lucide="droplets" style="width:13px;height:13px"></i>56%</span>
+              <span class="v1-chip v1-chip-alert"><i data-lucide="snowflake" style="width:13px;height:13px"></i>Заморозки</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="v1-body">
+          <div class="v1-section anim-2"><i data-lucide="list-checks" style="width:14px;height:14px;color:#8d6e63"></i>Задачи сегодня</div>
+
+          <div class="v1-card anim-2">
+            <div class="v1-ico v1-ico-w"><i data-lucide="droplets" style="width:26px;height:26px;color:#1565C0"></i></div>
+            <div style="flex:1;min-width:0">
+              <div class="v1-ct">Полить томаты</div>
+              <div class="v1-cs">Последний полив — 4 дня назад</div>
+            </div>
+            <span class="badge v1-badge-over">+2д</span>
+            <i data-lucide="chevron-right" style="width:16px;height:16px;color:#e0d6c9"></i>
+          </div>
+
+          <div class="v1-card anim-3">
+            <div class="v1-ico v1-ico-f"><i data-lucide="sprout" style="width:26px;height:26px;color:#e65100"></i></div>
+            <div style="flex:1;min-width:0">
+              <div class="v1-ct">Подкормить огурцы</div>
+              <div class="v1-cs">Фаза роста — нужен азот</div>
+            </div>
+            <i data-lucide="chevron-right" style="width:16px;height:16px;color:#e0d6c9"></i>
+          </div>
+
+          <div class="v1-section anim-3"><i data-lucide="zap" style="width:14px;height:14px;color:#8d6e63"></i>Быстрые действия</div>
+          <div class="v1-actions anim-4">
+            <button class="v1-btn v1-btn-w">
+              <div class="v1-btn-ico"><i data-lucide="droplets" style="width:20px;height:20px;color:white"></i></div>
+              Полил
+            </button>
+            <button class="v1-btn v1-btn-f">
+              <div class="v1-btn-ico"><i data-lucide="sprout" style="width:20px;height:20px;color:white"></i></div>
+              Подкормил
+            </button>
+            <button class="v1-btn v1-btn-t">
+              <div class="v1-btn-ico"><i data-lucide="shield-check" style="width:20px;height:20px;color:white"></i></div>
+              Обработал
+            </button>
+          </div>
+
+          <div class="v1-section anim-4"><i data-lucide="lightbulb" style="width:14px;height:14px;color:#8d6e63"></i>Советы</div>
+          <div class="v1-rec anim-5">
+            <div class="v1-rec-ico"><i data-lucide="thermometer-snowflake" style="width:22px;height:22px;color:#1b5e20"></i></div>
+            <div>
+              <div class="v1-rec-title">Томаты — риск заморозков</div>
+              <div class="v1-rec-text">Ночью до −1°. Укройте рассаду агроволокном до заката.</div>
+            </div>
+          </div>
+
+          <div class="v1-section anim-5"><i data-lucide="clock" style="width:14px;height:14px;color:#8d6e63"></i>Сделано сегодня</div>
+          <div class="v1-jrow anim-5">
+            <div class="v1-jt">Полив — Капуста белокочанная</div>
+            <div class="v1-jd">14:23</div>
+          </div>
+          <div class="v1-jrow anim-6">
+            <div class="v1-jt">Полив — Арбуз</div>
+            <div class="v1-jd">11:05</div>
+          </div>
+          <div class="v1-jrow anim-6" style="border-bottom:none">
+            <div class="v1-jt">Прополка — Томат</div>
+            <div class="v1-jd">09:30</div>
+          </div>
+          <div style="height:20px"></div>
+        </div>
+
+        <nav class="nav">
+          <button class="ni on"><i data-lucide="house" style="width:22px;height:22px"></i>Сегодня</button>
+          <button class="ni"><i data-lucide="calendar" style="width:22px;height:22px"></i>Календарь</button>
+          <button class="ni"><i data-lucide="leaf" style="width:22px;height:22px"></i>Посадки</button>
+          <button class="ni"><i data-lucide="heart" style="width:22px;height:22px"></i>Урожай</button>
+          <button class="ni"><i data-lucide="user" style="width:22px;height:22px"></i>Профиль</button>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLANTINGS -->
+  <div class="phone-wrap">
+    <p class="screen-label" style="color:#6d9b70">Посадки</p>
+    <div class="phone v1">
+      <div class="pscroll">
+        <div class="v1-sbar">
+          <span>9:41</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <i data-lucide="signal" style="width:16px;height:16px;color:#8d6e63"></i>
+            <i data-lucide="battery-medium" style="width:18px;height:18px;color:#8d6e63"></i>
+          </div>
+        </div>
+
+        <div class="screen-header anim-1" style="background:#f8f5f0">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#8d6e63;letter-spacing:2px;text-transform:uppercase;font-family:'Montserrat',sans-serif">МОЙ САД</div>
+            <div class="screen-header-title">Посадки</div>
+          </div>
+          <button class="screen-header-btn"><i data-lucide="plus" style="width:18px;height:18px;color:#2e7d32"></i></button>
+        </div>
+
+        <div class="v1-filters anim-2">
+          <button class="v1-filter on">Все</button>
+          <button class="v1-filter">Посеяно</button>
+          <button class="v1-filter">Взошло</button>
+          <button class="v1-filter">Растёт</button>
+          <button class="v1-filter">Завершено</button>
+        </div>
+
+        <div style="padding:0 16px;flex:1;font-family:'Montserrat',sans-serif">
+
+          <div class="v1-plant anim-3">
+            <div class="v1-plant-body">
+              <div class="v1-plant-top">
+                <div>
+                  <div class="v1-plant-name">Арбуз</div>
+                  <div class="v1-plant-meta">Посеяно · 31.05.26 · 1 растение</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                  <span class="badge v1-badge-stage"><i data-lucide="seedling" style="width:10px;height:10px"></i>Посеяно</span>
+                  <button style="color:#8d6e63"><i data-lucide="more-vertical" style="width:18px;height:18px"></i></button>
+                </div>
+              </div>
+              <div class="v1-plant-meta">Последнее действие: 01.06.26</div>
+            </div>
+            <button class="v1-plant-btn">
+              <i data-lucide="pencil" style="width:16px;height:16px"></i>
+              Записать действие
+            </button>
+          </div>
+
+          <div class="v1-plant anim-4">
+            <div class="v1-plant-body">
+              <div class="v1-plant-top">
+                <div>
+                  <div class="v1-plant-name">Кабачок</div>
+                  <div class="v1-plant-meta">Посеяно · 22.05.26 · 3 растения</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                  <span class="badge v1-badge-stage">Посеяно</span>
+                  <button style="color:#8d6e63"><i data-lucide="more-vertical" style="width:18px;height:18px"></i></button>
+                </div>
+              </div>
+              <div class="v1-plant-meta">Последнее действие: 31.05.26</div>
+              <div class="v1-plant-next"><i data-lucide="arrow-right" style="width:13px;height:13px"></i>Прополка: через 4 дн.</div>
+            </div>
+            <button class="v1-plant-btn"><i data-lucide="pencil" style="width:16px;height:16px"></i>Записать действие</button>
+          </div>
+
+          <div class="v1-plant anim-5">
+            <div class="v1-plant-body">
+              <div class="v1-plant-top">
+                <div>
+                  <div class="v1-plant-name">Капуста белокочанная</div>
+                  <div class="v1-plant-meta">Посеяно · 20.05.26 · 5 растений</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                  <span class="badge v1-badge-warn">Уход !</span>
+                  <button style="color:#8d6e63"><i data-lucide="more-vertical" style="width:18px;height:18px"></i></button>
+                </div>
+              </div>
+              <div class="v1-plant-meta">Последнее действие: 01.06.26</div>
+              <div class="v1-plant-next"><i data-lucide="arrow-right" style="width:13px;height:13px"></i>Рыхление: через 2 дн.</div>
+            </div>
+            <button class="v1-plant-btn"><i data-lucide="pencil" style="width:16px;height:16px"></i>Записать действие</button>
+          </div>
+
+          <div style="height:20px"></div>
+        </div>
+
+        <nav class="nav">
+          <button class="ni"><i data-lucide="house" style="width:22px;height:22px"></i>Сегодня</button>
+          <button class="ni"><i data-lucide="calendar" style="width:22px;height:22px"></i>Календарь</button>
+          <button class="ni on"><i data-lucide="leaf" style="width:22px;height:22px"></i>Посадки</button>
+          <button class="ni"><i data-lucide="heart" style="width:22px;height:22px"></i>Урожай</button>
+          <button class="ni"><i data-lucide="user" style="width:22px;height:22px"></i>Профиль</button>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ══════════ V2: ДАЧНЫЙ ЖУРНАЛ ══════════ -->
+<div class="variant v2" id="var2">
+
+  <!-- TODAY -->
+  <div class="phone-wrap">
+    <p class="screen-label" style="color:#7a9e7a">Сегодня</p>
+    <div class="phone v2">
+      <div class="pscroll" style="position:relative">
+        <div class="v2-lines"></div>
+        <div class="v2-content" style="display:flex;flex-direction:column;height:100%">
+
+          <div class="v2-sbar">
+            <span>9:41</span>
+            <div style="display:flex;align-items:center;gap:4px">
+              <i data-lucide="signal" style="width:15px;height:15px;color:#7a6a52"></i>
+              <i data-lucide="battery-medium" style="width:17px;height:17px;color:#7a6a52"></i>
+            </div>
+          </div>
+
+          <div class="v2-header anim-1">
+            <div class="v2-date">Понедельник · 2 июня 2026</div>
+            <div class="v2-title">Сегодня<br>на <span>даче</span> 🌱</div>
+            <div class="v2-weather-row">
+              <span class="v2-sticker"><i data-lucide="sun" style="width:14px;height:14px"></i>+8°/+22°</span>
+              <span class="v2-sticker v2-sticker-blue"><i data-lucide="droplets" style="width:14px;height:14px"></i>56%</span>
+              <span class="v2-sticker v2-sticker-red"><i data-lucide="snowflake" style="width:14px;height:14px"></i>Заморозки!</span>
+            </div>
+          </div>
+
+          <div class="v2-body" style="flex:1">
+            <div class="v2-section anim-2"><i data-lucide="list-checks" style="width:14px;height:14px"></i>задачи</div>
+
+            <div class="v2-card anim-2">
+              <div class="v2-card-corner"></div>
+              <div class="v2-ico v2-ico-w"><i data-lucide="droplets" style="width:22px;height:22px;color:#1565C0"></i></div>
+              <div style="flex:1;min-width:0">
+                <div class="v2-ct">Полить томаты</div>
+                <div class="v2-cs">Последний полив — 4 дня назад</div>
+              </div>
+              <span class="v2-badge-over">+2дн</span>
+            </div>
+
+            <div class="v2-card anim-3">
+              <div class="v2-card-corner"></div>
+              <div class="v2-ico v2-ico-f"><i data-lucide="sprout" style="width:22px;height:22px;color:#e65100"></i></div>
+              <div style="flex:1;min-width:0">
+                <div class="v2-ct">Подкормить огурцы</div>
+                <div class="v2-cs">Фаза роста — нужен азот</div>
+              </div>
+            </div>
+
+            <div class="v2-section anim-3"><i data-lucide="zap" style="width:14px;height:14px"></i>действия</div>
+            <div class="v2-actions anim-4">
+              <button class="v2-btn v2-btn-w"><i data-lucide="droplets" style="width:20px;height:20px;color:white"></i>Полил</button>
+              <button class="v2-btn v2-btn-f"><i data-lucide="sprout" style="width:20px;height:20px;color:white"></i>Подкормил</button>
+              <button class="v2-btn v2-btn-t"><i data-lucide="shield-check" style="width:20px;height:20px;color:white"></i>Обработал</button>
+            </div>
+
+            <div class="v2-section anim-4"><i data-lucide="lightbulb" style="width:14px;height:14px"></i>советы</div>
+            <div class="v2-rec anim-5">
+              <div style="font-size:24px">🍅</div>
+              <div>
+                <div class="v2-rec-title">Томаты! Риск мороза.</div>
+                <div class="v2-rec-text">Ночью до −1°. Накройте агроволокном до заката.</div>
+              </div>
+            </div>
+
+            <div class="v2-section anim-5"><i data-lucide="pen-line" style="width:14px;height:14px"></i>сделано сегодня</div>
+            <div class="v2-jrow anim-5"><span class="v2-jt">Полив — Капуста</span><span class="v2-jd">14:23</span></div>
+            <div class="v2-jrow anim-6"><span class="v2-jt">Полив — Арбуз</span><span class="v2-jd">11:05</span></div>
+            <div class="v2-jrow anim-6" style="border:none"><span class="v2-jt">Прополка — Томат</span><span class="v2-jd">09:30</span></div>
+            <div style="height:20px"></div>
+          </div>
+
+          <nav class="nav">
+            <button class="ni on"><i data-lucide="house" style="width:22px;height:22px"></i>Сегодня</button>
+            <button class="ni"><i data-lucide="calendar" style="width:22px;height:22px"></i>Календарь</button>
+            <button class="ni"><i data-lucide="leaf" style="width:22px;height:22px"></i>Посадки</button>
+            <button class="ni"><i data-lucide="heart" style="width:22px;height:22px"></i>Урожай</button>
+            <button class="ni"><i data-lucide="user" style="width:22px;height:22px"></i>Профиль</button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLANTINGS -->
+  <div class="phone-wrap">
+    <p class="screen-label" style="color:#7a9e7a">Посадки</p>
+    <div class="phone v2">
+      <div class="pscroll" style="position:relative">
+        <div class="v2-lines"></div>
+        <div class="v2-content" style="display:flex;flex-direction:column;height:100%">
+
+          <div class="v2-sbar">
+            <span>9:41</span>
+            <div style="display:flex;align-items:center;gap:4px">
+              <i data-lucide="signal" style="width:15px;height:15px;color:#7a6a52"></i>
+              <i data-lucide="battery-medium" style="width:17px;height:17px;color:#7a6a52"></i>
+            </div>
+          </div>
+
+          <div class="screen-header anim-1" style="background:transparent">
+            <div>
+              <div style="font-size:11px;color:#7a6a52;letter-spacing:2px;text-transform:uppercase;font-family:'Architects Daughter'">МОЙ ОГОРОД</div>
+              <div class="screen-header-title">Посадки</div>
+            </div>
+            <button class="screen-header-btn"><i data-lucide="plus" style="width:18px;height:18px;color:#3e6b3a"></i></button>
+          </div>
+
+          <div class="v2-filters anim-2">
+            <button class="v2-filter on">Все</button>
+            <button class="v2-filter">Посеяно</button>
+            <button class="v2-filter">Взошло</button>
+            <button class="v2-filter">Растёт</button>
+          </div>
+
+          <div style="padding:0 16px;flex:1;font-family:'Architects Daughter',sans-serif;position:relative;z-index:1">
+
+            <div class="v2-plant anim-3">
+              <div class="v2-plant-body">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                  <div>
+                    <div class="v2-plant-name">Арбуз</div>
+                    <div class="v2-plant-meta">Посеяно · 31.05.26</div>
+                  </div>
+                  <span class="v2-badge-stage">Посеяно</span>
+                </div>
+                <div class="v2-plant-meta" style="margin-top:4px">Последнее действие: 01.06.26</div>
+              </div>
+              <button class="v2-plant-btn"><i data-lucide="pencil" style="width:16px;height:16px"></i>Записать действие</button>
+            </div>
+
+            <div class="v2-plant anim-4">
+              <div class="v2-plant-body">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                  <div>
+                    <div class="v2-plant-name">Кабачок</div>
+                    <div class="v2-plant-meta">Посеяно · 22.05.26</div>
+                  </div>
+                  <span class="v2-badge-stage">Посеяно</span>
+                </div>
+                <div class="v2-plant-meta" style="margin-top:4px">Последнее действие: 31.05.26</div>
+                <div class="v2-plant-next"><i data-lucide="arrow-right" style="width:13px;height:13px"></i>Прополка: через 4 дн.</div>
+              </div>
+              <button class="v2-plant-btn"><i data-lucide="pencil" style="width:16px;height:16px"></i>Записать действие</button>
+            </div>
+
+            <div class="v2-plant anim-5">
+              <div class="v2-plant-body">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                  <div>
+                    <div class="v2-plant-name">Капуста белокочанная</div>
+                    <div class="v2-plant-meta">Посеяно · 20.05.26</div>
+                  </div>
+                  <span class="v2-badge-over" style="border-radius:6px;padding:2px 8px;font-size:11px;margin-top:2px">Уход!</span>
+                </div>
+                <div class="v2-plant-meta" style="margin-top:4px">Последнее действие: 01.06.26</div>
+                <div class="v2-plant-next"><i data-lucide="arrow-right" style="width:13px;height:13px"></i>Рыхление: через 2 дн.</div>
+              </div>
+              <button class="v2-plant-btn"><i data-lucide="pencil" style="width:16px;height:16px"></i>Записать действие</button>
+            </div>
+
+            <div style="height:20px"></div>
+          </div>
+
+          <nav class="nav">
+            <button class="ni"><i data-lucide="house" style="width:22px;height:22px"></i>Сегодня</button>
+            <button class="ni"><i data-lucide="calendar" style="width:22px;height:22px"></i>Календарь</button>
+            <button class="ni on"><i data-lucide="leaf" style="width:22px;height:22px"></i>Посадки</button>
+            <button class="ni"><i data-lucide="heart" style="width:22px;height:22px"></i>Урожай</button>
+            <button class="ni"><i data-lucide="user" style="width:22px;height:22px"></i>Профиль</button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ══════════ V3: SOLAR DACHA ══════════ -->
+<div class="variant v3" id="var3">
+
+  <!-- TODAY -->
+  <div class="phone-wrap">
+    <p class="screen-label" style="color:#c4a070">Сегодня</p>
+    <div class="phone v3">
+      <div class="pscroll">
+        <div class="v3-sbar">
+          <span>9:41</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <i data-lucide="signal" style="width:15px;height:15px;color:rgba(255,255,255,.8)"></i>
+            <i data-lucide="battery-medium" style="width:17px;height:17px;color:rgba(255,255,255,.8)"></i>
+          </div>
+        </div>
+
+        <div class="v3-hero anim-1">
+          <div class="v3-sunflower">🌻</div>
+          <div class="v3-hero-inner">
+            <div class="v3-date">Понедельник · 2 июня</div>
+            <div class="v3-title">Сегодня<br>на даче</div>
+            <div class="v3-temp">+8° / +22°</div>
+            <div class="v3-chips">
+              <span class="v3-chip v3-chip-muted"><i data-lucide="droplets" style="width:13px;height:13px"></i>56%</span>
+              <span class="v3-chip v3-chip-frost"><i data-lucide="snowflake" style="width:13px;height:13px;color:#0D47A1"></i>Заморозки ночью</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="v3-body">
+          <div class="v3-section anim-2"><i data-lucide="list-checks" style="width:15px;height:15px;color:#FF7B00"></i>Задачи сегодня<div class="s-line"></div></div>
+
+          <div class="v3-card v3-card-w anim-2">
+            <div class="v3-ico v3-ico-w"><i data-lucide="droplets" style="width:26px;height:26px;color:#1565C0"></i></div>
+            <div style="flex:1;min-width:0">
+              <div class="v3-ct">Полить томаты</div>
+              <div class="v3-cs">Последний полив — 4 дня назад</div>
+            </div>
+            <span class="v3-badge-over">+2д</span>
+            <i data-lucide="chevron-right" style="width:16px;height:16px;color:#e0d6c9"></i>
+          </div>
+
+          <div class="v3-card v3-card-f anim-3">
+            <div class="v3-ico v3-ico-f"><i data-lucide="sprout" style="width:26px;height:26px;color:#e65100"></i></div>
+            <div style="flex:1;min-width:0">
+              <div class="v3-ct">Подкормить огурцы</div>
+              <div class="v3-cs">Фаза роста — нужен азот</div>
+            </div>
+            <i data-lucide="chevron-right" style="width:16px;height:16px;color:#e0d6c9"></i>
+          </div>
+
+          <div class="v3-section anim-3"><i data-lucide="zap" style="width:15px;height:15px;color:#FF7B00"></i>Быстрые действия<div class="s-line"></div></div>
+          <div class="v3-actions anim-4">
+            <button class="v3-btn v3-btn-w">
+              <div class="v3-btn-ico"><i data-lucide="droplets" style="width:22px;height:22px;color:white"></i></div>
+              Полил
+            </button>
+            <button class="v3-btn v3-btn-f">
+              <div class="v3-btn-ico"><i data-lucide="sprout" style="width:22px;height:22px;color:white"></i></div>
+              Подкормил
+            </button>
+            <button class="v3-btn v3-btn-t">
+              <div class="v3-btn-ico"><i data-lucide="shield-check" style="width:22px;height:22px;color:white"></i></div>
+              Обработал
+            </button>
+          </div>
+
+          <div class="v3-section anim-4" style="margin-top:16px"><i data-lucide="lightbulb" style="width:15px;height:15px;color:#FF7B00"></i>Советы<div class="s-line"></div></div>
+          <div class="v3-rec anim-5">
+            <div class="v3-rec-ico"><i data-lucide="thermometer-snowflake" style="width:22px;height:22px;color:#1b5e20"></i></div>
+            <div>
+              <div class="v3-rec-title">Томаты — риск заморозков!</div>
+              <div class="v3-rec-text">Ночью до −1°. Укройте агроволокном до заката.</div>
+            </div>
+          </div>
+
+          <div class="v3-section anim-5"><i data-lucide="clock" style="width:15px;height:15px;color:#FF7B00"></i>Сделано сегодня<div class="s-line"></div></div>
+          <div class="v3-jrow anim-5"><span class="v3-jt">Полив — Капуста белокочанная</span><span class="v3-jd">14:23</span></div>
+          <div class="v3-jrow anim-6"><span class="v3-jt">Полив — Арбуз</span><span class="v3-jd">11:05</span></div>
+          <div class="v3-jrow anim-6" style="border:none"><span class="v3-jt">Прополка — Томат</span><span class="v3-jd">09:30</span></div>
+          <div style="height:20px"></div>
+        </div>
+
+        <nav class="nav">
+          <button class="ni on"><i data-lucide="house" style="width:22px;height:22px"></i>Сегодня</button>
+          <button class="ni"><i data-lucide="calendar" style="width:22px;height:22px"></i>Календарь</button>
+          <button class="ni"><i data-lucide="leaf" style="width:22px;height:22px"></i>Посадки</button>
+          <button class="ni"><i data-lucide="heart" style="width:22px;height:22px"></i>Урожай</button>
+          <button class="ni"><i data-lucide="user" style="width:22px;height:22px"></i>Профиль</button>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLANTINGS -->
+  <div class="phone-wrap">
+    <p class="screen-label" style="color:#c4a070">Посадки</p>
+    <div class="phone v3">
+      <div class="pscroll">
+        <div class="v3-sbar">
+          <span>9:41</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <i data-lucide="signal" style="width:15px;height:15px;color:rgba(255,255,255,.8)"></i>
+            <i data-lucide="battery-medium" style="width:17px;height:17px;color:rgba(255,255,255,.8)"></i>
+          </div>
+        </div>
+
+        <div class="screen-header anim-1" style="background:#fff9f0">
+          <div>
+            <div style="font-size:11px;font-weight:800;color:#9E7050;letter-spacing:2px;text-transform:uppercase;font-family:'Nunito',sans-serif">МОЙ САД</div>
+            <div class="screen-header-title">Посадки</div>
+          </div>
+          <button class="screen-header-btn"><i data-lucide="plus" style="width:18px;height:18px;color:#FF7B00"></i></button>
+        </div>
+
+        <div class="v3-filters anim-2">
+          <button class="v3-filter on">Все</button>
+          <button class="v3-filter">Посеяно</button>
+          <button class="v3-filter">Взошло</button>
+          <button class="v3-filter">Растёт</button>
+          <button class="v3-filter">Завершено</button>
+        </div>
+
+        <div style="padding:0 16px;flex:1;font-family:'Nunito',sans-serif">
+
+          <div class="v3-plant anim-3">
+            <div class="v3-plant-body">
+              <div class="v3-plant-top">
+                <div>
+                  <div class="v3-plant-name">Арбуз</div>
+                  <div class="v3-plant-meta">Посеяно · 31.05.26 · 1 растение</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+                  <span class="v3-badge-stage">Посеяно</span>
+                  <button style="color:#9E7050"><i data-lucide="more-vertical" style="width:18px;height:18px"></i></button>
+                </div>
+              </div>
+              <div class="v3-plant-meta">Последнее действие: 01.06.26</div>
+            </div>
+            <button class="v3-plant-btn"><i data-lucide="pencil" style="width:16px;height:16px"></i>Записать действие</button>
+          </div>
+
+          <div class="v3-plant anim-4">
+            <div class="v3-plant-body">
+              <div class="v3-plant-top">
+                <div>
+                  <div class="v3-plant-name">Кабачок</div>
+                  <div class="v3-plant-meta">Посеяно · 22.05.26 · 3 растения</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+                  <span class="v3-badge-stage">Посеяно</span>
+                  <button style="color:#9E7050"><i data-lucide="more-vertical" style="width:18px;height:18px"></i></button>
+                </div>
+              </div>
+              <div class="v3-plant-meta">Последнее действие: 31.05.26</div>
+              <div class="v3-plant-next"><i data-lucide="arrow-right" style="width:13px;height:13px"></i>Прополка: через 4 дн.</div>
+            </div>
+            <button class="v3-plant-btn"><i data-lucide="pencil" style="width:16px;height:16px"></i>Записать действие</button>
+          </div>
+
+          <div class="v3-plant anim-5">
+            <div class="v3-plant-body">
+              <div class="v3-plant-top">
+                <div>
+                  <div class="v3-plant-name">Капуста белокочанная</div>
+                  <div class="v3-plant-meta">Посеяно · 20.05.26 · 5 растений</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+                  <span class="v3-badge-warn">Уход!</span>
+                  <button style="color:#9E7050"><i data-lucide="more-vertical" style="width:18px;height:18px"></i></button>
+                </div>
+              </div>
+              <div class="v3-plant-meta">Последнее действие: 01.06.26</div>
+              <div class="v3-plant-next"><i data-lucide="arrow-right" style="width:13px;height:13px"></i>Рыхление: через 2 дн.</div>
+            </div>
+            <button class="v3-plant-btn"><i data-lucide="pencil" style="width:16px;height:16px"></i>Записать действие</button>
+          </div>
+
+          <div style="height:20px"></div>
+        </div>
+
+        <nav class="nav">
+          <button class="ni"><i data-lucide="house" style="width:22px;height:22px"></i>Сегодня</button>
+          <button class="ni"><i data-lucide="calendar" style="width:22px;height:22px"></i>Календарь</button>
+          <button class="ni on"><i data-lucide="leaf" style="width:22px;height:22px"></i>Посадки</button>
+          <button class="ni"><i data-lucide="heart" style="width:22px;height:22px"></i>Урожай</button>
+          <button class="ni"><i data-lucide="user" style="width:22px;height:22px"></i>Профиль</button>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<script>
+// Init Lucide icons
+lucide.createIcons();
+
+// Variant switcher
+const vColors = { 1:'#2e7d32', 2:'#3e6b3a', 3:'#FF7B00' };
+const vText   = { 1:'#fff',    2:'#f3eac8', 3:'#fff' };
+function showV(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('var'+i).classList.remove('on');
+    const t = document.getElementById('vt'+i);
+    t.classList.remove('on');
+    t.style.background = '#1e1e1e';
+    t.style.color = '#555';
+    t.style.opacity = '.55';
+  });
+  document.getElementById('var'+n).classList.add('on');
+  const at = document.getElementById('vt'+n);
+  at.classList.add('on');
+  at.style.background = vColors[n];
+  at.style.color = vText[n];
+  at.style.opacity = '1';
+  // Re-init icons for newly visible elements
+  lucide.createIcons();
+}
+</script>
+</body>
+</html>

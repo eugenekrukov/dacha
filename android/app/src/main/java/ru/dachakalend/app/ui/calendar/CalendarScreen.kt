@@ -1,4 +1,4 @@
-package ru.dachakalend.app.ui.calendar
+﻿package ru.dachakalend.app.ui.calendar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.ui.theme.DachaColorScheme
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -47,11 +49,20 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text(
-                "Календарь",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(vertical = 8.dp)
+            ) {
+                Text(
+                    "Календарь",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 28.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
         }
 
         item {
@@ -63,12 +74,21 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
         }
 
         item {
-            MonthGrid(
-                month = state.currentMonth,
-                eventsByDay = state.eventsByDay,
-                selectedDay = state.selectedDay,
-                onDayClick = viewModel::selectDay
-            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+            ) {
+                Box(modifier = Modifier.padding(12.dp)) {
+                    MonthGrid(
+                        month = state.currentMonth,
+                        eventsByDay = state.eventsByDay,
+                        selectedDay = state.selectedDay,
+                        onDayClick = viewModel::selectDay
+                    )
+                }
+            }
         }
 
         // Список событий выбранного дня
@@ -79,8 +99,10 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
                     text = "${day.dayOfMonth} ${
                         day.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale("ru"))
                     }",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
@@ -88,8 +110,9 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
                 item {
                     Text(
                         "Задач на этот день нет",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
@@ -102,14 +125,14 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
         if (state.isLoading) {
             item {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
 
         state.error?.let { error ->
             item {
-                Text(error, color = MaterialTheme.colorScheme.error)
+                Text(error, fontFamily = NunitoFamily, color = MaterialTheme.colorScheme.error)
             }
         }
     }
@@ -127,16 +150,18 @@ private fun MonthNavigator(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         IconButton(onClick = onPrev) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Предыдущий месяц")
+            Icon(Icons.Default.ChevronLeft, contentDescription = "Предыдущий месяц", tint = MaterialTheme.colorScheme.primary)
         }
         Text(
             text = "${month.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale("ru"))
                 .replaceFirstChar { it.uppercase() }} ${month.year}",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
+            fontFamily = NunitoFamily,
+            fontWeight = FontWeight.Black,
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onBackground
         )
         IconButton(onClick = onNext) {
-            Icon(Icons.Default.ChevronRight, contentDescription = "Следующий месяц")
+            Icon(Icons.Default.ChevronRight, contentDescription = "Следующий месяц", tint = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -149,7 +174,6 @@ private fun MonthGrid(
     onDayClick: (LocalDate) -> Unit
 ) {
     val today = LocalDate.now()
-    // Первый день месяца — смещение от понедельника (0 = пн)
     val firstDayOfWeek = month.atDay(1).dayOfWeek.let {
         if (it == DayOfWeek.SUNDAY) 6 else it.value - 1
     }
@@ -158,20 +182,20 @@ private fun MonthGrid(
     val rows = (totalCells + 6) / 7
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        // Заголовки дней недели
         Row(modifier = Modifier.fillMaxWidth()) {
             DAY_HEADERS.forEach { header ->
                 Text(
                     text = header,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
-        // Сетка дней
         repeat(rows) { row ->
             Row(modifier = Modifier.fillMaxWidth()) {
                 repeat(7) { col ->
@@ -230,8 +254,9 @@ private fun DayCell(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = day.toString(),
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
+                fontFamily = NunitoFamily,
+                fontWeight = if (isToday || isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                fontSize = 13.sp,
                 color = textColor
             )
             if (hasEvents) {
@@ -254,9 +279,9 @@ private fun EventCard(event: DayEvent) {
     val (icon, color) = eventStyle(event.type)
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -272,7 +297,12 @@ private fun EventCard(event: DayEvent) {
             ) {
                 Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
             }
-            Text(event.title, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                event.title,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
         }
     }
 }
@@ -286,3 +316,5 @@ private fun eventStyle(type: String): Pair<ImageVector, Color> = when (type) {
     "frost_alert"                -> Icons.Default.Notifications to Color(0xFF00BCD4)
     else                         -> Icons.Default.Notifications to Color(0xFFFFB300)
 }
+
+

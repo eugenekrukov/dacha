@@ -1,8 +1,10 @@
-package ru.dachakalend.app.ui.harvest
+﻿package ru.dachakalend.app.ui.harvest
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -10,12 +12,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.Harvest
 import ru.dachakalend.app.data.model.Planting
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,9 +47,14 @@ fun HarvestScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { viewModel.openAddSheet() }) {
+            FloatingActionButton(
+                onClick = { viewModel.openAddSheet() },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Добавить урожай")
             }
         }
@@ -50,10 +62,14 @@ fun HarvestScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
         ) {
             when {
-                state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                state.isLoading -> CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.primary
+                )
                 state.harvests.isEmpty() -> EmptyHarvestState(
                     modifier = Modifier.align(Alignment.Center),
                     onAddPlanting = onAddPlanting
@@ -85,21 +101,32 @@ private fun EmptyHarvestState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("🌾", style = MaterialTheme.typography.displayMedium)
+        Text("🌾", fontSize = 48.sp)
         Text(
             "Урожай пока не записан",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
+            fontFamily = NunitoFamily,
+            fontWeight = FontWeight.Black,
+            fontSize = 18.sp,
+            color = MaterialTheme.colorScheme.onBackground
         )
         Text(
             "Сначала добавьте посадку, затем фиксируйте сбор урожая",
-            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = NunitoFamily,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(8.dp))
-        Button(onClick = onAddPlanting) {
-            Text("Добавить посадку")
+        Button(
+            onClick = onAddPlanting,
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text(
+                "Добавить посадку",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                softWrap = false
+            )
         }
     }
 }
@@ -110,6 +137,22 @@ private fun HarvestList(harvests: List<Harvest>) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(vertical = 8.dp)
+            ) {
+                Text(
+                    "Урожай",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 28.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
         item {
             HarvestSummaryCard(harvests)
         }
@@ -129,7 +172,9 @@ private fun HarvestSummaryCard(harvests: List<Harvest>) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Row(
             modifier = Modifier
@@ -140,39 +185,48 @@ private fun HarvestSummaryCard(harvests: List<Harvest>) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = if (totalKg > 0) "%.1f кг".format(totalKg) else "—",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 22.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
                     "всего вес",
-                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = if (totalPcs > 0) "$totalPcs шт" else "—",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 22.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
                     "всего штук",
-                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "${harvests.size}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 22.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
                     "записей",
-                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
@@ -184,7 +238,6 @@ private fun HarvestSummaryCard(harvests: List<Harvest>) {
 private fun HarvestByCropCard(harvests: List<Harvest>) {
     if (harvests.isEmpty()) return
 
-    // Группируем по cropName
     val grouped = harvests.groupBy { it.cropName ?: "Без названия" }
         .map { (cropName, items) ->
             Triple(
@@ -197,7 +250,12 @@ private fun HarvestByCropCard(harvests: List<Harvest>) {
 
     var expanded by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -206,11 +264,17 @@ private fun HarvestByCropCard(harvests: List<Harvest>) {
             ) {
                 Text(
                     "По культурам",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 TextButton(onClick = { expanded = !expanded }) {
-                    Text(if (expanded) "Свернуть" else "Развернуть")
+                    Text(
+                        if (expanded) "Свернуть" else "Развернуть",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
             if (expanded) {
@@ -221,14 +285,20 @@ private fun HarvestByCropCard(harvests: List<Harvest>) {
                             .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(cropName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Text(
+                            cropName,
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
                         Text(
                             buildString {
                                 if (kg > 0) append("%.1f кг".format(kg))
                                 if (kg > 0 && pcs > 0) append(" · ")
                                 if (pcs > 0) append("$pcs шт")
                             },
-                            style = MaterialTheme.typography.bodyMedium,
+                            fontFamily = NunitoFamily,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -241,20 +311,27 @@ private fun HarvestByCropCard(harvests: List<Harvest>) {
 
 @Composable
 private fun HarvestCard(harvest: Harvest) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("🌾", style = MaterialTheme.typography.titleLarge)
+            Text("🌾", fontSize = 22.sp)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = harvest.cropName ?: "Посадка #${harvest.plantingId}",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 val detail = buildString {
                     harvest.weightKg?.let { append("%.1f кг".format(it)) }
@@ -270,14 +347,16 @@ private fun HarvestCard(harvest: Harvest) {
                 if (detail.isNotEmpty()) {
                     Text(
                         text = detail,
-                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = NunitoFamily,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
             Text(
                 text = harvest.harvestedAt.take(10),
-                style = MaterialTheme.typography.bodySmall,
+                fontFamily = NunitoFamily,
+                fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -298,7 +377,10 @@ private fun AddHarvestSheet(
     var notes by remember { mutableStateOf("") }
     var dropdownExpanded by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -308,8 +390,10 @@ private fun AddHarvestSheet(
         ) {
             Text(
                 "Записать урожай",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             ExposedDropdownMenuBox(
@@ -322,11 +406,12 @@ private fun AddHarvestSheet(
                         ?: "Нет посадок",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Культура") },
+                    label = { Text("Культура", fontFamily = NunitoFamily) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(dropdownExpanded) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor()
+                        .menuAnchor(),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 ExposedDropdownMenu(
                     expanded = dropdownExpanded,
@@ -334,7 +419,7 @@ private fun AddHarvestSheet(
                 ) {
                     plantings.forEach { planting ->
                         DropdownMenuItem(
-                            text = { Text(planting.cropName ?: "Посадка #${planting.id}") },
+                            text = { Text(planting.cropName ?: "Посадка #${planting.id}", fontFamily = NunitoFamily) },
                             onClick = {
                                 selectedPlanting = planting
                                 dropdownExpanded = false
@@ -348,24 +433,29 @@ private fun AddHarvestSheet(
                 OutlinedTextField(
                     value = weightText,
                     onValueChange = { weightText = it },
-                    label = { Text("Вес, кг") },
+                    label = { Text("Вес, кг", fontFamily = NunitoFamily) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 OutlinedTextField(
                     value = quantityText,
                     onValueChange = { quantityText = it },
-                    label = { Text("Штук") },
+                    label = { Text("Штук", fontFamily = NunitoFamily) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
 
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("Заметка (необязательно)") },
-                modifier = Modifier.fillMaxWidth()
+                label = { Text("Заметка (необязательно)", fontFamily = NunitoFamily) },
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 4,
+                minLines = 2,
+                shape = RoundedCornerShape(12.dp)
             )
 
             Button(
@@ -380,7 +470,8 @@ private fun AddHarvestSheet(
                 },
                 enabled = selectedPlanting != null && !isSaving &&
                         (weightText.toDoubleOrNull() != null || quantityText.toIntOrNull() != null),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
@@ -389,9 +480,16 @@ private fun AddHarvestSheet(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("Сохранить")
+                    Text(
+                        "Сохранить",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        softWrap = false
+                    )
                 }
             }
         }
     }
 }
+
+

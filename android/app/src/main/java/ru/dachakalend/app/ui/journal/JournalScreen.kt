@@ -1,8 +1,10 @@
-package ru.dachakalend.app.ui.journal
+﻿package ru.dachakalend.app.ui.journal
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -10,9 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.ActionLog
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 private val ACTION_LABELS = mapOf(
     "watering"    to "💧 Полив",
@@ -36,14 +42,25 @@ fun JournalScreen(
     var filterExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Журнал действий") },
+                title = {
+                    Text(
+                        "Журнал действий",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
                 actions = {
                     if (state.allCrops.isNotEmpty()) {
                         ExposedDropdownMenuBox(
@@ -52,21 +69,30 @@ fun JournalScreen(
                         ) {
                             TextButton(
                                 onClick = { filterExpanded = true },
-                                modifier = Modifier.menuAnchor()
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .widthIn(min = 120.dp, max = 160.dp)
                             ) {
-                                Text(state.cropFilter ?: "Все культуры")
+                                Text(
+                                    text = state.cropFilter ?: "Все культуры",
+                                    fontFamily = NunitoFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    softWrap = false
+                                )
                             }
                             ExposedDropdownMenu(
                                 expanded = filterExpanded,
                                 onDismissRequest = { filterExpanded = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Все культуры") },
+                                    text = { Text("Все культуры", fontFamily = NunitoFamily) },
                                     onClick = { viewModel.setCropFilter(null); filterExpanded = false }
                                 )
                                 state.allCrops.forEach { crop ->
                                     DropdownMenuItem(
-                                        text = { Text(crop) },
+                                        text = { Text(crop, fontFamily = NunitoFamily) },
                                         onClick = { viewModel.setCropFilter(crop); filterExpanded = false }
                                     )
                                 }
@@ -81,22 +107,28 @@ fun JournalScreen(
             state.isLoading -> Box(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator() }
+            ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
 
             state.filteredActions.isEmpty() -> Box(
-                Modifier.fillMaxSize().padding(padding),
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     if (state.cropFilter != null) "Нет действий для выбранной культуры"
                     else "Действий пока нет",
-                    style = MaterialTheme.typography.bodyLarge,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             else -> LazyColumn(
-                modifier = Modifier.padding(padding),
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(padding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -104,7 +136,9 @@ fun JournalScreen(
                     item {
                         Text(
                             text = formatDate(date),
-                            style = MaterialTheme.typography.labelLarge,
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
                         )
@@ -122,29 +156,35 @@ fun JournalScreen(
 private fun JournalEntry(log: ActionLog) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = ACTION_LABELS[log.type] ?: log.type,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f)
             )
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = log.cropName ?: "",
-                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = NunitoFamily,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (!log.notes.isNullOrBlank()) {
                     Text(
                         text = log.notes,
-                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = NunitoFamily,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -152,3 +192,5 @@ private fun JournalEntry(log: ActionLog) {
         }
     }
 }
+
+

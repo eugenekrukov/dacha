@@ -48,12 +48,16 @@ class TodayViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<TodayUiState>(TodayUiState.Loading)
     val uiState: StateFlow<TodayUiState> = _uiState
 
-    // Рекомендации, отклонённые свайпом (хранятся до следующего обновления)
-    private val _dismissedRecs = MutableStateFlow<Set<String>>(emptySet())
+    // Отклонённые рекомендации — загружаем из prefs (только за сегодня)
+    // На следующий день записи протухают и рекомендации показываются снова
+    private val _dismissedRecs = MutableStateFlow<Set<String>>(
+        tokenStorage.getDismissedRecsForToday()
+    )
     val dismissedRecs: StateFlow<Set<String>> = _dismissedRecs.asStateFlow()
 
     fun dismissRecommendation(key: String) {
         _dismissedRecs.value = _dismissedRecs.value + key
+        tokenStorage.addDismissedRec(key)   // персистим с датой
     }
 
     init {

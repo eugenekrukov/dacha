@@ -1,7 +1,9 @@
-package ru.dachakalend.app.ui.auth
+﻿package ru.dachakalend.app.ui.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,9 +19,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,20 +48,32 @@ fun RegisterScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Регистрация") },
+                title = {
+                    Text(
+                        "Регистрация",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
                 .padding(padding)
                 .padding(horizontal = 24.dp, vertical = 16.dp),
@@ -64,13 +81,16 @@ fun RegisterScreen(
         ) {
             Text(
                 "Создайте аккаунт",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 "Займёт меньше минуты",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(Modifier.height(8.dp))
@@ -78,28 +98,30 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Имя") },
+                label = { Text("Имя", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                shape = RoundedCornerShape(12.dp)
             )
 
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Email") },
+                label = { Text("Email", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
-                )
+                ),
+                shape = RoundedCornerShape(12.dp)
             )
 
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Пароль (мин. 6 символов)") },
+                label = { Text("Пароль (мин. 6 символов)", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -107,6 +129,7 @@ fun RegisterScreen(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
                 ),
+                shape = RoundedCornerShape(12.dp),
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
@@ -120,8 +143,9 @@ fun RegisterScreen(
             if (uiState is AuthUiState.Error) {
                 Text(
                     (uiState as AuthUiState.Error).message,
+                    fontFamily = NunitoFamily,
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
+                    fontSize = 13.sp
                 )
             }
 
@@ -130,6 +154,7 @@ fun RegisterScreen(
             Button(
                 onClick = { viewModel.register(name, email, password) },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp),
                 enabled = uiState !is AuthUiState.Loading
             ) {
                 if (uiState is AuthUiState.Loading) {
@@ -139,9 +164,18 @@ fun RegisterScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Зарегистрироваться", fontSize = 16.sp)
+                    Text(
+                        text = "Зарегистрироваться",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
     }
 }
+
+

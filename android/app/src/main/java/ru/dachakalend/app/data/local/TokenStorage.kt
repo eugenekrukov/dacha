@@ -49,6 +49,35 @@ class TokenStorage @Inject constructor(
     fun setNotificationEnabled(type: String, enabled: Boolean) =
         prefs.edit { putBoolean("notif_$type", enabled) }
 
+    // ─── Dismissed recommendations (хранятся с датой, протухают на следующий день) ───
+
+    /**
+     * Возвращает ключи рекомендаций, отклонённых СЕГОДНЯ.
+     * Формат в prefs: "2026-06-02|key1,2026-06-02|key2,..."
+     */
+    fun getDismissedRecsForToday(): Set<String> {
+        val today = java.time.LocalDate.now().toString()
+        val raw   = prefs.getString(KEY_DISMISSED_RECS, "") ?: return emptySet()
+        if (raw.isBlank()) return emptySet()
+        return raw.split(",")
+            .filter { it.startsWith("$today|") }
+            .map    { it.removePrefix("$today|") }
+            .toSet()
+    }
+
+    /**
+     * Добавляет ключ отклонённой рекомендации.
+     * Автоматически чистит записи прошлых дней.
+     */
+    fun addDismissedRec(key: String) {
+        val today   = java.time.LocalDate.now().toString()
+        val raw     = prefs.getString(KEY_DISMISSED_RECS, "") ?: ""
+        val todayEntries = if (raw.isBlank()) emptyList()
+                           else raw.split(",").filter { it.startsWith("$today|") }
+        val updated = (todayEntries + "$today|$key").distinct().joinToString(",")
+        prefs.edit { putString(KEY_DISMISSED_RECS, updated) }
+    }
+
     /** Полный выход — очищает все данные приложения */
     fun logout() = prefs.edit { clear() }
 
@@ -58,6 +87,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_CLIMATE_ZONE    = "climate_zone"
         private const val KEY_PLANTINGS_COUNT = "active_plantings_count"
         private const val KEY_PENDING_TASKS   = "pending_tasks"
+        private const val KEY_DISMISSED_RECS  = "dismissed_recs"
 
         const val NOTIF_FROST      = "frost_alert"
         const val NOTIF_HEAT       = "heat_alert"

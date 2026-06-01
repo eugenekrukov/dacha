@@ -1,6 +1,43 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-05-31  
+**Дата последней сессии**: 2026-06-02  
+
+---
+
+## Сессия — Solar Dacha UI · 2026-06-02
+
+### Что сделано
+
+#### Дизайн-система Solar Dacha
+- Создан `UI_MANIFEST.md` — технические правила Compose-кода (отступы, кнопки, типографика)
+- Установлен скилл `ui-ux-pro-max`, сгенерирован `design-system/` с MASTER.md + 14 page-файлов
+- Подключён MCP-сервер `shadcn-ui` (46 компонентов, tweakcn темы)
+- HTML-прототипы 4 вариантов дизайна → утверждён **Solar Dacha** (Nunito Black, оранжевый градиент hero, кремовый фон)
+- Скачаны и бандлированы шрифты: Nunito (400/600/700/800/900) + Russo One в `res/font/`
+
+#### Реализация Solar Dacha в Compose
+- **Theme.kt**: новая палитра — `primary #FF7B00`, `background #FFF8EB`, `tertiary #2E7D32`
+- **Type.kt**: `NunitoFamily` + `RussoOneFamily` из локальных TTF (без Google Fonts provider)
+- **TodayScreen**: полный редизайн — diagonal clip hero, анимированный подсолнух, staggered section titles, gradient action buttons, square aspect-ratio кнопки
+- **Все 13 UI-экранов** переведены на Solar Dacha: Nunito Black заголовки, pill-FilterChips, rounded-22dp карточки
+- Все `FontWeight.Normal/Medium` → `Bold/SemiBold` во всех экранах
+
+#### Баг-фиксы UI
+- Дата в hero: реальная из системы в формате "ПОНЕДЕЛЬНИК · 2 ИЮНЯ" (полная, uppercase)
+- Text-shadow на заголовке hero
+- Карточки: явный `Color.White` вместо `surface` (убирает Material3 orange tint при elevation)
+- Бейдж стадии посадки: перенесён в правый верхний угол карточки как pill
+- Иконка "Обработал": `BugReport` → `HealthAndSafety`
+- Кнопки быстрых действий: квадратные (`aspectRatio(1f)`)
+- Иконки рекомендаций: 44dp, 25% opacity — насыщеннее
+- Добавлены типы рекомендаций: `lunar_tip`, `stage_tip`, `seasonal_tip`, `sowing_season` и др.
+
+#### Баг-фиксы логики
+- Двойная шторка при клике на задачу — убрано (`onQuickAction` не вызывается из task-карточки)
+- `care_task_due` передаёт название задачи в `notes` при логировании
+- `PENDING_ACTION_LABELS`: добавлен `care_task_due` → "Требуется: {название}"
+- Бэкенд `todayLogic.js`: окно care_task `+3` → `0` дней (только сегодня/просроченные)
+- **Dismissed рекомендации**: персистятся в SharedPreferences с датой → после рестарта не возвращаются; на следующий день — снова показываются
 
 ---
 

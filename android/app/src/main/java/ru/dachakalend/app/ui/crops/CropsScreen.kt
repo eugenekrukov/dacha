@@ -1,10 +1,12 @@
-package ru.dachakalend.app.ui.crops
+﻿package ru.dachakalend.app.ui.crops
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Eco
@@ -13,10 +15,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.Crop
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 @Composable
 fun CropsScreen(
@@ -25,13 +31,31 @@ fun CropsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 16.dp, vertical = 16.dp)
+        ) {
+            Text(
+                "Культуры",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 28.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
 
         // Поле поиска
         OutlinedTextField(
             value = state.searchQuery,
             onValueChange = { viewModel.setSearchQuery(it) },
-            placeholder = { Text("Поиск культуры...") },
+            placeholder = { Text("Поиск культуры...", fontFamily = NunitoFamily) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             trailingIcon = {
                 if (state.searchQuery.isNotEmpty()) {
@@ -44,10 +68,11 @@ fun CropsScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             singleLine = true,
-            shape = MaterialTheme.shapes.medium
+            shape = RoundedCornerShape(12.dp),
+            textStyle = LocalTextStyle.current.copy(fontFamily = NunitoFamily)
         )
 
-        // Фильтр по категории (скрыт когда идёт поиск)
+        // Фильтр по категории
         if (state.searchQuery.isBlank()) {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -57,7 +82,19 @@ fun CropsScreen(
                     FilterChip(
                         selected = state.selectedCategory == key,
                         onClick = { viewModel.loadCrops(key) },
-                        label = { Text(label) }
+                        shape = RoundedCornerShape(100.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        ),
+                        label = {
+                            Text(
+                                label,
+                                fontFamily = NunitoFamily,
+                                fontWeight = FontWeight.Bold,
+                                softWrap = false
+                            )
+                        }
                     )
                 }
             }
@@ -65,13 +102,23 @@ fun CropsScreen(
 
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             state.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Ошибка загрузки", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Ошибка загрузки",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Button(onClick = { viewModel.loadCrops() }) { Text("Повторить") }
+                    Button(
+                        onClick = { viewModel.loadCrops() },
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("Повторить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black)
+                    }
                 }
             }
             state.filteredCrops.isEmpty() -> Box(
@@ -79,11 +126,12 @@ fun CropsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🌿", style = MaterialTheme.typography.displaySmall)
+                    Text("🌿", fontSize = 40.sp)
                     Spacer(Modifier.height(8.dp))
                     Text(
                         if (state.searchQuery.isNotBlank()) "Ничего не найдено по \"${state.searchQuery}\""
                         else "Культуры не найдены",
+                        fontFamily = NunitoFamily,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -106,7 +154,9 @@ private fun CropCard(crop: Crop, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -120,19 +170,27 @@ private fun CropCard(crop: Crop, onClick: () -> Unit) {
             )
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(crop.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    crop.name,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
                 Spacer(Modifier.height(2.dp))
                 crop.harvestDays?.let {
                     Text(
                         "Урожай через ~$it дней",
-                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = NunitoFamily,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 if (crop.frostSensitive == true) {
                     Text(
                         "❄️ Боится заморозков",
-                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = NunitoFamily,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -140,3 +198,4 @@ private fun CropCard(crop: Crop, onClick: () -> Unit) {
         }
     }
 }
+

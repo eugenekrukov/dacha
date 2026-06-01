@@ -1,11 +1,13 @@
-package ru.dachakalend.app.ui.garden
+﻿package ru.dachakalend.app.ui.garden
 
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
@@ -22,6 +24,8 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.LocationHelper
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 
 private val GARDEN_TYPES = listOf(
@@ -94,10 +98,14 @@ fun CreateGardenScreen(
 
     val isSaving = uiState is GardenUiState.Loading
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { paddingValues ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
@@ -106,20 +114,32 @@ fun CreateGardenScreen(
         ) {
             Text("🏡", fontSize = 56.sp)
             Spacer(Modifier.height(8.dp))
-            Text("Расскажите об участке", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("Нужно для точных рекомендаций", style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Text(
+                "Расскажите об участке",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 24.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                "Нужно для точных рекомендаций",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.height(24.dp))
 
             OutlinedTextField(
-                value = gardenName, onValueChange = { gardenName = it },
-                label = { Text("Название участка") },
-                placeholder = { Text("Например: Дача в Подмосковье") },
-                modifier = Modifier.fillMaxWidth(), singleLine = true
+                value = gardenName,
+                onValueChange = { gardenName = it },
+                label = { Text("Название участка", fontFamily = NunitoFamily) },
+                placeholder = { Text("Например: Дача в Подмосковье", fontFamily = NunitoFamily) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
             )
             Spacer(Modifier.height(12.dp))
 
-            // Город — обязательное поле
             CityInputField(
                 value = cityName,
                 onValueChange = { cityName = it; cityError = false },
@@ -134,26 +154,40 @@ fun CreateGardenScreen(
 
             OutlinedButton(
                 onClick = { requestGps() },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(16.dp),
                 enabled = !isSaving && !isGettingGps
             ) {
                 if (isGettingGps) {
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp)); Text("Определяем координаты...")
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Определяем координаты...",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold
+                    )
                 } else {
                     Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp)); Text("Определить по GPS")
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Определить по GPS",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
             gpsStatus?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall,
+                Text(
+                    it,
+                    fontFamily = NunitoFamily,
+                    fontSize = 12.sp,
                     color = if (it.startsWith("✓")) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp))
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
             Spacer(Modifier.height(12.dp))
 
-            // Регион — опциональный, с поиском
             RegionInputField(
                 value = selectedRegion,
                 onValueChange = { selectedRegion = it },
@@ -161,19 +195,47 @@ fun CreateGardenScreen(
             )
             Spacer(Modifier.height(16.dp))
 
-            Text("Тип участка", style = MaterialTheme.typography.labelLarge, modifier = Modifier.align(Alignment.Start))
+            Text(
+                "ТИП УЧАСТКА",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.align(Alignment.Start)
+            )
             Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GARDEN_TYPES.forEach { (type, label, emoji) ->
-                    FilterChip(selected = selectedType == type, onClick = { selectedType = type },
-                        label = { Text("$emoji $label", style = MaterialTheme.typography.bodySmall) },
-                        modifier = Modifier.weight(1f))
+                    FilterChip(
+                        selected = selectedType == type,
+                        onClick = { selectedType = type },
+                        shape = RoundedCornerShape(100.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        ),
+                        label = {
+                            Text(
+                                "$emoji $label",
+                                fontFamily = NunitoFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                softWrap = false
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
             if (uiState is GardenUiState.Error) {
                 Spacer(Modifier.height(8.dp))
-                Text((uiState as GardenUiState.Error).message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    (uiState as GardenUiState.Error).message,
+                    fontFamily = NunitoFamily,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp
+                )
             }
             Spacer(Modifier.height(24.dp))
 
@@ -185,11 +247,27 @@ fun CreateGardenScreen(
                         viewModel.createGarden(gardenName, selectedRegion.ifBlank { null }, cityName.ifBlank { null }, selectedType)
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(52.dp), enabled = !isSaving
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                enabled = !isSaving
             ) {
-                if (isSaving) CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                else Text("Создать участок", fontSize = 16.sp)
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        Modifier.size(20.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        "Создать участок",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        softWrap = false
+                    )
+                }
             }
         }
     }
 }
+
+

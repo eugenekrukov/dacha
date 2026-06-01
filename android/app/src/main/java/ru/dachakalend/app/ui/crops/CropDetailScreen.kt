@@ -1,4 +1,4 @@
-package ru.dachakalend.app.ui.crops
+﻿package ru.dachakalend.app.ui.crops
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -16,12 +16,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ru.dachakalend.app.data.model.Crop
 import ru.dachakalend.app.data.model.CropDisease
 import ru.dachakalend.app.data.model.CropPest
 import ru.dachakalend.app.data.model.FertilizingEntry
 import ru.dachakalend.app.data.model.WateringStage
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -65,26 +69,43 @@ fun CropDetailScreen(
     val tabs = listOf("Уход", "Болезни", "Соседи")
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(crop.name) },
+                title = {
+                    Text(
+                        crop.name,
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         },
         bottomBar = if (onPlant != null) ({
-            Surface(shadowElevation = 8.dp) {
+            Surface(shadowElevation = 8.dp, color = MaterialTheme.colorScheme.background) {
                 Button(
                     onClick = { onPlant(crop) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
-                        .height(56.dp)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("🌱 Посадить", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "🌱 Посадить",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        softWrap = false
+                    )
                 }
             }
         }) else ({}),
@@ -95,7 +116,13 @@ fun CropDetailScreen(
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title) }
+                        text = {
+                            Text(
+                                title,
+                                fontFamily = NunitoFamily,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     )
                 }
             }
@@ -116,11 +143,11 @@ private fun CareTab(crop: Crop, climateZone: String? = null) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Сроки посева
         val zoneNames = mapOf("6" to "Юг РФ", "5" to "Средняя полоса", "4" to "Урал", "3" to "Сибирь")
         InfoCard(title = "Сроки посева") {
             if (crop.climateZones != null && crop.climateZones.isNotEmpty()) {
@@ -145,7 +172,6 @@ private fun CareTab(crop: Crop, climateZone: String? = null) {
             InfoRow("Боится заморозков", if (crop.frostSensitive == true) "Да ❄️" else "Нет ✅")
         }
 
-        // Полив
         val watering = crop.wateringDetails
         if (watering != null) {
             InfoCard(title = "Полив по стадиям") {
@@ -167,8 +193,12 @@ private fun CareTab(crop: Crop, climateZone: String? = null) {
                 }
                 watering.notes?.let {
                     Spacer(Modifier.height(4.dp))
-                    Text(it, style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        it,
+                        fontFamily = NunitoFamily,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         } else {
@@ -176,13 +206,16 @@ private fun CareTab(crop: Crop, climateZone: String? = null) {
                 InfoRow("Частота", crop.wateringFreqDays?.let { "каждые $it дн." } ?: "—")
                 if (!crop.notes.isNullOrBlank()) {
                     Spacer(Modifier.height(4.dp))
-                    Text(crop.notes, style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        crop.notes,
+                        fontFamily = NunitoFamily,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
 
-        // Подкормки
         val schedule = crop.fertilizingSchedule
         if (!schedule.isNullOrEmpty()) {
             InfoCard(title = "Схема подкормок") {
@@ -211,33 +244,45 @@ private fun FertilizingRow(entry: FertilizingEntry) {
         ) {
             Text(
                 stageLabel,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.primary
             )
             if (methodLabel.isNotEmpty()) {
                 Text(
                     methodLabel,
-                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = NunitoFamily,
+                    fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
         entry.timing?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                it,
+                fontFamily = NunitoFamily,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         entry.productExample?.let { product ->
             val dose = entry.dose?.let { " — $it" } ?: ""
             Text(
                 "🧪 $product$dose",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
         entry.notes?.let {
-            if (it.isNotBlank()) Text(it, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (it.isNotBlank()) Text(
+                it,
+                fontFamily = NunitoFamily,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -257,6 +302,7 @@ private fun DiseasesTab(crop: Crop) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -264,8 +310,10 @@ private fun DiseasesTab(crop: Crop) {
         if (diseases.isNotEmpty()) {
             Text(
                 "Болезни",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             diseases.forEach { DiseaseCard(it) }
@@ -274,8 +322,10 @@ private fun DiseasesTab(crop: Crop) {
             Spacer(Modifier.height(4.dp))
             Text(
                 "Вредители",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             pests.forEach { PestCard(it) }
@@ -288,6 +338,9 @@ private fun DiseaseCard(disease: CropDisease) {
     var expanded by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         onClick = { expanded = !expanded }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -298,8 +351,10 @@ private fun DiseaseCard(disease: CropDisease) {
             ) {
                 Text(
                     "🦠 ${disease.name}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.weight(1f)
                 )
                 Icon(
@@ -332,6 +387,9 @@ private fun PestCard(pest: CropPest) {
     var expanded by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         onClick = { expanded = !expanded }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -342,8 +400,10 @@ private fun PestCard(pest: CropPest) {
             ) {
                 Text(
                     "🐛 ${pest.name}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.weight(1f)
                 )
                 Icon(
@@ -373,10 +433,17 @@ private fun DetailRow(
     Column(modifier = Modifier.padding(bottom = 6.dp)) {
         Text(
             label,
-            style = MaterialTheme.typography.labelSmall,
+            fontFamily = NunitoFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = highlightColor)
+        Text(
+            value,
+            fontFamily = NunitoFamily,
+            fontSize = 14.sp,
+            color = highlightColor
+        )
     }
 }
 
@@ -396,6 +463,7 @@ private fun NeighborsTab(crop: Crop) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -436,7 +504,13 @@ private fun NeighborSection(
     textColor: Color
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(
+            title,
+            fontFamily = NunitoFamily,
+            fontWeight = FontWeight.Black,
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onBackground
+        )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -447,7 +521,13 @@ private fun NeighborSection(
                         .background(chipColor, RoundedCornerShape(50))
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(name, style = MaterialTheme.typography.bodySmall, color = textColor)
+                    Text(
+                        name,
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = textColor
+                    )
                 }
             }
         }
@@ -461,18 +541,30 @@ private fun EmptyTabPlaceholder(text: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
             text,
-            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = NunitoFamily,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
     }
 }
 
 @Composable
 private fun InfoCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                title,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(Modifier.height(8.dp))
             content()
         }
@@ -484,11 +576,20 @@ private fun InfoRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(
             label,
-            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = NunitoFamily,
+            fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f)
         )
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        Text(
+            value,
+            fontFamily = NunitoFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onBackground
+        )
     }
     Spacer(Modifier.height(4.dp))
 }
+
+

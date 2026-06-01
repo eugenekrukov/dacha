@@ -1,17 +1,21 @@
-package ru.dachakalend.app.ui.actions
+﻿package ru.dachakalend.app.ui.actions
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.Planting
+import ru.dachakalend.app.ui.theme.NunitoFamily
+import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -19,16 +23,15 @@ fun ActionLogBottomSheet(
     planting: Planting,
     onDismiss: () -> Unit,
     preselectedType: String? = null,
+    initialNotes: String? = null,
     viewModel: ActionLogViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    var notes by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf(initialNotes ?: "") }
     var selectedType by remember { mutableStateOf(preselectedType) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Сбрасываем состояние при открытии (ViewModel живёт дольше шторки)
     LaunchedEffect(Unit) { viewModel.reset() }
-    // Закрываем после успеха — сначала анимация, потом убираем composable
     LaunchedEffect(state.success) {
         if (state.success) {
             sheetState.hide()
@@ -38,29 +41,34 @@ fun ActionLogBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .navigationBarsPadding()  // отступ под системную навигацию (жесты / кнопки)
-                .imePadding()             // отступ при появлении клавиатуры
+                .navigationBarsPadding()
+                .imePadding()
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
                 text = planting.cropName ?: "Посадка #${planting.id}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = "Что сделали?",
-                style = MaterialTheme.typography.titleSmall,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Тип действия — 2х2 сетка кнопок (1 тап)
+            // Тип действия — 2х2 сетка кнопок
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -71,6 +79,7 @@ fun ActionLogBottomSheet(
                     val isSelected = selectedType == type
                     Button(
                         onClick = { selectedType = type },
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isSelected)
                                 MaterialTheme.colorScheme.primary
@@ -83,26 +92,34 @@ fun ActionLogBottomSheet(
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(label)
+                        Text(
+                            label,
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Bold,
+                            softWrap = false
+                        )
                     }
                 }
             }
 
-            // Опциональная заметка
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("Заметка (необязательно)") },
+                label = { Text("Заметка (необязательно)", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
-                maxLines = 2
+                maxLines = 2,
+                shape = RoundedCornerShape(12.dp)
             )
 
             state.error?.let {
-                Text(it, color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
+                Text(
+                    it,
+                    fontFamily = NunitoFamily,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp
+                )
             }
 
-            // Сохранить (тап 2-3)
             Button(
                 onClick = {
                     selectedType?.let { type ->
@@ -110,7 +127,8 @@ fun ActionLogBottomSheet(
                     }
                 },
                 enabled = selectedType != null && !state.isLoading,
-                modifier = Modifier.fillMaxWidth().height(52.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 if (state.isLoading) {
                     CircularProgressIndicator(
@@ -119,9 +137,15 @@ fun ActionLogBottomSheet(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Сохранить")
+                    Text(
+                        "Сохранить",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        softWrap = false
+                    )
                 }
             }
         }
     }
 }
+

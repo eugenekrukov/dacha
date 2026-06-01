@@ -162,15 +162,20 @@ fun PlantingInfoBottomSheet(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
+                                // Для "other" используем notes как название (Прополка, Рыхление и т.д.)
+                                val label = if (action.type == "other" && !action.notes.isNullOrBlank())
+                                    action.notes
+                                else
+                                    ACTION_LABELS[action.type] ?: action.type
                                 Text(
-                                    ACTION_LABELS[action.type] ?: action.type,
+                                    label,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.weight(1f)
                                 )
                                 Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
                                     Text(formatShort(action.loggedAt), style = MaterialTheme.typography.bodyMedium)
-                                    if (!action.notes.isNullOrBlank()) {
+                                    if (!action.notes.isNullOrBlank() && action.type != "other") {
                                         Text(
                                             action.notes,
                                             style = MaterialTheme.typography.bodySmall,
@@ -207,6 +212,6 @@ private fun InfoRow2(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f)
         )
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
     }
 }
