@@ -123,7 +123,8 @@ data class Planting(
     val notes: String?,
     @Json(name = "last_action_at") val lastActionAt: String? = null,
     val quantity: Int? = 1,
-    val conditions: String? = "soil"   // soil | greenhouse
+    val conditions: String? = "soil",   // soil | greenhouse
+    @Json(name = "watering_freq_days") val wateringFreqDays: Int? = null
 )
 
 // --- Crop ---
