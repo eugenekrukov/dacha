@@ -2,16 +2,6 @@
 
 const { buildTasks, formatTasks } = require('../utils/todayLogic')
 
-/**
- * GET /today?garden_id=
- *
- * Агрегирующий эндпоинт экрана "Сегодня".
- * Возвращает:
- *  - weather    — последний погодный снимок участка
- *  - tasks      — топ-5 приоритетных задач дня (полив / пересадка / уборка / заморозки)
- *  - reminders  — напоминания на сегодня
- */
-
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
@@ -19,7 +9,6 @@ module.exports = async function (fastify) {
     const { garden_id } = request.query
     if (!garden_id) return reply.code(400).send({ error: 'garden_id required' })
 
-    // Проверяем принадлежность участка
     const gardenRes = await fastify.db.query(
       'SELECT * FROM gardens WHERE id=$1 AND user_id=$2',
       [garden_id, request.user.userId]
@@ -31,19 +20,17 @@ module.exports = async function (fastify) {
 
     // ── 1. ПОГОДА ────────────────────────────────────────────────────────────
     const weatherRes = await fastify.db.query(
-      `SELECT * FROM weather_snapshots
-       WHERE garden_id=$1
-       ORDER BY fetched_at DESC LIMIT 1`,
+      `SELECT * FROM weather_snapshots WHERE garden_id=$1 ORDER BY fetched_at DESC LIMIT 1`,
       [garden_id]
     )
     const weather = weatherRes.rows[0] || null
 
-    // ── 2. АКТИВНЫЕ ПОСАДКИ ──────────────────────────────────────────────────
+    // ── 2. АКТИВНЫЕ ПОСАДКИ (включая care_tasks и conditions) ───────────────
     const plantingsRes = await fastify.db.query(
-      `SELECT p.id, p.planted_at, p.stage, p.quantity, p.notes,
+      `SELECT p.id, p.planted_at, p.stage, p.quantity, p.conditions,
               c.name as crop_name, c.category,
               c.watering_freq_days, c.transplant_days,
-              c.harvest_days, c.frost_sensitive
+              c.harvest_days, c.frost_sensitive, c.care_tasks
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
        WHERE p.garden_id=$1 AND p.stage NOT IN ('done')
@@ -52,8 +39,7 @@ module.exports = async function (fastify) {
     )
     const plantings = plantingsRes.rows
 
-    // ── 3. ПОСЛЕДНИЕ ДЕЙСТВИЯ ПО КАЖДОЙ ПОСАДКЕ ─────────────────────────────
-    // Получаем дату последнего полива для каждой посадки одним запросом
+    // ── 3. ПОСЛЕДНИЙ ПОЛИВ ───────────────────────────────────────────────────
     let lastWateredMap = {}
     if (plantings.length > 0) {
       const ids = plantings.map(p => p.id)
@@ -83,36 +69,34 @@ module.exports = async function (fastify) {
     )
     const reminderTasks = remindersRes.rows.map(r => ({
       type: 'reminder',
-      priority: 5,
+      priority: 6,
       reminder_id: r.id,
       crop_name: r.crop_name,
       message: r.message || `Напоминание: ${r.type}`,
       remind_at: r.remind_at,
     }))
 
-    // ── 5. СБОРКА И ФОРМАТИРОВАНИЕ ЗАДАЧ ─────────────────────────────────────
+    // ── 5. ЗАДАЧИ ────────────────────────────────────────────────────────────
     const rawTasks = buildTasks(plantings, weather, lastWateredMap, reminderTasks, today)
     const topTasks = formatTasks(rawTasks)
 
     return {
       garden_id: garden.id,
       garden_name: garden.name,
-      weather: weather
-        ? {
-            temp_c: weather.temp_c != null ? parseFloat(weather.temp_c) : null,
-            temp_min: weather.min_temp_c != null ? parseFloat(weather.min_temp_c) : null,
-            temp_max: weather.max_temp_c != null ? parseFloat(weather.max_temp_c) : null,
-            humidity: weather.humidity_pct,
-            condition: weather.condition,
-            condition_text: weather.condition_text,
-            frost_risk: weather.frost_risk,
-            heat_risk: weather.heat_risk,
-          }
-        : null,
-      tasks: topTasks,
-      tasks_total: rawTasks.length,
+      weather: weather ? {
+        temp_c:         weather.temp_c        != null ? parseFloat(weather.temp_c)        : null,
+        temp_min:       weather.min_temp_c    != null ? parseFloat(weather.min_temp_c)    : null,
+        temp_max:       weather.max_temp_c    != null ? parseFloat(weather.max_temp_c)    : null,
+        humidity:       weather.humidity_pct,
+        condition:      weather.condition,
+        condition_text: weather.condition_text,
+        frost_risk:     weather.frost_risk,
+        heat_risk:      weather.heat_risk,
+      } : null,
+      tasks:           topTasks,
+      tasks_total:     rawTasks.length,
       reminders_today: reminderTasks.length,
-      generated_at: today.toISOString(),
+      generated_at:    today.toISOString(),
     }
   })
 }

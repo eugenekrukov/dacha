@@ -34,6 +34,7 @@ fun taskColor(type: String): Color = when (type) {
     "transplant_due" -> Amber600
     "watering_due"   -> Color(0xFF1E88E5)
     "harvest_due"    -> Green500
+    "care_task_due"  -> Color(0xFF558B2F)  // тёмно-зелёный — уход за растением
     else             -> Brown400
 }
 

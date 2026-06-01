@@ -112,6 +112,12 @@ data class Reminder(
 // --- Planting ---
 
 @JsonClass(generateAdapter = true)
+data class NextCareTask(
+    val name: String,
+    @Json(name = "days_until") val daysUntil: Int
+)
+
+@JsonClass(generateAdapter = true)
 data class Planting(
     val id: Int,
     @Json(name = "crop_id") val cropId: Int,
@@ -123,8 +129,9 @@ data class Planting(
     val notes: String?,
     @Json(name = "last_action_at") val lastActionAt: String? = null,
     val quantity: Int? = 1,
-    val conditions: String? = "soil",   // soil | greenhouse
-    @Json(name = "watering_freq_days") val wateringFreqDays: Int? = null
+    val conditions: String? = "soil",
+    @Json(name = "watering_freq_days") val wateringFreqDays: Int? = null,
+    @Json(name = "next_care_task") val nextCareTask: NextCareTask? = null
 )
 
 // --- Crop ---

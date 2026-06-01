@@ -1,5 +1,7 @@
 'use strict'
 
+const { getNextCareTask } = require('../utils/todayLogic')
+
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
@@ -19,6 +21,7 @@ module.exports = async function (fastify) {
     const { garden_id } = request.query
     const result = await fastify.db.query(
       `SELECT p.*, c.name as crop_name, c.category, c.watering_freq_days, c.frost_sensitive,
+              c.care_tasks, c.harvest_days, c.watering_freq_days as watering_freq_days,
               (SELECT MAX(a.logged_at) FROM action_logs a WHERE a.planting_id = p.id) AS last_action_at
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
@@ -27,7 +30,18 @@ module.exports = async function (fastify) {
        ORDER BY p.planted_at DESC`,
       garden_id ? [request.user.userId, garden_id] : [request.user.userId]
     )
-    return result.rows
+
+    // Вычисляем next_care_task для каждой посадки
+    const now = Date.now()
+    const rows = result.rows.map(p => {
+      const daysSincePlanting = Math.floor((now - new Date(p.planted_at)) / 86400000)
+      const nextCareTask = getNextCareTask(p.care_tasks, daysSincePlanting, p.harvest_days)
+      // Не передаём care_tasks клиенту — это внутренние данные
+      const { care_tasks, ...rest } = p
+      return { ...rest, next_care_task: nextCareTask }
+    })
+
+    return rows
   })
 
   // GET /plantings/:id
@@ -67,7 +81,7 @@ module.exports = async function (fastify) {
     return reply.code(200).send({ deleted: true })
   })
 
-  // PATCH /plantings/:id/info — редактирование даты, количества, условий
+  // PATCH /plantings/:id/info
   fastify.patch('/:id/info', auth, async (request, reply) => {
     const { planted_at, quantity, conditions } = request.body
     const result = await fastify.db.query(

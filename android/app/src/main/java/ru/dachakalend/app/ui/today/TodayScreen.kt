@@ -198,7 +198,8 @@ private fun TodayContent(
                             quickActionType = when (task.type) {
                                 "watering_due"     -> "watering"
                                 "fertilizing_due"  -> "fertilizing"
-                                "transplant_due"   -> "other"
+                                "transplant_due",
+                                "care_task_due"    -> "other"
                                 else               -> null
                             }
                         }
@@ -682,5 +683,6 @@ private fun taskIcon(type: String): ImageVector = when (type) {
     "transplant_due" -> Icons.Default.Grass
     "watering_due"   -> Icons.Default.WaterDrop
     "harvest_due"    -> Icons.Default.Spa
+    "care_task_due"  -> Icons.Default.Eco
     else             -> Icons.Default.Notifications
 }

@@ -22,15 +22,16 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 val STAGE_LABELS = mapOf(
-    "sowing"     to "Посеяно",
-    "sprouted"   to "Проросло",
-    "growing"    to "Растёт",
-    "flowering"  to "Цветёт",
-    "harvesting" to "Созревает",
-    "done"       to "Завершено"
+    "sowing"      to "Посеяно",
+    "sprouted"    to "Взошло",
+    "transplanted" to "Высажено в грунт",
+    "growing"     to "Растёт",
+    "flowering"   to "Цветёт",
+    "harvesting"  to "Созревает",
+    "done"        to "Завершено"
 )
 
-val STAGE_ORDER = listOf("sowing", "sprouted", "growing", "flowering", "harvesting", "done")
+val STAGE_ORDER = listOf("sowing", "sprouted", "transplanted", "growing", "flowering", "harvesting", "done")
 
 private fun formatIsoDate(iso: String): String = try {
     val date = java.time.OffsetDateTime.parse(iso)
@@ -263,6 +264,21 @@ private fun PlantingCard(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    // Следующий шаг
+                    planting.nextCareTask?.let { next ->
+                        Spacer(Modifier.height(4.dp))
+                        val whenText = when {
+                            next.daysUntil <= 0 -> "сегодня"
+                            next.daysUntil == 1 -> "завтра"
+                            else                -> "через ${next.daysUntil} дн."
+                        }
+                        Text(
+                            text = "→ ${next.name}: $whenText",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
