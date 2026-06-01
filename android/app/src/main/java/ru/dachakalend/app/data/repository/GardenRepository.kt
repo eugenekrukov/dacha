@@ -33,7 +33,9 @@ class GardenRepository @Inject constructor(
         name: String,
         region: String,
         city: String? = null,
-        gardenType: String = "soil"
+        gardenType: String = "soil",
+        lat: Double? = null,
+        lon: Double? = null
     ): Result<Garden> {
         return try {
             val garden = api.createGarden(
@@ -41,6 +43,8 @@ class GardenRepository @Inject constructor(
                     name = name,
                     region = region,
                     city = city?.ifBlank { null },
+                    lat = lat,
+                    lon = lon,
                     soilType = null,
                     climateZone = null,
                     gardenType = gardenType
@@ -59,7 +63,9 @@ class GardenRepository @Inject constructor(
         name: String,
         region: String,
         city: String? = null,
-        gardenType: String? = null
+        gardenType: String? = null,
+        lat: Double? = null,
+        lon: Double? = null
     ): Result<Garden> {
         return try {
             val garden = api.updateGarden(
@@ -68,6 +74,8 @@ class GardenRepository @Inject constructor(
                     name = name,
                     region = region,
                     city = city?.ifBlank { null },
+                    lat = lat,
+                    lon = lon,
                     gardenType = gardenType
                 )
             )

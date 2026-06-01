@@ -324,6 +324,9 @@ data class Garden(
     val id: Int,
     val name: String,
     val region: String?,
+    val city: String? = null,
+    val lat: Double? = null,
+    val lon: Double? = null,
     @Json(name = "soil_type") val soilType: String?,
     @Json(name = "climate_zone") val climateZone: String?,
     @Json(name = "garden_type") val gardenType: String? = "soil"
@@ -334,6 +337,8 @@ data class CreateGardenRequest(
     val name: String,
     val region: String?,
     val city: String? = null,
+    val lat: Double? = null,
+    val lon: Double? = null,
     @Json(name = "soil_type") val soilType: String?,
     @Json(name = "climate_zone") val climateZone: String?,
     @Json(name = "garden_type") val gardenType: String? = "soil"
@@ -344,6 +349,8 @@ data class UpdateGardenRequest(
     val name: String,
     val region: String?,
     val city: String? = null,
+    val lat: Double? = null,
+    val lon: Double? = null,
     @Json(name = "soil_type") val soilType: String? = null,
     @Json(name = "climate_zone") val climateZone: String? = null,
     @Json(name = "garden_type") val gardenType: String? = null

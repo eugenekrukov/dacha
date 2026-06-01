@@ -3,6 +3,21 @@
 const { getCoordsForRegion, getZoneForRegion } = require('../utils/regionCoords')
 const { updateGardenWeather } = require('../services/weatherService')
 
+async function geocodeCity(city) {
+  try {
+    const q = encodeURIComponent(city + ', Россия')
+    const resp = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+      { headers: { 'User-Agent': 'DachaKalendar/1.0 (support@dacha.studio1008.com)' } }
+    )
+    const data = await resp.json()
+    if (data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) }
+    }
+  } catch (_) {}
+  return null
+}
+
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
@@ -11,23 +26,15 @@ module.exports = async function (fastify) {
     const { name, region, soil_type, climate_zone, city, garden_type } = request.body
     const userId = request.user.userId
 
-    let lat, lon
-    if (request.body.lat != null && request.body.lon != null) {
-      lat = request.body.lat
-      lon = request.body.lon
-    } else if (city) {
-      try {
-        const q = encodeURIComponent(city + ', Россия')
-        const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-          { headers: { 'User-Agent': 'DachaKalendar/1.0 (support@dacha.studio1008.com)' } }
-        )
-        const data = await resp.json()
-        if (data.length > 0) {
-          lat = parseFloat(data[0].lat)
-          lon = parseFloat(data[0].lon)
-        }
-      } catch (_) {}
+    let lat = request.body.lat
+    let lon = request.body.lon
+
+    // Приоритет координат: явные lat/lon → геокодинг city → regionCoords
+    if (lat == null || lon == null) {
+      if (city) {
+        const coords = await geocodeCity(city)
+        if (coords) { lat = coords.lat; lon = coords.lon }
+      }
     }
     if (lat == null || lon == null) {
       const coords = getCoordsForRegion(region)
@@ -36,11 +43,11 @@ module.exports = async function (fastify) {
     }
 
     const result = await fastify.db.query(
-      `INSERT INTO gardens (user_id, name, lat, lon, region, soil_type, climate_zone, garden_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO gardens (user_id, name, lat, lon, region, soil_type, climate_zone, garden_type, city)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [userId, name, lat, lon, region, soil_type ?? null,
-       climate_zone ?? getZoneForRegion(region), garden_type ?? 'soil']
+       climate_zone ?? getZoneForRegion(region), garden_type ?? 'soil', city ?? null]
     )
     const garden = result.rows[0]
 
@@ -76,23 +83,15 @@ module.exports = async function (fastify) {
   // PUT /gardens/:id
   fastify.put('/:id', auth, async (request, reply) => {
     const { name, region, soil_type, climate_zone, city, garden_type } = request.body
-    let lat, lon
-    if (request.body.lat != null && request.body.lon != null) {
-      lat = request.body.lat
-      lon = request.body.lon
-    } else if (city) {
-      try {
-        const q = encodeURIComponent(city + ', Россия')
-        const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-          { headers: { 'User-Agent': 'DachaKalendar/1.0 (support@dacha.studio1008.com)' } }
-        )
-        const data = await resp.json()
-        if (data.length > 0) {
-          lat = parseFloat(data[0].lat)
-          lon = parseFloat(data[0].lon)
-        }
-      } catch (_) {}
+
+    let lat = request.body.lat
+    let lon = request.body.lon
+
+    if (lat == null || lon == null) {
+      if (city) {
+        const coords = await geocodeCity(city)
+        if (coords) { lat = coords.lat; lon = coords.lon }
+      }
     }
     if (lat == null || lon == null) {
       const coords = getCoordsForRegion(region)
@@ -102,10 +101,13 @@ module.exports = async function (fastify) {
 
     const result = await fastify.db.query(
       `UPDATE gardens
-       SET name=$1, lat=$2, lon=$3, region=$4, soil_type=$5, climate_zone=$6, garden_type=$7, updated_at=NOW()
-       WHERE id=$8 AND user_id=$9 RETURNING *`,
-      [name, lat, lon, region, soil_type, climate_zone ?? getZoneForRegion(region),
-       garden_type ?? 'soil', request.params.id, request.user.userId]
+       SET name=$1, lat=$2, lon=$3, region=$4, soil_type=$5, climate_zone=$6,
+           garden_type=$7, city=$8, updated_at=NOW()
+       WHERE id=$9 AND user_id=$10 RETURNING *`,
+      [name, lat, lon, region, soil_type,
+       climate_zone ?? getZoneForRegion(region),
+       garden_type ?? 'soil', city ?? null,
+       request.params.id, request.user.userId]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
     return result.rows[0]

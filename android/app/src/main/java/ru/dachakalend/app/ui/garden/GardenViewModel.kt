@@ -14,6 +14,8 @@ sealed class GardenUiState {
     object Idle : GardenUiState()
     object Loading : GardenUiState()
     object Success : GardenUiState()
+    object GettingLocation : GardenUiState()
+    data class LocationFound(val lat: Double, val lon: Double) : GardenUiState()
     data class Error(val message: String) : GardenUiState()
 }
 
@@ -25,14 +27,34 @@ class GardenViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<GardenUiState>(GardenUiState.Idle)
     val uiState: StateFlow<GardenUiState> = _uiState
 
-    fun createGarden(name: String, region: String, city: String? = null, gardenType: String = "soil") {
+    private var pendingLat: Double? = null
+    private var pendingLon: Double? = null
+
+    fun onLocationObtained(lat: Double, lon: Double) {
+        pendingLat = lat
+        pendingLon = lon
+        _uiState.value = GardenUiState.LocationFound(lat, lon)
+    }
+
+    fun onLocationFailed() {
+        _uiState.value = GardenUiState.Error("Не удалось определить координаты. Введите город вручную.")
+    }
+
+    fun createGarden(
+        name: String,
+        region: String,
+        city: String? = null,
+        gardenType: String = "soil"
+    ) {
         if (name.isBlank()) {
             _uiState.value = GardenUiState.Error("Введите название участка")
             return
         }
         viewModelScope.launch {
             _uiState.value = GardenUiState.Loading
-            _uiState.value = when (val result = gardenRepository.createGarden(name, region, city, gardenType)) {
+            _uiState.value = when (val result = gardenRepository.createGarden(
+                name, region, city, gardenType, pendingLat, pendingLon
+            )) {
                 is Result.Success -> GardenUiState.Success
                 is Result.Error   -> GardenUiState.Error(result.message)
                 is Result.Loading -> GardenUiState.Loading
