@@ -160,22 +160,29 @@ export async function buildApp() {
 ✓ GET /today — watering_due НЕ появляется если полили сегодня
 ✓ GET /today — transplant_due для посадок со stage='sprouted' и истёкшим transplant_days
 ✓ GET /today — harvest_due для stage in (growing, flowering, harvesting) при истёкшем harvest_days
-✓ GET /today — возвращает не более 5 задач (tasks.length <= 5)
+✓ GET /today — возвращает не более 7 задач (tasks.length <= 7)
 ✓ GET /today — сортировка: frost_alert всегда первым (priority=1)
 ✓ GET /today — reminders_today считает напоминания в окне -1h..+24h
+✓ GET /today — care_task_due появляется только если diff <= 0 (сегодня/просрочено)
+✓ GET /today — care_task_due НЕ появляется если задача через 1+ дней
 ```
 
 ---
 
 ### unit/todayLogic.test.js
 
-Если вынести логику сборки задач в чистую функцию `buildTasks(plantings, weather, lastWatered, today)` — её можно тестировать без БД вообще. Рекомендую это сделать.
+Логика вынесена в `src/utils/todayLogic.js` — чистые функции, тестируются без БД.
 
 ```
 ✓ watering overdue рассчитывается корректно (граничный случай: ровно N дней)
 ✓ daysSincePlanting считается правильно при planted_at = сегодня (0 дней)
 ✓ задачи сортируются по priority ASC, потом по days_overdue DESC
 ✓ при нескольких посадках frost_alert генерируется для каждой frost_sensitive
+✓ care_task: diff=0 → появляется в задачах дня
+✓ care_task: diff=1 → НЕ появляется (новый порог: только сегодня/просрочено)
+✓ care_task: diff=-1 → появляется (просрочено на 1 день)
+✓ care_task: повторяющаяся задача (repeat_days) корректно вычисляет следующее вхождение
+✓ getNextCareTask() возвращает ближайшую задачу с корректным days_until
 ```
 
 ---
@@ -303,6 +310,9 @@ fun `login success updates state to Success`() = runTest {
 ✓ loadToday() — если recsRepo падает, UiState = Error  
 ✓ loadToday() — Loading устанавливается до запроса
 ✓ uiState — начальное значение Loading
+✓ dismissRecommendation() — добавляет ключ в dismissedRecs StateFlow
+✓ dismissRecommendation() — персистит ключ с сегодняшней датой через TokenStorage
+✓ dismissedRecs — при инициализации загружается из TokenStorage (только сегодняшние)
 ```
 
 ---
@@ -350,6 +360,21 @@ fun `login success updates state to Success`() = runTest {
 ✓ register() — при 409 возвращает Result.Error("уже существует")
 ✓ logout() — вызывает tokenStorage.clearToken()
 ✓ isLoggedIn() — true если tokenStorage.getToken() != null
+```
+
+---
+
+### TokenStorageTest.kt
+
+```kotlin
+// Чистые unit-тесты dismissed-рекомендаций
+
+✓ addDismissedRec() — сохраняет ключ с сегодняшней датой
+✓ getDismissedRecsForToday() — возвращает только сегодняшние записи
+✓ getDismissedRecsForToday() — игнорирует записи прошлых дней
+✓ addDismissedRec() — при добавлении очищает записи прошлых дней
+✓ addDismissedRec() — дубликаты одного ключа не дублируются
+✓ getDismissedRecsForToday() — возвращает пустое множество если нет записей
 ```
 
 ---
