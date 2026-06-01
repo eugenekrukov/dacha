@@ -44,8 +44,9 @@ private fun offsetDate(base: LocalDate, days: Int): String {
     return "%02d.%02d.%02d".format(d.dayOfMonth, d.monthValue, d.year % 100)
 }
 
-// Разворачиваем повторяющиеся задачи до harvestDays (или 120 дней)
-private fun expandTasks(tasks: List<CareTask>, planted: LocalDate, harvestDays: Int?): List<Pair<String, String>> {
+// Разворачиваем повторяющиеся задачи до harvestDays (или 120 дней).
+// Возвращает Triple(название, отформатированная дата, LocalDate для сортировки).
+private fun expandTasks(tasks: List<CareTask>, planted: LocalDate, harvestDays: Int?): List<Triple<String, String, LocalDate>> {
     val limit = harvestDays ?: 120
     val result = mutableListOf<Triple<String, String, LocalDate>>()
     for (task in tasks) {
@@ -57,7 +58,7 @@ private fun expandTasks(tasks: List<CareTask>, planted: LocalDate, harvestDays: 
             offset += task.repeatDays
         }
     }
-    return result.sortedBy { it.third }.map { it.first to it.second }
+    return result
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -125,24 +126,22 @@ fun PlantingInfoBottomSheet(
                 // ── 2. Расчётные даты процессов ───────────────────────────
                 val crop = state.crop
                 if (planted != null && crop != null) {
-                    val taskDates = mutableListOf<Pair<String, String>>()
+                    // Triple(название, строка даты, LocalDate для сортировки)
+                    val taskDates = mutableListOf<Triple<String, String, LocalDate>>()
 
-                    // Пересадка/пикировка
                     crop.transplantDays?.let {
-                        taskDates += "🌿 Пересадка/пикировка" to offsetDate(planted, it)
+                        taskDates += Triple("🌿 Пересадка/пикировка", offsetDate(planted, it), planted.plusDays(it.toLong()))
                     }
-                    // Уход (care_tasks)
                     crop.careTasks?.let { tasks ->
                         taskDates += expandTasks(tasks, planted, crop.harvestDays)
                     }
-                    // Сбор урожая
                     crop.harvestDays?.let {
-                        taskDates += "🌾 Сбор урожая" to offsetDate(planted, it)
+                        taskDates += Triple("🌾 Сбор урожая", offsetDate(planted, it), planted.plusDays(it.toLong()))
                     }
 
                     if (taskDates.isNotEmpty()) {
                         InfoSection(title = "Расписание работ") {
-                            taskDates.sortedBy { it.second }.forEach { (name, date) ->
+                            taskDates.sortedBy { it.third }.forEach { (name, date, _) ->
                                 InfoRow2(name, date)
                             }
                         }
