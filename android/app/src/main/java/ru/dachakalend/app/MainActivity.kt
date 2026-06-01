@@ -63,8 +63,8 @@ class MainActivity : ComponentActivity() {
 
                 val showBottomBar = currentRoute !in screensWithoutBottomBar
 
-                // Badge: читаем счётчик посадок (обновляется при каждой перерисовке BottomNav)
-                val activePlantings = tokenStorage.getActivePlantingsCount()
+                // Badge: показываем количество посадок с просроченными задачами
+                val activePlantings = tokenStorage.getPendingCount()
 
                 Scaffold(
                     bottomBar = {

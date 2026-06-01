@@ -1,25 +1,33 @@
 package ru.dachakalend.app.data.repository
 
 import ru.dachakalend.app.data.api.DachaApi
+import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Reminder
+import ru.dachakalend.app.data.model.TodayTask
 import javax.inject.Inject
 import javax.inject.Singleton
 
 data class CalendarData(
     val reminders: List<Reminder>,
-    val plantings: List<Planting>
+    val plantings: List<Planting>,
+    val todayTasks: List<TodayTask> = emptyList()
 )
 
 @Singleton
 class CalendarRepository @Inject constructor(
-    private val api: DachaApi
+    private val api: DachaApi,
+    private val tokenStorage: TokenStorage
 ) {
     suspend fun getCalendarData(): Result<CalendarData> {
         return try {
-            val reminders = try { api.getReminders() } catch (e: Exception) { emptyList() }
-            val plantings = try { api.getPlantings() } catch (e: Exception) { emptyList() }
-            Result.Success(CalendarData(reminders, plantings))
+            val reminders  = try { api.getReminders() } catch (_: Exception) { emptyList() }
+            val plantings  = try { api.getPlantings() } catch (_: Exception) { emptyList() }
+            val todayTasks = try {
+                val gardenId = tokenStorage.getGardenId().takeIf { it != -1 }
+                if (gardenId != null) api.getToday(gardenId).tasks else emptyList()
+            } catch (_: Exception) { emptyList<TodayTask>() }
+            Result.Success(CalendarData(reminders, plantings, todayTasks))
         } catch (e: Exception) {
             Result.Error(e.message ?: "Ошибка загрузки календаря")
         }

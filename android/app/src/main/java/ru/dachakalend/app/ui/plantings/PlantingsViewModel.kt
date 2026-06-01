@@ -33,7 +33,9 @@ data class PlantingsUiState(
     // Диалог подтверждения удаления
     val confirmDeletePlanting: Planting? = null,
     // Диалог подтверждения завершения сезона
-    val confirmFinishSeason: Planting? = null
+    val confirmFinishSeason: Planting? = null,
+    // Карта: plantingId -> actionType (из /today задач)
+    val pendingTasks: Map<Int, String> = emptyMap()
 )
 
 @HiltViewModel
@@ -48,7 +50,7 @@ class PlantingsViewModel @Inject constructor(
 
     init {
         loadPlantings()
-        // Р•СЃР»Рё РїСЂРёС€Р»Рё РёР· CropDetail вЂ” РѕС‚РєСЂС‹РІР°РµРј С€С‚РѕСЂРєСѓ РЅР°СЃС‚СЂРѕР№РєРё РїРѕСЃР°РґРєРё
+        // Если пришли из CropDetail — открываем шторку настройки посадки
         val newCropId = savedStateHandle.get<Int>(Screen.Plantings.ARG_NEW_CROP_ID)
         if (newCropId != null && newCropId != -1) {
             _uiState.value = _uiState.value.copy(pendingCropId = newCropId)
@@ -59,8 +61,14 @@ class PlantingsViewModel @Inject constructor(
         viewModelScope.launch {
             if (!silent) _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             val gardenId = tokenStorage.getGardenId().takeIf { it != -1 }
+            // Загружаем pending-задачи из TokenStorage (сохранены TodayViewModel)
+            val pending = tokenStorage.getPendingTasks()
             when (val result = plantingsRepository.getPlantings(gardenId)) {
-                is Result.Success -> _uiState.value = _uiState.value.copy(plantings = result.data, isLoading = false)
+                is Result.Success -> _uiState.value = _uiState.value.copy(
+                    plantings = result.data,
+                    isLoading = false,
+                    pendingTasks = pending
+                )
                 is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false)
                 is Result.Loading -> Unit
             }

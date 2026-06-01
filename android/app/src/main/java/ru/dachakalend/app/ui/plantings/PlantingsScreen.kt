@@ -97,6 +97,7 @@ fun PlantingsScreen(
                 items(state.plantings, key = { it.id }) { planting ->
                     PlantingCard(
                         planting       = planting,
+                        pendingAction  = state.pendingTasks[planting.id],
                         onLogAction    = { viewModel.openActionSheet(planting) },
                         onEditInfo     = { viewModel.openEditSheet(planting) },
                         onDelete       = { viewModel.requestDelete(planting) },
@@ -181,9 +182,18 @@ fun PlantingsScreen(
 
 // ─── Карточка посадки ────────────────────────────────────────────────────────
 
+private val PENDING_ACTION_LABELS = mapOf(
+    "watering_due"    to "💧 Требуется полив",
+    "fertilizing_due" to "🌿 Требуется подкормка",
+    "transplant_due"  to "🌱 Требуется пересадка",
+    "harvest_due"     to "🌾 Пора собирать урожай",
+    "frost_alert"     to "❄️ Угроза заморозков"
+)
+
 @Composable
 private fun PlantingCard(
     planting: Planting,
+    pendingAction: String? = null,
     onLogAction: () -> Unit,
     onEditInfo: () -> Unit,
     onDelete: () -> Unit,
@@ -222,6 +232,15 @@ private fun PlantingCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (pendingAction != null) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = PENDING_ACTION_LABELS[pendingAction] ?: pendingAction,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
