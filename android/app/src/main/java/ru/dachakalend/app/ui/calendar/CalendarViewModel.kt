@@ -6,8 +6,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import ru.dachakalend.app.data.model.Crop
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Reminder
+import ru.dachakalend.app.data.model.TodayTask
 import ru.dachakalend.app.data.repository.CalendarRepository
 import ru.dachakalend.app.data.repository.Result
 import java.time.LocalDate
@@ -17,7 +19,7 @@ import javax.inject.Inject
 data class DayEvent(
     val date: LocalDate,
     val title: String,
-    val type: String   // reminder | harvest | sowing | watering
+    val type: String   // reminder | harvest | sowing | watering | care
 )
 
 data class CalendarUiState(
@@ -43,12 +45,15 @@ class CalendarViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             when (val result = repository.getCalendarData()) {
                 is Result.Success -> {
-                    val events = buildEvents(result.data.reminders, result.data.plantings, result.data.todayTasks)
+                    val events = buildEvents(
+                        result.data.reminders,
+                        result.data.plantings,
+                        result.data.crops,
+                        result.data.todayTasks
+                    )
                     _uiState.value = _uiState.value.copy(isLoading = false, eventsByDay = events)
                 }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
-                }
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
                 is Result.Loading -> Unit
             }
         }
@@ -77,83 +82,103 @@ class CalendarViewModel @Inject constructor(
     private fun buildEvents(
         reminders: List<Reminder>,
         plantings: List<Planting>,
-        todayTasks: List<ru.dachakalend.app.data.model.TodayTask> = emptyList()
+        crops: List<Crop>,
+        todayTasks: List<TodayTask> = emptyList()
     ): Map<LocalDate, List<DayEvent>> {
         val result = mutableMapOf<LocalDate, MutableList<DayEvent>>()
         val today = LocalDate.now()
-        val horizon = today.plusDays(60) // горизонт планирования
+        val horizon = today.plusDays(60)
+        val cropsById = crops.associateBy { it.id }
 
-        // Задачи из /today — добавляем на сегодняшнюю дату
+        // Задачи из /today — на сегодняшнюю дату
         todayTasks.forEach { task ->
             val label = when (task.type) {
-                "watering_due"   -> "💧 Полив: ${task.cropName ?: ""}"
-                "fertilizing_due"-> "🌿 Подкормка: ${task.cropName ?: ""}"
-                "transplant_due" -> "🌱 Пересадка: ${task.cropName ?: ""}"
-                "harvest_due"    -> "🌾 Урожай: ${task.cropName ?: ""}"
-                "frost_alert"    -> "❄️ Угроза заморозков"
-                else             -> task.title
+                "watering_due"    -> "💧 Полив: ${task.cropName ?: ""}"
+                "fertilizing_due" -> "🌿 Подкормка: ${task.cropName ?: ""}"
+                "transplant_due"  -> "🌱 Пересадка: ${task.cropName ?: ""}"
+                "harvest_due"     -> "🌾 Урожай: ${task.cropName ?: ""}"
+                "frost_alert"     -> "❄️ Угроза заморозков"
+                else              -> task.title
             }
-            result.getOrPut(today) { mutableListOf() }.add(
-                DayEvent(today, label, task.type)
-            )
+            result.getOrPut(today) { mutableListOf() }
+                .add(DayEvent(today, label, task.type))
         }
 
         // Напоминания
         reminders.forEach { reminder ->
             runCatching {
                 val date = LocalDate.parse(reminder.remindAt.take(10))
-                result.getOrPut(date) { mutableListOf() }.add(
-                    DayEvent(date, reminder.message ?: reminder.type ?: "Напоминание", "reminder")
-                )
+                result.getOrPut(date) { mutableListOf() }
+                    .add(DayEvent(date, reminder.message ?: reminder.type ?: "Напоминание", "reminder"))
             }
         }
 
-        // Посадки (активные)
+        // Посадки
         plantings.filter { it.stage != "done" }.forEach { planting ->
             val cropName = planting.cropName ?: "культура"
-
-            // Ожидаемая дата урожая
-            planting.expectedHarvestAt?.let { harvestDate ->
-                runCatching {
-                    val date = LocalDate.parse(harvestDate.take(10))
-                    result.getOrPut(date) { mutableListOf() }.add(
-                        DayEvent(date, "Урожай: $cropName", "harvest")
-                    )
-                }
-            }
+            val crop = cropsById[planting.cropId]
 
             // Дата посева
-            planting.sownAt?.let { sownDate ->
+            planting.sownAt?.let { sownStr ->
                 runCatching {
-                    val date = LocalDate.parse(sownDate.take(10))
-                    result.getOrPut(date) { mutableListOf() }.add(
-                        DayEvent(date, "Посев: $cropName", "sowing")
-                    )
+                    val date = LocalDate.parse(sownStr.take(10))
+                    result.getOrPut(date) { mutableListOf() }
+                        .add(DayEvent(date, "Посев: $cropName", "sowing"))
                 }
             }
 
-            // Расчётные даты полива на 60 дней вперёд
+            // Ожидаемый урожай
+            planting.expectedHarvestAt?.let { harvestStr ->
+                runCatching {
+                    val date = LocalDate.parse(harvestStr.take(10))
+                    result.getOrPut(date) { mutableListOf() }
+                        .add(DayEvent(date, "🌾 Урожай: $cropName", "harvest"))
+                }
+            }
+
+            val sown = planting.sownAt?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
+                ?: return@forEach
+
+            // Полив — по wateringFreqDays
             val freqDays = planting.wateringFreqDays?.let {
                 if (planting.conditions == "greenhouse") (it * 1.3).toInt() else it
             } ?: 3
 
-            planting.sownAt?.let { sownDate ->
-                runCatching {
-                    val sown = LocalDate.parse(sownDate.take(10))
-                    // Базовая точка: последнее действие или дата посева
-                    val base = planting.lastActionAt?.let {
-                        runCatching { LocalDate.parse(it.take(10)) }.getOrNull()
-                    } ?: sown
+            val wateringBase = planting.lastActionAt
+                ?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
+                ?: sown
 
-                    var nextWatering = base.plusDays(freqDays.toLong())
-                    while (!nextWatering.isAfter(horizon)) {
-                        if (!nextWatering.isBefore(today)) {
-                            result.getOrPut(nextWatering) { mutableListOf() }.add(
-                                DayEvent(nextWatering, "💧 Полив: $cropName", "watering")
-                            )
-                        }
-                        nextWatering = nextWatering.plusDays(freqDays.toLong())
+            var nextWatering = wateringBase.plusDays(freqDays.toLong())
+            while (!nextWatering.isAfter(horizon)) {
+                if (!nextWatering.isBefore(today)) {
+                    result.getOrPut(nextWatering) { mutableListOf() }
+                        .add(DayEvent(nextWatering, "💧 Полив: $cropName", "watering"))
+                }
+                nextWatering = nextWatering.plusDays(freqDays.toLong())
+            }
+
+            // Пересадка/пикировка — из crop.transplantDays
+            crop?.transplantDays?.let { days ->
+                val date = sown.plusDays(days.toLong())
+                if (!date.isBefore(today) && !date.isAfter(horizon)) {
+                    result.getOrPut(date) { mutableListOf() }
+                        .add(DayEvent(date, "🌿 Пересадка: $cropName", "care"))
+                }
+            }
+
+            // care_tasks — разворачиваем до горизонта
+            crop?.careTasks?.forEach { task ->
+                var offset = task.dayOffset
+                val limit = crop.harvestDays ?: 180
+                while (offset <= limit) {
+                    val date = sown.plusDays(offset.toLong())
+                    if (!date.isBefore(today) && !date.isAfter(horizon)) {
+                        result.getOrPut(date) { mutableListOf() }
+                            .add(DayEvent(date, "${task.name}: $cropName", "care"))
                     }
+                    if (task.repeatDays == null) break
+                    offset += task.repeatDays
+                    if (date.isAfter(horizon)) break
                 }
             }
         }
