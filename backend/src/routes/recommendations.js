@@ -1,6 +1,6 @@
 'use strict'
 
-const { getDailyLifehack, getSeasonalTip, getStageTip, getLunarTip, WEATHER_TIPS } = require('../data/tips')
+const { getDailyLifehack, getSeasonalTip, getStageTip, getLunarTip, getDayOfYear, getZoneDayOffset, WEATHER_TIPS } = require('../data/tips')
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
@@ -202,6 +202,81 @@ module.exports = async function (fastify) {
         message: lifehack
       })
     }
+
+    // ── РАЗДЕЛ 3: Сезонные подсказки "пора сажать" ──────────────────────────
+
+    const climateZone = gardenRes.rows[0].climate_zone || '4'
+    const dayOfYear   = getDayOfYear(now)
+    const zoneOffset  = getZoneDayOffset(climateZone)
+    // Эффективный день с учётом зоны: чем теплее зона, тем "позже" идёт сезон относительно базы
+    const effectiveDay = dayOfYear - zoneOffset
+    const LOOKAHEAD = 14 // показываем подсказки за 2 недели до окна
+
+    // ID культур, которые уже посажены (активные)
+    const activeCropIds = new Set(plantingsRes.rows.map(p => p.crop_id))
+
+    const sowingCropsRes = await db.query(
+      `SELECT id, name, category, sowing_start_day, sowing_end_day, transplant_days
+       FROM crops
+       WHERE sowing_start_day IS NOT NULL
+       ORDER BY sowing_start_day`
+    )
+
+    const sowingSuggestions = []
+
+    for (const crop of sowingCropsRes.rows) {
+      if (activeCropIds.has(crop.id)) continue // уже посеяно
+
+      const start = crop.sowing_start_day
+      const end   = crop.sowing_end_day
+
+      const daysUntilStart = start - effectiveDay
+      const daysIntoWindow = effectiveDay - start
+      const windowDaysLeft = end - effectiveDay
+
+      const isSeedling = !!crop.transplant_days
+
+      if (daysIntoWindow >= 0 && windowDaysLeft >= 0) {
+        // Сейчас в окне посева
+        const urgency = windowDaysLeft <= 7 ? 'medium' : 'info'
+        const timeMsg = windowDaysLeft <= 7
+          ? `осталось ${windowDaysLeft} дн.`
+          : `окно открыто до ${Math.round(windowDaysLeft / 7)} нед.`
+        sowingSuggestions.push({
+          type: 'sowing_season',
+          priority: urgency,
+          crop_name: crop.name,
+          days_until: 0,
+          message: isSeedling
+            ? `🌱 Сейчас время сеять рассаду ${crop.name} (${timeMsg})`
+            : `🌱 Сейчас время сеять ${crop.name} в грунт (${timeMsg})`
+        })
+      } else if (daysUntilStart > 0 && daysUntilStart <= LOOKAHEAD) {
+        // Окно откроется в ближайшие 14 дней
+        sowingSuggestions.push({
+          type: 'sowing_soon',
+          priority: 'info',
+          crop_name: crop.name,
+          days_until: daysUntilStart,
+          message: isSeedling
+            ? `📅 Через ${daysUntilStart} дн. — время начать рассаду ${crop.name}`
+            : `📅 Через ${daysUntilStart} дн. — время сеять ${crop.name} в грунт`
+        })
+      }
+    }
+
+    // Сортируем: сначала текущие окна (days_until=0), потом приближающиеся
+    // Ограничиваем до 4 подсказок чтобы не перегружать экран
+    sowingSuggestions
+      .sort((a, b) => a.days_until - b.days_until)
+      .slice(0, 4)
+      .forEach(s => recommendations.push({
+        type: s.type,
+        priority: s.priority,
+        planting_id: null,
+        crop_name: s.crop_name,
+        message: s.message
+      }))
 
     return recommendations
   })

@@ -524,9 +524,11 @@ private fun RecommendationCard(rec: Recommendation) {
         "weather_tip"  -> RecStyle(Color(0xFFE8F5E9), Icons.Default.Cloud,       Color(0xFF388E3C))
         "lunar_tip"    -> RecStyle(Color(0xFFEDE7F6), Icons.Default.NightlightRound, Color(0xFF4527A0))
         "seasonal_tip" -> RecStyle(Color(0xFFE8F5E9), Icons.Default.CalendarMonth,  Color(0xFF2E7D32))
-        "stage_tip"    -> RecStyle(Color(0xFFFFF8E1), Icons.Default.Grass,       Color(0xFF558B2F))
-        "lifehack"     -> RecStyle(Color(0xFFFFF8E1), Icons.Default.Lightbulb,   Color(0xFFF57F17))
-        else           -> RecStyle(Color(0xFFFAFAFA), Icons.Default.Info,        Color(0xFF757575))
+        "stage_tip"     -> RecStyle(Color(0xFFFFF8E1), Icons.Default.Grass,       Color(0xFF558B2F))
+        "lifehack"      -> RecStyle(Color(0xFFFFF8E1), Icons.Default.Lightbulb,  Color(0xFFF57F17))
+        "sowing_season" -> RecStyle(Color(0xFFE8F5E9), Icons.Default.Spa,        Color(0xFF2E7D32))
+        "sowing_soon"   -> RecStyle(Color(0xFFF9FBE7), Icons.Default.CalendarMonth, Color(0xFF558B2F))
+        else            -> RecStyle(Color(0xFFFAFAFA), Icons.Default.Info,       Color(0xFF757575))
     }
 
     val priorityColor = when (rec.priority) {

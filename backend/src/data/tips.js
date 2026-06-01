@@ -170,6 +170,18 @@ const LUNAR_TIPS = {
   },
 }
 
+function getDayOfYear(date) {
+  const start = new Date(date.getFullYear(), 0, 0)
+  return Math.floor((date - start) / 86400000)
+}
+
+// Сдвиг дней относительно зоны 4 (база)
+// Зона 3 (+10): позже начало сезона; Зона 6 (-20): раньше
+function getZoneDayOffset(zone) {
+  const z = parseInt(zone) || 4
+  return (4 - z) * 10  // zone 3: +10, zone 4: 0, zone 5: -10, zone 6: -20
+}
+
 function getDailyLifehack(date) {
   const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000)
   return LIFEHACKS[dayOfYear % LIFEHACKS.length]
@@ -200,5 +212,7 @@ module.exports = {
   getStageTip,
   getLunarTip,
   getMoonPhase,
+  getDayOfYear,
+  getZoneDayOffset,
   WEATHER_TIPS,
 }
