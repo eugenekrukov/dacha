@@ -26,6 +26,15 @@ Android-first mobile app for Russian gardeners (RuStore). Core value: practical 
 See `summary.md` for current task list and backlog.
 See `session-note.md` for session logs.
 
+## Документы — проверять в начале, обновлять в конце сессии
+
+| Документ | Читать в начале | Обновлять в конце |
+|----------|:--------------:|:-----------------:|
+| `summary.md` | ✅ статус задач и бэклог | ✅ отметить выполненное |
+| `session-note.md` | ✅ контекст предыдущей сессии | ✅ записать что сделано |
+| `android/CONVENTIONS.md` | ✅ перед любым кодом | ✅ если добавились новые паттерны |
+| `TESTING.md` | ✅ если пишем тесты или меняем логику | ✅ если изменилось поведение или добавлены кейсы |
+
 ---
 
 ## UI/UX Design Flow
