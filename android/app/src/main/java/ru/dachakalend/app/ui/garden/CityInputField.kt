@@ -1,14 +1,16 @@
 package ru.dachakalend.app.ui.garden
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import ru.dachakalend.app.data.model.GeocodeSuggestion
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CityInputField(
     value: String,
@@ -22,77 +24,77 @@ fun CityInputField(
     isError: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    var dropdownExpanded by remember { mutableStateOf(false) }
-
-    // Debounce через LaunchedEffect + delay
+    // Debounce: новый LaunchedEffect при каждом изменении value
+    // отменяет предыдущий и ждёт 500мс перед поиском
     LaunchedEffect(value) {
         if (value.length >= 2) {
             kotlinx.coroutines.delay(500L)
             onSearch(value)
-            dropdownExpanded = true
         } else {
             onClearSuggestions()
-            dropdownExpanded = false
         }
     }
 
-    LaunchedEffect(suggestions) {
-        if (suggestions.isEmpty()) dropdownExpanded = false
-    }
-
     Column(modifier = modifier) {
-        ExposedDropdownMenuBox(
-            expanded = dropdownExpanded && suggestions.isNotEmpty(),
-            onExpandedChange = { dropdownExpanded = it && suggestions.isNotEmpty() },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = { onValueChange(it) },
-                label = { Text("Населённый пункт *") },
-                placeholder = { Text("Например: Сергиев Посад") },
-                supportingText = {
-                    if (isError) Text("Обязательное поле — для точного прогноза погоды", color = MaterialTheme.colorScheme.error)
-                    else Text("Обязательно — для точного прогноза погоды")
-                },
-                isError = isError,
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
-                singleLine = true,
-                enabled = enabled
-            )
-            ExposedDropdownMenu(
-                expanded = dropdownExpanded && suggestions.isNotEmpty(),
-                onDismissRequest = { dropdownExpanded = false }
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onValueChange(it) },
+            label = { Text("Населённый пункт *") },
+            placeholder = { Text("Например: Сергиев Посад") },
+            supportingText = {
+                if (isError) Text("Обязательное поле", color = MaterialTheme.colorScheme.error)
+                else Text("Обязательно — для точного прогноза погоды")
+            },
+            isError = isError,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            enabled = enabled
+        )
+
+        // Подсказки — inline Card под полем (нет popup-проблем)
+        if (suggestions.isNotEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .zIndex(10f),
+                shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                suggestions.forEach { s ->
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(s.name, style = MaterialTheme.typography.bodyMedium)
+                Column {
+                    suggestions.forEach { s ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onValueChange(s.name)
+                                    onSuggestionSelected(s)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                        ) {
+                            Text(s.name, style = MaterialTheme.typography.bodyMedium)
+                            if (s.displayName != s.name) {
                                 Text(
                                     s.displayName,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                        },
-                        onClick = {
-                            onValueChange(s.name)
-                            onSuggestionSelected(s)
-                            dropdownExpanded = false
                         }
-                    )
+                        if (s != suggestions.last()) {
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        }
+                    }
                 }
             }
         }
 
-        // Показываем определённую климатическую зону
+        // Климатическая зона после выбора подсказки
         if (detectedZone != null) {
             Text(
                 text = "🌍 ${ZONE_LABELS[detectedZone] ?: "Зона $detectedZone"}",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFF2E7D32),
-                modifier = Modifier.padding(start = 16.dp, top = 2.dp)
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
         }
     }
