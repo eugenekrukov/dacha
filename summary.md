@@ -2,138 +2,82 @@
 
 ## Текущий статус
 
-- **MVP**: ✅ 100% завершён (5 спринтов + технический долг)
+- **MVP**: ✅ 100% завершён (5 спринтов + пост-MVP доработки)
 - **Стек**: Node.js 20 + Fastify 4 + PostgreSQL | Android (Kotlin + Compose + Hilt)
 - **Бэкенд**: `https://dacha.studio1008.com/` · порт 3002 · pm2: `dacha-api`
 - **Android**: package `ru.dachakalend.app` · minSdk 26 · targetSdk 34
+- **ТЗ**: `docs/ТЗ.pdf`
 
 ---
 
 ## Следующая сессия (приоритет ↓)
 
-### ✅ Закрыто в предыдущих сессиях
-- CTA "Добавить посадку" на TodayScreen и HarvestScreen
-- Поиск в справочнике культур
-- Онбординг: подсказка после CreateGardenScreen
-- Кнопка "Завершить сезон" на посадке
-- Сводный журнал "Сделано сегодня" на TodayScreen
-- Урожай с группировкой по культуре
-- Маркеры полива на календаре из расчётных дат
-- Badge с количеством посадок с просроченными задачами
-- Упрощение карточки посадки (1 кнопка)
-- GardenEditScreen
-- Push watering_due / fertilizing_due
-- 5 правок после билд-ревью
+### 🔴 Критично — всё закрыто ✅
 
----
-
-### 🔴 Критично (прямые требования ТЗ)
-
-| # | Задача | Почему важно |
-|---|--------|-------------|
-| 1 | ✅ **Deep links из push → нужный экран** | frost/heat → Today, watering/fertilizing → Plantings |
-| 2 | ✅ **Экран настроек** — уведомления | Доступен через ⚙️ на TodayScreen |
-| 3 | ✅ **Управление типами уведомлений** (вкл/выкл frost/heat/watering/fertilizing) | Хранится в SharedPreferences, проверяется в DachaPushService |
-| 4 | ✅ **Push при жаре** (`heat_alert`, t ≥ 35°C) | sendHeatAlert() + weatherJob.js |
-
-### 🟡 Важно (Should из ТЗ)
-
-| # | Задача | Статус |
-|---|--------|--------|
-| 5 | **Выбор культур в онбординге** | ✅ OnboardingCropsScreen |
-| 6 | **Тип участка в онбординге** (грунт/теплица/смешанный) | ✅ FilterChip + migration 010 |
-| 7 | **Фильтр посадок по стадии роста** | ✅ LazyRow chips + filteredPlantings |
-| 8 | **Push при пересадке** (`transplant_due`) | ✅ careRemindersJob + Settings toggle |
-| 9 | **Отдельный экран журнала** | ✅ JournalScreen + JournalViewModel |
-| 10 | **История действий в карточке посадки** | ✅ PlantingInfoBottomSheet (20 шт.) |
+### 🟡 Важно — всё закрыто ✅
 
 ### 🟢 Желательно (Could из ТЗ)
 
 | # | Задача | Почему важно |
 |---|--------|-------------|
-| 12 | **Сравнение урожая по сезонам** | ТЗ §5.8, §4.8. Сейчас только текущий сезон |
-| 13 | **Типы действий: пикировка и пересадка** как отдельные виды | ТЗ §5.6. Сейчас объединены в `treatment`/`other` |
-| 14 | **Поля участка: площадь и тип почвы** в онбординге и профиле | ТЗ §5.1. Влияют на персонализацию рекомендаций |
-| 15 | **Профиль участка** — отдельный экран просмотра (климат, культуры, заметки) | ТЗ §5.2, экран 4.3 Garden Profile |
-| 16 | **Совет дня** на TodayScreen | ТЗ §5.4. Повышает ежедневное открытие |
-| 17 | **Монетизация** — модель подписки в приложении (RuStore Billing) | ТЗ §12: 299–499 ₽/мес |
+| 12 | **Сравнение урожая по сезонам** | ТЗ §5.8, §4.8 |
+| 13 | **Типы действий: пикировка и пересадка** | ТЗ §5.6 |
+| 14 | **Поля участка: площадь и тип почвы** | ТЗ §5.1 |
+| 15 | **Профиль участка** — отдельный экран | ТЗ §5.2, экран 4.3 |
+| 16 | **Совет дня** на TodayScreen | ТЗ §5.4 |
+| 17 | **Монетизация** — RuStore Billing | ТЗ §12: 299–499 ₽/мес |
 
 ---
 
 ## Технический долг
 
-- [x] Запустить тест-сьют — 55 тестов, все PASSED ✅
-- [x] Дублирующий раздел в `session-note.md` — реального дубля нет ✅
-- [x] `ARCHITECTURE.md` создан и заполнен ✅
-- [x] Сертификат Let's Encrypt — `certbot.timer` активен, истекает 2026-08-26 ✅
+- [x] Тесты: 55 passed ✅
+- [x] ARCHITECTURE.md создан ✅
+- [x] Сертификат: certbot.timer активен, истекает 2026-08-26 ✅
 
 ---
 
-## Завершённые спринты (архив)
+## Сделано за сессию 2026-06-01 (большая)
 
-<details>
-<summary>Спринт 1 — Каркас продукта ✅</summary>
+### Критические пункты ТЗ
+- Deep links из push → нужный экран (frost/heat → Today, watering → Plantings)
+- Экран настроек + управление типами уведомлений (5 тоглов)
+- heat_alert push (t ≥ 35°C)
 
-- Структура backend (Fastify + PostgreSQL), все API-роуты MVP
-- SQL-миграции 9 сущностей + seed справочника культур
-- Деплой на VPS, HTTPS (dacha.studio1008.com), авторизация end-to-end
-</details>
+### Пункты "Важно" (пп. 5–10)
+- OnboardingCropsScreen — выбор культур после создания участка
+- Тип участка (грунт/теплица/смешанный) + migration 010
+- Фильтр посадок по стадии (chips)
+- Push transplant_due + тогл в настройках
+- JournalScreen — все действия по датам с фильтром
+- История действий в PlantingInfoBottomSheet (20 шт.)
 
-<details>
-<summary>Спринт 2 — Главная и календарь ✅</summary>
+### Агрономика и рекомендации
+- Рекомендации: 6 категорий (агрономические, погодные, лунный календарь, сезонные, советы по стадии, лайфхаки)
+- Сезонные подсказки "пора сажать" с учётом климатической зоны
+- Guided flow: care_tasks → задачи дня (окно ±3 дня), стадия `transplanted`
+- "Следующий шаг" на карточке посадки (next_care_task)
+- Свайп для удаления рекомендации
 
-- `GET /today` — агрегирующий эндпоинт с приоритетами задач
-- TodayScreen, LoginScreen, RegisterScreen, CreateGardenScreen
-- Месячный календарь с маркерами событий
-</details>
+### Участок и геолокация
+- City field теперь сохраняется (migration 012_garden_city)
+- GPS позиционирование без Google Play Services (LocationManager)
+- Автодополнение города через Photon API (Flow.debounce в ViewModel)
+- Автоопределение климатической зоны из Nominatim address
+- Полный список 85 регионов РФ с поиском
+- Город — обязательное поле; регион — опциональный
 
-<details>
-<summary>Спринт 3 — Культуры и журнал ✅</summary>
+### Аутентификация и данные
+- Выход из аккаунта в Настройках (с подтверждением)
+- AuthViewModel после логина восстанавливает gardenId с сервера → нет ложного CreateGarden флоу
+- GET /gardens: сначала участок с наибольшим числом посадок (planting_count DESC)
+- POST /gardens: лимит 3 участка на аккаунт
 
-- CropsScreen, CropDetailScreen, PlantingsScreen
-- ActionLogBottomSheet (2-3 тапа), ReminderWorker (WorkManager)
-- Фильтрация по категориям, навигация Crops → CropDetail
-</details>
-
-<details>
-<summary>Спринт 4 — Погода и уведомления ✅</summary>
-
-- Open-Meteo интеграция, фоновый cron-джоб каждые 3 часа
-- WeatherRepository, RecommendationsRepository, реальные данные на TodayScreen
-- RuStore Push SDK 6.0.0, DachaPushService, frost_alert end-to-end
-</details>
-
-<details>
-<summary>Спринт 5 — Урожай и аналитика ✅</summary>
-
-- HarvestScreen (список + сводная карточка + BottomSheet)
-- AnalyticsScreen (streak, счётчики, график активности)
-- `GET /actions/export` CSV, `GET /analytics/summary`
-</details>
-
-<details>
-<summary>Post-MVP (2026-05-31) ✅</summary>
-
-- База знаний 50 культур (миграции 005, 006) — watering_details, diseases, neighbors
-- CropDetailScreen с вкладками Уход / Болезни / Соседи
-- Геокодирование по населённому пункту (Nominatim OSM)
-- Параметры посадки: quantity, conditions (грунт/теплица), миграция 007
-- Рекомендации: теплица снимает frost_alert, +30% к интервалу полива
-- Климатическая зона: фильтрация сроков посева по зоне пользователя
-- Карточка посадки: last_action_at, formatIsoDate
-- Быстрые действия на TodayScreen (preselectedType, PlantingPickerBottomSheet)
-- Admin-guard для POST/PUT /crops (ADMIN_EMAIL в .env)
-- Фиксы: action_type enum, fallback рекомендаций, моргание экрана, сортировка дат, UTF-8 в .js
-- Тесты: 35+ backend (Vitest + Supertest), 16+ Android ViewModel (MockK + Turbine)
-</details>
-
-<details>
-<summary>Сессия 2026-05-31 (продолжение) ✅</summary>
-
-- GardenEditScreen — экран редактирования участка (PUT /gardens/:id), кнопка ⚙️ на TodayScreen
-- Push watering_due / fertilizing_due — careRemindersJob (ежедневно 09:00), дедупликация care_alert_log
-- Миграция 009_care_alert_log.sql задеплоена на VPS
-</details>
+### Баг-фиксы
+- Сортировка расписания работ по LocalDate (не по строке DD.MM.YY)
+- care_tasks в задачах дня (care_task_due тип)
+- Обновление тестов (лимит задач 5→7)
+- Переключение Nominatim → Photon для автодополнения городов
 
 ---
 
@@ -153,4 +97,5 @@ POST /reminders  GET /reminders
 GET /harvests  POST /harvests
 POST /push-tokens  DELETE /push-tokens
 GET /analytics/summary
+GET /geocode/suggest?q=
 ```

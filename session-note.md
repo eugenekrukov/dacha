@@ -751,3 +751,54 @@ pm2 restart dacha-api
 - Ветка `feature/critical-settings-deeplinks-heat` смержена в `main`
 - Запушено на GitHub, задеплоено на VPS (`pm2 restart dacha-api` ✅)
 
+---
+
+## Сессия 2026-06-01 (продолжение) — Большая сессия пост-MVP
+
+### Сделано
+
+**Пункты "Важно" (5–10)**
+- OnboardingCropsScreen — выбор культур после создания участка (grid 3 cols)
+- Тип участка (грунт/теплица/смешанный), migration 010_garden_type
+- Фильтр посадок по стадии (LazyRow chips, filteredPlantings в UiState)
+- Push transplant_due (careRemindersJob + sendTransplantAlert + Settings toggle)
+- JournalScreen + JournalViewModel — все действия по датам, фильтр по культуре
+- История действий в PlantingInfoBottomSheet (20 шт. с заметками)
+
+**Рекомендации**
+- 6 категорий: watering/frost/harvest (агрономические) + heat_stress + weather_tip (погодные) + lunar_tip + seasonal_tip + stage_tip + lifehack (информационные)
+- Сезонные подсказки "пора сажать" с учётом климатической зоны (getDayOfYear + getZoneDayOffset)
+- Photon API для автодополнения городов (замена Nominatim, который не поддерживает префиксный поиск)
+
+**Guided flow / стадии**
+- care_tasks → задачи дня (тип care_task_due, окно -1..+3 дня), лимит 5→7
+- Стадия `transplanted` добавлена в STAGE_ORDER между sprouted и growing
+- "Следующий шаг" на карточке посадки (next_care_task: {name, days_until})
+- Свайп для удаления рекомендации (SwipeToDismissBox)
+
+**Участок и геолокация**
+- City field: migration 012_garden_city — теперь сохраняется и предзаполняется
+- GPS без Google Play Services (LocationManager, таймаут 15 сек)
+- Автодополнение города через Photon (Flow.debounce 400мс в ViewModel)
+- Климатическая зона автоопределяется из Nominatim address.state (85 субъектов РФ)
+- 85 регионов в выпадающем списке с поиском (RegionInputField)
+- Город обязателен; регион опционален
+
+**Аутентификация и данные**
+- Выход из аккаунта в Настройках (AlertDialog + tokenStorage.logout())
+- AuthViewModel: после логина вызывает loadGardens() → восстанавливает gardenId
+- LoginScreen: SuccessHasGarden → Today, SuccessNoGarden → CreateGarden
+- GET /gardens: ORDER BY planting_count DESC (участок с данными — первый)
+- POST /gardens: лимит 3 участка на аккаунт (409 если превышен)
+- Удалён spurious garden id=6 (пустой, созданный при повторном онбординге)
+
+**Баг-фиксы**
+- Сортировка расписания работ по LocalDate (не строкой DD.MM.YY)
+- careRemindersJob: исправлено имя колонки watering_frequency_days → watering_freq_days
+- Тесты обновлены (лимит задач 5→7, 55/55 passed)
+
+### Технические решения
+- Дебаунс автодополнения: Flow.debounce в ViewModel, а не LaunchedEffect+delay в Compose (надёжнее)
+- Рекомендации, отклонённые свайпом: Set<String> в TodayViewModel, не сохраняется между сессиями
+- GeocodeSuggestion.zone — климатическая зона из ответа Photon через NOMINATIM_TO_ZONE mapping
+
