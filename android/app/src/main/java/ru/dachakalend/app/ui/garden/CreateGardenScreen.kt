@@ -125,9 +125,8 @@ fun CreateGardenScreen(
                 onValueChange = { cityName = it; cityError = false },
                 suggestions = suggestions,
                 detectedZone = detectedZone,
-                onSearch = { viewModel.searchCity(it) },
+                onCityQueryChanged = { viewModel.onCityQueryChanged(it) },
                 onSuggestionSelected = { viewModel.onSuggestionSelected(it) },
-                onClearSuggestions = { viewModel.clearSuggestions() },
                 enabled = !isSaving,
                 isError = cityError
             )

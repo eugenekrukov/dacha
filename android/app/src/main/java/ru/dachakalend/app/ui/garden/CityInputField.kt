@@ -11,34 +11,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import ru.dachakalend.app.data.model.GeocodeSuggestion
 
+/**
+ * Поле ввода населённого пункта с автодополнением.
+ * Дебаунс — в ViewModel (Flow.debounce 400мс), не в Compose.
+ * Подсказки — inline Card под полем (без popup, нет конфликтов с фокусом).
+ */
 @Composable
 fun CityInputField(
     value: String,
     onValueChange: (String) -> Unit,
     suggestions: List<GeocodeSuggestion>,
     detectedZone: String?,
-    onSearch: (String) -> Unit,
+    onCityQueryChanged: (String) -> Unit,   // вызывается на каждое изменение, ViewModel дебаунсит
     onSuggestionSelected: (GeocodeSuggestion) -> Unit,
-    onClearSuggestions: () -> Unit,
     enabled: Boolean = true,
     isError: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    // Debounce: новый LaunchedEffect при каждом изменении value
-    // отменяет предыдущий и ждёт 500мс перед поиском
-    LaunchedEffect(value) {
-        if (value.length >= 2) {
-            kotlinx.coroutines.delay(500L)
-            onSearch(value)
-        } else {
-            onClearSuggestions()
-        }
-    }
-
     Column(modifier = modifier) {
         OutlinedTextField(
             value = value,
-            onValueChange = { onValueChange(it) },
+            onValueChange = { new ->
+                onValueChange(new)
+                onCityQueryChanged(new)
+            },
             label = { Text("Населённый пункт *") },
             placeholder = { Text("Например: Сергиев Посад") },
             supportingText = {
@@ -51,7 +47,7 @@ fun CityInputField(
             enabled = enabled
         )
 
-        // Подсказки — inline Card под полем (нет popup-проблем)
+        // Подсказки как Card под полем — работает в любом Compose-контексте
         if (suggestions.isNotEmpty()) {
             Card(
                 modifier = Modifier
@@ -61,7 +57,7 @@ fun CityInputField(
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column {
-                    suggestions.forEach { s ->
+                    suggestions.forEachIndexed { index, s ->
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -72,7 +68,7 @@ fun CityInputField(
                                 .padding(horizontal = 16.dp, vertical = 10.dp)
                         ) {
                             Text(s.name, style = MaterialTheme.typography.bodyMedium)
-                            if (s.displayName != s.name) {
+                            if (s.displayName.isNotBlank() && s.displayName != s.name) {
                                 Text(
                                     s.displayName,
                                     style = MaterialTheme.typography.bodySmall,
@@ -80,7 +76,7 @@ fun CityInputField(
                                 )
                             }
                         }
-                        if (s != suggestions.last()) {
+                        if (index < suggestions.lastIndex) {
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         }
                     }
@@ -88,7 +84,6 @@ fun CityInputField(
             }
         }
 
-        // Климатическая зона после выбора подсказки
         if (detectedZone != null) {
             Text(
                 text = "🌍 ${ZONE_LABELS[detectedZone] ?: "Зона $detectedZone"}",

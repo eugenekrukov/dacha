@@ -166,7 +166,15 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Screen.Settings.route) {
-                            SettingsScreen(onBack = { navController.popBackStack() })
+                            SettingsScreen(
+                                onBack = { navController.popBackStack() },
+                                onLogout = {
+                                    navController.navigate(Screen.Login.route) {
+                                        popUpTo(0) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
                         }
                         composable(Screen.Journal.route) {
                             JournalScreen(onBack = { navController.popBackStack() })

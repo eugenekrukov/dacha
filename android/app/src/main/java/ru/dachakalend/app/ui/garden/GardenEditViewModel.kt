@@ -3,9 +3,13 @@ package ru.dachakalend.app.ui.garden
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.Garden
 import ru.dachakalend.app.data.model.GeocodeSuggestion
@@ -24,6 +28,7 @@ sealed class GardenEditUiState {
     data class Error(val message: String) : GardenEditUiState()
 }
 
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class GardenEditViewModel @Inject constructor(
     private val gardenRepository: GardenRepository,
@@ -39,12 +44,29 @@ class GardenEditViewModel @Inject constructor(
     private val _detectedZone = MutableStateFlow<String?>(null)
     val detectedZone: StateFlow<String?> = _detectedZone.asStateFlow()
 
+    private val _queryFlow = MutableStateFlow("")
+
     private var pendingLat: Double? = null
     private var pendingLon: Double? = null
     private var pendingZone: String? = null
     private var coordinateSource: String = "region"
 
-    init { loadCurrentGarden() }
+    init {
+        loadCurrentGarden()
+        // Дебаунс поиска — в ViewModel через Flow, независимо от Compose lifecycle
+        viewModelScope.launch {
+            _queryFlow
+                .debounce(400L)
+                .filter { it.length >= 2 }
+                .distinctUntilChanged()
+                .collect { query ->
+                    when (val r = geocoderRepository.suggest(query)) {
+                        is Result.Success -> _suggestions.value = r.data
+                        else -> { /* не сбрасываем */ }
+                    }
+                }
+        }
+    }
 
     private fun loadCurrentGarden() {
         viewModelScope.launch {
@@ -61,17 +83,10 @@ class GardenEditViewModel @Inject constructor(
         }
     }
 
-    fun searchCity(query: String) {
-        if (query.length < 2) { _suggestions.value = emptyList(); return }
-        viewModelScope.launch {
-            when (val r = geocoderRepository.suggest(query)) {
-                is Result.Success -> _suggestions.value = r.data
-                else -> _suggestions.value = emptyList()
-            }
-        }
+    fun onCityQueryChanged(query: String) {
+        _queryFlow.value = query
+        if (query.length < 2) _suggestions.value = emptyList()
     }
-
-    fun clearSuggestions() { _suggestions.value = emptyList() }
 
     fun onSuggestionSelected(s: GeocodeSuggestion) {
         pendingLat = s.lat

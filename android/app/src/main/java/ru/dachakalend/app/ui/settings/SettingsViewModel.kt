@@ -24,6 +24,9 @@ class SettingsViewModel @Inject constructor(
     private val _settings = MutableStateFlow(loadSettings())
     val settings: StateFlow<NotificationSettings> = _settings.asStateFlow()
 
+    private val _loggedOut = MutableStateFlow(false)
+    val loggedOut: StateFlow<Boolean> = _loggedOut.asStateFlow()
+
     private fun loadSettings() = NotificationSettings(
         frost       = tokenStorage.isNotificationEnabled(TokenStorage.NOTIF_FROST),
         heat        = tokenStorage.isNotificationEnabled(TokenStorage.NOTIF_HEAT),
@@ -51,5 +54,10 @@ class SettingsViewModel @Inject constructor(
     fun setTransplant(enabled: Boolean) {
         tokenStorage.setNotificationEnabled(TokenStorage.NOTIF_TRANSPLANT, enabled)
         _settings.value = _settings.value.copy(transplant = enabled)
+    }
+
+    fun logout() {
+        tokenStorage.logout()
+        _loggedOut.value = true
     }
 }

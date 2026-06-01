@@ -49,6 +49,9 @@ class TokenStorage @Inject constructor(
     fun setNotificationEnabled(type: String, enabled: Boolean) =
         prefs.edit { putBoolean("notif_$type", enabled) }
 
+    /** Полный выход — очищает все данные приложения */
+    fun logout() = prefs.edit { clear() }
+
     companion object {
         private const val KEY_TOKEN           = "auth_token"
         private const val KEY_GARDEN_ID       = "garden_id"

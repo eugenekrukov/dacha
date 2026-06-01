@@ -3,9 +3,13 @@ package ru.dachakalend.app.ui.garden
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.GeocodeSuggestion
 import ru.dachakalend.app.data.repository.GardenRepository
@@ -29,6 +33,7 @@ sealed class GardenUiState {
     data class Error(val message: String) : GardenUiState()
 }
 
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class GardenViewModel @Inject constructor(
     private val gardenRepository: GardenRepository,
@@ -41,26 +46,36 @@ class GardenViewModel @Inject constructor(
     private val _suggestions = MutableStateFlow<List<GeocodeSuggestion>>(emptyList())
     val suggestions: StateFlow<List<GeocodeSuggestion>> = _suggestions.asStateFlow()
 
-    // Публичный для отображения в UI
     private val _detectedZone = MutableStateFlow<String?>(null)
     val detectedZone: StateFlow<String?> = _detectedZone.asStateFlow()
+
+    // Поток запросов — дебаунс через Flow, не LaunchedEffect
+    private val _queryFlow = MutableStateFlow("")
 
     private var pendingLat: Double? = null
     private var pendingLon: Double? = null
     private var pendingZone: String? = null
     private var coordinateSource: String = "region"
 
-    fun searchCity(query: String) {
-        if (query.length < 2) { _suggestions.value = emptyList(); return }
+    init {
         viewModelScope.launch {
-            when (val r = geocoderRepository.suggest(query)) {
-                is Result.Success -> _suggestions.value = r.data
-                else -> _suggestions.value = emptyList()
-            }
+            _queryFlow
+                .debounce(400L)
+                .filter { it.length >= 2 }
+                .distinctUntilChanged()
+                .collect { query ->
+                    when (val r = geocoderRepository.suggest(query)) {
+                        is Result.Success -> _suggestions.value = r.data
+                        else -> { /* не сбрасываем — оставляем предыдущие */ }
+                    }
+                }
         }
     }
 
-    fun clearSuggestions() { _suggestions.value = emptyList() }
+    fun onCityQueryChanged(query: String) {
+        _queryFlow.value = query
+        if (query.length < 2) _suggestions.value = emptyList()
+    }
 
     fun onSuggestionSelected(s: GeocodeSuggestion) {
         pendingLat = s.lat
