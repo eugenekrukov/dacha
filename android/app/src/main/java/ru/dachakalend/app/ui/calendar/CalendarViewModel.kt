@@ -43,7 +43,7 @@ class CalendarViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             when (val result = repository.getCalendarData()) {
                 is Result.Success -> {
-                    val events = buildEvents(result.data.reminders, result.data.plantings)
+                    val events = buildEvents(result.data.reminders, result.data.plantings, result.data.todayTasks)
                     _uiState.value = _uiState.value.copy(isLoading = false, eventsByDay = events)
                 }
                 is Result.Error -> {
@@ -76,11 +76,27 @@ class CalendarViewModel @Inject constructor(
 
     private fun buildEvents(
         reminders: List<Reminder>,
-        plantings: List<Planting>
+        plantings: List<Planting>,
+        todayTasks: List<ru.dachakalend.app.data.model.TodayTask> = emptyList()
     ): Map<LocalDate, List<DayEvent>> {
         val result = mutableMapOf<LocalDate, MutableList<DayEvent>>()
         val today = LocalDate.now()
         val horizon = today.plusDays(60) // горизонт планирования
+
+        // Задачи из /today — добавляем на сегодняшнюю дату
+        todayTasks.forEach { task ->
+            val label = when (task.type) {
+                "watering_due"   -> "💧 Полив: ${task.cropName ?: ""}"
+                "fertilizing_due"-> "🌿 Подкормка: ${task.cropName ?: ""}"
+                "transplant_due" -> "🌱 Пересадка: ${task.cropName ?: ""}"
+                "harvest_due"    -> "🌾 Урожай: ${task.cropName ?: ""}"
+                "frost_alert"    -> "❄️ Угроза заморозков"
+                else             -> task.title
+            }
+            result.getOrPut(today) { mutableListOf() }.add(
+                DayEvent(today, label, task.type)
+            )
+        }
 
         // Напоминания
         reminders.forEach { reminder ->

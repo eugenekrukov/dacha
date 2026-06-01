@@ -85,7 +85,7 @@ private fun TodayContent(
     onEditGarden: () -> Unit = {},
     onAddPlanting: () -> Unit = {}
 ) {
-    // Состояния для быстрых действий
+    // Состояния для быстрых действий и клика по задаче
     var quickActionType by remember { mutableStateOf<String?>(null) }
     var selectedPlanting by remember { mutableStateOf<Planting?>(null) }
     var showPlantingPicker by remember { mutableStateOf(false) }
@@ -123,6 +123,7 @@ private fun TodayContent(
             onDismiss = {
                 selectedPlanting = null
                 quickActionType = null
+                onRefresh()   // ← Фикс 1: обновить задачи и рекомендации
             }
         )
     }
@@ -172,7 +173,22 @@ private fun TodayContent(
                 )
             }
             items(tasks) { task ->
-                TaskCard(task)
+                // Фикс 3: клик по задаче открывает ActionLog для нужной посадки
+                val taskPlanting = task.plantingId?.let { id -> plantings.find { it.id == id } }
+                TaskCard(
+                    task = task,
+                    onClick = if (taskPlanting != null) {
+                        {
+                            selectedPlanting = taskPlanting
+                            quickActionType = when (task.type) {
+                                "watering_due"     -> "watering"
+                                "fertilizing_due"  -> "fertilizing"
+                                "transplant_due"   -> "other"
+                                else               -> null
+                            }
+                        }
+                    } else null
+                )
             }
         } else {
             item {
@@ -303,10 +319,12 @@ private fun WeatherCard(weather: WeatherSummary?) {
 }
 
 @Composable
-private fun TaskCard(task: TodayTask) {
+private fun TaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
     val color = taskColor(task.type)
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -348,6 +366,14 @@ private fun TaskCard(task: TodayTask) {
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
+                )
+            }
+            if (onClick != null) {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -445,7 +471,7 @@ private fun PlantingPickerBottomSheet(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = planting.stage,
+                                text = STAGE_LABELS[planting.stage] ?: planting.stage,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -513,6 +539,15 @@ private fun RecommendationCard(rec: Recommendation) {
         }
     }
 }
+
+private val STAGE_LABELS = mapOf(
+    "sowing"     to "Посев",
+    "sprouted"   to "Всходы",
+    "growing"    to "Рост",
+    "flowering"  to "Цветение",
+    "harvesting" to "Сбор урожая",
+    "done"       to "Завершено"
+)
 
 private val ACTION_TYPE_LABELS = mapOf(
     "watering"    to "💧 Полив",

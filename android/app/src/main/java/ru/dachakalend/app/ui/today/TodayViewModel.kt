@@ -95,6 +95,14 @@ class TodayViewModel @Inject constructor(
             val todayDate = java.time.LocalDate.now().toString() // "2026-05-31"
             val todayActions = allActions.filter { it.loggedAt.startsWith(todayDate) }
 
+            // Сохраняем pending-задачи для Badge и карточек посадок
+            if (todayResult is Result.Success) {
+                val pending = todayResult.data.tasks
+                    .filter { it.plantingId != null }
+                    .associate { it.plantingId!! to it.type }
+                tokenStorage.savePendingTasks(pending)
+            }
+
             _uiState.value = when (todayResult) {
                 is Result.Success -> TodayUiState.Success(
                     TodayScreenData(

@@ -278,8 +278,11 @@ private fun EventCard(event: DayEvent) {
 }
 
 private fun eventStyle(type: String): Pair<ImageVector, Color> = when (type) {
-    "harvest"  -> Icons.Default.Spa to Color(0xFF4CAF50)
-    "sowing"   -> Icons.Default.Grass to Color(0xFF8D6E63)
-    "watering" -> Icons.Default.Notifications to Color(0xFF2196F3) // синий — вода
-    else       -> Icons.Default.Notifications to Color(0xFFFFB300)
+    "harvest", "harvest_due"     -> Icons.Default.Spa to Color(0xFF4CAF50)
+    "sowing"                     -> Icons.Default.Grass to Color(0xFF8D6E63)
+    "watering", "watering_due"   -> Icons.Default.Notifications to Color(0xFF2196F3)
+    "fertilizing", "fertilizing_due" -> Icons.Default.Spa to Color(0xFF9C27B0)
+    "transplant_due"             -> Icons.Default.Grass to Color(0xFF795548)
+    "frost_alert"                -> Icons.Default.Notifications to Color(0xFF00BCD4)
+    else                         -> Icons.Default.Notifications to Color(0xFFFFB300)
 }
