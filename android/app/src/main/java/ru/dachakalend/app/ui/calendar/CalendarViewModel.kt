@@ -17,7 +17,7 @@ import javax.inject.Inject
 data class DayEvent(
     val date: LocalDate,
     val title: String,
-    val type: String   // reminder | harvest | sowing
+    val type: String   // reminder | harvest | sowing | watering
 )
 
 data class CalendarUiState(
@@ -79,6 +79,8 @@ class CalendarViewModel @Inject constructor(
         plantings: List<Planting>
     ): Map<LocalDate, List<DayEvent>> {
         val result = mutableMapOf<LocalDate, MutableList<DayEvent>>()
+        val today = LocalDate.now()
+        val horizon = today.plusDays(60) // горизонт планирования
 
         // Напоминания
         reminders.forEach { reminder ->
@@ -90,23 +92,52 @@ class CalendarViewModel @Inject constructor(
             }
         }
 
-        // Ожидаемая дата урожая
-        plantings.forEach { planting ->
+        // Посадки (активные)
+        plantings.filter { it.stage != "done" }.forEach { planting ->
+            val cropName = planting.cropName ?: "культура"
+
+            // Ожидаемая дата урожая
             planting.expectedHarvestAt?.let { harvestDate ->
                 runCatching {
                     val date = LocalDate.parse(harvestDate.take(10))
                     result.getOrPut(date) { mutableListOf() }.add(
-                        DayEvent(date, "Урожай: ${planting.cropName ?: "культура"}", "harvest")
+                        DayEvent(date, "Урожай: $cropName", "harvest")
                     )
                 }
             }
+
             // Дата посева
             planting.sownAt?.let { sownDate ->
                 runCatching {
                     val date = LocalDate.parse(sownDate.take(10))
                     result.getOrPut(date) { mutableListOf() }.add(
-                        DayEvent(date, "Посев: ${planting.cropName ?: "культура"}", "sowing")
+                        DayEvent(date, "Посев: $cropName", "sowing")
                     )
+                }
+            }
+
+            // Расчётные даты полива на 60 дней вперёд
+            val freqDays = planting.wateringFreqDays?.let {
+                if (planting.conditions == "greenhouse") (it * 1.3).toInt() else it
+            } ?: 3
+
+            planting.sownAt?.let { sownDate ->
+                runCatching {
+                    val sown = LocalDate.parse(sownDate.take(10))
+                    // Базовая точка: последнее действие или дата посева
+                    val base = planting.lastActionAt?.let {
+                        runCatching { LocalDate.parse(it.take(10)) }.getOrNull()
+                    } ?: sown
+
+                    var nextWatering = base.plusDays(freqDays.toLong())
+                    while (!nextWatering.isAfter(horizon)) {
+                        if (!nextWatering.isBefore(today)) {
+                            result.getOrPut(nextWatering) { mutableListOf() }.add(
+                                DayEvent(nextWatering, "💧 Полив: $cropName", "watering")
+                            )
+                        }
+                        nextWatering = nextWatering.plusDays(freqDays.toLong())
+                    }
                 }
             }
         }

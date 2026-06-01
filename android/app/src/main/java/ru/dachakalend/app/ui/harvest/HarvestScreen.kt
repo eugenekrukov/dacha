@@ -19,7 +19,10 @@ import ru.dachakalend.app.data.model.Planting
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HarvestScreen(viewModel: HarvestViewModel = hiltViewModel()) {
+fun HarvestScreen(
+    onAddPlanting: () -> Unit = {},
+    viewModel: HarvestViewModel = hiltViewModel()
+) {
     val state by viewModel.uiState.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -51,7 +54,10 @@ fun HarvestScreen(viewModel: HarvestViewModel = hiltViewModel()) {
         ) {
             when {
                 state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                state.harvests.isEmpty() -> EmptyHarvestState(modifier = Modifier.align(Alignment.Center))
+                state.harvests.isEmpty() -> EmptyHarvestState(
+                    modifier = Modifier.align(Alignment.Center),
+                    onAddPlanting = onAddPlanting
+                )
                 else -> HarvestList(harvests = state.harvests)
             }
         }
@@ -70,7 +76,10 @@ fun HarvestScreen(viewModel: HarvestViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun EmptyHarvestState(modifier: Modifier = Modifier) {
+private fun EmptyHarvestState(
+    modifier: Modifier = Modifier,
+    onAddPlanting: () -> Unit = {}
+) {
     Column(
         modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -83,10 +92,15 @@ private fun EmptyHarvestState(modifier: Modifier = Modifier) {
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            "Нажмите + чтобы добавить первую запись",
+            "Сначала добавьте посадку, затем фиксируйте сбор урожая",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onAddPlanting) {
+            Text("Добавить посадку")
+        }
     }
 }
 
@@ -98,6 +112,9 @@ private fun HarvestList(harvests: List<Harvest>) {
     ) {
         item {
             HarvestSummaryCard(harvests)
+        }
+        item {
+            HarvestByCropCard(harvests)
         }
         items(harvests, key = { it.id }) { harvest ->
             HarvestCard(harvest)
@@ -158,6 +175,65 @@ private fun HarvestSummaryCard(harvests: List<Harvest>) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HarvestByCropCard(harvests: List<Harvest>) {
+    if (harvests.isEmpty()) return
+
+    // Группируем по cropName
+    val grouped = harvests.groupBy { it.cropName ?: "Без названия" }
+        .map { (cropName, items) ->
+            Triple(
+                cropName,
+                items.mapNotNull { it.weightKg }.sum(),
+                items.mapNotNull { it.quantity }.sum()
+            )
+        }
+        .sortedByDescending { it.second + it.third }
+
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "По культурам",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Свернуть" else "Развернуть")
+                }
+            }
+            if (expanded) {
+                grouped.forEach { (cropName, kg, pcs) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(cropName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Text(
+                            buildString {
+                                if (kg > 0) append("%.1f кг".format(kg))
+                                if (kg > 0 && pcs > 0) append(" · ")
+                                if (pcs > 0) append("$pcs шт")
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    HorizontalDivider(thickness = 0.5.dp)
+                }
             }
         }
     }

@@ -63,11 +63,15 @@ class MainActivity : ComponentActivity() {
 
                 val showBottomBar = currentRoute !in screensWithoutBottomBar
 
+                // Badge: читаем счётчик посадок (обновляется при каждой перерисовке BottomNav)
+                val activePlantings = tokenStorage.getActivePlantingsCount()
+
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
                             NavigationBar {
                                 bottomNavItems.forEach { item ->
+                                    val showBadge = item.screen == Screen.Plantings && activePlantings > 0
                                     NavigationBarItem(
                                         selected = currentRoute == item.screen.route,
                                         onClick = {
@@ -77,7 +81,17 @@ class MainActivity : ComponentActivity() {
                                                 restoreState = true
                                             }
                                         },
-                                        icon = { Icon(item.icon, contentDescription = item.label) },
+                                        icon = {
+                                            if (showBadge) {
+                                                BadgedBox(badge = {
+                                                    Badge { Text(activePlantings.toString()) }
+                                                }) {
+                                                    Icon(item.icon, contentDescription = item.label)
+                                                }
+                                            } else {
+                                                Icon(item.icon, contentDescription = item.label)
+                                            }
+                                        },
                                         label = { Text(item.label) }
                                     )
                                 }
@@ -120,7 +134,7 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.CreateGarden.route) {
                             CreateGardenScreen(
                                 onGardenCreated = {
-                                    navController.navigate(Screen.Today.route) {
+                                    navController.navigate(Screen.Today.fromOnboarding()) {
                                         popUpTo(Screen.CreateGarden.route) { inclusive = true }
                                     }
                                 }
@@ -133,10 +147,25 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Main app
+                        // Main app — базовый маршрут
                         composable(Screen.Today.route) {
                             TodayScreen(
-                                onEditGarden = { navController.navigate(Screen.GardenEdit.route) }
+                                onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
+                                onAddPlanting = { navController.navigate(Screen.Crops.route) }
+                            )
+                        }
+                        // Today — с флагом онбординга (после CreateGarden)
+                        composable(
+                            route = Screen.Today.routeWithArgs,
+                            arguments = listOf(navArgument(Screen.Today.ARG_FROM_ONBOARDING) {
+                                type = NavType.BoolType; defaultValue = false
+                            })
+                        ) { backStackEntry ->
+                            val fromOnboarding = backStackEntry.arguments?.getBoolean(Screen.Today.ARG_FROM_ONBOARDING) ?: false
+                            TodayScreen(
+                                showOnboardingHint = fromOnboarding,
+                                onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
+                                onAddPlanting = { navController.navigate(Screen.Crops.route) }
                             )
                         }
                         composable(Screen.Calendar.route) { CalendarScreen() }
@@ -160,7 +189,11 @@ class MainActivity : ComponentActivity() {
                                 onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) }
                             )
                         }
-                        composable(Screen.Harvest.route) { HarvestScreen() }
+                        composable(Screen.Harvest.route) {
+                            HarvestScreen(
+                                onAddPlanting = { navController.navigate(Screen.Crops.route) }
+                            )
+                        }
                         composable(Screen.Analytics.route) { AnalyticsScreen() }
 
                         // Справочник культур

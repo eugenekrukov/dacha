@@ -6,7 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,17 +26,40 @@ fun CropsScreen(
     val state by viewModel.uiState.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Фильтр по категории
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(CROP_CATEGORIES) { (key, label) ->
-                FilterChip(
-                    selected = state.selectedCategory == key,
-                    onClick = { viewModel.loadCrops(key) },
-                    label = { Text(label) }
-                )
+
+        // Поле поиска
+        OutlinedTextField(
+            value = state.searchQuery,
+            onValueChange = { viewModel.setSearchQuery(it) },
+            placeholder = { Text("Поиск культуры...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (state.searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Очистить")
+                    }
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium
+        )
+
+        // Фильтр по категории (скрыт когда идёт поиск)
+        if (state.searchQuery.isBlank()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(CROP_CATEGORIES) { (key, label) ->
+                    FilterChip(
+                        selected = state.selectedCategory == key,
+                        onClick = { viewModel.loadCrops(key) },
+                        label = { Text(label) }
+                    )
+                }
             }
         }
 
@@ -49,14 +74,25 @@ fun CropsScreen(
                     Button(onClick = { viewModel.loadCrops() }) { Text("Повторить") }
                 }
             }
-            state.crops.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Культуры не найдены", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            state.filteredCrops.isEmpty() -> Box(
+                Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🌿", style = MaterialTheme.typography.displaySmall)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (state.searchQuery.isNotBlank()) "Ничего не найдено по \"${state.searchQuery}\""
+                        else "Культуры не найдены",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             else -> LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.crops, key = { it.id }) { crop ->
+                items(state.filteredCrops, key = { it.id }) { crop ->
                     CropCard(crop = crop, onClick = { onCropClick(crop) })
                 }
             }

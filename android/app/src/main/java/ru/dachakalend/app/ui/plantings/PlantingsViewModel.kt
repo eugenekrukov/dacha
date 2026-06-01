@@ -30,8 +30,10 @@ data class PlantingsUiState(
     val editingPlanting: Planting? = null,
     // РЁС‚РѕСЂРєР° РёРЅС„РѕСЂРјР°С†РёРё Рѕ РїРѕСЃР°РґРєРµ
     val showInfoSheet: Planting? = null,
-    // Р”РёР°Р»РѕРі РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ СѓРґР°Р»РµРЅРёСЏ
-    val confirmDeletePlanting: Planting? = null
+    // Диалог подтверждения удаления
+    val confirmDeletePlanting: Planting? = null,
+    // Диалог подтверждения завершения сезона
+    val confirmFinishSeason: Planting? = null
 )
 
 @HiltViewModel
@@ -149,6 +151,28 @@ class PlantingsViewModel @Inject constructor(
             when (plantingsRepository.deletePlanting(plantingId)) {
                 is Result.Success -> {
                     _uiState.value = _uiState.value.copy(successMessage = "РџРѕСЃР°РґРєР° СѓРґР°Р»РµРЅР°")
+                    loadPlantings()
+                }
+                is Result.Error   -> Unit
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun requestFinishSeason(planting: Planting) {
+        _uiState.value = _uiState.value.copy(confirmFinishSeason = planting)
+    }
+
+    fun dismissFinishSeason() {
+        _uiState.value = _uiState.value.copy(confirmFinishSeason = null)
+    }
+
+    fun confirmFinishSeason(plantingId: Int) {
+        _uiState.value = _uiState.value.copy(confirmFinishSeason = null)
+        viewModelScope.launch {
+            when (plantingsRepository.updateStage(plantingId, "done")) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(successMessage = "Сезон завершён")
                     loadPlantings()
                 }
                 is Result.Error   -> Unit

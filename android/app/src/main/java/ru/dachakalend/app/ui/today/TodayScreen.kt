@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items as lazyRowItems
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayTask
@@ -30,22 +31,45 @@ import ru.dachakalend.app.ui.theme.taskColor
 
 @Composable
 fun TodayScreen(
+    showOnboardingHint: Boolean = false,
     onEditGarden: () -> Unit = {},
+    onAddPlanting: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    when (val state = uiState) {
-        is TodayUiState.Loading -> LoadingScreen()
-        is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
-        is TodayUiState.Success -> TodayContent(
-            weather = state.data.today.weather,
-            tasks = state.data.today.tasks,
-            recommendations = state.data.recommendations,
-            plantings = state.data.plantings,
-            onRefresh = { viewModel.loadToday() },
-            onEditGarden = onEditGarden
-        )
+    // Показать подсказку онбординга один раз
+    LaunchedEffect(showOnboardingHint) {
+        if (showOnboardingHint) {
+            val result = snackbarHostState.showSnackbar(
+                message = "Участок создан! Добавьте первую культуру",
+                actionLabel = "К культурам",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                onAddPlanting()
+            }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { _ ->
+        when (val state = uiState) {
+            is TodayUiState.Loading -> LoadingScreen()
+            is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
+            is TodayUiState.Success -> TodayContent(
+                weather = state.data.today.weather,
+                tasks = state.data.today.tasks,
+                recommendations = state.data.recommendations,
+                plantings = state.data.plantings,
+                todayActions = state.data.todayActions,
+                onRefresh = { viewModel.loadToday() },
+                onEditGarden = onEditGarden,
+                onAddPlanting = onAddPlanting
+            )
+        }
     }
 }
 
@@ -56,8 +80,10 @@ private fun TodayContent(
     tasks: List<TodayTask>,
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
+    todayActions: List<ActionLog> = emptyList(),
     onRefresh: () -> Unit,
-    onEditGarden: () -> Unit = {}
+    onEditGarden: () -> Unit = {},
+    onAddPlanting: () -> Unit = {}
 ) {
     // Состояния для быстрых действий
     var quickActionType by remember { mutableStateOf<String?>(null) }
@@ -150,7 +176,10 @@ private fun TodayContent(
             }
         } else {
             item {
-                EmptyTasksCard()
+                EmptyTasksCard(
+                    hasPlantings = plantings.isNotEmpty(),
+                    onAddPlanting = onAddPlanting
+                )
             }
         }
 
@@ -175,6 +204,21 @@ private fun TodayContent(
                 enabled = plantings.isNotEmpty(),
                 onAction = { type -> onQuickAction(type) }
             )
+        }
+
+        // Сводный журнал сегодняшних действий
+        if (todayActions.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Сделано сегодня",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            items(todayActions) { action ->
+                TodayActionRow(action)
+            }
         }
     }
 }
@@ -470,8 +514,45 @@ private fun RecommendationCard(rec: Recommendation) {
     }
 }
 
+private val ACTION_TYPE_LABELS = mapOf(
+    "watering"    to "💧 Полив",
+    "fertilizing" to "🌿 Подкормка",
+    "treatment"   to "🧴 Обработка",
+    "transplant"  to "🌱 Пересадка",
+    "other"       to "📝 Другое"
+)
+
 @Composable
-private fun EmptyTasksCard() {
+private fun TodayActionRow(action: ActionLog) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "${ACTION_TYPE_LABELS[action.type] ?: action.type}${action.cropName?.let { " — $it" } ?: ""}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            if (!action.notes.isNullOrBlank()) {
+                Text(
+                    text = action.notes,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+    HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp), thickness = 0.5.dp)
+}
+
+@Composable
+private fun EmptyTasksCard(
+    hasPlantings: Boolean = true,
+    onAddPlanting: () -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -481,13 +562,34 @@ private fun EmptyTasksCard() {
             modifier = Modifier.padding(24.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("🌱", fontSize = 32.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Всё в порядке! Задач нет",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
+            if (hasPlantings) {
+                Text("🌱", fontSize = 32.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Всё в порядке! Задач нет",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            } else {
+                Text("🌱", fontSize = 32.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "У вас пока нет посадок",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Добавьте первую культуру, чтобы получать задачи и рекомендации",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = onAddPlanting) {
+                    Text("Добавить посадку")
+                }
+            }
         }
     }
 }

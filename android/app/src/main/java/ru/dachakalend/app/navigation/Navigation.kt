@@ -18,7 +18,11 @@ sealed class Screen(val route: String) {
     object GardenEdit : Screen("garden_edit")
 
     // Main app
-    object Today : Screen("today")
+    object Today : Screen("today") {
+        const val ARG_FROM_ONBOARDING = "fromOnboarding"
+        val routeWithArgs = "today?$ARG_FROM_ONBOARDING={$ARG_FROM_ONBOARDING}"
+        fun fromOnboarding() = "today?$ARG_FROM_ONBOARDING=true"
+    }
     object Calendar : Screen("calendar")
     object Plantings : Screen("plantings") {
         // Опциональный аргумент: если пришли из CropDetail — сразу создаём посадку
