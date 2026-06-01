@@ -23,11 +23,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.LocationHelper
 
-private val REGIONS = listOf(
-    "Москва и МО", "Санкт-Петербург и ЛО", "Краснодарский край",
-    "Ростовская область", "Татарстан", "Свердловская область",
-    "Новосибирская область", "Самарская область", "Другой регион"
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +41,6 @@ fun GardenEditScreen(
     var gardenName      by remember { mutableStateOf("") }
     var cityName        by remember { mutableStateOf("") }
     var selectedRegion  by remember { mutableStateOf("") }
-    var regionExpanded  by remember { mutableStateOf(false) }
     var formInitialized by remember { mutableStateOf(false) }
     var isGettingGps    by remember { mutableStateOf(false) }
     var gpsStatus       by remember { mutableStateOf<String?>(null) }
@@ -162,24 +156,12 @@ fun GardenEditScreen(
                             color = if (it.startsWith("✓")) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
-                    // Регион — опциональный
-                    ExposedDropdownMenuBox(expanded = regionExpanded,
-                        onExpandedChange = { if (!isSaving) regionExpanded = !regionExpanded },
-                        modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(
-                            value = selectedRegion, onValueChange = {}, readOnly = true,
-                            label = { Text("Регион (опционально)") },
-                            supportingText = { Text("Уточняет климатическую зону при отсутствии города") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = regionExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth(), enabled = !isSaving
-                        )
-                        ExposedDropdownMenu(expanded = regionExpanded, onDismissRequest = { regionExpanded = false }) {
-                            DropdownMenuItem(text = { Text("— не указывать —") }, onClick = { selectedRegion = ""; regionExpanded = false })
-                            REGIONS.forEach { region ->
-                                DropdownMenuItem(text = { Text(region) }, onClick = { selectedRegion = region; regionExpanded = false })
-                            }
-                        }
-                    }
+                    // Регион — опциональный, с поиском
+                    RegionInputField(
+                        value = selectedRegion,
+                        onValueChange = { selectedRegion = it },
+                        enabled = !isSaving
+                    )
 
                     (uiState as? GardenEditUiState.Error)?.message?.let {
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

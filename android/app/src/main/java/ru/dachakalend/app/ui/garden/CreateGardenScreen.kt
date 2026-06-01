@@ -23,11 +23,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.LocationHelper
 
-private val REGIONS = listOf(
-    "Москва и МО", "Санкт-Петербург и ЛО", "Краснодарский край",
-    "Ростовская область", "Татарстан", "Свердловская область",
-    "Новосибирская область", "Самарская область", "Другой регион"
-)
 
 private val GARDEN_TYPES = listOf(
     Triple("soil",       "Открытый грунт", "🌿"),
@@ -52,7 +47,6 @@ fun CreateGardenScreen(
     var cityName       by remember { mutableStateOf("") }
     var selectedRegion by remember { mutableStateOf("") }
     var selectedType   by remember { mutableStateOf("soil") }
-    var regionExpanded by remember { mutableStateOf(false) }
     var isGettingGps   by remember { mutableStateOf(false) }
     var gpsStatus      by remember { mutableStateOf<String?>(null) }
     var cityError      by remember { mutableStateOf(false) }
@@ -160,22 +154,12 @@ fun CreateGardenScreen(
             }
             Spacer(Modifier.height(12.dp))
 
-            // Регион — опциональный
-            ExposedDropdownMenuBox(expanded = regionExpanded, onExpandedChange = { regionExpanded = !regionExpanded }, modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = selectedRegion, onValueChange = {}, readOnly = true,
-                    label = { Text("Регион (опционально)") },
-                    supportingText = { Text("Если город не найден, уточнит климатическую зону") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = regionExpanded) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(expanded = regionExpanded, onDismissRequest = { regionExpanded = false }) {
-                    DropdownMenuItem(text = { Text("— не указывать —") }, onClick = { selectedRegion = ""; regionExpanded = false })
-                    REGIONS.forEach { region ->
-                        DropdownMenuItem(text = { Text(region) }, onClick = { selectedRegion = region; regionExpanded = false })
-                    }
-                }
-            }
+            // Регион — опциональный, с поиском
+            RegionInputField(
+                value = selectedRegion,
+                onValueChange = { selectedRegion = it },
+                enabled = !isSaving
+            )
             Spacer(Modifier.height(16.dp))
 
             Text("Тип участка", style = MaterialTheme.typography.labelLarge, modifier = Modifier.align(Alignment.Start))
