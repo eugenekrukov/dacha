@@ -2,6 +2,7 @@ package ru.dachakalend.app.ui.plantings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -91,10 +92,33 @@ fun PlantingsScreen(
 
             else -> LazyColumn(
                 modifier = Modifier.padding(padding),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.plantings, key = { it.id }) { planting ->
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = state.stageFilter == null,
+                                onClick = { viewModel.setStageFilter(null) },
+                                label = { Text("Все") }
+                            )
+                        }
+                        items(STAGE_ORDER.dropLast(1)) { stage ->
+                            FilterChip(
+                                selected = state.stageFilter == stage,
+                                onClick = {
+                                    viewModel.setStageFilter(if (state.stageFilter == stage) null else stage)
+                                },
+                                label = { Text(STAGE_LABELS[stage] ?: stage) }
+                            )
+                        }
+                    }
+                }
+                items(state.filteredPlantings, key = { it.id }) { planting ->
                     PlantingCard(
                         planting       = planting,
                         pendingAction  = state.pendingTasks[planting.id],

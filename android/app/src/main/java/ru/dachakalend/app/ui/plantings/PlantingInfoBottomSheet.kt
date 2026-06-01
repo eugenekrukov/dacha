@@ -149,8 +149,8 @@ fun PlantingInfoBottomSheet(
                     }
                 }
 
-                // ── 3. Последние 5 действий ───────────────────────────────
-                InfoSection(title = "Последние действия") {
+                // ── 3. История действий ───────────────────────────────────
+                InfoSection(title = "История действий") {
                     if (state.recentActions.isEmpty()) {
                         Text(
                             "Действий пока не записано",
@@ -159,10 +159,27 @@ fun PlantingInfoBottomSheet(
                         )
                     } else {
                         state.recentActions.forEach { action ->
-                            InfoRow2(
-                                ACTION_LABELS[action.type] ?: action.type,
-                                formatShort(action.loggedAt)
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    ACTION_LABELS[action.type] ?: action.type,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+                                    Text(formatShort(action.loggedAt), style = MaterialTheme.typography.bodyMedium)
+                                    if (!action.notes.isNullOrBlank()) {
+                                        Text(
+                                            action.notes,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

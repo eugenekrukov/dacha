@@ -12,7 +12,8 @@ data class NotificationSettings(
     val frost: Boolean = true,
     val heat: Boolean = true,
     val watering: Boolean = true,
-    val fertilizing: Boolean = true
+    val fertilizing: Boolean = true,
+    val transplant: Boolean = true
 )
 
 @HiltViewModel
@@ -27,26 +28,28 @@ class SettingsViewModel @Inject constructor(
         frost       = tokenStorage.isNotificationEnabled(TokenStorage.NOTIF_FROST),
         heat        = tokenStorage.isNotificationEnabled(TokenStorage.NOTIF_HEAT),
         watering    = tokenStorage.isNotificationEnabled(TokenStorage.NOTIF_WATERING),
-        fertilizing = tokenStorage.isNotificationEnabled(TokenStorage.NOTIF_FERTILIZE)
+        fertilizing = tokenStorage.isNotificationEnabled(TokenStorage.NOTIF_FERTILIZE),
+        transplant  = tokenStorage.isNotificationEnabled(TokenStorage.NOTIF_TRANSPLANT)
     )
 
     fun setFrost(enabled: Boolean) {
         tokenStorage.setNotificationEnabled(TokenStorage.NOTIF_FROST, enabled)
         _settings.value = _settings.value.copy(frost = enabled)
     }
-
     fun setHeat(enabled: Boolean) {
         tokenStorage.setNotificationEnabled(TokenStorage.NOTIF_HEAT, enabled)
         _settings.value = _settings.value.copy(heat = enabled)
     }
-
     fun setWatering(enabled: Boolean) {
         tokenStorage.setNotificationEnabled(TokenStorage.NOTIF_WATERING, enabled)
         _settings.value = _settings.value.copy(watering = enabled)
     }
-
     fun setFertilizing(enabled: Boolean) {
         tokenStorage.setNotificationEnabled(TokenStorage.NOTIF_FERTILIZE, enabled)
         _settings.value = _settings.value.copy(fertilizing = enabled)
+    }
+    fun setTransplant(enabled: Boolean) {
+        tokenStorage.setNotificationEnabled(TokenStorage.NOTIF_TRANSPLANT, enabled)
+        _settings.value = _settings.value.copy(transplant = enabled)
     }
 }

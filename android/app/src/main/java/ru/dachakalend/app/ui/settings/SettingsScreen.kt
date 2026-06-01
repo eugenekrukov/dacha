@@ -3,8 +3,8 @@ package ru.dachakalend.app.ui.settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -55,7 +55,6 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setFrost
             )
             HorizontalDivider()
-
             NotificationToggle(
                 title = "Сильная жара",
                 description = "Предупреждение при температуре ≥ 35°C",
@@ -63,7 +62,6 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setHeat
             )
             HorizontalDivider()
-
             NotificationToggle(
                 title = "Нужен полив",
                 description = "Напоминание о просроченном поливе",
@@ -71,12 +69,18 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setWatering
             )
             HorizontalDivider()
-
             NotificationToggle(
                 title = "Нужна подкормка",
                 description = "Напоминание о просроченной подкормке",
                 checked = settings.fertilizing,
                 onCheckedChange = viewModel::setFertilizing
+            )
+            HorizontalDivider()
+            NotificationToggle(
+                title = "Пора пересаживать",
+                description = "Рассада 14+ дней — готова к высадке в грунт",
+                checked = settings.transplant,
+                onCheckedChange = viewModel::setTransplant
             )
         }
     }

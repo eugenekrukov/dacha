@@ -25,14 +25,14 @@ class GardenViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<GardenUiState>(GardenUiState.Idle)
     val uiState: StateFlow<GardenUiState> = _uiState
 
-    fun createGarden(name: String, region: String, city: String? = null) {
+    fun createGarden(name: String, region: String, city: String? = null, gardenType: String = "soil") {
         if (name.isBlank()) {
             _uiState.value = GardenUiState.Error("Введите название участка")
             return
         }
         viewModelScope.launch {
             _uiState.value = GardenUiState.Loading
-            _uiState.value = when (val result = gardenRepository.createGarden(name, region, city)) {
+            _uiState.value = when (val result = gardenRepository.createGarden(name, region, city, gardenType)) {
                 is Result.Success -> GardenUiState.Success
                 is Result.Error   -> GardenUiState.Error(result.message)
                 is Result.Loading -> GardenUiState.Loading

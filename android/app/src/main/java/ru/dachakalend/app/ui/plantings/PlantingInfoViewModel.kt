@@ -46,7 +46,7 @@ class PlantingInfoViewModel @Inject constructor(
 
             _uiState.value = PlantingInfoUiState(
                 crop = if (crop is Result.Success) crop.data else null,
-                recentActions = if (actions is Result.Success) actions.data.takeLast(5).reversed() else emptyList(),
+                recentActions = if (actions is Result.Success) actions.data.take(20) else emptyList(),
                 isLoading = false,
                 error = if (crop is Result.Error) crop.message else null
             )

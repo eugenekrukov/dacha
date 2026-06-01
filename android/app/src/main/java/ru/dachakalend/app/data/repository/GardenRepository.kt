@@ -14,7 +14,6 @@ class GardenRepository @Inject constructor(
     private val tokenStorage: TokenStorage
 ) {
     fun hasGarden(): Boolean = tokenStorage.getGardenId() != -1
-
     fun getCurrentGardenId(): Int = tokenStorage.getGardenId()
 
     suspend fun loadGardens(): Result<List<Garden>> {
@@ -30,7 +29,12 @@ class GardenRepository @Inject constructor(
         }
     }
 
-    suspend fun createGarden(name: String, region: String, city: String? = null): Result<Garden> {
+    suspend fun createGarden(
+        name: String,
+        region: String,
+        city: String? = null,
+        gardenType: String = "soil"
+    ): Result<Garden> {
         return try {
             val garden = api.createGarden(
                 CreateGardenRequest(
@@ -38,7 +42,8 @@ class GardenRepository @Inject constructor(
                     region = region,
                     city = city?.ifBlank { null },
                     soilType = null,
-                    climateZone = null
+                    climateZone = null,
+                    gardenType = gardenType
                 )
             )
             tokenStorage.saveGardenId(garden.id)
@@ -53,7 +58,8 @@ class GardenRepository @Inject constructor(
         id: Int,
         name: String,
         region: String,
-        city: String? = null
+        city: String? = null,
+        gardenType: String? = null
     ): Result<Garden> {
         return try {
             val garden = api.updateGarden(
@@ -61,7 +67,8 @@ class GardenRepository @Inject constructor(
                 request = UpdateGardenRequest(
                     name = name,
                     region = region,
-                    city = city?.ifBlank { null }
+                    city = city?.ifBlank { null },
+                    gardenType = gardenType
                 )
             )
             tokenStorage.saveClimateZone(garden.climateZone)

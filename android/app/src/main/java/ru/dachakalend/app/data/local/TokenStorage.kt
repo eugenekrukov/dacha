@@ -56,9 +56,10 @@ class TokenStorage @Inject constructor(
         private const val KEY_PLANTINGS_COUNT = "active_plantings_count"
         private const val KEY_PENDING_TASKS   = "pending_tasks"
 
-        const val NOTIF_FROST     = "frost_alert"
-        const val NOTIF_HEAT      = "heat_alert"
-        const val NOTIF_WATERING  = "watering_due"
-        const val NOTIF_FERTILIZE = "fertilizing_due"
+        const val NOTIF_FROST      = "frost_alert"
+        const val NOTIF_HEAT       = "heat_alert"
+        const val NOTIF_WATERING   = "watering_due"
+        const val NOTIF_FERTILIZE  = "fertilizing_due"
+        const val NOTIF_TRANSPLANT = "transplant_due"
     }
 }

@@ -1,30 +1,19 @@
 'use strict'
 
 const cron = require('node-cron')
-const { sendWateringAlert, sendFertilizingAlert } = require('../services/pushService')
+const { sendWateringAlert, sendFertilizingAlert, sendTransplantAlert } = require('../services/pushService')
 
-/**
- * Запускает ежедневный джоб проверки просроченных задач ухода.
- * Расписание: каждый день в 09:00.
- *
- * Логика аналогична recommendations.js, но вместо HTTP-ответа отправляет push.
- * Отправляет не более одного уведомления на посадку в день (проверяет sent_at).
- *
- * @param {Object} db — pg Pool (fastify.db)
- */
 function startCareRemindersJob(db) {
   cron.schedule('0 9 * * *', () => {
     runCareReminders(db)
   })
-
-  console.log('[care-job] Запущен: проверка полива/подкормки каждый день в 09:00')
+  console.log('[care-job] Запущен: проверка полива/подкормки/пересадки каждый день в 09:00')
 }
 
 async function runCareReminders(db) {
   console.log('[care-job] Проверка просроченных задач ухода...')
 
   try {
-    // Берём все активные посадки с данными культуры и участка
     const result = await db.query(`
       SELECT
         p.id            AS planting_id,
@@ -35,6 +24,7 @@ async function runCareReminders(db) {
         c.name          AS crop_name,
         c.watering_frequency_days,
         c.fertilizing_schedule,
+        c.transplant_days,
         g.user_id
       FROM plantings p
       JOIN crops c ON c.id = p.crop_id
@@ -49,6 +39,7 @@ async function runCareReminders(db) {
 
     let wateringAlerts = 0
     let fertilizingAlerts = 0
+    let transplantAlerts = 0
 
     for (const planting of result.rows) {
       const daysSincePlanting = Math.floor(
@@ -57,7 +48,6 @@ async function runCareReminders(db) {
 
       // --- Полив ---
       const wateringFreqRaw = planting.watering_frequency_days || 3
-      // Теплица: +30% к интервалу (реже нужно поливать)
       const wateringFreq = planting.conditions === 'greenhouse'
         ? Math.round(wateringFreqRaw * 1.3)
         : wateringFreqRaw
@@ -73,7 +63,6 @@ async function runCareReminders(db) {
         : daysSincePlanting
 
       if (daysSinceWatered >= wateringFreq) {
-        // Не слать если уведомление уже было сегодня
         const alreadySent = await wasAlertSentToday(db, planting.planting_id, 'watering_due')
         if (!alreadySent) {
           await sendWateringAlert(db, planting.garden_id, planting.crop_name, daysSinceWatered)
@@ -104,18 +93,25 @@ async function runCareReminders(db) {
           }
         }
       }
+
+      // --- Пересадка (только стадия sowing) ---
+      // Рассада в стадии посева 14+ дней без пересадки в грунт → пора пересаживать
+      if (planting.stage === 'sowing' && daysSincePlanting >= 14) {
+        const alreadySent = await wasAlertSentToday(db, planting.planting_id, 'transplant_due')
+        if (!alreadySent) {
+          await sendTransplantAlert(db, planting.garden_id, planting.crop_name, daysSincePlanting)
+          await markAlertSent(db, planting.planting_id, 'transplant_due')
+          transplantAlerts++
+        }
+      }
     }
 
-    console.log(`[care-job] Готово: полив=${wateringAlerts}, подкормка=${fertilizingAlerts}`)
+    console.log(`[care-job] Готово: полив=${wateringAlerts}, подкормка=${fertilizingAlerts}, пересадка=${transplantAlerts}`)
   } catch (err) {
     console.error('[care-job] Критическая ошибка:', err.message)
   }
 }
 
-/**
- * Проверяет, было ли уже отправлено уведомление данного типа для посадки сегодня.
- * Использует таблицу care_alert_log.
- */
 async function wasAlertSentToday(db, plantingId, alertType) {
   const result = await db.query(
     `SELECT 1 FROM care_alert_log
@@ -127,9 +123,6 @@ async function wasAlertSentToday(db, plantingId, alertType) {
   return result.rows.length > 0
 }
 
-/**
- * Записывает факт отправки уведомления.
- */
 async function markAlertSent(db, plantingId, alertType) {
   await db.query(
     `INSERT INTO care_alert_log (planting_id, alert_type, sent_at)

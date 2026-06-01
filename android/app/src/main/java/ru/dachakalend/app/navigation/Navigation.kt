@@ -1,7 +1,6 @@
 package ru.dachakalend.app.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Home
@@ -13,12 +12,16 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object CreateGarden : Screen("create_garden")
+    object OnboardingCrops : Screen("onboarding_crops")
 
     // Garden edit
     object GardenEdit : Screen("garden_edit")
 
     // Settings
     object Settings : Screen("settings")
+
+    // Journal
+    object Journal : Screen("journal")
 
     // Main app
     object Today : Screen("today") {
@@ -64,8 +67,10 @@ val screensWithoutBottomBar = setOf(
     Screen.Login.route,
     Screen.Register.route,
     Screen.CreateGarden.route,
+    Screen.OnboardingCrops.route,
     Screen.GardenEdit.route,
     Screen.Settings.route,
+    Screen.Journal.route,
     Screen.Crops.route,
     Screen.CropDetail.routeWithArgs
 )

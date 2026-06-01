@@ -9,8 +9,8 @@ import javax.inject.Singleton
 @Singleton
 class ActionsRepository @Inject constructor(private val api: DachaApi) {
 
-    suspend fun getActions(plantingId: Int): Result<List<ActionLog>> = try {
-        Result.Success(api.getActions(plantingId))
+    suspend fun getActions(plantingId: Int? = null): Result<List<ActionLog>> = try {
+        Result.Success(api.getActions(plantingId = plantingId))
     } catch (e: Exception) {
         Result.Error(e.message ?: "Ошибка загрузки действий")
     }

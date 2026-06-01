@@ -3,27 +3,19 @@ package ru.dachakalend.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.*
+import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
 import ru.dachakalend.app.data.local.TokenStorage
-import ru.dachakalend.app.navigation.Screen
-import ru.dachakalend.app.navigation.bottomNavItems
-import ru.dachakalend.app.navigation.screensWithoutBottomBar
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
+import ru.dachakalend.app.navigation.*
 import ru.dachakalend.app.notification.NotificationHelper
 import ru.dachakalend.app.ui.auth.LoginScreen
 import ru.dachakalend.app.ui.auth.RegisterScreen
@@ -33,8 +25,10 @@ import ru.dachakalend.app.ui.crops.CropsScreen
 import ru.dachakalend.app.ui.crops.CropsViewModel
 import ru.dachakalend.app.ui.garden.CreateGardenScreen
 import ru.dachakalend.app.ui.garden.GardenEditScreen
+import ru.dachakalend.app.ui.garden.OnboardingCropsScreen
 import ru.dachakalend.app.ui.analytics.AnalyticsScreen
 import ru.dachakalend.app.ui.harvest.HarvestScreen
+import ru.dachakalend.app.ui.journal.JournalScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
 import ru.dachakalend.app.ui.settings.SettingsScreen
 import ru.dachakalend.app.ui.theme.DachaCalendarTheme
@@ -51,18 +45,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val startDestination = when {
-            !tokenStorage.isLoggedIn()   -> Screen.Login.route
-            !tokenStorage.hasGarden()    -> Screen.CreateGarden.route
-            else                          -> Screen.Today.route
+            !tokenStorage.isLoggedIn() -> Screen.Login.route
+            !tokenStorage.hasGarden()  -> Screen.CreateGarden.route
+            else                       -> Screen.Today.route
         }
 
-        // Deep link из push-уведомления
         val pushType = intent.getStringExtra(NotificationHelper.EXTRA_PUSH_TYPE)
         val deepLinkRoute: String? = when (pushType) {
             TokenStorage.NOTIF_FROST,
-            TokenStorage.NOTIF_HEAT     -> Screen.Today.route
+            TokenStorage.NOTIF_HEAT      -> Screen.Today.route
             TokenStorage.NOTIF_WATERING,
-            TokenStorage.NOTIF_FERTILIZE -> Screen.Plantings.route
+            TokenStorage.NOTIF_FERTILIZE,
+            TokenStorage.NOTIF_TRANSPLANT -> Screen.Plantings.route
             else                          -> null
         }
 
@@ -75,7 +69,6 @@ class MainActivity : ComponentActivity() {
                 val showBottomBar = currentRoute !in screensWithoutBottomBar
                 val activePlantings = tokenStorage.getPendingCount()
 
-                // Навигация по deep link после старта графа
                 LaunchedEffect(deepLinkRoute) {
                     if (deepLinkRoute != null && tokenStorage.isLoggedIn() && tokenStorage.hasGarden()) {
                         navController.navigate(deepLinkRoute) {
@@ -102,9 +95,7 @@ class MainActivity : ComponentActivity() {
                                         },
                                         icon = {
                                             if (showBadge) {
-                                                BadgedBox(badge = {
-                                                    Badge { Text(activePlantings.toString()) }
-                                                }) {
+                                                BadgedBox(badge = { Badge { Text(activePlantings.toString()) } }) {
                                                     Icon(item.icon, contentDescription = item.label)
                                                 }
                                             } else {
@@ -153,8 +144,17 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.CreateGarden.route) {
                             CreateGardenScreen(
                                 onGardenCreated = {
-                                    navController.navigate(Screen.Today.fromOnboarding()) {
+                                    navController.navigate(Screen.OnboardingCrops.route) {
                                         popUpTo(Screen.CreateGarden.route) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+                        composable(Screen.OnboardingCrops.route) {
+                            OnboardingCropsScreen(
+                                onDone = {
+                                    navController.navigate(Screen.Today.fromOnboarding()) {
+                                        popUpTo(Screen.OnboardingCrops.route) { inclusive = true }
                                     }
                                 }
                             )
@@ -168,12 +168,16 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Settings.route) {
                             SettingsScreen(onBack = { navController.popBackStack() })
                         }
+                        composable(Screen.Journal.route) {
+                            JournalScreen(onBack = { navController.popBackStack() })
+                        }
 
                         // Main app
                         composable(Screen.Today.route) {
                             TodayScreen(
                                 onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
                                 onOpenSettings = { navController.navigate(Screen.Settings.route) },
+                                onOpenJournal = { navController.navigate(Screen.Journal.route) },
                                 onAddPlanting = { navController.navigate(Screen.Crops.route) }
                             )
                         }
@@ -188,6 +192,7 @@ class MainActivity : ComponentActivity() {
                                 showOnboardingHint = fromOnboarding,
                                 onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
                                 onOpenSettings = { navController.navigate(Screen.Settings.route) },
+                                onOpenJournal = { navController.navigate(Screen.Journal.route) },
                                 onAddPlanting = { navController.navigate(Screen.Crops.route) }
                             )
                         }
@@ -201,8 +206,7 @@ class MainActivity : ComponentActivity() {
                         composable(
                             route = Screen.Plantings.routeWithArgs,
                             arguments = listOf(navArgument(Screen.Plantings.ARG_NEW_CROP_ID) {
-                                type = NavType.IntType
-                                defaultValue = -1
+                                type = NavType.IntType; defaultValue = -1
                             })
                         ) {
                             PlantingsScreen(
@@ -211,9 +215,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Screen.Harvest.route) {
-                            HarvestScreen(
-                                onAddPlanting = { navController.navigate(Screen.Crops.route) }
-                            )
+                            HarvestScreen(onAddPlanting = { navController.navigate(Screen.Crops.route) })
                         }
                         composable(Screen.Analytics.route) { AnalyticsScreen() }
 
@@ -255,9 +257,7 @@ class MainActivity : ComponentActivity() {
                                         navController.popBackStack()
                                     },
                                     onPlant = if (showPlantButton) ({ selectedCrop ->
-                                        navController.navigate(
-                                            Screen.Plantings.withNewCrop(selectedCrop.id)
-                                        ) {
+                                        navController.navigate(Screen.Plantings.withNewCrop(selectedCrop.id)) {
                                             popUpTo(Screen.Today.route)
                                         }
                                     }) else null

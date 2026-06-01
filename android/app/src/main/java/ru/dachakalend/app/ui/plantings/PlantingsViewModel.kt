@@ -1,4 +1,4 @@
-﻿package ru.dachakalend.app.ui.plantings
+package ru.dachakalend.app.ui.plantings
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -15,28 +15,25 @@ import ru.dachakalend.app.data.model.UpdatePlantingInfoRequest
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.navigation.Screen
-import java.time.LocalDate
 import javax.inject.Inject
 
 data class PlantingsUiState(
     val plantings: List<Planting> = emptyList(),
+    val stageFilter: String? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
     val showActionSheet: Planting? = null,
     val successMessage: String? = null,
-    // РЁС‚РѕСЂРєР° СЃРѕР·РґР°РЅРёСЏ РїРѕСЃР°РґРєРё (РїСЂРё РЅР°Р¶Р°С‚РёРё "РџРѕСЃР°РґРёС‚СЊ")
     val pendingCropId: Int? = null,
-    // РЁС‚РѕСЂРєР° СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ РїРѕСЃР°РґРєРё (РІ 3 С‚РѕС‡РєР°С…)
     val editingPlanting: Planting? = null,
-    // РЁС‚РѕСЂРєР° РёРЅС„РѕСЂРјР°С†РёРё Рѕ РїРѕСЃР°РґРєРµ
     val showInfoSheet: Planting? = null,
-    // Диалог подтверждения удаления
     val confirmDeletePlanting: Planting? = null,
-    // Диалог подтверждения завершения сезона
     val confirmFinishSeason: Planting? = null,
-    // Карта: plantingId -> actionType (из /today задач)
     val pendingTasks: Map<Int, String> = emptyMap()
-)
+) {
+    val filteredPlantings: List<Planting>
+        get() = if (stageFilter == null) plantings else plantings.filter { it.stage == stageFilter }
+}
 
 @HiltViewModel
 class PlantingsViewModel @Inject constructor(
@@ -50,18 +47,20 @@ class PlantingsViewModel @Inject constructor(
 
     init {
         loadPlantings()
-        // Если пришли из CropDetail — открываем шторку настройки посадки
         val newCropId = savedStateHandle.get<Int>(Screen.Plantings.ARG_NEW_CROP_ID)
         if (newCropId != null && newCropId != -1) {
             _uiState.value = _uiState.value.copy(pendingCropId = newCropId)
         }
     }
 
+    fun setStageFilter(stage: String?) {
+        _uiState.value = _uiState.value.copy(stageFilter = stage)
+    }
+
     fun loadPlantings(silent: Boolean = false) {
         viewModelScope.launch {
             if (!silent) _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             val gardenId = tokenStorage.getGardenId().takeIf { it != -1 }
-            // Загружаем pending-задачи из TokenStorage (сохранены TodayViewModel)
             val pending = tokenStorage.getPendingTasks()
             when (val result = plantingsRepository.getPlantings(gardenId)) {
                 is Result.Success -> _uiState.value = _uiState.value.copy(
@@ -75,7 +74,6 @@ class PlantingsViewModel @Inject constructor(
         }
     }
 
-    /** РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РёР· PlantingSetupBottomSheet */
     fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String) {
         _uiState.value = _uiState.value.copy(pendingCropId = null)
         createPlanting(cropId, date, quantity, conditions)
@@ -89,7 +87,7 @@ class PlantingsViewModel @Inject constructor(
         viewModelScope.launch {
             val gardenId = tokenStorage.getGardenId()
             if (gardenId == -1) {
-                _uiState.value = _uiState.value.copy(error = "РЈС‡Р°СЃС‚РѕРє РЅРµ РЅР°Р№РґРµРЅ")
+                _uiState.value = _uiState.value.copy(error = "Участок не найден")
                 return@launch
             }
             val request = CreatePlantingRequest(
@@ -101,7 +99,7 @@ class PlantingsViewModel @Inject constructor(
             )
             when (val result = plantingsRepository.createPlanting(request)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(successMessage = "РџРѕСЃР°РґРєР° РґРѕР±Р°РІР»РµРЅР°!")
+                    _uiState.value = _uiState.value.copy(successMessage = "Посадка добавлена!")
                     loadPlantings()
                 }
                 is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message)
@@ -121,14 +119,10 @@ class PlantingsViewModel @Inject constructor(
     fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String) {
         _uiState.value = _uiState.value.copy(editingPlanting = null)
         viewModelScope.launch {
-            val request = UpdatePlantingInfoRequest(
-                plantedAt = date,
-                quantity = quantity,
-                conditions = conditions
-            )
+            val request = UpdatePlantingInfoRequest(plantedAt = date, quantity = quantity, conditions = conditions)
             when (plantingsRepository.updateInfo(plantingId, request)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(successMessage = "РџРѕСЃР°РґРєР° РѕР±РЅРѕРІР»РµРЅР°!")
+                    _uiState.value = _uiState.value.copy(successMessage = "Посадка обновлена!")
                     loadPlantings()
                 }
                 is Result.Error   -> Unit
@@ -158,7 +152,7 @@ class PlantingsViewModel @Inject constructor(
         viewModelScope.launch {
             when (plantingsRepository.deletePlanting(plantingId)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(successMessage = "РџРѕСЃР°РґРєР° СѓРґР°Р»РµРЅР°")
+                    _uiState.value = _uiState.value.copy(successMessage = "Посадка удалена")
                     loadPlantings()
                 }
                 is Result.Error   -> Unit
@@ -212,4 +206,3 @@ class PlantingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(successMessage = null, error = null)
     }
 }
-

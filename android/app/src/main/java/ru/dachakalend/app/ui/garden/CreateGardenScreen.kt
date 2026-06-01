@@ -12,11 +12,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
-// Популярные регионы РФ для быстрого выбора
 private val REGIONS = listOf(
     "Москва и МО", "Санкт-Петербург и ЛО", "Краснодарский край",
     "Ростовская область", "Татарстан", "Свердловская область",
     "Новосибирская область", "Самарская область", "Другой регион"
+)
+
+private val GARDEN_TYPES = listOf(
+    Triple("soil",       "Открытый грунт", "🌿"),
+    Triple("greenhouse", "Теплица",        "🏠"),
+    Triple("mixed",      "Смешанный",      "🌱")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,15 +32,14 @@ fun CreateGardenScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    var gardenName by remember { mutableStateOf("") }
-    var cityName by remember { mutableStateOf("") }
-    var selectedRegion by remember { mutableStateOf("") }
-    var regionExpanded by remember { mutableStateOf(false) }
+    var gardenName      by remember { mutableStateOf("") }
+    var cityName        by remember { mutableStateOf("") }
+    var selectedRegion  by remember { mutableStateOf("") }
+    var selectedType    by remember { mutableStateOf("soil") }
+    var regionExpanded  by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
-        if (uiState is GardenUiState.Success) {
-            onGardenCreated()
-        }
+        if (uiState is GardenUiState.Success) onGardenCreated()
     }
 
     Column(
@@ -84,7 +88,6 @@ fun CreateGardenScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // Dropdown для региона
         ExposedDropdownMenuBox(
             expanded = regionExpanded,
             onExpandedChange = { regionExpanded = !regionExpanded },
@@ -105,12 +108,33 @@ fun CreateGardenScreen(
                 REGIONS.forEach { region ->
                     DropdownMenuItem(
                         text = { Text(region) },
-                        onClick = {
-                            selectedRegion = region
-                            regionExpanded = false
-                        }
+                        onClick = { selectedRegion = region; regionExpanded = false }
                     )
                 }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Тип участка
+        Text(
+            "Тип участка",
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.align(Alignment.Start)
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            GARDEN_TYPES.forEach { (type, label, emoji) ->
+                val selected = selectedType == type
+                FilterChip(
+                    selected = selected,
+                    onClick = { selectedType = type },
+                    label = { Text("$emoji $label") },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 
@@ -126,7 +150,7 @@ fun CreateGardenScreen(
         Spacer(Modifier.height(32.dp))
 
         Button(
-            onClick = { viewModel.createGarden(gardenName, selectedRegion, cityName) },
+            onClick = { viewModel.createGarden(gardenName, selectedRegion, cityName, selectedType) },
             modifier = Modifier.fillMaxWidth().height(52.dp),
             enabled = uiState !is GardenUiState.Loading
         ) {

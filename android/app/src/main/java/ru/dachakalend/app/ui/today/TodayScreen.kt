@@ -34,6 +34,7 @@ fun TodayScreen(
     showOnboardingHint: Boolean = false,
     onEditGarden: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenJournal: () -> Unit = {},
     onAddPlanting: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel()
 ) {
@@ -69,6 +70,7 @@ fun TodayScreen(
                 onRefresh = { viewModel.loadToday() },
                 onEditGarden = onEditGarden,
                 onOpenSettings = onOpenSettings,
+                onOpenJournal = onOpenJournal,
                 onAddPlanting = onAddPlanting
             )
         }
@@ -86,6 +88,7 @@ private fun TodayContent(
     onRefresh: () -> Unit,
     onEditGarden: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenJournal: () -> Unit = {},
     onAddPlanting: () -> Unit = {}
 ) {
     // Состояния для быстрых действий и клика по задаче
@@ -237,15 +240,25 @@ private fun TodayContent(
         // Сводный журнал сегодняшних действий
         if (todayActions.isNotEmpty()) {
             item {
-                Text(
-                    text = "Сделано сегодня",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Сделано сегодня",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    TextButton(onClick = onOpenJournal) { Text("Весь журнал") }
+                }
             }
             items(todayActions) { action ->
                 TodayActionRow(action)
+            }
+        } else {
+            item {
+                TextButton(onClick = onOpenJournal) { Text("Журнал действий →") }
             }
         }
     }
