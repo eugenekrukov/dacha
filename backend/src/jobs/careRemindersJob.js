@@ -22,7 +22,7 @@ async function runCareReminders(db) {
         p.conditions,
         p.stage,
         c.name          AS crop_name,
-        c.watering_frequency_days,
+        c.watering_freq_days,
         c.fertilizing_schedule,
         c.transplant_days,
         g.user_id
@@ -47,7 +47,7 @@ async function runCareReminders(db) {
       )
 
       // --- Полив ---
-      const wateringFreqRaw = planting.watering_frequency_days || 3
+      const wateringFreqRaw = planting.watering_freq_days || 3
       const wateringFreq = planting.conditions === 'greenhouse'
         ? Math.round(wateringFreqRaw * 1.3)
         : wateringFreqRaw
