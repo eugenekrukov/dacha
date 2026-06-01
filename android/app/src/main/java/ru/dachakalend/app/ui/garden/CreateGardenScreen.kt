@@ -41,8 +41,9 @@ fun CreateGardenScreen(
     onGardenCreated: () -> Unit,
     viewModel: GardenViewModel = hiltViewModel()
 ) {
-    val uiState     by viewModel.uiState.collectAsState()
-    val suggestions by viewModel.suggestions.collectAsState()
+    val uiState      by viewModel.uiState.collectAsState()
+    val suggestions  by viewModel.suggestions.collectAsState()
+    val detectedZone by viewModel.detectedZone.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -54,6 +55,7 @@ fun CreateGardenScreen(
     var regionExpanded by remember { mutableStateOf(false) }
     var isGettingGps   by remember { mutableStateOf(false) }
     var gpsStatus      by remember { mutableStateOf<String?>(null) }
+    var cityError      by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         when (val s = uiState) {
@@ -63,7 +65,7 @@ fun CreateGardenScreen(
             }
             is GardenUiState.LocationFound -> {
                 gpsStatus = "✓ GPS: %.4f°N, %.4f°E".format(s.lat, s.lon)
-                isGettingGps = false
+                isGettingGps = false; cityError = false
             }
             is GardenUiState.Error -> isGettingGps = false
             else -> {}
@@ -83,7 +85,7 @@ fun CreateGardenScreen(
     }
 
     fun requestGps() {
-        isGettingGps = true; gpsStatus = null
+        isGettingGps = true; gpsStatus = null; cityError = false
         val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
         if (fine == PackageManager.PERMISSION_GRANTED) {
             scope.launch {
@@ -111,12 +113,9 @@ fun CreateGardenScreen(
             Text("🏡", fontSize = 56.sp)
             Spacer(Modifier.height(8.dp))
             Text("Расскажите об участке", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(
-                "Нужно для точных рекомендаций",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-            Spacer(Modifier.height(32.dp))
+            Text("Нужно для точных рекомендаций", style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Spacer(Modifier.height(24.dp))
 
             OutlinedTextField(
                 value = gardenName, onValueChange = { gardenName = it },
@@ -126,15 +125,17 @@ fun CreateGardenScreen(
             )
             Spacer(Modifier.height(12.dp))
 
-            // Поле города с автодополнением
+            // Город — обязательное поле
             CityInputField(
                 value = cityName,
-                onValueChange = { cityName = it },
+                onValueChange = { cityName = it; cityError = false },
                 suggestions = suggestions,
+                detectedZone = detectedZone,
                 onSearch = { viewModel.searchCity(it) },
                 onSuggestionSelected = { viewModel.onSuggestionSelected(it) },
                 onClearSuggestions = { viewModel.clearSuggestions() },
-                enabled = !isSaving
+                enabled = !isSaving,
+                isError = cityError
             )
             Spacer(Modifier.height(8.dp))
 
@@ -153,22 +154,23 @@ fun CreateGardenScreen(
             }
 
             gpsStatus?.let {
-                Text(
-                    it, style = MaterialTheme.typography.bodySmall,
+                Text(it, style = MaterialTheme.typography.bodySmall,
                     color = if (it.startsWith("✓")) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                    modifier = Modifier.padding(top = 4.dp))
             }
             Spacer(Modifier.height(12.dp))
 
+            // Регион — опциональный
             ExposedDropdownMenuBox(expanded = regionExpanded, onExpandedChange = { regionExpanded = !regionExpanded }, modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = selectedRegion, onValueChange = {}, readOnly = true,
-                    label = { Text("Регион") },
+                    label = { Text("Регион (опционально)") },
+                    supportingText = { Text("Если город не найден, уточнит климатическую зону") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = regionExpanded) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
                 ExposedDropdownMenu(expanded = regionExpanded, onDismissRequest = { regionExpanded = false }) {
+                    DropdownMenuItem(text = { Text("— не указывать —") }, onClick = { selectedRegion = ""; regionExpanded = false })
                     REGIONS.forEach { region ->
                         DropdownMenuItem(text = { Text(region) }, onClick = { selectedRegion = region; regionExpanded = false })
                     }
@@ -190,10 +192,16 @@ fun CreateGardenScreen(
                 Spacer(Modifier.height(8.dp))
                 Text((uiState as GardenUiState.Error).message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
 
             Button(
-                onClick = { viewModel.createGarden(gardenName, selectedRegion, cityName.ifBlank { null }, selectedType) },
+                onClick = {
+                    if (cityName.isBlank() && uiState !is GardenUiState.LocationFound) {
+                        cityError = true
+                    } else {
+                        viewModel.createGarden(gardenName, selectedRegion.ifBlank { null }, cityName.ifBlank { null }, selectedType)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().height(52.dp), enabled = !isSaving
             ) {
                 if (isSaving) CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)

@@ -324,7 +324,8 @@ data class GeocodeSuggestion(
     val name: String,
     @Json(name = "display_name") val displayName: String,
     val lat: Double,
-    val lon: Double
+    val lon: Double,
+    val zone: String? = null  // климатическая зона "3"-"6", null если не определена
 )
 
 // --- Garden ---

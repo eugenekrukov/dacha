@@ -31,22 +31,23 @@ class GardenRepository @Inject constructor(
 
     suspend fun createGarden(
         name: String,
-        region: String,
+        region: String?,
         city: String? = null,
         gardenType: String = "soil",
         lat: Double? = null,
-        lon: Double? = null
+        lon: Double? = null,
+        climateZone: String? = null
     ): Result<Garden> {
         return try {
             val garden = api.createGarden(
                 CreateGardenRequest(
                     name = name,
-                    region = region,
+                    region = region?.ifBlank { null },
                     city = city?.ifBlank { null },
                     lat = lat,
                     lon = lon,
                     soilType = null,
-                    climateZone = null,
+                    climateZone = climateZone,
                     gardenType = gardenType
                 )
             )
@@ -61,22 +62,24 @@ class GardenRepository @Inject constructor(
     suspend fun updateGarden(
         id: Int,
         name: String,
-        region: String,
+        region: String?,
         city: String? = null,
         gardenType: String? = null,
         lat: Double? = null,
-        lon: Double? = null
+        lon: Double? = null,
+        climateZone: String? = null
     ): Result<Garden> {
         return try {
             val garden = api.updateGarden(
                 id = id,
                 request = UpdateGardenRequest(
                     name = name,
-                    region = region,
+                    region = region?.ifBlank { null },
                     city = city?.ifBlank { null },
                     lat = lat,
                     lon = lon,
-                    gardenType = gardenType
+                    gardenType = gardenType,
+                    climateZone = climateZone
                 )
             )
             tokenStorage.saveClimateZone(garden.climateZone)

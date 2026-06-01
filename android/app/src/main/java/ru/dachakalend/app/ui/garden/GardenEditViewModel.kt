@@ -36,8 +36,12 @@ class GardenEditViewModel @Inject constructor(
     private val _suggestions = MutableStateFlow<List<GeocodeSuggestion>>(emptyList())
     val suggestions: StateFlow<List<GeocodeSuggestion>> = _suggestions.asStateFlow()
 
+    private val _detectedZone = MutableStateFlow<String?>(null)
+    val detectedZone: StateFlow<String?> = _detectedZone.asStateFlow()
+
     private var pendingLat: Double? = null
     private var pendingLon: Double? = null
+    private var pendingZone: String? = null
     private var coordinateSource: String = "region"
 
     init { loadCurrentGarden() }
@@ -72,7 +76,9 @@ class GardenEditViewModel @Inject constructor(
     fun onSuggestionSelected(s: GeocodeSuggestion) {
         pendingLat = s.lat
         pendingLon = s.lon
+        pendingZone = s.zone
         coordinateSource = "city"
+        _detectedZone.value = s.zone
         _suggestions.value = emptyList()
     }
 
@@ -89,13 +95,17 @@ class GardenEditViewModel @Inject constructor(
         _uiState.value = GardenEditUiState.Loaded(garden)
     }
 
-    fun saveGarden(name: String, region: String, city: String?, gardenType: String? = null) {
+    fun saveGarden(name: String, region: String?, city: String?, gardenType: String? = null) {
         if (name.isBlank()) { _uiState.value = GardenEditUiState.Error("Введите название участка"); return }
+        if (city.isNullOrBlank() && pendingLat == null) {
+            _uiState.value = GardenEditUiState.Error("Укажите населённый пункт или нажмите «Определить по GPS»")
+            return
+        }
         val gardenId = gardenRepository.getCurrentGardenId()
         if (gardenId == -1) { _uiState.value = GardenEditUiState.Error("Участок не найден"); return }
         viewModelScope.launch {
             _uiState.value = GardenEditUiState.Saving
-            when (val result = gardenRepository.updateGarden(gardenId, name, region, city, gardenType, pendingLat, pendingLon)) {
+            when (val result = gardenRepository.updateGarden(gardenId, name, region, city, gardenType, pendingLat, pendingLon, pendingZone)) {
                 is Result.Success -> _uiState.value = GardenEditUiState.Saved(saveMessage(city))
                 is Result.Error   -> _uiState.value = GardenEditUiState.Error(result.message)
                 is Result.Loading -> _uiState.value = GardenEditUiState.Saving
