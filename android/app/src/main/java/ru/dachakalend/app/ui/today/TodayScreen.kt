@@ -511,18 +511,23 @@ private fun PlantingPickerBottomSheet(
 
 @Composable
 private fun RecommendationCard(rec: Recommendation) {
-    val (bgColor, icon) = when (rec.type) {
-        "frost_alert"   -> Color(0xFFE3F2FD) to Icons.Default.AcUnit
-        "watering"      -> Color(0xFFE1F5FE) to Icons.Default.WaterDrop
-        "harvest_ready" -> Color(0xFFF1F8E9) to Icons.Default.Spa
-        else            -> Color(0xFFFFF8E1) to Icons.Default.Lightbulb
+    data class RecStyle(val bg: Color, val icon: ImageVector, val tint: Color)
+
+    val style = when (rec.type) {
+        "frost_alert"  -> RecStyle(Color(0xFFE3F2FD), Icons.Default.AcUnit,      Color(0xFF1565C0))
+        "watering"     -> RecStyle(Color(0xFFE1F5FE), Icons.Default.WaterDrop,   Color(0xFF0277BD))
+        "harvest_ready",
+        "harvest_soon" -> RecStyle(Color(0xFFF1F8E9), Icons.Default.Spa,         Color(0xFF2E7D32))
+        "fertilizing"  -> RecStyle(Color(0xFFF3E5F5), Icons.Default.Eco,         Color(0xFF6A1B9A))
+        "heat_stress"  -> RecStyle(Color(0xFFFFF3E0), Icons.Default.WbSunny,     Color(0xFFE65100))
+        "weather_tip"  -> RecStyle(Color(0xFFE8F5E9), Icons.Default.Cloud,       Color(0xFF388E3C))
+        "lunar_tip"    -> RecStyle(Color(0xFFEDE7F6), Icons.Default.NightlightRound, Color(0xFF4527A0))
+        "seasonal_tip" -> RecStyle(Color(0xFFE8F5E9), Icons.Default.CalendarMonth,  Color(0xFF2E7D32))
+        "stage_tip"    -> RecStyle(Color(0xFFFFF8E1), Icons.Default.Grass,       Color(0xFF558B2F))
+        "lifehack"     -> RecStyle(Color(0xFFFFF8E1), Icons.Default.Lightbulb,   Color(0xFFF57F17))
+        else           -> RecStyle(Color(0xFFFAFAFA), Icons.Default.Info,        Color(0xFF757575))
     }
-    val iconTint = when (rec.type) {
-        "frost_alert"   -> Color(0xFF1565C0)
-        "watering"      -> Color(0xFF0277BD)
-        "harvest_ready" -> Color(0xFF2E7D32)
-        else            -> Color(0xFFF57F17)
-    }
+
     val priorityColor = when (rec.priority) {
         "critical" -> MaterialTheme.colorScheme.error
         "high"     -> Color(0xFFE65100)
@@ -533,21 +538,21 @@ private fun RecommendationCard(rec: Recommendation) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
+        colors = CardDefaults.cardColors(containerColor = style.bg),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = icon,
+                imageVector = style.icon,
                 contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(28.dp)
+                tint = style.tint,
+                modifier = Modifier.size(26.dp).padding(top = 2.dp)
             )
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 rec.cropName?.let {
                     Text(
                         text = it,
