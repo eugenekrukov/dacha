@@ -39,7 +39,20 @@ class DachaPushService : RuStoreMessagingService() {
         if (message.notification == null && message.data.isNotEmpty()) {
             val title = message.data["title"] ?: return
             val body = message.data["body"] ?: return
-            NotificationHelper.show(application, message.messageId.hashCode(), title, body)
+            val pushType = message.data["type"] ?: ""
+            val gardenId = message.data["garden_id"] ?: ""
+
+            val tokenStorage = ep().tokenStorage()
+            if (!tokenStorage.isNotificationEnabled(pushType)) return
+
+            NotificationHelper.showWithDeepLink(
+                application,
+                message.messageId.hashCode(),
+                title,
+                body,
+                pushType,
+                gardenId
+            )
         }
     }
 

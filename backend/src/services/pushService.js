@@ -4,14 +4,6 @@ const fetch = require('node-fetch')
 
 const RUSTORE_PUSH_API = 'https://vkpns.rustore.ru/v1/projects'
 
-/**
- * Отправляет push-уведомление одному пользователю.
- *
- * @param {string} token   — push-токен устройства
- * @param {string} title   — заголовок уведомления
- * @param {string} body    — текст уведомления
- * @param {Object} data    — дополнительные данные (опционально)
- */
 async function sendPush(token, title, body, data = {}) {
   const projectId = process.env.RUSTORE_PUSH_PROJECT_ID
   const serviceToken = process.env.RUSTORE_PUSH_SERVICE_TOKEN
@@ -24,10 +16,7 @@ async function sendPush(token, title, body, data = {}) {
   const payload = {
     message: {
       token,
-      notification: {
-        title,
-        body
-      },
+      notification: { title, body },
       data
     }
   }
@@ -51,9 +40,6 @@ async function sendPush(token, title, body, data = {}) {
   }
 }
 
-/**
- * Получает push-токены всех устройств пользователей участка.
- */
 async function getTokensForGarden(db, gardenId) {
   const result = await db.query(
     `SELECT pt.token
@@ -65,9 +51,6 @@ async function getTokensForGarden(db, gardenId) {
   return result.rows.map(r => r.token)
 }
 
-/**
- * Отправляет frost_alert всем пользователям затронутого участка.
- */
 async function sendFrostAlert(db, gardenId, tempC) {
   try {
     const tokens = await getTokensForGarden(db, gardenId)
@@ -86,14 +69,24 @@ async function sendFrostAlert(db, gardenId, tempC) {
   }
 }
 
-/**
- * Отправляет watering_due — напоминание о поливе просрочено.
- *
- * @param {Object} db
- * @param {number} gardenId
- * @param {string} cropName   — название культуры
- * @param {number} daysSince  — дней с последнего полива
- */
+async function sendHeatAlert(db, gardenId, tempC) {
+  try {
+    const tokens = await getTokensForGarden(db, gardenId)
+    if (tokens.length === 0) return
+
+    const title = '🌡️ Сильная жара'
+    const body = `Ожидается ${tempC}°C. Полейте растения и притените теплицу!`
+
+    for (const token of tokens) {
+      await sendPush(token, title, body, { type: 'heat_alert', garden_id: String(gardenId) })
+    }
+
+    console.log(`[push] heat_alert отправлен для участка ${gardenId} (${tokens.length} устройств)`)
+  } catch (e) {
+    console.error('[push] Ошибка sendHeatAlert:', e.message)
+  }
+}
+
 async function sendWateringAlert(db, gardenId, cropName, daysSince) {
   try {
     const tokens = await getTokensForGarden(db, gardenId)
@@ -112,14 +105,6 @@ async function sendWateringAlert(db, gardenId, cropName, daysSince) {
   }
 }
 
-/**
- * Отправляет fertilizing_due — напоминание о подкормке просрочено.
- *
- * @param {Object} db
- * @param {number} gardenId
- * @param {string} cropName   — название культуры
- * @param {number} daysSince  — дней с последней подкормки
- */
 async function sendFertilizingAlert(db, gardenId, cropName, daysSince) {
   try {
     const tokens = await getTokensForGarden(db, gardenId)
@@ -138,4 +123,4 @@ async function sendFertilizingAlert(db, gardenId, cropName, daysSince) {
   }
 }
 
-module.exports = { sendPush, sendFrostAlert, sendWateringAlert, sendFertilizingAlert }
+module.exports = { sendPush, sendFrostAlert, sendHeatAlert, sendWateringAlert, sendFertilizingAlert }

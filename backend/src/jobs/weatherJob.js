@@ -2,19 +2,11 @@
 
 const cron = require('node-cron')
 const { updateGardenWeather } = require('../services/weatherService')
-const { sendFrostAlert } = require('../services/pushService')
+const { sendFrostAlert, sendHeatAlert } = require('../services/pushService')
 
-/**
- * Запускает фоновый джоб обновления погоды.
- * Расписание: каждые 3 часа (в 0:00, 3:00, 6:00, 9:00, 12:00, 15:00, 18:00, 21:00)
- *
- * @param {Object} db — pg Pool (fastify.db)
- */
 function startWeatherJob(db) {
-  // Запускаем сразу при старте (чтобы не ждать первые 3 часа)
   runWeatherUpdate(db)
 
-  // Затем по расписанию — каждые 3 часа
   cron.schedule('0 */3 * * *', () => {
     runWeatherUpdate(db)
   })
@@ -26,7 +18,6 @@ async function runWeatherUpdate(db) {
   console.log('[weather-job] Запуск обновления погоды...')
 
   try {
-    // Берём все участки с координатами
     const result = await db.query(
       'SELECT id, lat, lon FROM gardens WHERE lat IS NOT NULL AND lon IS NOT NULL'
     )
@@ -38,13 +29,14 @@ async function runWeatherUpdate(db) {
 
     console.log(`[weather-job] Участков для обновления: ${result.rows.length}`)
 
-    // Обрабатываем последовательно, чтобы не перегружать API
     for (const garden of result.rows) {
       try {
         const weather = await updateGardenWeather(db, garden)
-        // Отправляем frost_alert если температура ≤ 2°C
         if (weather && weather.frost_risk) {
           await sendFrostAlert(db, garden.id, weather.min_temp_c)
+        }
+        if (weather && weather.heat_risk) {
+          await sendHeatAlert(db, garden.id, weather.max_temp_c)
         }
       } catch (err) {
         console.error(`[weather-job] Ошибка для участка ${garden.id}: ${err.message}`)

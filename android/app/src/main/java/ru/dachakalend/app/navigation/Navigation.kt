@@ -17,6 +17,9 @@ sealed class Screen(val route: String) {
     // Garden edit
     object GardenEdit : Screen("garden_edit")
 
+    // Settings
+    object Settings : Screen("settings")
+
     // Main app
     object Today : Screen("today") {
         const val ARG_FROM_ONBOARDING = "fromOnboarding"
@@ -25,7 +28,6 @@ sealed class Screen(val route: String) {
     }
     object Calendar : Screen("calendar")
     object Plantings : Screen("plantings") {
-        // Опциональный аргумент: если пришли из CropDetail — сразу создаём посадку
         const val ARG_NEW_CROP_ID = "newCropId"
         val routeWithArgs = "plantings?$ARG_NEW_CROP_ID={$ARG_NEW_CROP_ID}"
         fun withNewCrop(cropId: Int) = "plantings?$ARG_NEW_CROP_ID=$cropId"
@@ -58,12 +60,12 @@ val bottomNavItems = listOf(
     BottomNavItem(Screen.Harvest, "Урожай", Icons.Default.Spa),
 )
 
-// Экраны, на которых не показывается BottomBar
 val screensWithoutBottomBar = setOf(
     Screen.Login.route,
     Screen.Register.route,
     Screen.CreateGarden.route,
     Screen.GardenEdit.route,
+    Screen.Settings.route,
     Screen.Crops.route,
     Screen.CropDetail.routeWithArgs
 )

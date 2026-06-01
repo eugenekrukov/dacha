@@ -33,6 +33,7 @@ import ru.dachakalend.app.ui.theme.taskColor
 fun TodayScreen(
     showOnboardingHint: Boolean = false,
     onEditGarden: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onAddPlanting: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel()
 ) {
@@ -67,6 +68,7 @@ fun TodayScreen(
                 todayActions = state.data.todayActions,
                 onRefresh = { viewModel.loadToday() },
                 onEditGarden = onEditGarden,
+                onOpenSettings = onOpenSettings,
                 onAddPlanting = onAddPlanting
             )
         }
@@ -83,6 +85,7 @@ private fun TodayContent(
     todayActions: List<ActionLog> = emptyList(),
     onRefresh: () -> Unit,
     onEditGarden: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onAddPlanting: () -> Unit = {}
 ) {
     // Состояния для быстрых действий и клика по задаче
@@ -147,12 +150,21 @@ private fun TodayContent(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
-                IconButton(onClick = onEditGarden) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Редактировать участок",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+                Row {
+                    IconButton(onClick = onEditGarden) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Редактировать участок",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Настройки",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
                 }
             }
         }

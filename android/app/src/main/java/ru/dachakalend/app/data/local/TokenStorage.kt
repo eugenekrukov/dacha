@@ -26,10 +26,6 @@ class TokenStorage @Inject constructor(
     fun saveActivePlantingsCount(count: Int) = prefs.edit { putInt(KEY_PLANTINGS_COUNT, count) }
     fun getActivePlantingsCount(): Int = prefs.getInt(KEY_PLANTINGS_COUNT, 0)
 
-    /**
-     * Сохраняет просроченные задачи в формате "plantingId:actionType,plantingId:actionType"
-     * Например: "3:watering_due,5:fertilizing_due"
-     */
     fun savePendingTasks(tasks: Map<Int, String>) {
         val encoded = tasks.entries.joinToString(",") { "${it.key}:${it.value}" }
         prefs.edit { putString(KEY_PENDING_TASKS, encoded) }
@@ -46,11 +42,23 @@ class TokenStorage @Inject constructor(
 
     fun getPendingCount(): Int = getPendingTasks().size
 
+    // Настройки уведомлений — все включены по умолчанию
+    fun isNotificationEnabled(type: String): Boolean =
+        prefs.getBoolean("notif_$type", true)
+
+    fun setNotificationEnabled(type: String, enabled: Boolean) =
+        prefs.edit { putBoolean("notif_$type", enabled) }
+
     companion object {
         private const val KEY_TOKEN           = "auth_token"
         private const val KEY_GARDEN_ID       = "garden_id"
         private const val KEY_CLIMATE_ZONE    = "climate_zone"
         private const val KEY_PLANTINGS_COUNT = "active_plantings_count"
         private const val KEY_PENDING_TASKS   = "pending_tasks"
+
+        const val NOTIF_FROST     = "frost_alert"
+        const val NOTIF_HEAT      = "heat_alert"
+        const val NOTIF_WATERING  = "watering_due"
+        const val NOTIF_FERTILIZE = "fertilizing_due"
     }
 }

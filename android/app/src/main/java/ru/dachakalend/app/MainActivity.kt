@@ -24,6 +24,7 @@ import ru.dachakalend.app.navigation.bottomNavItems
 import ru.dachakalend.app.navigation.screensWithoutBottomBar
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import ru.dachakalend.app.notification.NotificationHelper
 import ru.dachakalend.app.ui.auth.LoginScreen
 import ru.dachakalend.app.ui.auth.RegisterScreen
 import ru.dachakalend.app.ui.calendar.CalendarScreen
@@ -35,6 +36,7 @@ import ru.dachakalend.app.ui.garden.GardenEditScreen
 import ru.dachakalend.app.ui.analytics.AnalyticsScreen
 import ru.dachakalend.app.ui.harvest.HarvestScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
+import ru.dachakalend.app.ui.settings.SettingsScreen
 import ru.dachakalend.app.ui.theme.DachaCalendarTheme
 import ru.dachakalend.app.ui.today.TodayScreen
 import javax.inject.Inject
@@ -48,11 +50,20 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Определяем стартовый экран
         val startDestination = when {
             !tokenStorage.isLoggedIn()   -> Screen.Login.route
             !tokenStorage.hasGarden()    -> Screen.CreateGarden.route
             else                          -> Screen.Today.route
+        }
+
+        // Deep link из push-уведомления
+        val pushType = intent.getStringExtra(NotificationHelper.EXTRA_PUSH_TYPE)
+        val deepLinkRoute: String? = when (pushType) {
+            TokenStorage.NOTIF_FROST,
+            TokenStorage.NOTIF_HEAT     -> Screen.Today.route
+            TokenStorage.NOTIF_WATERING,
+            TokenStorage.NOTIF_FERTILIZE -> Screen.Plantings.route
+            else                          -> null
         }
 
         setContent {
@@ -62,9 +73,17 @@ class MainActivity : ComponentActivity() {
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 val showBottomBar = currentRoute !in screensWithoutBottomBar
-
-                // Badge: показываем количество посадок с просроченными задачами
                 val activePlantings = tokenStorage.getPendingCount()
+
+                // Навигация по deep link после старта графа
+                LaunchedEffect(deepLinkRoute) {
+                    if (deepLinkRoute != null && tokenStorage.isLoggedIn() && tokenStorage.hasGarden()) {
+                        navController.navigate(deepLinkRoute) {
+                            popUpTo(Screen.Today.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                }
 
                 Scaffold(
                     bottomBar = {
@@ -146,15 +165,18 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() }
                             )
                         }
+                        composable(Screen.Settings.route) {
+                            SettingsScreen(onBack = { navController.popBackStack() })
+                        }
 
-                        // Main app — базовый маршрут
+                        // Main app
                         composable(Screen.Today.route) {
                             TodayScreen(
                                 onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
+                                onOpenSettings = { navController.navigate(Screen.Settings.route) },
                                 onAddPlanting = { navController.navigate(Screen.Crops.route) }
                             )
                         }
-                        // Today — с флагом онбординга (после CreateGarden)
                         composable(
                             route = Screen.Today.routeWithArgs,
                             arguments = listOf(navArgument(Screen.Today.ARG_FROM_ONBOARDING) {
@@ -165,18 +187,17 @@ class MainActivity : ComponentActivity() {
                             TodayScreen(
                                 showOnboardingHint = fromOnboarding,
                                 onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
+                                onOpenSettings = { navController.navigate(Screen.Settings.route) },
                                 onAddPlanting = { navController.navigate(Screen.Crops.route) }
                             )
                         }
                         composable(Screen.Calendar.route) { CalendarScreen() }
-                        // Plantings — базовый маршрут (из BottomNav)
                         composable(Screen.Plantings.route) {
                             PlantingsScreen(
                                 onAddCrop = { navController.navigate(Screen.Crops.route) },
                                 onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) }
                             )
                         }
-                        // Plantings — с newCropId (из CropDetail → сразу создаём посадку)
                         composable(
                             route = Screen.Plantings.routeWithArgs,
                             arguments = listOf(navArgument(Screen.Plantings.ARG_NEW_CROP_ID) {
@@ -196,10 +217,8 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.Analytics.route) { AnalyticsScreen() }
 
-                        // Справочник культур
                         composable(Screen.Crops.route) {
                             val cropsViewModel: CropsViewModel = hiltViewModel()
-                            val state by cropsViewModel.uiState.collectAsState()
                             CropsScreen(
                                 viewModel = cropsViewModel,
                                 onCropClick = { crop ->
@@ -252,5 +271,4 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun TokenStorage.isLoggedIn() = getToken() != null
-    private fun TokenStorage.hasGarden() = getGardenId() != -1
 }
