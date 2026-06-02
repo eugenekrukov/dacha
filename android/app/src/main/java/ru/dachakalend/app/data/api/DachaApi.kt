@@ -70,6 +70,9 @@ interface DachaApi {
     @POST("actions")
     suspend fun createAction(@Body request: CreateActionRequest): ActionLog
 
+    @DELETE("actions/{id}")
+    suspend fun deleteAction(@Path("id") id: Int)
+
     // Reminders
     @GET("reminders")
     suspend fun getReminders(): List<Reminder>

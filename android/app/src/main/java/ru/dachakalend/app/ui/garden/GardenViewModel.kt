@@ -116,7 +116,7 @@ class GardenViewModel @Inject constructor(
     private fun saveMessage(city: String?) = when {
         coordinateSource == "gps"  -> "✓ GPS-координаты сохранены — прогноз будет точным"
         coordinateSource == "city" -> "✓ Координаты определены по городу"
-        !city.isNullOrBlank()      -> "⚠️ Город не найден — используется центр региона"
+        !city.isNullOrBlank()      -> "✓ Участок создан"
         else                       -> null
     }
 }

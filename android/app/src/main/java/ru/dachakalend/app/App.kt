@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import ru.dachakalend.app.notification.NotificationHelper
+import ru.rustore.sdk.billingclient.RuStoreBillingClientFactory
 import ru.rustore.sdk.pushclient.RuStorePushClient
 import javax.inject.Inject
 
@@ -23,10 +24,17 @@ class App : Application(), Configuration.Provider {
         NotificationHelper.createChannel(this)
 
         // Инициализация RuStore Push SDK
-        // Замените BuildConfig.RUSTORE_PUSH_PROJECT_ID на реальный ID из RuStore Консоль
         RuStorePushClient.init(
             application = this,
             projectId = BuildConfig.RUSTORE_PUSH_PROJECT_ID
+        )
+
+        // Инициализация RuStore Billing SDK
+        // RUSTORE_CONSOLE_APP_ID — числовой ID из RuStore Консоль → Приложения → ID приложения
+        RuStoreBillingClientFactory.`init`(
+            application = this,
+            consoleApplicationId = BuildConfig.RUSTORE_CONSOLE_APP_ID,
+            deeplinkScheme = "dachakalend"
         )
     }
 }

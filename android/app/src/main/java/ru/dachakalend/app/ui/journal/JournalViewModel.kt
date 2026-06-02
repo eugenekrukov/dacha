@@ -55,4 +55,16 @@ class JournalViewModel @Inject constructor(
     fun setCropFilter(crop: String?) {
         _uiState.value = _uiState.value.copy(cropFilter = crop)
     }
+
+    fun deleteAction(id: Int) {
+        viewModelScope.launch {
+            when (actionsRepository.deleteAction(id)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(
+                    actions = _uiState.value.actions.filter { it.id != id }
+                )
+                is Result.Error   -> Unit
+                is Result.Loading -> Unit
+            }
+        }
+    }
 }

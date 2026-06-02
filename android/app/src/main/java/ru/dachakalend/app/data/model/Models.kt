@@ -31,6 +31,7 @@ data class TodayResponse(
     @Json(name = "garden_id") val gardenId: Int? = null,
     val tasks: List<TodayTask> = emptyList(),
     val weather: WeatherSummary? = null,
+    val forecast: List<ForecastDay> = emptyList(),
     @Json(name = "generated_at") val generatedAt: String = ""
 )
 
@@ -42,7 +43,8 @@ data class TodayTask(
     val description: String,
     @Json(name = "planting_id") val plantingId: Int?,
     @Json(name = "crop_name") val cropName: String?,
-    @Json(name = "days_overdue") val daysOverdue: Int?
+    @Json(name = "days_overdue") val daysOverdue: Int?,
+    @Json(name = "care_task_name") val careTaskName: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -54,7 +56,20 @@ data class WeatherSummary(
     val condition: String?,
     @Json(name = "condition_text") val conditionText: String?,
     @Json(name = "frost_risk") val frostRisk: Boolean?,
-    @Json(name = "heat_risk") val heatRisk: Boolean?
+    @Json(name = "heat_risk") val heatRisk: Boolean?,
+    @Json(name = "precip_prob_pct") val precipProbPct: Int? = null,
+    @Json(name = "soil_temp_c") val soilTempC: Double? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ForecastDay(
+    val date: String,
+    @Json(name = "min_temp_c") val minTempC: Double?,
+    @Json(name = "max_temp_c") val maxTempC: Double?,
+    @Json(name = "precip_mm") val precipMm: Double?,
+    @Json(name = "precip_prob_pct") val precipProbPct: Int?,
+    val condition: String?,
+    @Json(name = "condition_text") val conditionText: String?
 )
 
 // --- WeatherSnapshot (GET /weather) ---

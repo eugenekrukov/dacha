@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,7 +43,8 @@ fun ActionLogBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
+        windowInsets = WindowInsets(0)
     ) {
         Column(
             modifier = Modifier
@@ -73,7 +75,7 @@ fun ActionLogBottomSheet(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.height(130.dp)
+                modifier = Modifier.height(320.dp)
             ) {
                 items(ACTION_TYPES) { (type, label) ->
                     val isSelected = selectedType == type
@@ -107,8 +109,13 @@ fun ActionLogBottomSheet(
                 onValueChange = { notes = it },
                 label = { Text("Заметка (необязательно)", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
-                maxLines = 2,
-                shape = RoundedCornerShape(12.dp)
+                minLines = 1,
+                maxLines = 3,
+                textStyle = TextStyle(
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
             )
 
             state.error?.let {
@@ -123,7 +130,11 @@ fun ActionLogBottomSheet(
             Button(
                 onClick = {
                     selectedType?.let { type ->
-                        viewModel.logAction(planting.id, type, notes.ifBlank { null })
+                        if (type == "transplanting") {
+                            viewModel.logTransplanting(planting.id)
+                        } else {
+                            viewModel.logAction(planting.id, type, notes.ifBlank { null })
+                        }
                     }
                 },
                 enabled = selectedType != null && !state.isLoading,

@@ -8,6 +8,9 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String) {
+    // Splash
+    object Splash : Screen("splash")
+
     // Onboarding intro (shown before first login)
     object Intro : Screen("intro")
 
@@ -70,6 +73,7 @@ val bottomNavItems = listOf(
 )
 
 val screensWithoutBottomBar = setOf(
+    Screen.Splash.route,
     Screen.Intro.route,
     Screen.Login.route,
     Screen.Register.route,

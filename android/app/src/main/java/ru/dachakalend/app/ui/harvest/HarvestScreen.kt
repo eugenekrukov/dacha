@@ -379,13 +379,16 @@ private fun AddHarvestSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
+        windowInsets = WindowInsets(0)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(

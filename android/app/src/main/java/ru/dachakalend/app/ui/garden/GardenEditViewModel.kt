@@ -74,8 +74,14 @@ class GardenEditViewModel @Inject constructor(
             when (val result = gardenRepository.loadGardens()) {
                 is Result.Success -> {
                     val garden = result.data.firstOrNull()
-                    if (garden != null) _uiState.value = GardenEditUiState.Loaded(garden)
-                    else _uiState.value = GardenEditUiState.Error("Участок не найден")
+                    if (garden != null) {
+                        // Сохраняем существующие координаты — они используются если пользователь
+                        // не меняет город и не нажимает GPS
+                        pendingLat = garden.lat
+                        pendingLon = garden.lon
+                        coordinateSource = if (garden.lat != null) "city" else "region"
+                        _uiState.value = GardenEditUiState.Loaded(garden)
+                    } else _uiState.value = GardenEditUiState.Error("Участок не найден")
                 }
                 is Result.Error   -> _uiState.value = GardenEditUiState.Error(result.message)
                 is Result.Loading -> {}
@@ -135,7 +141,7 @@ class GardenEditViewModel @Inject constructor(
     private fun saveMessage(city: String?) = when {
         coordinateSource == "gps"  -> "✓ GPS-координаты сохранены — прогноз будет точным"
         coordinateSource == "city" -> "✓ Координаты определены по городу"
-        !city.isNullOrBlank()      -> "⚠️ Город не найден — используется центр региона"
+        !city.isNullOrBlank()      -> "✓ Участок сохранён"
         else                       -> null
     }
 }

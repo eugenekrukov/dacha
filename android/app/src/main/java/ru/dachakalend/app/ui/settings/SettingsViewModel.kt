@@ -1,10 +1,14 @@
 package ru.dachakalend.app.ui.settings
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import ru.dachakalend.app.billing.SubscriptionManager
+import ru.dachakalend.app.billing.SubscriptionStatus
 import ru.dachakalend.app.data.local.TokenStorage
 import javax.inject.Inject
 
@@ -18,7 +22,8 @@ data class NotificationSettings(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val tokenStorage: TokenStorage
+    private val tokenStorage: TokenStorage,
+    private val subscriptionManager: SubscriptionManager
 ) : ViewModel() {
 
     private val _settings = MutableStateFlow(loadSettings())
@@ -26,6 +31,12 @@ class SettingsViewModel @Inject constructor(
 
     private val _loggedOut = MutableStateFlow(false)
     val loggedOut: StateFlow<Boolean> = _loggedOut.asStateFlow()
+
+    val subscriptionStatus: StateFlow<SubscriptionStatus> = subscriptionManager.status
+
+    init {
+        viewModelScope.launch { subscriptionManager.refresh() }
+    }
 
     private fun loadSettings() = NotificationSettings(
         frost       = tokenStorage.isNotificationEnabled(TokenStorage.NOTIF_FROST),
