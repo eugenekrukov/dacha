@@ -34,7 +34,7 @@ module.exports = async function (fastify) {
 
       for (const feature of data.features) {
         const props = feature.properties
-        if (props.countrycode !== 'ru') continue
+        if (props.countrycode?.toLowerCase() !== 'ru') continue
 
         const name = props.name
         if (!name || seen.has(name + props.state)) continue
