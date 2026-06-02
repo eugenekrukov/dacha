@@ -21,10 +21,18 @@ import ru.dachakalend.app.ui.theme.NunitoFamily
 import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 private val ACTION_LABELS = mapOf(
-    "watering"    to "💧 Полив",
-    "fertilizing" to "🌿 Подкормка",
-    "treatment"   to "🛡️ Обработка",
-    "other"       to "📋 Другое"
+    "watering"      to "💧 Полив",
+    "fertilizing"   to "🌿 Подкормка",
+    "treatment"     to "🛡️ Обработка",
+    "pricking_out"  to "🪴 Пикировка",
+    "transplanting" to "🌱 Высадка",
+    "tying"         to "🪢 Подвязка",
+    "pinching"      to "✂️ Пасынкование",
+    "hilling"       to "⛏️ Окучивание",
+    "pruning"       to "🌿 Обрезка",
+    "weeding"       to "🌾 Прополка",
+    "loosening"     to "🔨 Рыхление",
+    "other"         to "📋 Другое"
 )
 
 private fun formatDate(iso: String): String = try {

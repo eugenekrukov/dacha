@@ -25,7 +25,7 @@ data class DayEvent(
 data class CalendarUiState(
     val isLoading: Boolean = false,
     val currentMonth: YearMonth = YearMonth.now(),
-    val selectedDay: LocalDate? = null,
+    val selectedDay: LocalDate? = LocalDate.now(),
     val eventsByDay: Map<LocalDate, List<DayEvent>> = emptyMap(),
     val error: String? = null
 )

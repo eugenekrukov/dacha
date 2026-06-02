@@ -8,6 +8,9 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String) {
+    // Onboarding intro (shown before first login)
+    object Intro : Screen("intro")
+
     // Auth flow
     object Login : Screen("login")
     object Register : Screen("register")
@@ -40,6 +43,9 @@ sealed class Screen(val route: String) {
     // Sprint 5
     object Analytics : Screen("analytics")
 
+    // Монетизация
+    object Paywall : Screen("paywall")
+
     // Sprint 3
     object Crops : Screen("crops")
     object CropDetail : Screen("crop_detail/{cropId}") {
@@ -64,6 +70,7 @@ val bottomNavItems = listOf(
 )
 
 val screensWithoutBottomBar = setOf(
+    Screen.Intro.route,
     Screen.Login.route,
     Screen.Register.route,
     Screen.CreateGarden.route,
@@ -72,5 +79,6 @@ val screensWithoutBottomBar = setOf(
     Screen.Settings.route,
     Screen.Journal.route,
     Screen.Crops.route,
-    Screen.CropDetail.routeWithArgs
+    Screen.CropDetail.routeWithArgs,
+    Screen.Paywall.route
 )

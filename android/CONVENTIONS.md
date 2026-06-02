@@ -390,6 +390,53 @@ Text(
 | `addDismissedRec(key: String)` | Добавить отклонённую рекомендацию (с датой, автоочистка старых) |
 | `savePendingTasks(tasks)` | Сохранить pending-задачи для badge и карточек посадок |
 | `getPendingTasks(): Map<Int,String>` | Загрузить pending-задачи |
+| `isIntroDone(): Boolean` | Были ли показаны intro-слайды |
+| `setIntroDone()` | Отметить intro как просмотренный |
+| `isCoachDone(): Boolean` | Был ли показан coach mark туториал |
+| `setCoachDone()` | Отметить coach mark как завершённый |
+
+---
+
+## 13. Onboarding — Intro-слайды и Coach Marks
+
+### Файлы
+
+| Файл | Назначение |
+|------|-----------|
+| `ui/onboarding/TutorialIntroScreen.kt` | 4-слайдовый intro (показывается 1 раз до логина) |
+| `ui/onboarding/CoachMarkOverlay.kt` | Coach mark оверлей + `CoachMarkController` |
+
+### Intro-слайды
+
+- Показываются при первом запуске (`!tokenStorage.isIntroDone()`)
+- `startDestination` в `MainActivity` проверяет это условие
+- После нажатия «Зарегистрироваться», «Войти» или «Пропустить» — вызывается `tokenStorage.setIntroDone()`
+- Используют `HorizontalPager` с `@OptIn(ExperimentalFoundationApi::class)`
+
+### Coach Marks
+
+**Архитектура:**
+- `CoachMarkController` живёт в `remember {}` в `MainActivity` — один инстанс на всё приложение
+- `coachMarkSteps` — глобальный `val` в `CoachMarkOverlay.kt`, определяет 6 шагов
+- Overlay рендерится в `Box` поверх `Scaffold` в `MainActivity` — перекрывает в том числе нав-бар
+
+**Показ ровно один раз:**
+- `CoachMarkController.showOnce()` защищён флагом `wasShown` — повторный вызов игнорируется
+- В `TodayScreen` используется `LaunchedEffect(Unit)` (а не `LaunchedEffect(showCoachMark)`) — иначе перезапускается при каждом входе на экран
+
+**Регистрация bounds:**
+```kotlin
+// Одиночный элемент
+Modifier.coachTarget(controller, "weather")
+
+// Секция из нескольких items в LazyColumn (title + cards)
+Modifier.coachTargetUnion(controller, "tasks")   // на SectionTitle И на каждой карточке
+```
+`coachTargetUnion` накапливает union всех зарегистрированных rect. Перед сменой шага `controller.resetBounds(key)` сбрасывает накопленный rect.
+
+**Nav bar bounds** регистрируются в `MainActivity` через `Modifier.onGloballyPositioned` на `NavigationBarItem`.
+
+**Завершение:** `onDone = { tokenStorage.setCoachDone() }` передаётся в `CoachMarkOverlay`.
 
 ---
 

@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -14,8 +16,13 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
+import ru.dachakalend.app.billing.SubscriptionManager
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.navigation.*
+import ru.dachakalend.app.ui.onboarding.CoachMarkController
+import ru.dachakalend.app.ui.onboarding.CoachMarkOverlay
+import ru.dachakalend.app.ui.onboarding.TutorialIntroScreen
+import ru.dachakalend.app.ui.paywall.PaywallScreen
 import ru.dachakalend.app.notification.NotificationHelper
 import ru.dachakalend.app.ui.auth.LoginScreen
 import ru.dachakalend.app.ui.auth.RegisterScreen
@@ -38,13 +45,14 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var tokenStorage: TokenStorage
+    @Inject lateinit var tokenStorage: TokenStorage
+    @Inject lateinit var subscriptionManager: SubscriptionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val startDestination = when {
+            !tokenStorage.isLoggedIn() && !tokenStorage.isIntroDone() -> Screen.Intro.route
             !tokenStorage.isLoggedIn() -> Screen.Login.route
             !tokenStorage.hasGarden()  -> Screen.CreateGarden.route
             else                       -> Screen.Today.route
@@ -69,6 +77,24 @@ class MainActivity : ComponentActivity() {
                 val showBottomBar = currentRoute !in screensWithoutBottomBar
                 val activePlantings = tokenStorage.getPendingCount()
 
+                val coachMarkController = remember { CoachMarkController() }
+                val showCoachMark = remember {
+                    tokenStorage.isLoggedIn() && tokenStorage.hasGarden() && !tokenStorage.isCoachDone()
+                }
+
+                // При старте проверяем доступ (триал или подписка)
+                LaunchedEffect(Unit) {
+                    if (tokenStorage.isLoggedIn() && tokenStorage.hasGarden()) {
+                        subscriptionManager.refresh()
+                        if (!subscriptionManager.isAccessAllowed()) {
+                            navController.navigate(Screen.Paywall.route) {
+                                popUpTo(Screen.Today.route) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    }
+                }
+
                 LaunchedEffect(deepLinkRoute) {
                     if (deepLinkRoute != null && tokenStorage.isLoggedIn() && tokenStorage.hasGarden()) {
                         navController.navigate(deepLinkRoute) {
@@ -78,13 +104,24 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                Box(modifier = Modifier.fillMaxSize()) {
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
                             NavigationBar {
                                 bottomNavItems.forEach { item ->
                                     val showBadge = item.screen == Screen.Plantings && activePlantings > 0
+                                    val navModifier = when (item.screen) {
+                                        Screen.Plantings -> Modifier.onGloballyPositioned {
+                                            coachMarkController.updateBounds("nav_plantings", it.boundsInRoot())
+                                        }
+                                        Screen.Calendar  -> Modifier.onGloballyPositioned {
+                                            coachMarkController.updateBounds("nav_calendar", it.boundsInRoot())
+                                        }
+                                        else -> Modifier
+                                    }
                                     NavigationBarItem(
+                                        modifier = navModifier,
                                         selected = currentRoute == item.screen.route,
                                         onClick = {
                                             navController.navigate(item.screen.route) {
@@ -114,6 +151,30 @@ class MainActivity : ComponentActivity() {
                         startDestination = startDestination,
                         modifier = Modifier.padding(innerPadding)
                     ) {
+                        // Intro slides (first launch only)
+                        composable(Screen.Intro.route) {
+                            TutorialIntroScreen(
+                                onRegister = {
+                                    tokenStorage.setIntroDone()
+                                    navController.navigate(Screen.Register.route) {
+                                        popUpTo(Screen.Intro.route) { inclusive = true }
+                                    }
+                                },
+                                onLogin = {
+                                    tokenStorage.setIntroDone()
+                                    navController.navigate(Screen.Login.route) {
+                                        popUpTo(Screen.Intro.route) { inclusive = true }
+                                    }
+                                },
+                                onSkip = {
+                                    tokenStorage.setIntroDone()
+                                    navController.navigate(Screen.Login.route) {
+                                        popUpTo(Screen.Intro.route) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+
                         // Auth flow
                         composable(Screen.Login.route) {
                             LoginScreen(
@@ -174,7 +235,8 @@ class MainActivity : ComponentActivity() {
                                         popUpTo(0) { inclusive = true }
                                         launchSingleTop = true
                                     }
-                                }
+                                },
+                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(Screen.Journal.route) {
@@ -184,10 +246,12 @@ class MainActivity : ComponentActivity() {
                         // Main app
                         composable(Screen.Today.route) {
                             TodayScreen(
-                                onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
-                                onOpenSettings = { navController.navigate(Screen.Settings.route) },
-                                onOpenJournal = { navController.navigate(Screen.Journal.route) },
-                                onAddPlanting = { navController.navigate(Screen.Crops.route) }
+                                coachMarkController = coachMarkController,
+                                showCoachMark       = showCoachMark,
+                                onEditGarden        = { navController.navigate(Screen.GardenEdit.route) },
+                                onOpenSettings      = { navController.navigate(Screen.Settings.route) },
+                                onOpenJournal       = { navController.navigate(Screen.Journal.route) },
+                                onAddPlanting       = { navController.navigate(Screen.Crops.route) }
                             )
                         }
                         composable(
@@ -198,11 +262,13 @@ class MainActivity : ComponentActivity() {
                         ) { backStackEntry ->
                             val fromOnboarding = backStackEntry.arguments?.getBoolean(Screen.Today.ARG_FROM_ONBOARDING) ?: false
                             TodayScreen(
-                                showOnboardingHint = fromOnboarding,
-                                onEditGarden = { navController.navigate(Screen.GardenEdit.route) },
-                                onOpenSettings = { navController.navigate(Screen.Settings.route) },
-                                onOpenJournal = { navController.navigate(Screen.Journal.route) },
-                                onAddPlanting = { navController.navigate(Screen.Crops.route) }
+                                showOnboardingHint  = fromOnboarding,
+                                coachMarkController = coachMarkController,
+                                showCoachMark       = showCoachMark,
+                                onEditGarden        = { navController.navigate(Screen.GardenEdit.route) },
+                                onOpenSettings      = { navController.navigate(Screen.Settings.route) },
+                                onOpenJournal       = { navController.navigate(Screen.Journal.route) },
+                                onAddPlanting       = { navController.navigate(Screen.Crops.route) }
                             )
                         }
                         composable(Screen.Calendar.route) { CalendarScreen() }
@@ -227,6 +293,16 @@ class MainActivity : ComponentActivity() {
                             HarvestScreen(onAddPlanting = { navController.navigate(Screen.Crops.route) })
                         }
                         composable(Screen.Analytics.route) { AnalyticsScreen() }
+                        composable(Screen.Paywall.route) {
+                            PaywallScreen(
+                                onAccessGranted = {
+                                    navController.navigate(Screen.Today.route) {
+                                        popUpTo(Screen.Paywall.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
+                        }
 
                         composable(Screen.Crops.route) {
                             val cropsViewModel: CropsViewModel = hiltViewModel()
@@ -275,6 +351,15 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+
+                // Coach mark overlay — drawn above Scaffold (covers nav bar too)
+                if (coachMarkController.isVisible) {
+                    CoachMarkOverlay(
+                        controller = coachMarkController,
+                        onDone     = { tokenStorage.setCoachDone() }
+                    )
+                }
+                } // end Box
             }
         }
     }

@@ -34,13 +34,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import ru.dachakalend.app.data.model.ActionLog
+import ru.dachakalend.app.data.model.ForecastDay
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayTask
 import ru.dachakalend.app.data.model.WeatherSummary
 import androidx.compose.foundation.BorderStroke
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
+import ru.dachakalend.app.ui.actions.careTaskActionType
+import ru.dachakalend.app.ui.onboarding.CoachMarkController
+import ru.dachakalend.app.ui.onboarding.coachMarkSteps
+import ru.dachakalend.app.ui.onboarding.coachTarget
+import ru.dachakalend.app.ui.onboarding.coachTargetUnion
 import ru.dachakalend.app.ui.theme.HeroGradientEnd
 import ru.dachakalend.app.ui.theme.HeroGradientStart
 import ru.dachakalend.app.ui.theme.NunitoFamily
@@ -60,6 +68,8 @@ private val DiagonalBottomShape = GenericShape { size, _ ->
 @Composable
 fun TodayScreen(
     showOnboardingHint: Boolean = false,
+    coachMarkController: CoachMarkController? = null,
+    showCoachMark: Boolean = false,
     onEditGarden: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenJournal: () -> Unit = {},
@@ -81,18 +91,27 @@ fun TodayScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        if (showCoachMark && coachMarkController != null) {
+            kotlinx.coroutines.delay(800)
+            coachMarkController.showOnce()
+        }
+    }
+
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { _ ->
         when (val state = uiState) {
             is TodayUiState.Loading -> LoadingScreen()
             is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
             is TodayUiState.Success -> TodayContent(
                 weather       = state.data.today.weather,
+                forecast      = state.data.today.forecast,
                 tasks         = state.data.today.tasks,
                 recommendations = state.data.recommendations.filterNot {
                     "${it.type}:${it.cropName}:${it.message.take(30)}" in dismissedRecs
                 },
                 plantings     = state.data.plantings,
                 todayActions  = state.data.todayActions,
+                coachMarkController = coachMarkController,
                 onRefresh     = { viewModel.loadToday() },
                 onDismissRec  = { rec ->
                     viewModel.dismissRecommendation("${rec.type}:${rec.cropName}:${rec.message.take(30)}")
@@ -112,10 +131,12 @@ fun TodayScreen(
 @Composable
 private fun TodayContent(
     weather: WeatherSummary?,
+    forecast: List<ForecastDay> = emptyList(),
     tasks: List<TodayTask>,
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
     todayActions: List<ActionLog> = emptyList(),
+    coachMarkController: CoachMarkController? = null,
     onRefresh: () -> Unit,
     onDismissRec: (Recommendation) -> Unit = {},
     onEditGarden: () -> Unit = {},
@@ -166,6 +187,33 @@ private fun TodayContent(
         )
     }
 
+    val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+    // Compute stable LazyColumn indices for coach mark scroll targets
+    val weatherVisible = weather != null || forecast.isNotEmpty()
+    val tasksVisible   = tasks.isNotEmpty()
+    val recsVisible    = recommendations.isNotEmpty()
+    val coachScrollIdx = remember(weatherVisible, tasksVisible, tasks.size, recsVisible) {
+        var i = 0
+        buildMap {
+            if (weatherVisible) { put("weather", i); i++ }
+            if (tasksVisible)   { put("tasks",   i); i += 1 + tasks.size }
+            else if (plantings.isEmpty()) i++   // empty card
+            i++ // spacer
+            put("quick_actions", i); i++
+            if (recsVisible) { put("recs", i) }
+        }
+    }
+
+    // Scroll LazyColumn to the current coach step target
+    val coachKey = if (coachMarkController?.isVisible == true) coachMarkController.currentKey else null
+    LaunchedEffect(coachKey) {
+        val key = coachKey ?: return@LaunchedEffect
+        val idx = coachScrollIdx[key] ?: return@LaunchedEffect
+        coachMarkController?.resetBounds(key)
+        lazyListState.scrollToItem(idx)
+    }
+
     // ── Экран: Hero вне LazyColumn, чтобы clip не срезался скроллом ──
     Column(
         modifier = Modifier
@@ -181,35 +229,51 @@ private fun TodayContent(
 
         // ── Остальное — скролируемый список ──
         LazyColumn(
+            state               = lazyListState,
             contentPadding      = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier            = Modifier.weight(1f).fillMaxWidth()
         ) {
+            // Погодные детали + 7-дневный прогноз
+            if (weather != null || forecast.isNotEmpty()) {
+                item {
+                    WeatherDetailsCard(
+                        weather  = weather,
+                        forecast = forecast,
+                        modifier = Modifier.coachTarget(coachMarkController, "weather"),
+                    )
+                }
+            }
+
             // Задачи
             if (tasks.isNotEmpty()) {
                 item {
                     SectionTitle(
-                        icon  = Icons.Default.Spa,
-                        title = "Задачи на сегодня"
+                        icon     = Icons.Default.Spa,
+                        title    = "Задачи на сегодня",
+                        modifier = Modifier.coachTargetUnion(coachMarkController, "tasks"),
                     )
                 }
                 items(tasks) { task ->
                     val taskPlanting = task.plantingId?.let { id -> plantings.find { it.id == id } }
-                    SunnyTaskCard(
-                        task    = task,
-                        onClick = if (taskPlanting != null) {
-                            {
-                                // Напрямую — без onQuickAction, чтобы не открылся picker
-                                selectedPlanting = taskPlanting
-                                quickActionNotes = if (task.type == "care_task_due") task.title else null
-                                quickActionType  = when (task.type) {
-                                    "watering_due"    -> "watering"
-                                    "fertilizing_due" -> "fertilizing"
-                                    else              -> "other"
+                    Box(Modifier.coachTargetUnion(coachMarkController, "tasks")) {
+                        SunnyTaskCard(
+                            task    = task,
+                            onClick = if (taskPlanting != null) {
+                                {
+                                    selectedPlanting = taskPlanting
+                                    quickActionNotes = if (task.type == "care_task_due") task.title else null
+                                    quickActionType  = when (task.type) {
+                                        "watering_due"    -> "watering"
+                                        "fertilizing_due" -> "fertilizing"
+                                        "transplant_due"  -> "transplanting"
+                                        "care_task_due"   -> careTaskActionType(task.careTaskName)
+                                        else              -> "other"
+                                    }
                                 }
-                            }
-                        } else null
-                    )
+                            } else null
+                        )
+                    }
                 }
             } else if (plantings.isEmpty()) {
                 // Нет посадок — показываем промпт добавить
@@ -227,7 +291,8 @@ private fun TodayContent(
             item {
                 SunnyQuickActions(
                     enabled  = plantings.isNotEmpty(),
-                    onAction = { type -> onQuickAction(type) }
+                    onAction = { type -> onQuickAction(type) },
+                    modifier = Modifier.coachTarget(coachMarkController, "quick_actions"),
                 )
             }
 
@@ -235,9 +300,11 @@ private fun TodayContent(
             if (recommendations.isNotEmpty()) {
                 item {
                     SectionTitle(
-                        icon  = Icons.Default.Lightbulb,
-                        title = "Советы дня",
-                        modifier = Modifier.padding(top = 8.dp)
+                        icon     = Icons.Default.Lightbulb,
+                        title    = "Советы дня",
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .coachTargetUnion(coachMarkController, "recs"),
                     )
                 }
                 items(
@@ -251,6 +318,7 @@ private fun TodayContent(
                             } else false
                         }
                     )
+                    Box(Modifier.coachTargetUnion(coachMarkController, "recs")) {
                     SwipeToDismissBox(
                         state             = dismissState,
                         backgroundContent = {
@@ -272,6 +340,7 @@ private fun TodayContent(
                     ) {
                         SunnyRecommendationCard(rec)
                     }
+                    } // end Box coachTargetUnion
                 }
             }
 
@@ -566,6 +635,170 @@ private fun SectionTitle(
     }
 }
 
+// ─── Weather details + 7-day forecast ─────────────────────────────────────
+
+@Composable
+private fun WeatherDetailsCard(
+    weather: WeatherSummary?,
+    forecast: List<ForecastDay>,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier  = modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(22.dp),
+        colors    = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+            // Строка с доп. метеоданными
+            if (weather != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                ) {
+                    weather.precipProbPct?.let {
+                        WeatherChip(
+                            icon  = "🌧",
+                            label = "Дождь $it%",
+                            tint  = if (it >= 70) Color(0xFF1565C0) else Color(0xFF666666)
+                        )
+                    }
+                    weather.soilTempC?.let {
+                        WeatherChip(
+                            icon  = "🌱",
+                            label = "Почва ${it.toInt()}°",
+                            tint  = if (it >= 10.0) Color(0xFF2E7D32) else Color(0xFFBF360C)
+                        )
+                    }
+                }
+
+                // Предупреждение о холодной почве
+                if ((weather.soilTempC ?: 99.0) < 10.0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFFFF3E0))
+                            .padding(10.dp)
+                    ) {
+                        Text("⚠️", fontSize = 14.sp)
+                        Text(
+                            "Почва холодная — посев не рекомендуется",
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize   = 12.sp,
+                            color      = Color(0xFFBF360C)
+                        )
+                    }
+                }
+
+                // Предупреждение об ожидаемом дожде
+                if ((weather.precipProbPct ?: 0) >= 70) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFE3F2FD))
+                            .padding(10.dp)
+                    ) {
+                        Text("🌧", fontSize = 14.sp)
+                        Text(
+                            "Ожидается дождь — задачи полива скрыты",
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize   = 12.sp,
+                            color      = Color(0xFF1565C0)
+                        )
+                    }
+                }
+            }
+
+            // 7-дневный прогноз
+            if (forecast.isNotEmpty()) {
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                Text(
+                    "Прогноз на 7 дней",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize   = 13.sp,
+                    color      = Color(0xFF888888)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    forecast.forEach { day -> ForecastDayChip(day) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeatherChip(icon: String, label: String, tint: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(100.dp))
+            .background(Color(0xFFF5F5F5))
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Text(icon, fontSize = 13.sp)
+        Text(label, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = tint)
+    }
+}
+
+@Composable
+private fun ForecastDayChip(day: ForecastDay) {
+    val conditionIcon = when (day.condition) {
+        "rain"   -> "🌧"
+        "snow"   -> "❄️"
+        "storm"  -> "⛈"
+        "cloudy" -> "☁️"
+        else     -> "☀️"
+    }
+    val dayLabel = try {
+        val date = java.time.LocalDate.parse(day.date)
+        val ruDow = when (date.dayOfWeek) {
+            java.time.DayOfWeek.MONDAY    -> "Пн"
+            java.time.DayOfWeek.TUESDAY   -> "Вт"
+            java.time.DayOfWeek.WEDNESDAY -> "Ср"
+            java.time.DayOfWeek.THURSDAY  -> "Чт"
+            java.time.DayOfWeek.FRIDAY    -> "Пт"
+            java.time.DayOfWeek.SATURDAY  -> "Сб"
+            java.time.DayOfWeek.SUNDAY    -> "Вс"
+            else -> ""
+        }
+        "$ruDow ${date.dayOfMonth}"
+    } catch (_: Exception) { day.date.takeLast(5) }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF5F5F5))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .width(54.dp)
+    ) {
+        Text(dayLabel, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF888888), maxLines = 1)
+        Text(conditionIcon, fontSize = 18.sp)
+        Text("${day.maxTempC?.toInt() ?: "—"}°", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color(0xFF333333))
+        Text("${day.minTempC?.toInt() ?: "—"}°", fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = Color(0xFF888888))
+        day.precipProbPct?.let { prob ->
+            if (prob > 0) Text("$prob%", fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, color = Color(0xFF1565C0))
+        }
+    }
+}
+
 // ─── Task card ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -605,10 +838,11 @@ private fun SunnyTaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
                     text       = task.title,
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize   = 15.sp,
+                    fontSize   = 14.sp,
                     color      = MaterialTheme.colorScheme.onSurface,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
+                    maxLines   = 2,
+                    overflow   = TextOverflow.Ellipsis,
+                    lineHeight = 18.sp
                 )
                 Text(
                     text       = task.description,
@@ -652,8 +886,8 @@ private fun SunnyTaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
 // ─── Quick actions ─────────────────────────────────────────────────────────
 
 @Composable
-private fun SunnyQuickActions(enabled: Boolean, onAction: (String) -> Unit) {
-    Column {
+private fun SunnyQuickActions(enabled: Boolean, onAction: (String) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
         SectionTitle(
             icon  = Icons.Default.Bolt,
             title = "Быстрые действия"
@@ -665,7 +899,7 @@ private fun SunnyQuickActions(enabled: Boolean, onAction: (String) -> Unit) {
         ) {
             SunnyActionButton(
                 modifier    = Modifier.weight(1f),
-                label       = "Полил",
+                label       = "Полив",
                 icon        = Icons.Default.WaterDrop,
                 gradient    = Brush.linearGradient(listOf(Color(0xFF42B3F5), Color(0xFF1565C0))),
                 shadowColor = Color(0xFF1565C0),
@@ -674,7 +908,7 @@ private fun SunnyQuickActions(enabled: Boolean, onAction: (String) -> Unit) {
             )
             SunnyActionButton(
                 modifier    = Modifier.weight(1f),
-                label       = "Подкормил",
+                label       = "Подкормка",
                 icon        = Icons.Default.Spa,
                 gradient    = Brush.linearGradient(listOf(Color(0xFFFFD54F), Color(0xFFE65100))),
                 shadowColor = Color(0xFFE65100),
@@ -683,7 +917,7 @@ private fun SunnyQuickActions(enabled: Boolean, onAction: (String) -> Unit) {
             )
             SunnyActionButton(
                 modifier    = Modifier.weight(1f),
-                label       = "Обработал",
+                label       = "Обработка",
                 icon        = Icons.Default.HealthAndSafety,
                 gradient    = Brush.linearGradient(listOf(Color(0xFFA5D6A7), Color(0xFF2E7D32))),
                 shadowColor = Color(0xFF2E7D32),
@@ -835,16 +1069,27 @@ private fun SunnyRecommendationCard(rec: Recommendation) {
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 private val STAGE_LABELS = mapOf(
-    "sowing" to "Посев", "sprouted" to "Всходы", "growing" to "Рост",
-    "flowering" to "Цветение", "harvesting" to "Сбор урожая", "done" to "Завершено"
+    "sowing"       to "Посеяно",
+    "sprouted"     to "Взошло",
+    "transplanted" to "Высажено в грунт",
+    "growing"      to "Растёт",
+    "flowering"    to "Цветёт",
+    "harvesting"   to "Созревает",
+    "done"         to "Завершено"
 )
 
 private val ACTION_TYPE_LABELS = mapOf(
-    "watering"    to "Полив",
-    "fertilizing" to "Подкормка",
-    "treatment"   to "Обработка",
-    "transplant"  to "Пересадка",
-    "other"       to "Уход"
+    "watering"      to "Полив",
+    "fertilizing"   to "Подкормка",
+    "treatment"     to "Обработка",
+    "transplanting" to "Высадка",
+    "tying"         to "Подвязка",
+    "pinching"      to "Пасынкование",
+    "hilling"       to "Окучивание",
+    "pruning"       to "Обрезка",
+    "weeding"       to "Прополка",
+    "loosening"     to "Рыхление",
+    "other"         to "Другое"
 )
 
 @Composable
@@ -855,11 +1100,7 @@ private fun TodayActionRow(action: ActionLog) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            // Для "other" показываем notes (там хранится название задачи: Прополка, Рыхление и т.д.)
-            val actionLabel = if (action.type == "other" && !action.notes.isNullOrBlank())
-                action.notes
-            else
-                "${ACTION_TYPE_LABELS[action.type] ?: action.type}${action.cropName?.let { " — $it" } ?: ""}"
+            val actionLabel = "${ACTION_TYPE_LABELS[action.type] ?: action.type}${action.cropName?.let { " — $it" } ?: ""}"
             Text(
                 text       = actionLabel,
                 fontFamily = NunitoFamily,

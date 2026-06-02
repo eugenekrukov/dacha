@@ -78,6 +78,36 @@ class TokenStorage @Inject constructor(
         prefs.edit { putString(KEY_DISMISSED_RECS, updated) }
     }
 
+    // ─── First launch date (для 7-дневного триала) ───────────────────────────────
+
+    fun getFirstLaunchDate(): Long {
+        val stored = prefs.getLong(KEY_FIRST_LAUNCH, 0L)
+        if (stored == 0L) {
+            val now = System.currentTimeMillis()
+            prefs.edit { putLong(KEY_FIRST_LAUNCH, now) }
+            return now
+        }
+        return stored
+    }
+
+    fun isTrialActive(): Boolean {
+        val firstLaunch = getFirstLaunchDate()
+        val daysSince = (System.currentTimeMillis() - firstLaunch) / 86_400_000L
+        return daysSince < TRIAL_DAYS
+    }
+
+    fun trialDaysLeft(): Int {
+        val firstLaunch = getFirstLaunchDate()
+        val daysSince = (System.currentTimeMillis() - firstLaunch) / 86_400_000L
+        return maxOf(0, (TRIAL_DAYS - daysSince).toInt())
+    }
+
+    fun isIntroDone(): Boolean = prefs.getBoolean(KEY_INTRO_DONE, false)
+    fun setIntroDone()         = prefs.edit { putBoolean(KEY_INTRO_DONE, true) }
+
+    fun isCoachDone(): Boolean = prefs.getBoolean(KEY_COACH_DONE, false)
+    fun setCoachDone()         = prefs.edit { putBoolean(KEY_COACH_DONE, true) }
+
     /** Полный выход — очищает все данные приложения */
     fun logout() = prefs.edit { clear() }
 
@@ -88,6 +118,10 @@ class TokenStorage @Inject constructor(
         private const val KEY_PLANTINGS_COUNT = "active_plantings_count"
         private const val KEY_PENDING_TASKS   = "pending_tasks"
         private const val KEY_DISMISSED_RECS  = "dismissed_recs"
+        private const val KEY_FIRST_LAUNCH    = "first_launch_date"
+        private const val KEY_INTRO_DONE      = "intro_done"
+        private const val KEY_COACH_DONE      = "coach_done"
+        const val TRIAL_DAYS                  = 7L
 
         const val NOTIF_FROST      = "frost_alert"
         const val NOTIF_HEAT       = "heat_alert"

@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Календарь дачника — Coach Marks</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --orange:      #FF7B00;
+    --orange-dark: #E06000;
+    --cream:       #FFF8EB;
+    --green:       #2E7D32;
+    --brown:       #9E7050;
+    --text:        #1A1A1A;
+    --text-muted:  #9E7050;
+  }
+
+  body {
+    background: #E8E0D5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Nunito', sans-serif;
+  }
+
+  /* ─── Phone shell ─── */
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--cream);
+    border-radius: 50px;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 0 0 12px #1A1A1A,
+      0 40px 80px rgba(0,0,0,0.4),
+      0 20px 40px rgba(0,0,0,0.2);
+    user-select: none;
+  }
+
+  /* Notch */
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 34px;
+    background: #1A1A1A;
+    border-radius: 0 0 20px 20px;
+    z-index: 200;
+  }
+
+  /* ════════════════════════
+     APP UI MOCKUP
+  ════════════════════════ */
+
+  .app {
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--cream);
+    overflow: hidden;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    flex-shrink: 0;
+    background: linear-gradient(155deg, #FF9D3D 0%, #FF7B00 50%, #E06000 100%);
+    clip-path: polygon(0 0, 100% 0, 100% 84%, 0 100%);
+    padding: 42px 20px 44px;
+    overflow: hidden;
+    min-height: 200px;
+  }
+
+  .hero-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .hero-circle-1 { width: 220px; height: 220px; top: -60px; right: -60px; }
+  .hero-circle-2 { width: 130px; height: 130px; bottom: 20px; left: -30px; }
+
+  .hero-date-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    position: relative; z-index: 2;
+  }
+
+  .hero-date {
+    font-size: 11px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.75);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+
+  .hero-icons {
+    display: flex;
+    gap: 10px;
+  }
+
+  .hero-icon-btn {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .hero-body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative; z-index: 2;
+  }
+
+  .hero-title {
+    font-size: 36px;
+    font-weight: 900;
+    color: white;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+  }
+
+  .hero-emoji {
+    font-size: 72px;
+    line-height: 1;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
+    margin-top: -6px;
+  }
+
+  .hero-weather-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    position: relative; z-index: 2;
+  }
+
+  .hero-temp {
+    font-size: 22px;
+    font-weight: 900;
+    color: white;
+    letter-spacing: -0.5px;
+  }
+
+  .hero-humidity-pill {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.22);
+    backdrop-filter: blur(4px);
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-size: 13px;
+    font-weight: 800;
+    color: white;
+  }
+
+  /* ── Scrollable content ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 14px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: none;
+  }
+  .content::-webkit-scrollbar { display: none; }
+
+  /* ── Weather card ── */
+  .weather-card {
+    background: white;
+    border-radius: 22px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  }
+
+  .weather-metrics {
+    display: flex;
+    gap: 0;
+    margin-bottom: 14px;
+  }
+
+  .weather-metric {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #555;
+  }
+
+  .weather-metric-icon { font-size: 14px; }
+
+  .forecast-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #888;
+    margin-bottom: 10px;
+  }
+
+  .forecast-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .forecast-day {
+    flex: 1;
+    background: var(--cream);
+    border-radius: 14px;
+    padding: 8px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .forecast-day-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #999;
+  }
+
+  .forecast-icon { font-size: 18px; line-height: 1; }
+
+  .forecast-hi {
+    font-size: 13px;
+    font-weight: 900;
+    color: var(--text);
+  }
+
+  .forecast-lo {
+    font-size: 11px;
+    font-weight: 700;
+    color: #AAA;
+  }
+
+  .forecast-rain {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64B5F6;
+  }
+
+  /* ── Section header ── */
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .section-icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: #FFF3E0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  /* ── Task card ── */
+  .task-card {
+    background: white;
+    border-radius: 18px;
+    padding: 14px 14px 14px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-left: 4px solid var(--orange);
+    margin-bottom: 8px;
+  }
+
+  .task-icon-wrap {
+    width: 46px; height: 46px;
+    border-radius: 14px;
+    background: #FFF3E0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .task-info { flex: 1; }
+  .task-info strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .task-info span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .task-badge {
+    font-size: 12px;
+    font-weight: 800;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: #FF6B35;
+    color: white;
+  }
+
+  /* ── Quick actions ── */
+  .quick-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .quick-btn {
+    flex: 1;
+    border-radius: 18px;
+    padding: 16px 8px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-height: 90px;
+    justify-content: center;
+  }
+
+  .quick-btn.blue   { background: linear-gradient(145deg, #42A5F5, #1976D2); }
+  .quick-btn.orange { background: linear-gradient(145deg, #FFA726, #F57C00); }
+  .quick-btn.green  { background: linear-gradient(145deg, #66BB6A, #388E3C); }
+
+  .quick-btn-icon { font-size: 26px; line-height: 1; }
+
+  .quick-btn-label {
+    font-size: 13px;
+    font-weight: 800;
+    color: white;
+    text-align: center;
+  }
+
+  /* ── Советы дня ── */
+  .rec-card {
+    background: white;
+    border-radius: 16px;
+    padding: 12px 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .rec-icon-wrap {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .rec-icon-wrap.green  { background: #E8F5E9; }
+  .rec-icon-wrap.blue   { background: #E3F2FD; }
+
+  .rec-body { flex: 1; }
+  .rec-crop {
+    font-size: 13px;
+    font-weight: 800;
+    margin-bottom: 3px;
+  }
+  .rec-crop.green { color: var(--green); }
+  .rec-crop.blue  { color: #1565C0; }
+
+  .rec-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    line-height: 1.45;
+  }
+
+  /* ── Bottom navigation ── */
+  .bottom-nav {
+    flex-shrink: 0;
+    background: white;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+    height: 72px;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 8px;
+  }
+
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .nav-icon-wrap {
+    width: 40px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 14px;
+    transition: background 0.2s;
+  }
+
+  .nav-item.active .nav-icon-wrap { background: #FFF3E0; }
+
+  .nav-icon { font-size: 20px; opacity: 0.4; }
+  .nav-item.active .nav-icon { opacity: 1; }
+
+  .nav-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #BBB;
+  }
+  .nav-item.active .nav-label { color: var(--orange); }
+
+  .nav-badge {
+    position: absolute;
+    top: -2px; right: 20px;
+    width: 18px; height: 18px;
+    background: #FF3B30;
+    border-radius: 9px;
+    font-size: 10px;
+    font-weight: 800;
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ════════════════════════
+     COACH MARK OVERLAY
+  ════════════════════════ */
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .spotlight {
+    position: absolute;
+    background: transparent;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.72);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 51;
+    pointer-events: none;
+  }
+
+  .tooltip {
+    position: absolute;
+    background: white;
+    border-radius: 20px;
+    padding: 18px 20px 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    width: 320px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 52;
+    transition: top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .tooltip::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+  }
+  .tooltip.arrow-down::before {
+    bottom: -16px;
+    border-top-color: white;
+  }
+  .tooltip.arrow-up::before {
+    top: -16px;
+    border-bottom-color: white;
+  }
+
+  .tooltip-step {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--orange);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .tooltip-title {
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .tooltip-desc {
+    font-size: 13px;
+    font-weight: 600;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .tooltip-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .btn-skip {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: #BBB;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  .btn-next {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 900;
+    font-size: 14px;
+    color: white;
+    background: linear-gradient(135deg, #FF9D3D, #FF7B00);
+    border: none;
+    border-radius: 14px;
+    padding: 10px 22px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(255,123,0,0.35);
+    transition: transform 0.15s;
+  }
+  .btn-next:active { transform: scale(0.96); }
+
+  .step-dots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+  }
+  .step-dot {
+    width: 6px; height: 6px;
+    border-radius: 3px;
+    background: #DDD;
+    transition: all 0.25s;
+  }
+  .step-dot.active {
+    width: 18px;
+    background: var(--orange);
+  }
+
+  @keyframes pulseRing {
+    0%   { box-shadow: 0 0 0 9999px rgba(0,0,0,0.72), 0 0 0 0   rgba(255,123,0,0.5); }
+    70%  { box-shadow: 0 0 0 9999px rgba(0,0,0,0.72), 0 0 0 10px rgba(255,123,0,0); }
+    100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.72), 0 0 0 0   rgba(255,123,0,0); }
+  }
+  .spotlight.pulse { animation: pulseRing 1.8s ease-out infinite; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- ═══ APP UI MOCKUP ═══ -->
+  <div class="app">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-circle hero-circle-1"></div>
+      <div class="hero-circle hero-circle-2"></div>
+
+      <div class="hero-date-bar">
+        <span class="hero-date">Вторник · 2 июня</span>
+        <div class="hero-icons">
+          <div class="hero-icon-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </div>
+          <div class="hero-icon-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-body">
+        <div>
+          <div class="hero-title">Сегодня<br>на даче</div>
+          <div class="hero-weather-row">
+            <span class="hero-temp">12° / 24°</span>
+            <div class="hero-humidity-pill">💧 41%</div>
+          </div>
+        </div>
+        <div class="hero-emoji">🌻</div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="content">
+
+      <!-- Weather forecast card -->
+      <div class="weather-card" id="weather-card">
+        <div class="weather-metrics">
+          <div class="weather-metric">
+            <span class="weather-metric-icon">🌧️</span>
+            <span>Дождь 14%</span>
+          </div>
+          <div class="weather-metric">
+            <span class="weather-metric-icon">🌱</span>
+            <span>Почва 15°</span>
+          </div>
+          <div class="weather-metric">
+            <span class="weather-metric-icon">💧</span>
+            <span>Влажн. 41%</span>
+          </div>
+        </div>
+        <div class="forecast-title">Прогноз на 7 дней</div>
+        <div class="forecast-row">
+          <div class="forecast-day">
+            <span class="forecast-day-label">Вт 2</span>
+            <span class="forecast-icon">☁️</span>
+            <span class="forecast-hi">24°</span>
+            <span class="forecast-lo">12°</span>
+            <span class="forecast-rain">2%</span>
+          </div>
+          <div class="forecast-day">
+            <span class="forecast-day-label">Ср 3</span>
+            <span class="forecast-icon">🌥️</span>
+            <span class="forecast-hi">26°</span>
+            <span class="forecast-lo">13°</span>
+            <span class="forecast-rain">14%</span>
+          </div>
+          <div class="forecast-day">
+            <span class="forecast-day-label">Чт 4</span>
+            <span class="forecast-icon">☀️</span>
+            <span class="forecast-hi">26°</span>
+            <span class="forecast-lo">13°</span>
+            <span class="forecast-rain"> </span>
+          </div>
+          <div class="forecast-day">
+            <span class="forecast-day-label">Пт 5</span>
+            <span class="forecast-icon">☀️</span>
+            <span class="forecast-hi">23°</span>
+            <span class="forecast-lo">13°</span>
+            <span class="forecast-rain"> </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tasks -->
+      <div id="task-list">
+        <div class="section-title">
+          <div class="section-icon">🌿</div>
+          Задачи на сегодня
+        </div>
+        <div class="task-card">
+          <div class="task-icon-wrap">🌱</div>
+          <div class="task-info">
+            <strong>Высадить в грунт: Томат</strong>
+            <span>Просрочено на 5 дн.</span>
+          </div>
+          <span class="task-badge">+5д</span>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div id="quick-actions">
+        <div class="section-title">
+          <div class="section-icon" style="background:#FFF8E1;">⚡</div>
+          Быстрые действия
+        </div>
+        <div class="quick-actions">
+          <div class="quick-btn blue">
+            <span class="quick-btn-icon">💧</span>
+            <span class="quick-btn-label">Полив</span>
+          </div>
+          <div class="quick-btn orange">
+            <span class="quick-btn-icon">🌿</span>
+            <span class="quick-btn-label">Подкормка</span>
+          </div>
+          <div class="quick-btn green">
+            <span class="quick-btn-icon">🛡️</span>
+            <span class="quick-btn-label">Обработка</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Советы дня -->
+      <div id="rec-block">
+        <div class="section-title">
+          <div class="section-icon" style="background:#FFFDE7;">💡</div>
+          Советы дня
+        </div>
+        <div class="rec-card">
+          <div class="rec-icon-wrap green">🌱</div>
+          <div class="rec-body">
+            <div class="rec-crop green">Капуста белокочанная</div>
+            <div class="rec-text">Первые 3–5 дней не открывайте плёнку — поддерживайте постоянную влажность.</div>
+          </div>
+        </div>
+        <div class="rec-card">
+          <div class="rec-icon-wrap blue">💧</div>
+          <div class="rec-body">
+            <div class="rec-crop blue">Кабачок</div>
+            <div class="rec-text">Пора полить — прошло 4 дня с последнего полива.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+
+    <!-- Bottom nav -->
+    <div class="bottom-nav" id="bottom-nav">
+      <div class="nav-item active" id="nav-today">
+        <div class="nav-icon-wrap"><span class="nav-icon">🏠</span></div>
+        <span class="nav-label">Сегодня</span>
+      </div>
+      <div class="nav-item" id="nav-calendar">
+        <div class="nav-icon-wrap"><span class="nav-icon">📅</span></div>
+        <span class="nav-label">Календарь</span>
+      </div>
+      <div class="nav-item" id="nav-plantings">
+        <div class="nav-icon-wrap"><span class="nav-icon">🌱</span></div>
+        <div class="nav-badge">2</div>
+        <span class="nav-label">Посадки</span>
+      </div>
+      <div class="nav-item" id="nav-harvest">
+        <div class="nav-icon-wrap"><span class="nav-icon">🌸</span></div>
+        <span class="nav-label">Урожай</span>
+      </div>
+    </div>
+
+  </div><!-- /app -->
+
+  <!-- ═══ COACH MARK OVERLAY ═══ -->
+  <div class="overlay" id="overlay">
+    <div class="spotlight pulse" id="spotlight"></div>
+    <div class="tooltip" id="tooltip">
+      <div class="tooltip-step" id="tooltip-step">Шаг 1 из 6</div>
+      <div class="tooltip-title" id="tooltip-title"></div>
+      <div class="tooltip-desc" id="tooltip-desc"></div>
+      <div class="tooltip-actions">
+        <div class="step-dots" id="step-dots">
+          <div class="step-dot active"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="btn-skip" onclick="finishCoach()">Пропустить</button>
+          <button class="btn-next" id="btn-next" onclick="nextStep()">Далее →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+
+<script>
+  const steps = [
+    {
+      targetId: 'weather-card',
+      title:    'Прогноз погоды',
+      desc:     'Актуальная погода и прогноз на неделю с учётом влажности почвы и риска заморозков. Планируйте работы заранее.',
+      arrowDir: 'down',
+    },
+    {
+      targetId: 'task-list',
+      title:    'Задачи на сегодня',
+      desc:     'Список формируется автоматически — по посадкам, погоде и срокам. Нажмите, чтобы отметить действие.',
+      arrowDir: 'down',
+    },
+    {
+      targetId: 'quick-actions',
+      title:    'Быстрые действия',
+      desc:     'Быстрый доступ к регулярным действиям — полив, подкормка и обработка в один тап.',
+      arrowDir: 'down',
+    },
+    {
+      targetId: 'rec-block',
+      title:    'Советы дня',
+      desc:     'Полезные рекомендации на каждый день. Смахните, чтобы удалить.',
+      arrowDir: 'down',
+    },
+    {
+      targetId: 'nav-plantings',
+      title:    'Ваши посадки',
+      desc:     'Добавьте культуры — и приложение начнёт составлять задачи именно для них.',
+      arrowDir: 'down',
+    },
+    {
+      targetId: 'nav-calendar',
+      title:    'Календарь работ',
+      desc:     'Расписание всех дачных работ для удобного планирования.',
+      arrowDir: 'down',
+    },
+  ];
+
+  let current = 0;
+  const overlay   = document.getElementById('overlay');
+  const spotlight = document.getElementById('spotlight');
+  const tooltip   = document.getElementById('tooltip');
+  const phone     = document.querySelector('.phone');
+
+  function positionSpotlight(step, target) {
+    const pRect  = phone.getBoundingClientRect();
+    const tRect  = target.getBoundingClientRect();
+
+    const top    = tRect.top    - pRect.top;
+    const left   = tRect.left   - pRect.left;
+    const width  = tRect.width;
+    const height = tRect.height;
+
+    const isNavItem = step.targetId.startsWith('nav-');
+    const pad    = isNavItem ? 6 : 10;
+    const radius = isNavItem ? '16px' : '20px';
+
+    spotlight.style.top          = (top    - pad) + 'px';
+    spotlight.style.left         = (left   - pad) + 'px';
+    spotlight.style.width        = (width  + pad * 2) + 'px';
+    spotlight.style.height       = (height + pad * 2) + 'px';
+    spotlight.style.borderRadius = radius;
+
+    tooltip.className    = 'tooltip arrow-down';
+    tooltip.style.top    = '';
+    tooltip.style.bottom = (phone.offsetHeight - (top - pad - 16)) + 'px';
+  }
+
+  function showStep(index) {
+    const step    = steps[index];
+    const target  = document.getElementById(step.targetId);
+    const content = document.querySelector('.content');
+
+    // Update text immediately
+    document.getElementById('tooltip-step').textContent  = `Шаг ${index + 1} из ${steps.length}`;
+    document.getElementById('tooltip-title').textContent = step.title;
+    document.getElementById('tooltip-desc').textContent  = step.desc;
+    document.querySelectorAll('.step-dot').forEach((d, i) =>
+      d.classList.toggle('active', i === index)
+    );
+    document.getElementById('btn-next').textContent =
+      index === steps.length - 1 ? 'Готово ✓' : 'Далее →';
+
+    if (content.contains(target)) {
+      target.scrollIntoView({ behavior: 'instant', block: 'center' });
+    } else {
+      content.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    positionSpotlight(step, target);
+  }
+
+  function nextStep() {
+    if (current < steps.length - 1) {
+      current++;
+      showStep(current);
+    } else {
+      finishCoach();
+    }
+  }
+
+  function finishCoach() {
+    overlay.classList.remove('visible');
+  }
+
+  setTimeout(() => {
+    overlay.classList.add('visible');
+    showStep(0);
+  }, 600);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'Enter') nextStep();
+    if (e.key === 'Escape') finishCoach();
+  });
+</script>
+
+</body>
+</html>

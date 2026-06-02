@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Календарь дачника — Intro</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --orange: #FF7B00;
+    --orange-light: #FFEDD8;
+    --orange-dark: #E06A00;
+    --cream: #FFF8EB;
+    --green: #2E7D32;
+    --text: #1A1A1A;
+    --text-muted: #888;
+  }
+
+  body {
+    background: #E8E0D5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Nunito', sans-serif;
+  }
+
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--cream);
+    border-radius: 50px;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 0 0 12px #1A1A1A,
+      0 40px 80px rgba(0,0,0,0.4),
+      0 20px 40px rgba(0,0,0,0.2);
+  }
+
+  /* Notch */
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 34px;
+    background: #1A1A1A;
+    border-radius: 0 0 20px 20px;
+    z-index: 100;
+  }
+
+  /* Slider */
+  .slider {
+    width: 100%; height: 100%;
+    display: flex;
+    transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+
+  .slide {
+    min-width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ─── Skip button ─── */
+  .skip {
+    position: absolute;
+    top: 52px; right: 24px;
+    z-index: 50;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: rgba(255,255,255,0.85);
+    background: rgba(255,255,255,0.2);
+    border: none;
+    border-radius: 20px;
+    padding: 6px 14px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: background 0.2s;
+  }
+  .skip:hover { background: rgba(255,255,255,0.3); }
+  .skip.dark {
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.06);
+  }
+  .skip.dark:hover { background: rgba(0,0,0,0.1); }
+
+  /* ─── Hero top area ─── */
+  .hero-top {
+    position: relative;
+    height: 420px;
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 34px;   /* notch clearance */
+    padding-bottom: 72px; /* above the diagonal clip */
+  }
+
+  .hero-top .bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(155deg, #FF9D3D 0%, #FF7B00 45%, #E06000 100%);
+  }
+
+  /* Diagonal clip at bottom */
+  .hero-top::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0; right: 0;
+    height: 80px;
+    background: var(--cream);
+    clip-path: polygon(0 60%, 100% 0%, 100% 100%, 0% 100%);
+  }
+
+  /* Decorative circles */
+  .hero-top .circle-1 {
+    position: absolute;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    top: -60px; right: -80px;
+  }
+  .hero-top .circle-2 {
+    position: absolute;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    bottom: 40px; left: -40px;
+  }
+
+  .hero-emoji {
+    font-size: 100px;
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.2));
+    animation: float 3s ease-in-out infinite;
+    z-index: 2;
+    line-height: 1;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-10px); }
+  }
+
+  .hero-title {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 32px;
+    font-weight: 900;
+    color: white;
+    letter-spacing: -0.5px;
+    z-index: 2;
+    text-shadow: 0 2px 16px rgba(0,0,0,0.25);
+    padding: 0 24px;
+  }
+
+  /* ─── Content area ─── */
+  .content {
+    flex: 1;
+    padding: 8px 28px 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .subtitle {
+    font-size: 16px;
+    font-weight: 600;
+    color: #555;
+    text-align: center;
+    line-height: 1.55;
+    margin-bottom: 24px;
+  }
+
+  /* ─── Bottom bar ─── */
+  .bottom-bar {
+    padding: 16px 28px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 4px;
+    background: #D4C8B8;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dot.active {
+    width: 28px;
+    background: var(--orange);
+  }
+
+  .btn-primary {
+    width: 100%;
+    height: 56px;
+    background: linear-gradient(135deg, #FF9D3D, #FF7B00);
+    border: none;
+    border-radius: 18px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 900;
+    font-size: 17px;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(255,123,0,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.2px;
+  }
+
+  .btn-primary:active {
+    transform: scale(0.97);
+    box-shadow: 0 4px 12px rgba(255,123,0,0.3);
+  }
+
+  .btn-link {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: color 0.2s;
+  }
+  .btn-link:hover { color: var(--orange); }
+
+  /* ══════════════════════════════
+     SLIDE 1 — HERO
+  ══════════════════════════════ */
+  /* already done via .hero-top */
+
+  /* ══════════════════════════════
+     SLIDE 2 — FEATURES
+  ══════════════════════════════ */
+  .slide-features .hero-top {
+    height: 260px;
+  }
+
+  .feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 4px;
+  }
+
+  .feature-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: white;
+    border-radius: 18px;
+    padding: 16px 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .feature-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .feature-icon.blue   { background: #E3F2FD; }
+  .feature-icon.orange { background: #FFF3E0; }
+  .feature-icon.green  { background: #E8F5E9; }
+
+  .feature-text strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .feature-text span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  /* ══════════════════════════════
+     SLIDE 3 — SMART PLAN
+  ══════════════════════════════ */
+  .slide-plan .hero-top {
+    height: 280px;
+  }
+
+  .plan-subtitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+    text-align: center;
+    line-height: 1.55;
+    margin: 0 0 20px;
+    padding: 0 4px;
+  }
+
+  .task-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .task-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: white;
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border-left: 4px solid var(--orange);
+    animation: slideInCard 0.4s ease both;
+  }
+
+  .task-card:nth-child(2) { animation-delay: 0.1s; border-left-color: #42A5F5; }
+  .task-card:nth-child(3) { animation-delay: 0.2s; border-left-color: var(--green); }
+
+  @keyframes slideInCard {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .task-emoji { font-size: 24px; }
+
+  .task-info strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .task-info span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .task-badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+
+  .task-badge.urgent { background: #FFF3E0; color: var(--orange); }
+  .task-badge.today  { background: #E3F2FD; color: #1565C0; }
+  .task-badge.ok     { background: #E8F5E9; color: var(--green); }
+
+  /* ══════════════════════════════
+     SLIDE 4 — CTA
+  ══════════════════════════════ */
+  .slide-cta .hero-top {
+    height: 340px;
+  }
+
+  .cta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #E8F5E9;
+    color: var(--green);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 20px;
+    margin: 0 auto 20px;
+  }
+
+  .cta-subtitle {
+    font-size: 16px;
+    font-weight: 600;
+    color: #555;
+    text-align: center;
+    line-height: 1.55;
+    margin-bottom: 28px;
+  }
+
+  .trial-note {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  /* Active slide entrance animation */
+  .slide.entering .hero-emoji {
+    animation: heroEntrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  @keyframes heroEntrance {
+    from { opacity: 0; transform: scale(0.6) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="slider" id="slider">
+
+    <!-- ═══ SLIDE 1: WELCOME ═══ -->
+    <div class="slide" id="slide-0">
+      <button class="skip" onclick="goTo(3)">Пропустить</button>
+
+      <div class="hero-top">
+        <div class="bg"></div>
+        <div class="circle-1"></div>
+        <div class="circle-2"></div>
+        <div class="hero-emoji">🌻</div>
+        <div class="hero-title">Календарь дачника</div>
+      </div>
+
+      <div class="content">
+        <p class="subtitle" style="margin-top:12px;">
+          Планируйте дачный сезон —<br>приложение возьмёт рутину на себя
+        </p>
+
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
+          <div style="display:flex;align-items:center;gap:12px;background:white;border-radius:16px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <span style="font-size:22px;">🌱</span>
+            <span style="font-size:14px;font-weight:700;color:#444;">Посадки под контролем</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:white;border-radius:16px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <span style="font-size:22px;">⛅</span>
+            <span style="font-size:14px;font-weight:700;color:#444;">Советы с учётом погоды</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:white;border-radius:16px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <span style="font-size:22px;">🔔</span>
+            <span style="font-size:14px;font-weight:700;color:#444;">Умные напоминания</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-bar">
+        <div class="dots" id="dots-0">
+          <div class="dot active"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+        <button class="btn-primary" onclick="next()">Далее →</button>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 2: FEATURES ═══ -->
+    <div class="slide slide-features" id="slide-1">
+      <button class="skip" onclick="goTo(3)">Пропустить</button>
+
+      <div class="hero-top">
+        <div class="bg"></div>
+        <div class="circle-1"></div>
+        <div class="circle-2"></div>
+        <div class="hero-emoji">📋</div>
+        <div class="hero-title">Всё под контролем</div>
+      </div>
+
+      <div class="content">
+        <div class="feature-list" style="margin-top:16px;">
+          <div class="feature-row">
+            <div class="feature-icon blue">💧</div>
+            <div class="feature-text">
+              <strong>Полив и подкормка</strong>
+              <span>Напоминания по расписанию с учётом климата</span>
+            </div>
+          </div>
+          <div class="feature-row">
+            <div class="feature-icon orange">🌡️</div>
+            <div class="feature-text">
+              <strong>Погода и риски</strong>
+              <span>Предупреждения о заморозках и жаре</span>
+            </div>
+          </div>
+          <div class="feature-row">
+            <div class="feature-icon green">📊</div>
+            <div class="feature-text">
+              <strong>Журнал и урожай</strong>
+              <span>История действий и статистика по сезонам</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-bar">
+        <div class="dots">
+          <div class="dot"></div>
+          <div class="dot active"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+        <button class="btn-primary" onclick="next()">Далее →</button>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 3: SMART PLAN ═══ -->
+    <div class="slide slide-plan" id="slide-2">
+      <button class="skip" onclick="goTo(3)">Пропустить</button>
+
+      <div class="hero-top">
+        <div class="bg"></div>
+        <div class="circle-1"></div>
+        <div class="circle-2"></div>
+        <div class="hero-emoji">🗓️</div>
+        <div class="hero-title">Умный план на каждый день</div>
+      </div>
+
+      <div class="content">
+        <p class="plan-subtitle" style="margin-top:12px;">
+          Задачи формируются автоматически —<br>по посадкам, погоде и климату региона
+        </p>
+
+        <div class="task-cards">
+          <div class="task-card">
+            <span class="task-emoji">💧</span>
+            <div class="task-info">
+              <strong>Полить томаты</strong>
+              <span>3 дня без полива</span>
+            </div>
+            <span class="task-badge urgent">Срочно</span>
+          </div>
+          <div class="task-card">
+            <span class="task-emoji">❄️</span>
+            <div class="task-info">
+              <strong>Риск заморозка</strong>
+              <span>Завтра до −2°C</span>
+            </div>
+            <span class="task-badge today">Сегодня</span>
+          </div>
+          <div class="task-card">
+            <span class="task-emoji">🥒</span>
+            <div class="task-info">
+              <strong>Урожай огурцов</strong>
+              <span>Готовы к сбору</span>
+            </div>
+            <span class="task-badge ok">Готово</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-bar">
+        <div class="dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot active"></div>
+          <div class="dot"></div>
+        </div>
+        <button class="btn-primary" onclick="next()">Далее →</button>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 4: CTA ═══ -->
+    <div class="slide slide-cta" id="slide-3">
+      <div class="hero-top">
+        <div class="bg"></div>
+        <div class="circle-1"></div>
+        <div class="circle-2"></div>
+        <div class="hero-emoji">🚀</div>
+        <div class="hero-title">Начнём!</div>
+      </div>
+
+      <div class="content" style="align-items:center;padding-top:16px;">
+        <div class="cta-badge">
+          <span>🎁</span> 7 дней бесплатно
+        </div>
+
+        <p class="cta-subtitle">
+          Создайте аккаунт — это займёт<br>меньше минуты
+        </p>
+
+        <div style="width:100%;display:flex;flex-direction:column;gap:10px;margin-top:4px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;">
+              <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:700;color:#444;">Все функции бесплатно 7 дней</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;">
+              <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:700;color:#444;">Без привязки карты</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;">
+              <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:700;color:#444;">Отмена в любой момент</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-bar" style="gap:12px;">
+        <div class="dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot active"></div>
+        </div>
+        <button class="btn-primary" onclick="alert('→ Экран регистрации')">
+          🌱 Зарегистрироваться
+        </button>
+        <button class="btn-link" onclick="alert('→ Экран входа')">
+          Уже есть аккаунт? Войти
+        </button>
+        <p class="trial-note">Затем 299 ₽/мес или 1 990 ₽/год.<br>Отменить можно в любое время.</p>
+      </div>
+    </div>
+
+  </div><!-- /slider -->
+</div><!-- /phone -->
+
+<script>
+  let current = 0;
+  const total = 4;
+  const slider = document.getElementById('slider');
+
+  // Touch/swipe support
+  let startX = 0;
+  let isDragging = false;
+
+  slider.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    isDragging = true;
+  }, { passive: true });
+
+  slider.addEventListener('touchend', e => {
+    if (!isDragging) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0 && current < total - 1) next();
+      else if (dx > 0 && current > 0) prev();
+    }
+    isDragging = false;
+  });
+
+  // Mouse drag support (for desktop preview)
+  slider.addEventListener('mousedown', e => {
+    startX = e.clientX;
+    isDragging = true;
+  });
+  slider.addEventListener('mouseup', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0 && current < total - 1) next();
+      else if (dx > 0 && current > 0) prev();
+    }
+    isDragging = false;
+  });
+
+  function goTo(index) {
+    current = Math.max(0, Math.min(index, total - 1));
+    slider.style.transform = `translateX(-${current * 100}%)`;
+  }
+
+  function next() { if (current < total - 1) goTo(current + 1); }
+  function prev() { if (current > 0) goTo(current - 1); }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') next();
+    if (e.key === 'ArrowLeft') prev();
+  });
+</script>
+</body>
+</html>
