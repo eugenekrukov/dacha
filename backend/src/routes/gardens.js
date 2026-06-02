@@ -18,6 +18,15 @@ async function geocodeCity(city) {
   return null
 }
 
+// pg возвращает DECIMAL-колонки как строки — нормализуем в числа
+function normalizeGarden(g) {
+  return {
+    ...g,
+    lat: g.lat != null ? parseFloat(g.lat) : null,
+    lon: g.lon != null ? parseFloat(g.lon) : null,
+  }
+}
+
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
@@ -69,7 +78,7 @@ module.exports = async function (fastify) {
       updateGardenWeather(fastify.db, garden).catch(() => {})
     }
 
-    return reply.code(201).send(garden)
+    return reply.code(201).send(normalizeGarden(garden))
   })
 
   // GET /gardens
@@ -84,7 +93,7 @@ module.exports = async function (fastify) {
       [request.user.userId]
     )
     return result.rows.map(g => ({
-      ...g,
+      ...normalizeGarden(g),
       climate_zone: g.climate_zone ?? getZoneForRegion(g.region)
     }))
   })
@@ -96,7 +105,7 @@ module.exports = async function (fastify) {
       [request.params.id, request.user.userId]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
-    return result.rows[0]
+    return normalizeGarden(result.rows[0])
   })
 
   // PUT /gardens/:id
@@ -129,6 +138,6 @@ module.exports = async function (fastify) {
        request.params.id, request.user.userId]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
-    return result.rows[0]
+    return normalizeGarden(result.rows[0])
   })
 }

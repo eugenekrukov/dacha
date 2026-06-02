@@ -31,7 +31,35 @@ if (props.countrycode?.toLowerCase() !== 'ru') continue
 
 ---
 
-## 2. Переменные окружения
+## 2. DECIMAL-колонки PostgreSQL → всегда приводить к числу
+
+**Проблема**: `pg` (Node.js) возвращает `DECIMAL`/`NUMERIC` колонки как **строки**, а не числа.
+Android-модели объявляют эти поля как `Double?` / `Int?` — Moshi не умеет парсить строку в число.
+
+**Затронутые колонки:**
+
+| Таблица | Колонки |
+|---------|---------|
+| `gardens` | `lat`, `lon` |
+| `weather_snapshots` | `temp_c`, `min_temp_c`, `max_temp_c`, `wind_ms`, `precip_mm` |
+| `harvests` | `weight_kg` |
+
+**Правило**: в каждом роуте, который возвращает эти колонки — явно вызвать `parseFloat()` / `parseInt()`.
+Использовать helper-функцию `normalizeXxx(row)` при маппинге результата.
+
+```javascript
+// Пример:
+function normalizeGarden(g) {
+  return { ...g, lat: g.lat != null ? parseFloat(g.lat) : null, lon: ... }
+}
+return result.rows.map(normalizeGarden)
+```
+
+> **Исключение**: `today.js` — там уже есть явный маппинг с `parseFloat()` для погодных полей.
+
+---
+
+## 3. Переменные окружения
 
 БД подключается через отдельные переменные (не `DATABASE_URL`):
 

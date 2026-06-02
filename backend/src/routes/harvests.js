@@ -1,5 +1,10 @@
 'use strict'
 
+// pg возвращает DECIMAL как строку — нормализуем weight_kg в число
+function normalizeHarvest(h) {
+  return { ...h, weight_kg: h.weight_kg != null ? parseFloat(h.weight_kg) : null }
+}
+
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
@@ -11,7 +16,7 @@ module.exports = async function (fastify) {
        VALUES ($1,$2,$3,$4,NOW()) RETURNING *`,
       [planting_id, weight_kg, quantity, notes]
     )
-    return reply.code(201).send(result.rows[0])
+    return reply.code(201).send(normalizeHarvest(result.rows[0]))
   })
 
   // GET /harvests?garden_id=
@@ -27,6 +32,6 @@ module.exports = async function (fastify) {
        ORDER BY h.harvested_at DESC`,
       garden_id ? [request.user.userId, garden_id] : [request.user.userId]
     )
-    return result.rows
+    return result.rows.map(normalizeHarvest)
   })
 }

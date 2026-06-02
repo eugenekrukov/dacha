@@ -1,5 +1,19 @@
 'use strict'
 
+// pg возвращает DECIMAL как строку — нормализуем числовые поля погоды
+function normalizeWeather(w) {
+  if (!w) return w
+  return {
+    ...w,
+    temp_c:      w.temp_c      != null ? parseFloat(w.temp_c)      : null,
+    min_temp_c:  w.min_temp_c  != null ? parseFloat(w.min_temp_c)  : null,
+    max_temp_c:  w.max_temp_c  != null ? parseFloat(w.max_temp_c)  : null,
+    humidity_pct: w.humidity_pct != null ? parseInt(w.humidity_pct) : null,
+    wind_ms:     w.wind_ms     != null ? parseFloat(w.wind_ms)     : null,
+    precip_mm:   w.precip_mm   != null ? parseFloat(w.precip_mm)   : null,
+  }
+}
+
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
@@ -23,13 +37,13 @@ module.exports = async function (fastify) {
       [garden_id]
     )
 
-    if (snapshot.rows[0]) return snapshot.rows[0]
+    if (snapshot.rows[0]) return normalizeWeather(snapshot.rows[0])
 
     // Если кэш устарел — возвращаем последний доступный (фоновый джоб обновит)
     const lastSnapshot = await fastify.db.query(
       'SELECT * FROM weather_snapshots WHERE garden_id=$1 ORDER BY fetched_at DESC LIMIT 1',
       [garden_id]
     )
-    return lastSnapshot.rows[0] || { message: 'Weather data not yet available' }
+    return normalizeWeather(lastSnapshot.rows[0]) || { message: 'Weather data not yet available' }
   })
 }
