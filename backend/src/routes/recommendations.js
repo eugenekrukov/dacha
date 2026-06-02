@@ -121,28 +121,6 @@ module.exports = async function (fastify) {
         }
       }
 
-      // Подкормка по стадии
-      const schedule = planting.fertilizing_schedule || []
-      const fertEntry = schedule.find(f => f.stage === planting.stage)
-      if (fertEntry) {
-        const lastFertilized = await db.query(
-          `SELECT logged_at FROM action_logs WHERE planting_id=$1 AND action_type='fertilizing' ORDER BY logged_at DESC LIMIT 1`,
-          [planting.id]
-        )
-        const daysSinceFertilized = lastFertilized.rows[0]
-          ? Math.floor((now - new Date(lastFertilized.rows[0].logged_at)) / 86400000)
-          : daysSincePlanting
-        if (daysSinceFertilized > 14) {
-          recommendations.push({
-            type: 'fertilizing',
-            priority: 'medium',
-            planting_id: planting.id,
-            crop_name: planting.crop_name,
-            message: `Пора подкормить ${planting.crop_name} (стадия: ${STAGE_LABELS[planting.stage] || planting.stage})${fertEntry.product_example ? ' — ' + fertEntry.product_example : ''}`
-          })
-        }
-      }
-
       // Совет по стадии культуры (не чаще 1 раза на 2 посадки чтобы не перегружать)
       if (recommendations.filter(r => r.type === 'stage_tip').length < 2) {
         const stageTip = getStageTip(planting.stage)

@@ -11,12 +11,13 @@ const CARE_TASK_ACTION_MAP = {
 }
 
 const TASK_PRIORITY = {
-  frost_alert:    1,
-  transplant_due: 2,
-  care_task_due:  3,
-  watering_due:   4,
-  harvest_due:    5,
-  reminder:       6,
+  frost_alert:      1,
+  transplant_due:   2,
+  care_task_due:    3,
+  watering_due:     4,
+  fertilizing_due:  5,
+  harvest_due:      6,
+  reminder:         7,
 }
 
 /**
@@ -51,7 +52,7 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays) {
  * Чистая функция сборки задач дня.
  * @param careActionsToday — { plantingId: string[] } — действия, залогированные сегодня
  */
-function buildTasks(plantings, weather, lastWateredMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null) {
+function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null) {
   // Если завтра дождь ≥70% — полив не нужен
   const rainExpected = precipProb !== null && precipProb >= 70
   const tasks = []
@@ -141,6 +142,25 @@ function buildTasks(plantings, weather, lastWateredMap, reminders, today = new D
       }
     }
 
+    // 🌿 Нужна подкормка (по fertilizing_schedule для текущей стадии)
+    const fertilizingSchedule = p.fertilizing_schedule || []
+    const fertEntry = fertilizingSchedule.find(f => f.stage === p.stage)
+    if (fertEntry && !todayActions.includes('fertilizing')) {
+      const lastFertilized = lastFertilizedMap[p.id] || plantedAt
+      const daysSinceFertilized = Math.floor((today - lastFertilized) / 86400000)
+      if (daysSinceFertilized > 14) {
+        tasks.push({
+          type: 'fertilizing_due',
+          priority: TASK_PRIORITY.fertilizing_due,
+          planting_id: p.id,
+          crop_name: p.crop_name,
+          message: `${p.crop_name} — нужна подкормка (${daysSinceFertilized} дн. без удобрений)`,
+          days_overdue: daysSinceFertilized - 14,
+          product_example: fertEntry.product_example || null,
+        })
+      }
+    }
+
     // 🌾 Пора убирать урожай
     if (
       p.harvest_days &&
@@ -172,12 +192,13 @@ function formatTasks(tasks) {
     // Короткий actionable заголовок — помещается в одну строку карточки
     let title
     switch (t.type) {
-      case 'watering_due':   title = `Полить: ${t.crop_name}`; break
-      case 'transplant_due': title = `Высадить в грунт: ${t.crop_name}`; break
-      case 'harvest_due':    title = `Убрать урожай: ${t.crop_name}`; break
-      case 'frost_alert':    title = `Заморозки: ${t.crop_name}`; break
-      case 'care_task_due':  title = `${t.care_task_name}: ${t.crop_name}`; break
-      default:               title = t.message || t.type
+      case 'watering_due':     title = `Полить: ${t.crop_name}`; break
+      case 'transplant_due':   title = `Высадить в грунт: ${t.crop_name}`; break
+      case 'fertilizing_due':  title = `Подкормить: ${t.crop_name}`; break
+      case 'harvest_due':      title = `Убрать урожай: ${t.crop_name}`; break
+      case 'frost_alert':      title = `Заморозки: ${t.crop_name}`; break
+      case 'care_task_due':    title = `${t.care_task_name}: ${t.crop_name}`; break
+      default:                 title = t.message || t.type
     }
 
     // Описание с деталями
@@ -192,6 +213,10 @@ function formatTasks(tasks) {
         : 'Пора высаживать'
     } else if (t.type === 'harvest_due') {
       description = 'Урожай готов к сбору'
+    } else if (t.type === 'fertilizing_due') {
+      description = t.product_example
+        ? `${t.product_example}`
+        : t.days_overdue > 0 ? `Просрочено на ${t.days_overdue} дн.` : 'Сделайте сегодня'
     } else if (t.type === 'frost_alert') {
       description = 'Защитите растение от мороза'
     } else if (t.type === 'care_task_due') {

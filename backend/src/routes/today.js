@@ -30,7 +30,7 @@ module.exports = async function (fastify) {
       `SELECT p.id, p.planted_at, p.stage, p.quantity, p.conditions,
               c.name as crop_name, c.category,
               c.watering_freq_days, c.transplant_days,
-              c.harvest_days, c.frost_sensitive, c.care_tasks
+              c.harvest_days, c.frost_sensitive, c.care_tasks, c.fertilizing_schedule
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
        WHERE p.garden_id=$1 AND p.stage NOT IN ('done')
@@ -55,7 +55,23 @@ module.exports = async function (fastify) {
       })
     }
 
-    // ── 3.5. CARE-ДЕЙСТВИЯ ЗА СЕГОДНЯ ────────────────────────────────────────
+    // ── 3.5. ПОСЛЕДНЯЯ ПОДКОРМКА ─────────────────────────────────────────────
+    let lastFertilizedMap = {}
+    if (plantings.length > 0) {
+      const ids = plantings.map(p => p.id)
+      const fertRes = await fastify.db.query(
+        `SELECT DISTINCT ON (planting_id) planting_id, logged_at
+         FROM action_logs
+         WHERE planting_id = ANY($1) AND action_type = 'fertilizing'
+         ORDER BY planting_id, logged_at DESC`,
+        [ids]
+      )
+      fertRes.rows.forEach(r => {
+        lastFertilizedMap[r.planting_id] = new Date(r.logged_at)
+      })
+    }
+
+    // ── 3.6. CARE-ДЕЙСТВИЯ ЗА СЕГОДНЯ ────────────────────────────────────────
     let careActionsToday = {}
     if (plantings.length > 0) {
       const ids = plantings.map(p => p.id)
@@ -63,7 +79,7 @@ module.exports = async function (fastify) {
         `SELECT planting_id, array_agg(action_type) as action_types
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','transplanting')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','transplanting','fertilizing')
            AND logged_at >= CURRENT_DATE
          GROUP BY planting_id`,
         [ids]
@@ -95,7 +111,7 @@ module.exports = async function (fastify) {
     }))
 
     // ── 5. ЗАДАЧИ ────────────────────────────────────────────────────────────
-    const rawTasks = buildTasks(plantings, weather, lastWateredMap, reminderTasks, today, careActionsToday, weather?.precip_prob_pct ?? null)
+    const rawTasks = buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminderTasks, today, careActionsToday, weather?.precip_prob_pct ?? null)
     const topTasks = formatTasks(rawTasks)
 
     return {
