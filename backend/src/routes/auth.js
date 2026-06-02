@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt')
 module.exports = async function (fastify) {
   // POST /auth/register
   fastify.post('/register', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: {
       body: {
         type: 'object',
@@ -39,6 +40,7 @@ module.exports = async function (fastify) {
 
   // POST /auth/login
   fastify.post('/login', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: {
       body: {
         type: 'object',

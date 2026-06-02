@@ -925,3 +925,15 @@ recommendations нет, прочий тест-сьют не затронут. Н
 падает, т.к. вызывает `buildTasks` со старой сигнатурой (5 арг.) вместо текущей (8 арг.:
 добавлены lastFertilizedMap, careActionsToday, precipProb). `todayLogic.js` я не трогал.
 Нужно отдельно обновить этот юнит-тест под актуальную сигнатуру.
+
+### JWT, rate-limit, helmet, CORS (app.js)
+- JWT: добавлен `sign.expiresIn` (JWT_EXPIRES_IN || 30d) — токены больше не вечные.
+- JWT_SECRET: в production сервер падает при старте, если секрет не задан (раньше — тихий
+  дефолтный ключ).
+- `@fastify/helmet` — security-заголовки.
+- `@fastify/rate-limit` — глобальный лимит (RATE_LIMIT_MAX || 100/мин) + строгий на
+  /auth/login и /auth/register (10/мин) против брутфорса.
+- CORS: конфигурируемый через CORS_ORIGIN (по умолчанию — прежнее поведение, любой origin).
+- `.env.example`: добавлены CORS_ORIGIN, RATE_LIMIT_*, починена битая кириллица в комментариях.
+- Зависимости: @fastify/rate-limit@9, @fastify/helmet@11.
+Полный сьют: 76 зелёных; красны только прежние 21 todayLogic (не моё, см. выше).

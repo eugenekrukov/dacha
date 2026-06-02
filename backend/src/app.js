@@ -10,13 +10,34 @@ const app = Fastify({
   }
 })
 
-// Plugins
+// JWT-секрет обязателен в production — иначе токены подделываются предсказуемым ключом
+const jwtSecret = process.env.JWT_SECRET
+if (!jwtSecret && process.env.NODE_ENV === 'production') {
+  app.log.error('JWT_SECRET must be set in production')
+  process.exit(1)
+}
+
+// Security headers
+app.register(require('@fastify/helmet'), { global: true })
+
+// CORS: по умолчанию разрешаем любой origin (мобильный клиент CORS не использует),
+// но можно ограничить через переменную CORS_ORIGIN (список через запятую)
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+  : true
 app.register(require('@fastify/cors'), {
-  origin: true
+  origin: corsOrigin
+})
+
+// Глобальный rate-limit (защита от перебора/злоупотреблений)
+app.register(require('@fastify/rate-limit'), {
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  timeWindow: process.env.RATE_LIMIT_WINDOW || '1 minute'
 })
 
 app.register(require('@fastify/jwt'), {
-  secret: process.env.JWT_SECRET || 'dev-secret-change-in-production'
+  secret: jwtSecret || 'dev-secret-change-in-production',
+  sign: { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
 })
 
 // DB connection
