@@ -4,8 +4,10 @@ import androidx.compose.animation.core.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -78,6 +80,9 @@ fun TodayScreen(
 ) {
     val uiState       by viewModel.uiState.collectAsState()
     val dismissedRecs by viewModel.dismissedRecs.collectAsState()
+    val deletedRecs   by viewModel.deletedRecs.collectAsState()
+    val snoozedTasks  by viewModel.snoozedTasks.collectAsState()
+    val deletedTasks  by viewModel.deletedTasks.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(showOnboardingHint) {
@@ -102,28 +107,39 @@ fun TodayScreen(
         when (val state = uiState) {
             is TodayUiState.Loading -> LoadingScreen()
             is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
-            is TodayUiState.Success -> TodayContent(
-                weather       = state.data.today.weather,
-                forecast      = state.data.today.forecast,
-                tasks         = state.data.today.tasks,
-                recommendations = state.data.recommendations.filterNot {
-                    "${it.type}:${it.cropName}:${it.message.take(30)}" in dismissedRecs
-                },
-                plantings     = state.data.plantings,
-                todayActions  = state.data.todayActions,
-                coachMarkController = coachMarkController,
-                onRefresh     = { viewModel.loadToday() },
-                onDismissRec  = { rec ->
-                    viewModel.dismissRecommendation("${rec.type}:${rec.cropName}:${rec.message.take(30)}")
-                },
-                onEditGarden  = onEditGarden,
-                onOpenSettings = onOpenSettings,
-                onOpenJournal = onOpenJournal,
-                onAddPlanting = onAddPlanting
-            )
+            is TodayUiState.Success -> {
+                val hiddenRecKeys = dismissedRecs + deletedRecs
+                TodayContent(
+                    weather       = state.data.today.weather,
+                    forecast      = state.data.today.forecast,
+                    tasks         = state.data.today.tasks.filterNot { task ->
+                        val key = taskSnoozeKey(task)
+                        key in snoozedTasks || key in deletedTasks
+                    },
+                    recommendations = state.data.recommendations.filterNot {
+                        recKey(it) in hiddenRecKeys
+                    },
+                    plantings     = state.data.plantings,
+                    todayActions  = state.data.todayActions,
+                    onDeleteAction  = { viewModel.deleteAction(it) },
+                    onSnoozeRec     = { rec -> viewModel.snoozeRec(recKey(rec)) },
+                    onDeleteRec     = { rec -> viewModel.deleteRec(recKey(rec)) },
+                    onSnoozeTask    = { task -> viewModel.snoozeTask(taskSnoozeKey(task)) },
+                    onDeleteTask    = { task -> viewModel.deleteTask(taskSnoozeKey(task)) },
+                    coachMarkController = coachMarkController,
+                    onRefresh     = { viewModel.loadToday() },
+                    onEditGarden  = onEditGarden,
+                    onOpenSettings = onOpenSettings,
+                    onOpenJournal = onOpenJournal,
+                    onAddPlanting = onAddPlanting
+                )
+            }
         }
     }
 }
+
+private fun recKey(rec: Recommendation) = "${rec.type}:${rec.cropName}:${rec.message.take(30)}"
+private fun taskSnoozeKey(task: TodayTask) = "${task.type}:${task.plantingId}:${task.cropName}:${task.careTaskName}"
 
 // ─── Main content ──────────────────────────────────────────────────────────
 
@@ -136,9 +152,13 @@ private fun TodayContent(
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
     todayActions: List<ActionLog> = emptyList(),
+    onDeleteAction: (Int) -> Unit = {},
+    onSnoozeRec: (Recommendation) -> Unit = {},
+    onDeleteRec: (Recommendation) -> Unit = {},
+    onSnoozeTask: (TodayTask) -> Unit = {},
+    onDeleteTask: (TodayTask) -> Unit = {},
     coachMarkController: CoachMarkController? = null,
     onRefresh: () -> Unit,
-    onDismissRec: (Recommendation) -> Unit = {},
     onEditGarden: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenJournal: () -> Unit = {},
@@ -254,25 +274,31 @@ private fun TodayContent(
                         modifier = Modifier.coachTargetUnion(coachMarkController, "tasks"),
                     )
                 }
-                items(tasks) { task ->
+                items(tasks, key = { taskSnoozeKey(it) }) { task ->
                     val taskPlanting = task.plantingId?.let { id -> plantings.find { it.id == id } }
                     Box(Modifier.coachTargetUnion(coachMarkController, "tasks")) {
-                        SunnyTaskCard(
-                            task    = task,
-                            onClick = if (taskPlanting != null) {
-                                {
-                                    selectedPlanting = taskPlanting
-                                    quickActionNotes = if (task.type == "care_task_due") task.title else null
-                                    quickActionType  = when (task.type) {
-                                        "watering_due"    -> "watering"
-                                        "fertilizing_due" -> "fertilizing"
-                                        "transplant_due"  -> "transplanting"
-                                        "care_task_due"   -> careTaskActionType(task.careTaskName)
-                                        else              -> "other"
+                        SwipeActionsBox(
+                            itemLabel = task.cropName ?: task.type,
+                            onSnooze  = { onSnoozeTask(task) },
+                            onDelete  = { onDeleteTask(task) }
+                        ) {
+                            SunnyTaskCard(
+                                task    = task,
+                                onClick = if (taskPlanting != null) {
+                                    {
+                                        selectedPlanting = taskPlanting
+                                        quickActionNotes = task.careTaskName
+                                        quickActionType  = when (task.type) {
+                                            "watering_due"    -> "watering"
+                                            "fertilizing_due" -> "fertilizing"
+                                            "transplant_due"  -> "transplanting"
+                                            "care_task_due"   -> careTaskActionType(task.careTaskName)
+                                            else              -> "other"
+                                        }
                                     }
-                                }
-                            } else null
-                        )
+                                } else null
+                            )
+                        }
                     }
                 }
             } else if (plantings.isEmpty()) {
@@ -309,38 +335,17 @@ private fun TodayContent(
                 }
                 items(
                     recommendations,
-                    key = { "${it.type}:${it.cropName}:${it.message.take(30)}" }
+                    key = { recKey(it) }
                 ) { rec ->
-                    val dismissState = rememberSwipeToDismissBoxState(
-                        confirmValueChange = { value ->
-                            if (value != SwipeToDismissBoxValue.Settled) {
-                                onDismissRec(rec); true
-                            } else false
-                        }
-                    )
                     Box(Modifier.coachTargetUnion(coachMarkController, "recs")) {
-                    SwipeToDismissBox(
-                        state             = dismissState,
-                        backgroundContent = {
-                            Box(
-                                modifier           = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(MaterialTheme.colorScheme.errorContainer),
-                                contentAlignment   = Alignment.CenterEnd
-                            ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Удалить",
-                                    tint               = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier           = Modifier.padding(end = 24.dp)
-                                )
-                            }
+                        SwipeActionsBox(
+                            itemLabel    = rec.cropName ?: REC_TYPE_LABELS[rec.type] ?: rec.type,
+                            onSnooze     = { onSnoozeRec(rec) },
+                            onDelete     = { onDeleteRec(rec) }
+                        ) {
+                            SunnyRecommendationCard(rec)
                         }
-                    ) {
-                        SunnyRecommendationCard(rec)
                     }
-                    } // end Box coachTargetUnion
                 }
             }
 
@@ -381,7 +386,7 @@ private fun TodayContent(
                         }
                     }
                 }
-                items(todayActions) { action -> TodayActionRow(action) }
+                items(todayActions) { action -> TodayActionRow(action, onDeleteAction) }
             } else {
                 item {
                     TextButton(onClick = onOpenJournal) {
@@ -799,6 +804,102 @@ private fun ForecastDayChip(day: ForecastDay) {
     }
 }
 
+// ─── Swipe actions wrapper ─────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeActionsBox(
+    itemLabel: String,
+    onSnooze: () -> Unit,
+    onDelete: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    var pendingSnooze by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf(false) }
+
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> { pendingSnooze = true; false }
+                SwipeToDismissBoxValue.EndToStart -> { pendingDelete = true; false }
+                else -> false
+            }
+        }
+    )
+
+    if (pendingSnooze) {
+        AlertDialog(
+            onDismissRequest = { pendingSnooze = false },
+            title = { Text("Напомнить завтра?", fontFamily = NunitoFamily, fontWeight = FontWeight.Black) },
+            text  = { Text("«$itemLabel» снова появится в списке завтра.", fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold) },
+            confirmButton = {
+                TextButton(onClick = { pendingSnooze = false; onSnooze() }) {
+                    Text("Отложить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingSnooze = false }) {
+                    Text("Отмена", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    if (pendingDelete) {
+        AlertDialog(
+            onDismissRequest = { pendingDelete = false },
+            title = { Text("Удалить навсегда?", fontFamily = NunitoFamily, fontWeight = FontWeight.Black) },
+            text  = { Text("«$itemLabel» больше не будет показываться.", fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold) },
+            confirmButton = {
+                TextButton(onClick = { pendingDelete = false; onDelete() }) {
+                    Text("Удалить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = false }) {
+                    Text("Отмена", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    SwipeToDismissBox(
+        state                    = dismissState,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            val isSnooze = dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd
+            val bgColor  = if (isSnooze) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.errorContainer
+            val icon     = if (isSnooze) Icons.Default.Notifications else Icons.Default.Delete
+            val tint     = if (isSnooze) MaterialTheme.colorScheme.onPrimary
+                           else MaterialTheme.colorScheme.onErrorContainer
+            val align    = if (isSnooze) Alignment.CenterStart else Alignment.CenterEnd
+            val label    = if (isSnooze) "Отложить" else "Удалить"
+            Box(
+                modifier         = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(bgColor),
+                contentAlignment = align
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                ) {
+                    Icon(icon, contentDescription = label, tint = tint)
+                    Text(label, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp, color = tint)
+                }
+            }
+        }
+    ) {
+        content()
+    }
+}
+
 // ─── Task card ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -1068,6 +1169,23 @@ private fun SunnyRecommendationCard(rec: Recommendation) {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
+private val REC_TYPE_LABELS = mapOf(
+    "frost_alert"    to "Заморозки",
+    "watering"       to "Полив",
+    "harvest_ready"  to "Урожай готов",
+    "harvest_soon"   to "Скоро урожай",
+    "fertilizing"    to "Подкормка",
+    "heat_stress"    to "Жара",
+    "lifehack"       to "Лайфхак",
+    "lunar_tip"      to "Лунный совет",
+    "weather_tip"    to "Погодный совет",
+    "seasonal_tip"   to "Сезонный совет",
+    "sowing_season"  to "Время посева",
+    "sowing_soon"    to "Скоро посев",
+    "stage_tip"      to "Совет по стадии",
+    "transplant_tip" to "Пересадка"
+)
+
 private val STAGE_LABELS = mapOf(
     "sowing"       to "Посеяно",
     "sprouted"     to "Взошло",
@@ -1077,6 +1195,12 @@ private val STAGE_LABELS = mapOf(
     "harvesting"   to "Созревает",
     "done"         to "Завершено"
 )
+
+private fun isAutoGeneratedNote(note: String, type: String, cropName: String?): Boolean {
+    val label = ACTION_TYPE_LABELS[type] ?: return false
+    val crop  = cropName ?: return false
+    return note == "$label: $crop" || note == "$label — $crop" || note == "$label - $crop"
+}
 
 private val ACTION_TYPE_LABELS = mapOf(
     "watering"      to "Полив",
@@ -1092,10 +1216,45 @@ private val ACTION_TYPE_LABELS = mapOf(
     "other"         to "Другое"
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TodayActionRow(action: ActionLog) {
+private fun TodayActionRow(action: ActionLog, onDelete: (Int) -> Unit) {
+    var showConfirm by remember { mutableStateOf(false) }
+
+    if (showConfirm) {
+        val label = ACTION_TYPE_LABELS[action.type] ?: action.type
+        val crop  = action.cropName?.let { " — $it" } ?: ""
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = {
+                Text("Удалить запись?", fontFamily = NunitoFamily, fontWeight = FontWeight.Black)
+            },
+            text = {
+                Text(
+                    "«$label$crop» будет удалено без возможности восстановления.",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showConfirm = false; onDelete(action.id) }) {
+                    Text("Удалить", color = MaterialTheme.colorScheme.error,
+                        fontFamily = NunitoFamily, fontWeight = FontWeight.Black)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) {
+                    Text("Отмена", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = {}, onLongClick = { showConfirm = true })
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -1110,9 +1269,12 @@ private fun TodayActionRow(action: ActionLog) {
                 maxLines   = 1,
                 overflow   = TextOverflow.Ellipsis
             )
-            if (!action.notes.isNullOrBlank()) {
+            val userNote = action.notes?.takeIf { note ->
+                note.isNotBlank() && !isAutoGeneratedNote(note, action.type, action.cropName)
+            }
+            if (userNote != null) {
                 Text(
-                    text       = action.notes,
+                    text       = userNote,
                     fontFamily = NunitoFamily,
                     fontSize   = 12.sp,
                     color      = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1184,7 +1346,7 @@ private fun PlantingPickerBottomSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, windowInsets = WindowInsets(0)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1260,10 +1422,11 @@ private fun ErrorScreen(message: String, onRetry: () -> Unit) {
 private fun taskIcon(type: String): ImageVector = when (type) {
     "frost_alert"    -> Icons.Default.AcUnit
     "transplant_due" -> Icons.Default.Grass
-    "watering_due"   -> Icons.Default.WaterDrop
-    "harvest_due"    -> Icons.Default.Spa
-    "care_task_due"  -> Icons.Default.Eco
-    else             -> Icons.Default.Notifications
+    "watering_due"    -> Icons.Default.WaterDrop
+    "fertilizing_due" -> Icons.Default.Eco
+    "harvest_due"     -> Icons.Default.Spa
+    "care_task_due"   -> Icons.Default.Eco
+    else              -> Icons.Default.Notifications
 }
 
 

@@ -17,6 +17,9 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 import ru.dachakalend.app.ui.theme.NunitoFamily
@@ -64,6 +68,15 @@ fun PlantingsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.loadPlantings(silent = true)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(state.successMessage) {
         state.successMessage?.let {
@@ -188,11 +201,12 @@ fun PlantingsScreen(
                 }
                 items(state.filteredPlantings, key = { it.id }) { planting ->
                     PlantingCard(
-                        planting       = planting,
-                        pendingAction  = state.pendingTasks[planting.id],
-                        onLogAction    = { viewModel.openActionSheet(planting) },
-                        onEditInfo     = { viewModel.openEditSheet(planting) },
-                        onDelete       = { viewModel.requestDelete(planting) },
+                        planting         = planting,
+                        pendingAction    = state.pendingTasks[planting.id],
+                        snoozedTaskKeys  = state.snoozedTaskKeys,
+                        onLogAction      = { viewModel.openActionSheet(planting) },
+                        onEditInfo       = { viewModel.openEditSheet(planting) },
+                        onDelete         = { viewModel.requestDelete(planting) },
                         onFinishSeason = { viewModel.requestFinishSeason(planting) },
                         onInfo         = { viewModel.openInfoSheet(planting) }
                     )
@@ -312,7 +326,8 @@ private val PENDING_ACTION_LABELS = mapOf(
 @Composable
 private fun PlantingCard(
     planting: Planting,
-    pendingAction: String? = null,
+    pendingAction: TokenStorage.PendingTaskInfo? = null,
+    snoozedTaskKeys: Set<String> = emptySet(),
     onLogAction: () -> Unit,
     onEditInfo: () -> Unit,
     onDelete: () -> Unit,
@@ -320,6 +335,14 @@ private fun PlantingCard(
     onInfo: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+
+    // Проверяем, отложена ли задача. Ключ снуза: "type:plantingId:cropName:careTaskName"
+    val isSnoozed = pendingAction != null && run {
+        val key = "${pendingAction.type}:${planting.id}:${planting.cropName}:${pendingAction.careTaskName}"
+        key in snoozedTaskKeys
+    }
+    // Задача считается срочной только если НЕ отложена
+    val isUrgent = pendingAction != null && !isSnoozed
 
     Card(
         modifier = Modifier
@@ -376,20 +399,35 @@ private fun PlantingCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    // Требуется действие
+                    // Требуется действие (или отложено)
                     if (pendingAction != null) {
-                        val pendingLabel = if (pendingAction == "care_task_due") {
-                            planting.nextCareTask?.name?.let { "Требуется: $it" }
-                                ?: PENDING_ACTION_LABELS[pendingAction] ?: pendingAction
-                        } else {
-                            PENDING_ACTION_LABELS[pendingAction] ?: pendingAction
+                        val baseLabel = when (pendingAction.type) {
+                            "care_task_due" ->
+                                planting.nextCareTask?.name?.let { "Требуется: $it" }
+                                    ?: pendingAction.careTaskName?.let { "Требуется: $it" }
+                                    ?: PENDING_ACTION_LABELS[pendingAction.type]
+                                    ?: pendingAction.type
+                            "fertilizing_due" -> {
+                                // careTaskName заполняется только для care_task_due;
+                                // для fertilizing_due бэкенд название удобрения не передаёт
+                                pendingAction.careTaskName
+                                    ?.let { "Требуется подкормка: $it" }
+                                    ?: PENDING_ACTION_LABELS[pendingAction.type]
+                                    ?: pendingAction.type
+                            }
+                            else ->
+                                PENDING_ACTION_LABELS[pendingAction.type] ?: pendingAction.type
                         }
+                        val pendingLabel = if (isSnoozed) "$baseLabel (отложено)" else baseLabel
                         Text(
                             text = pendingLabel,
                             fontFamily = NunitoFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.error
+                            color = if (isSnoozed)
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            else
+                                MaterialTheme.colorScheme.error
                         )
                     }
                     // Следующая задача
@@ -416,7 +454,6 @@ private fun PlantingCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // Pill-бейдж стадии
-                    val isUrgent = pendingAction != null
                     Surface(
                         shape = CircleShape,
                         color = if (isUrgent)
@@ -511,7 +548,8 @@ private fun PlantingSetupBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
+        windowInsets = WindowInsets(0)
     ) {
         Column(
             modifier = Modifier
@@ -639,7 +677,8 @@ private fun PlantingEditBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
+        windowInsets = WindowInsets(0)
     ) {
         Column(
             modifier = Modifier

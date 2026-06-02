@@ -3,6 +3,7 @@ package ru.dachakalend.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -19,6 +20,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import ru.dachakalend.app.billing.SubscriptionManager
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.navigation.*
+import ru.dachakalend.app.ui.splash.SplashScreen
 import ru.dachakalend.app.ui.onboarding.CoachMarkController
 import ru.dachakalend.app.ui.onboarding.CoachMarkOverlay
 import ru.dachakalend.app.ui.onboarding.TutorialIntroScreen
@@ -50,8 +52,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
-        val startDestination = when {
+        val realStartDestination = when {
             !tokenStorage.isLoggedIn() && !tokenStorage.isIntroDone() -> Screen.Intro.route
             !tokenStorage.isLoggedIn() -> Screen.Login.route
             !tokenStorage.hasGarden()  -> Screen.CreateGarden.route
@@ -148,9 +151,18 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = startDestination,
+                        startDestination = Screen.Splash.route,
                         modifier = Modifier.padding(innerPadding)
                     ) {
+                        // Splash (always shown on cold start)
+                        composable(Screen.Splash.route) {
+                            SplashScreen(onDone = {
+                                navController.navigate(realStartDestination) {
+                                    popUpTo(Screen.Splash.route) { inclusive = true }
+                                }
+                            })
+                        }
+
                         // Intro slides (first launch only)
                         composable(Screen.Intro.route) {
                             TutorialIntroScreen(

@@ -3,6 +3,5 @@
     <!-- Базовая тема для SplashScreen / window background -->
     <style name="Theme.DachaCalendar" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/white</item>
-        <item name="android:statusBarColor">@color/transparent</item>
     </style>
 </resources>

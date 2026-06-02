@@ -29,7 +29,8 @@ data class PlantingsUiState(
     val showInfoSheet: Planting? = null,
     val confirmDeletePlanting: Planting? = null,
     val confirmFinishSeason: Planting? = null,
-    val pendingTasks: Map<Int, String> = emptyMap()
+    val pendingTasks: Map<Int, TokenStorage.PendingTaskInfo> = emptyMap(),
+    val snoozedTaskKeys: Set<String> = emptySet()
 ) {
     val filteredPlantings: List<Planting>
         get() = if (stageFilter == null) plantings else plantings.filter { it.stage == stageFilter }
@@ -62,11 +63,13 @@ class PlantingsViewModel @Inject constructor(
             if (!silent) _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             val gardenId = tokenStorage.getGardenId().takeIf { it != -1 }
             val pending = tokenStorage.getPendingTasks()
+            val snoozed = tokenStorage.getSnoozedTasksForToday()
             when (val result = plantingsRepository.getPlantings(gardenId)) {
                 is Result.Success -> _uiState.value = _uiState.value.copy(
                     plantings = result.data,
                     isLoading = false,
-                    pendingTasks = pending
+                    pendingTasks = pending,
+                    snoozedTaskKeys = snoozed
                 )
                 is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false)
                 is Result.Loading -> Unit
@@ -198,7 +201,16 @@ class PlantingsViewModel @Inject constructor(
     }
 
     fun closeActionSheet() {
+        val planting = _uiState.value.showActionSheet
         _uiState.value = _uiState.value.copy(showActionSheet = null)
+        if (planting != null) {
+            val updatedPending = _uiState.value.pendingTasks - planting.id
+            tokenStorage.savePendingTasks(updatedPending)
+            _uiState.value = _uiState.value.copy(
+                pendingTasks = updatedPending,
+                snoozedTaskKeys = tokenStorage.getSnoozedTasksForToday()
+            )
+        }
         loadPlantings(silent = true)
     }
 

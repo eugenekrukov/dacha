@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.Crop
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Reminder
@@ -32,7 +33,8 @@ data class CalendarUiState(
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
-    private val repository: CalendarRepository
+    private val repository: CalendarRepository,
+    private val tokenStorage: TokenStorage
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CalendarUiState())
@@ -49,7 +51,8 @@ class CalendarViewModel @Inject constructor(
                         result.data.reminders,
                         result.data.plantings,
                         result.data.crops,
-                        result.data.todayTasks
+                        result.data.todayTasks,
+                        tokenStorage.getSnoozedTasksForCalendar()
                     )
                     _uiState.value = _uiState.value.copy(isLoading = false, eventsByDay = events)
                 }
@@ -83,7 +86,8 @@ class CalendarViewModel @Inject constructor(
         reminders: List<Reminder>,
         plantings: List<Planting>,
         crops: List<Crop>,
-        todayTasks: List<TodayTask> = emptyList()
+        todayTasks: List<TodayTask> = emptyList(),
+        snoozedTasks: List<TokenStorage.SnoozedCalendarTask> = emptyList()
     ): Map<LocalDate, List<DayEvent>> {
         val result = mutableMapOf<LocalDate, MutableList<DayEvent>>()
         val today = LocalDate.now()
@@ -181,6 +185,31 @@ class CalendarViewModel @Inject constructor(
                     if (date.isAfter(horizon)) break
                 }
             }
+        }
+
+        // Отложенные задачи — показываем на целевую дату
+        // Ключ формата: "type:plantingId:cropName:careTaskName"
+        snoozedTasks.forEach { snoozed ->
+            // Если целевая дата уже сегодня — задача отображается обычным путём через todayTasks,
+            // здесь её дублировать не нужно
+            if (!snoozed.targetDate.isAfter(today)) return@forEach
+
+            val parts = snoozed.key.split(":", limit = 4)
+            val type         = parts.getOrNull(0) ?: return@forEach
+            val cropName     = parts.getOrNull(2)?.takeIf { it != "null" } ?: ""
+            val careTaskName = parts.getOrNull(3)?.takeIf { it != "null" }
+
+            val baseLabel = when (type) {
+                "watering_due"    -> "💧 Полив: $cropName"
+                "fertilizing_due" -> "🌿 Подкормка${if (careTaskName != null) ": $careTaskName" else ": $cropName"}"
+                "transplant_due"  -> "🌱 Пересадка: $cropName"
+                "harvest_due"     -> "🌾 Урожай: $cropName"
+                "care_task_due"   -> "${careTaskName ?: "Уход"}: $cropName"
+                else              -> "$type: $cropName"
+            }
+            val label = "$baseLabel (отложено)"
+            result.getOrPut(snoozed.targetDate) { mutableListOf() }
+                .add(DayEvent(snoozed.targetDate, label, type))
         }
 
         return result

@@ -14,6 +14,7 @@ import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayResponse
+import ru.dachakalend.app.data.repository.ActionsRepository
 import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.RecommendationsRepository
@@ -41,6 +42,7 @@ class TodayViewModel @Inject constructor(
     private val recommendationsRepository: RecommendationsRepository,
     private val plantingsRepository: PlantingsRepository,
     private val gardenRepository: GardenRepository,
+    private val actionsRepository: ActionsRepository,
     private val tokenStorage: TokenStorage,
     private val api: DachaApi
 ) : ViewModel() {
@@ -48,16 +50,47 @@ class TodayViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<TodayUiState>(TodayUiState.Loading)
     val uiState: StateFlow<TodayUiState> = _uiState
 
-    // Отклонённые рекомендации — загружаем из prefs (только за сегодня)
-    // На следующий день записи протухают и рекомендации показываются снова
     private val _dismissedRecs = MutableStateFlow<Set<String>>(
         tokenStorage.getDismissedRecsForToday()
     )
     val dismissedRecs: StateFlow<Set<String>> = _dismissedRecs.asStateFlow()
 
-    fun dismissRecommendation(key: String) {
+    private val _deletedRecs = MutableStateFlow<Set<String>>(tokenStorage.getDeletedRecs())
+    val deletedRecs: StateFlow<Set<String>> = _deletedRecs.asStateFlow()
+
+    private val _snoozedTasks = MutableStateFlow<Set<String>>(tokenStorage.getSnoozedTasksForToday())
+    val snoozedTasks: StateFlow<Set<String>> = _snoozedTasks.asStateFlow()
+
+    private val _deletedTasks = MutableStateFlow<Set<String>>(tokenStorage.getDeletedTasks())
+    val deletedTasks: StateFlow<Set<String>> = _deletedTasks.asStateFlow()
+
+    fun snoozeRec(key: String) {
+        tokenStorage.addDismissedRec(key)
         _dismissedRecs.value = _dismissedRecs.value + key
-        tokenStorage.addDismissedRec(key)   // персистим с датой
+    }
+
+    fun deleteRec(key: String) {
+        tokenStorage.deleteRec(key)
+        _deletedRecs.value = _deletedRecs.value + key
+    }
+
+    fun snoozeTask(key: String) {
+        tokenStorage.snoozeTask(key)
+        _snoozedTasks.value = _snoozedTasks.value + key
+    }
+
+    fun deleteTask(key: String) {
+        tokenStorage.deleteTask(key)
+        _deletedTasks.value = _deletedTasks.value + key
+    }
+
+    fun deleteAction(id: Int) {
+        viewModelScope.launch {
+            when (actionsRepository.deleteAction(id)) {
+                is Result.Success -> loadToday(silent = true)
+                else -> Unit
+            }
+        }
     }
 
     init {
@@ -66,6 +99,11 @@ class TodayViewModel @Inject constructor(
         }
         loadToday()
         registerPushToken()
+        viewModelScope.launch {
+            actionsRepository.deletedActionEvents.collect {
+                loadToday(silent = true)
+            }
+        }
     }
 
     private fun registerPushToken() {
@@ -82,9 +120,9 @@ class TodayViewModel @Inject constructor(
         }
     }
 
-    fun loadToday() {
+    fun loadToday(silent: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = TodayUiState.Loading
+            if (!silent) _uiState.value = TodayUiState.Loading
 
             val gardenId = tokenStorage.getGardenId().takeIf { it != -1 }
             val todayDeferred    = async { todayRepository.getToday() }
@@ -112,7 +150,12 @@ class TodayViewModel @Inject constructor(
             if (todayResult is Result.Success) {
                 val pending = todayResult.data.tasks
                     .filter { it.plantingId != null }
-                    .associate { it.plantingId!! to it.type }
+                    .associate { it.plantingId!! to TokenStorage.PendingTaskInfo(
+                        type         = it.type,
+                        careTaskName = it.careTaskName,
+                        cropName     = it.cropName,
+                        title        = it.title
+                    )}
                 tokenStorage.savePendingTasks(pending)
             }
 
