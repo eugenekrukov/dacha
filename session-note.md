@@ -941,3 +941,8 @@ recommendations нет, прочий тест-сьют не затронут. Н
 ### Починка todayLogic.test.js (предсуществующая поломка)
 Тест вызывал buildTasks со старой 5-арг сигнатурой. Во все вызовы вставлен `{}`
 (lastFertilizedMap, поз. 4) под актуальную 8-арг сигнатуру. Сьют полностью зелёный: 97/97.
+
+### Гигиена git (P1)
+- `.gitignore`: добавлены backend/coverage/, android/app/release/ (APK 5.5М), android/local.properties.
+- Сняты с трекинга: backend/coverage/** (сгенерированный отчёт), android/local.properties.
+  (рабочие файлы на диске сохранены — git rm --cached).

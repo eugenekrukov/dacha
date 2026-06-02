@@ -28,3 +28,8 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Build artifacts / generated (added 2026-06-02)
+backend/coverage/
+android/app/release/
+android/local.properties
