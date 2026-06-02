@@ -44,7 +44,7 @@ describe('frost_alert', () => {
     const tasks = buildTasks(
       [makePlanting({ frost_sensitive: true })],
       makeWeather({ frost_risk: true }),
-      {}, [], TODAY
+      {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'frost_alert')).toBe(true)
   })
@@ -53,7 +53,7 @@ describe('frost_alert', () => {
     const tasks = buildTasks(
       [makePlanting({ frost_sensitive: true })],
       makeWeather({ frost_risk: false }),
-      {}, [], TODAY
+      {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'frost_alert')).toBe(false)
   })
@@ -62,7 +62,7 @@ describe('frost_alert', () => {
     const tasks = buildTasks(
       [makePlanting({ frost_sensitive: false })],
       makeWeather({ frost_risk: true }),
-      {}, [], TODAY
+      {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'frost_alert')).toBe(false)
   })
@@ -70,7 +70,7 @@ describe('frost_alert', () => {
   it('НЕ генерируется если weather=null', () => {
     const tasks = buildTasks(
       [makePlanting({ frost_sensitive: true })],
-      null, {}, [], TODAY
+      null, {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'frost_alert')).toBe(false)
   })
@@ -81,7 +81,7 @@ describe('frost_alert', () => {
       makePlanting({ id: 2, frost_sensitive: true }),
       makePlanting({ id: 3, frost_sensitive: false }),
     ]
-    const tasks = buildTasks(plantings, makeWeather({ frost_risk: true }), {}, [], TODAY)
+    const tasks = buildTasks(plantings, makeWeather({ frost_risk: true }), {}, {}, [], TODAY)
     const alerts = tasks.filter(t => t.type === 'frost_alert')
     expect(alerts).toHaveLength(2)
   })
@@ -95,7 +95,7 @@ describe('watering_due', () => {
     const lastWatered = { 1: new Date(daysAgo(5, TODAY)) }
     const tasks = buildTasks(
       [makePlanting({ watering_freq_days: 3 })],
-      makeWeather(), lastWatered, [], TODAY
+      makeWeather(), lastWatered, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'watering_due')).toBe(true)
   })
@@ -104,7 +104,7 @@ describe('watering_due', () => {
     const lastWatered = { 1: new Date(TODAY) }
     const tasks = buildTasks(
       [makePlanting({ watering_freq_days: 3 })],
-      makeWeather(), lastWatered, [], TODAY
+      makeWeather(), lastWatered, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'watering_due')).toBe(false)
   })
@@ -113,7 +113,7 @@ describe('watering_due', () => {
     const lastWatered = { 1: new Date(daysAgo(3, TODAY)) }
     const tasks = buildTasks(
       [makePlanting({ watering_freq_days: 3 })],
-      makeWeather(), lastWatered, [], TODAY
+      makeWeather(), lastWatered, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'watering_due')).toBe(true)
   })
@@ -122,7 +122,7 @@ describe('watering_due', () => {
     const lastWatered = { 1: new Date(daysAgo(3, TODAY)) }
     const tasks = buildTasks(
       [makePlanting({ watering_freq_days: 3 })],
-      makeWeather(), lastWatered, [], TODAY
+      makeWeather(), lastWatered, {}, [], TODAY
     )
     const t = tasks.find(t => t.type === 'watering_due')
     expect(t.days_overdue).toBe(0)
@@ -135,7 +135,7 @@ describe('transplant_due', () => {
   it('появляется когда stage=sprouted и прошло >= transplant_days', () => {
     const tasks = buildTasks(
       [makePlanting({ stage: 'sprouted', transplant_days: 7, planted_at: daysAgo(10, TODAY) })],
-      makeWeather(), {}, [], TODAY
+      makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'transplant_due')).toBe(true)
   })
@@ -143,7 +143,7 @@ describe('transplant_due', () => {
   it('НЕ появляется если stage != sprouted', () => {
     const tasks = buildTasks(
       [makePlanting({ stage: 'growing', transplant_days: 7, planted_at: daysAgo(10, TODAY) })],
-      makeWeather(), {}, [], TODAY
+      makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'transplant_due')).toBe(false)
   })
@@ -151,7 +151,7 @@ describe('transplant_due', () => {
   it('НЕ появляется если не прошло достаточно дней', () => {
     const tasks = buildTasks(
       [makePlanting({ stage: 'sprouted', transplant_days: 14, planted_at: daysAgo(5, TODAY) })],
-      makeWeather(), {}, [], TODAY
+      makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'transplant_due')).toBe(false)
   })
@@ -163,7 +163,7 @@ describe('harvest_due', () => {
   it('появляется для stage=harvesting когда прошло >= harvest_days', () => {
     const tasks = buildTasks(
       [makePlanting({ stage: 'harvesting', harvest_days: 10, planted_at: daysAgo(15, TODAY) })],
-      makeWeather(), {}, [], TODAY
+      makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'harvest_due')).toBe(true)
   })
@@ -171,7 +171,7 @@ describe('harvest_due', () => {
   it('появляется для stage=growing', () => {
     const tasks = buildTasks(
       [makePlanting({ stage: 'growing', harvest_days: 10, planted_at: daysAgo(15, TODAY) })],
-      makeWeather(), {}, [], TODAY
+      makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'harvest_due')).toBe(true)
   })
@@ -179,7 +179,7 @@ describe('harvest_due', () => {
   it('НЕ появляется для stage=sowing', () => {
     const tasks = buildTasks(
       [makePlanting({ stage: 'sowing', harvest_days: 10, planted_at: daysAgo(15, TODAY) })],
-      makeWeather(), {}, [], TODAY
+      makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'harvest_due')).toBe(false)
   })
@@ -192,7 +192,7 @@ describe('сортировка и лимит', () => {
     // Посадка с поливом (приоритет 3) и заморозком (приоритет 1)
     const p = makePlanting({ frost_sensitive: true, watering_freq_days: 1 })
     const lastWatered = { 1: new Date(daysAgo(5, TODAY)) }
-    const tasks = buildTasks([p], makeWeather({ frost_risk: true }), lastWatered, [], TODAY)
+    const tasks = buildTasks([p], makeWeather({ frost_risk: true }), lastWatered, {}, [], TODAY)
     expect(tasks[0].type).toBe('frost_alert')
   })
 
@@ -204,7 +204,7 @@ describe('сортировка и лимит', () => {
       acc[p.id] = new Date(daysAgo(5, TODAY))
       return acc
     }, {})
-    const tasks = buildTasks(plantings, makeWeather({ frost_risk: true }), lastWatered, [], TODAY)
+    const tasks = buildTasks(plantings, makeWeather({ frost_risk: true }), lastWatered, {}, [], TODAY)
     expect(tasks.length).toBeLessThanOrEqual(7)
   })
 
@@ -218,7 +218,7 @@ describe('сортировка и лимит', () => {
       1: new Date(daysAgo(7, TODAY)),
       2: new Date(daysAgo(4, TODAY)),
     }
-    const tasks = buildTasks(plantings, makeWeather(), lastWatered, [], TODAY)
+    const tasks = buildTasks(plantings, makeWeather(), lastWatered, {}, [], TODAY)
     const wateringTasks = tasks.filter(t => t.type === 'watering_due')
     expect(wateringTasks[0].planting_id).toBe(1)
   })
@@ -226,7 +226,7 @@ describe('сортировка и лимит', () => {
   it('daysSincePlanting = 0 когда planted_at = сегодня', () => {
     const tasks = buildTasks(
       [makePlanting({ planted_at: TODAY.toISOString(), watering_freq_days: 1 })],
-      makeWeather(), {}, [], TODAY
+      makeWeather(), {}, {}, [], TODAY
     )
     // planted_at = сегодня, lastWatered = plantedAt → 0 дней без полива → нет задачи
     expect(tasks.some(t => t.type === 'watering_due')).toBe(false)
@@ -237,12 +237,12 @@ describe('сортировка и лимит', () => {
 
 describe('крайние случаи', () => {
   it('возвращает [] если нет посадок', () => {
-    expect(buildTasks([], makeWeather(), {}, [], TODAY)).toEqual([])
+    expect(buildTasks([], makeWeather(), {}, {}, [], TODAY)).toEqual([])
   })
 
   it('включает напоминания', () => {
     const reminders = [{ type: 'reminder', priority: 5, message: 'Test' }]
-    const tasks = buildTasks([], makeWeather(), {}, reminders, TODAY)
+    const tasks = buildTasks([], makeWeather(), {}, {}, reminders, TODAY)
     expect(tasks.some(t => t.type === 'reminder')).toBe(true)
   })
 })
