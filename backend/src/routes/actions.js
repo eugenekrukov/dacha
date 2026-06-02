@@ -32,6 +32,22 @@ module.exports = async function (fastify) {
     return result.rows
   })
 
+  // DELETE /actions/:id
+  fastify.delete('/:id', auth, async (request, reply) => {
+    const id = parseInt(request.params.id, 10)
+    // Проверяем что запись принадлежит текущему пользователю
+    const check = await fastify.db.query(
+      `SELECT al.id FROM action_logs al
+       JOIN plantings p ON p.id = al.planting_id
+       JOIN gardens g   ON g.id = p.garden_id
+       WHERE al.id = $1 AND g.user_id = $2`,
+      [id, request.user.userId]
+    )
+    if (check.rowCount === 0) return reply.code(404).send({ error: 'Не найдено' })
+    await fastify.db.query('DELETE FROM action_logs WHERE id = $1', [id])
+    return reply.code(204).send()
+  })
+
   // GET /actions/export
   fastify.get('/export', auth, async (request, reply) => {
     const result = await fastify.db.query(
