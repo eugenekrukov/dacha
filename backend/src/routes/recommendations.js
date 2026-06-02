@@ -11,6 +11,12 @@ module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
   // GET /recommendations?garden_id=
+  //
+  // ВАЖНО: эндпоинт возвращает ТОЛЬКО информационные/контекстные советы.
+  // Actionable-задачи (полив, заморозки, готовый урожай) формирует GET /today (tasks).
+  // Раньше они дублировались здесь — на экране Today один и тот же пункт показывался
+  // дважды (в «Задачах» и в «Советах дня»). Дубли убраны: полив/заморозки/урожай
+  // живут только в задачах, здесь — то, чего в задачах нет.
   fastify.get('/', auth, async (request, reply) => {
     const { garden_id } = request.query
     if (!garden_id) return reply.code(400).send({ error: 'garden_id required' })
@@ -43,12 +49,12 @@ module.exports = async function (fastify) {
 
     const recommendations = []
 
-    // ── РАЗДЕЛ 1: Агрономические рекомендации по посадкам ───────────────────
+    // ── РАЗДЕЛ 1: Контекстные советы по посадкам (НЕ дублируют задачи) ───────
 
     for (const planting of plantingsRes.rows) {
       const daysSincePlanting = Math.floor((now - new Date(planting.planted_at)) / 86400000)
 
-      // Полив
+      // Данные о поливе нужны только для совета «после дождя» (ниже).
       const lastWatered = await db.query(
         `SELECT logged_at FROM action_logs WHERE planting_id=$1 AND action_type='watering' ORDER BY logged_at DESC LIMIT 1`,
         [planting.id]
@@ -61,30 +67,9 @@ module.exports = async function (fastify) {
         ? Math.ceil((planting.watering_freq_days || 3) * 1.3)
         : (planting.watering_freq_days || 3)
 
-      // Пропустить рекомендацию полива если недавно был дождь (>3 мм)
       const hadRecentRain = weather && weather.precip_mm > 3
-      if (daysSinceWatered >= wateringFreq && !hadRecentRain) {
-        recommendations.push({
-          type: 'watering',
-          priority: 'high',
-          planting_id: planting.id,
-          crop_name: planting.crop_name,
-          message: `Пора полить ${planting.crop_name} — прошло ${daysSinceWatered} дн. с последнего полива`
-        })
-      }
 
-      // Заморозки (теплица защищает)
-      if (weather && planting.frost_sensitive && weather.min_temp_c <= 2 && planting.conditions !== 'greenhouse') {
-        recommendations.push({
-          type: 'frost_alert',
-          priority: 'critical',
-          planting_id: planting.id,
-          crop_name: planting.crop_name,
-          message: `⚠️ Угроза заморозка! Укройте ${planting.crop_name} — ожидается ${weather.min_temp_c}°C`
-        })
-      }
-
-      // Жара — совет по поливу вечером
+      // Жара — совет по поливу вечером (нет соответствующей задачи, не дубль)
       if (weather && weather.heat_risk) {
         recommendations.push({
           type: 'heat_stress',
@@ -96,18 +81,7 @@ module.exports = async function (fastify) {
         break // Один раз на участок достаточно
       }
 
-      // Урожай готов
-      if (planting.harvest_days && daysSincePlanting >= planting.harvest_days) {
-        recommendations.push({
-          type: 'harvest_ready',
-          priority: 'medium',
-          planting_id: planting.id,
-          crop_name: planting.crop_name,
-          message: `${planting.crop_name} готов к сбору — посадке ${daysSincePlanting} дней`
-        })
-      }
-
-      // Урожай скоро (за 5 дней)
+      // Урожай скоро (за 5 дней) — подготовительный совет, задачи ещё нет
       if (planting.harvest_days) {
         const daysToHarvest = planting.harvest_days - daysSincePlanting
         if (daysToHarvest > 0 && daysToHarvest <= 5) {
@@ -135,7 +109,7 @@ module.exports = async function (fastify) {
         }
       }
 
-      // Дождь — пропустить полив
+      // Дождь — напоминание, что полив можно пропустить
       if (hadRecentRain && daysSinceWatered >= wateringFreq) {
         recommendations.push({
           type: 'weather_tip',

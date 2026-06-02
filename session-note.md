@@ -839,3 +839,27 @@ pm2 restart dacha-api
 - Рекомендации, отклонённые свайпом: Set<String> в TodayViewModel, не сохраняется между сессиями
 - GeocodeSuggestion.zone — климатическая зона из ответа Photon через NOMINATIM_TO_ZONE mapping
 
+
+---
+
+## Сессия 2026-06-02 (ветка feature/ux-improvements)
+
+### Шаг 1 — развести «Задачи» и «Советы дня» (устранение дублирования контента)
+**Проблема**: экран Today грузит `tasks` (GET /today) и `recommendations` (GET /recommendations)
+и рендерит оба списка. Полив/заморозки/готовый урожай присутствовали в ОБОИХ → один и тот же
+пункт показывался дважды (в «Задачах» и в «Советах дня»), с раздельными машинами snooze/delete.
+
+**Изменение** (`backend/src/routes/recommendations.js`):
+- Удалены actionable-типы, дублирующие задачи: `watering`, `frost_alert`, `harvest_ready`.
+- Эндпоинт стал чисто информационным/контекстным. Оставлены: `heat_stress` (полив вечером),
+  `harvest_soon` (подготовить тару), `stage_tip`, `weather_tip` (после дождя),
+  `lunar_tip`, `seasonal_tip`, `lifehack`, `sowing_season`/`sowing_soon`.
+- Actionable-пункты (полив/заморозки/урожай готов) теперь живут ТОЛЬКО в GET /today (tasks).
+
+**Android**: изменений не потребовалось — карточка рекомендации имеет fallback по типу;
+неиспользуемые маппинги (watering/frost_alert/harvest_ready в REC_TYPE_LABELS/recStyle) безвредны.
+Раздельные машины snooze/delete (tasks ↔ recs) оставлены: после дедупликации это разный контент,
+конфликта больше нет.
+
+**Проверка**: `node --check` OK; кириллица цела; дубль-типы отсутствуют (grep = 0); тестов на
+recommendations нет, прочий тест-сьют не затронут. Не задеплоено (по запросу — только ветка).
