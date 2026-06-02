@@ -166,18 +166,51 @@ function buildTasks(plantings, weather, lastWateredMap, reminders, today = new D
 }
 
 function formatTasks(tasks) {
-  return tasks.map(t => ({
-    type: t.type,
-    priority: t.priority,
-    title: t.message || t.type,
-    description: t.care_task_name
-      ? `${t.crop_name ? t.crop_name + ': ' : ''}${t.care_task_name}`
-      : (t.crop_name ? `Культура: ${t.crop_name}` : ''),
-    planting_id: t.planting_id || null,
-    crop_name: t.crop_name || null,
-    days_overdue: t.days_overdue || null,
-    care_task_name: t.care_task_name || null,
-  }))
+  return tasks.map(t => {
+    // Короткий actionable заголовок — помещается в одну строку карточки
+    let title
+    switch (t.type) {
+      case 'watering_due':   title = `Полить: ${t.crop_name}`; break
+      case 'transplant_due': title = `Высадить в грунт: ${t.crop_name}`; break
+      case 'harvest_due':    title = `Убрать урожай: ${t.crop_name}`; break
+      case 'frost_alert':    title = `Заморозки: ${t.crop_name}`; break
+      case 'care_task_due':  title = `${t.care_task_name}: ${t.crop_name}`; break
+      default:               title = t.message || t.type
+    }
+
+    // Описание с деталями
+    let description
+    if (t.type === 'watering_due') {
+      description = t.days_overdue > 0
+        ? `Просрочено на ${t.days_overdue} дн.`
+        : 'Пора полить сегодня'
+    } else if (t.type === 'transplant_due') {
+      description = t.days_overdue > 0
+        ? `Просрочено на ${t.days_overdue} дн.`
+        : 'Пора высаживать'
+    } else if (t.type === 'harvest_due') {
+      description = 'Урожай готов к сбору'
+    } else if (t.type === 'frost_alert') {
+      description = 'Защитите растение от мороза'
+    } else if (t.type === 'care_task_due') {
+      description = t.days_overdue > 0
+        ? `Просрочено на ${t.days_overdue} дн.`
+        : 'Сделайте сегодня'
+    } else {
+      description = t.crop_name ? `Культура: ${t.crop_name}` : ''
+    }
+
+    return {
+      type: t.type,
+      priority: t.priority,
+      title,
+      description,
+      planting_id: t.planting_id || null,
+      crop_name: t.crop_name || null,
+      days_overdue: t.days_overdue || null,
+      care_task_name: t.care_task_name || null,
+    }
+  })
 }
 
 module.exports = { buildTasks, formatTasks, getNextCareTask }
