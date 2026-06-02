@@ -18,6 +18,8 @@ describe('POST /plantings', () => {
   it('создаёт посадку со stage=sowing и возвращает 201', async () => {
     const app = await buildApp(makeMockDb({
       query: async (sql) => {
+        // Проверка владельца участка проходит
+        if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
         if (sql.includes('INSERT INTO plantings')) return { rows: [PLANTING] }
         return { rows: [] }
       },
@@ -31,6 +33,22 @@ describe('POST /plantings', () => {
 
     expect(res.status).toBe(201)
     expect(res.body.stage).toBe('sowing')
+    await app.close()
+  })
+
+  it('403 при создании посадки в чужом участке (IDOR)', async () => {
+    // Мок: проверка владельца возвращает пусто → участок не принадлежит пользователю
+    const app = await buildApp(makeMockDb({
+      query: async () => ({ rows: [] }),
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ garden_id: 999, crop_id: 1 })
+
+    expect(res.status).toBe(403)
     await app.close()
   })
 

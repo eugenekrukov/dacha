@@ -905,3 +905,23 @@ recommendations нет, прочий тест-сьют не затронут. Н
 - ⚠️ `CLAUDE.md` UI-флоу всё ещё ссылается на удалённые pages — правка заблокирована политикой
   (само-модификация конфига агента), нужно поправить вручную.
 - Не сделано: единообразие иконок (эмодзи в JournalScreen → Material Icons) — отложено.
+
+## P0 — Безопасность
+
+### IDOR — проверка владельца на write-эндпоинтах
+Закрыты 6 мест, где ресурс менялся/создавался без проверки принадлежности пользователю:
+- `plantings.js`: POST / (garden_id не свой → 403), PATCH /:id/stage, PATCH /:id/info
+  (UPDATE ... WHERE id AND garden_id IN (SELECT ... WHERE user_id=)).
+- `actions.js`: POST / (planting_id не свой → 403).
+- `harvests.js`: POST / (planting_id не свой → 403).
+- `reminders.js`: POST / (если planting_id задан — он должен быть свой → 403).
+Паттерн как в уже существовавших DELETE /actions/:id и DELETE /plantings/:id.
+
+**Тесты**: обновлён мок успешного POST /plantings (учёт запроса проверки владельца) +
+добавлен тест «403 при создании посадки в чужом участке (IDOR)». Интеграционные
+плантинги/actions/harvests/reminders — 29/29 зелёных.
+
+⚠️ **Предсуществующая поломка (не моя)**: `src/__tests__/unit/todayLogic.test.js` — 21 тест
+падает, т.к. вызывает `buildTasks` со старой сигнатурой (5 арг.) вместо текущей (8 арг.:
+добавлены lastFertilizedMap, careActionsToday, precipProb). `todayLogic.js` я не трогал.
+Нужно отдельно обновить этот юнит-тест под актуальную сигнатуру.

@@ -5,9 +5,24 @@ const { getNextCareTask } = require('../utils/todayLogic')
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
+  // Проверка принадлежности участка текущему пользователю
+  async function userOwnsGarden(gardenId, userId) {
+    const res = await fastify.db.query(
+      'SELECT 1 FROM gardens WHERE id=$1 AND user_id=$2',
+      [gardenId, userId]
+    )
+    return res.rows.length > 0
+  }
+
   // POST /plantings
   fastify.post('/', auth, async (request, reply) => {
     const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes } = request.body
+
+    // Защита от IDOR: нельзя создать посадку в чужом участке
+    if (!garden_id || !(await userOwnsGarden(garden_id, request.user.userId))) {
+      return reply.code(403).send({ error: 'Garden not found or not yours' })
+    }
+
     const result = await fastify.db.query(
       `INSERT INTO plantings (garden_id, crop_id, planted_at, quantity, conditions, notes, stage)
        VALUES ($1,$2,$3,$4,$5,$6,'sowing') RETURNING *`,
@@ -61,9 +76,12 @@ module.exports = async function (fastify) {
   // PATCH /plantings/:id/stage
   fastify.patch('/:id/stage', auth, async (request, reply) => {
     const { stage } = request.body
+    // Защита от IDOR: обновляем только посадку в участке текущего пользователя
     const result = await fastify.db.query(
-      `UPDATE plantings SET stage=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
-      [stage, request.params.id]
+      `UPDATE plantings SET stage=$1, updated_at=NOW()
+       WHERE id=$2 AND garden_id IN (SELECT id FROM gardens WHERE user_id=$3)
+       RETURNING *`,
+      [stage, request.params.id, request.user.userId]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
     return result.rows[0]
@@ -84,15 +102,16 @@ module.exports = async function (fastify) {
   // PATCH /plantings/:id/info
   fastify.patch('/:id/info', auth, async (request, reply) => {
     const { planted_at, quantity, conditions } = request.body
+    // Защита от IDOR: обновляем только посадку в участке текущего пользователя
     const result = await fastify.db.query(
       `UPDATE plantings
        SET planted_at = COALESCE($1, planted_at),
            quantity   = COALESCE($2, quantity),
            conditions = COALESCE($3, conditions),
            updated_at = NOW()
-       WHERE id = $4
+       WHERE id = $4 AND garden_id IN (SELECT id FROM gardens WHERE user_id=$5)
        RETURNING *`,
-      [planted_at ?? null, quantity ?? null, conditions ?? null, request.params.id]
+      [planted_at ?? null, quantity ?? null, conditions ?? null, request.params.id, request.user.userId]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
     return result.rows[0]

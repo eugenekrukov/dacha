@@ -8,9 +8,26 @@ function normalizeHarvest(h) {
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
+  // Проверка принадлежности посадки текущему пользователю
+  async function userOwnsPlanting(plantingId, userId) {
+    const res = await fastify.db.query(
+      `SELECT 1 FROM plantings p
+       JOIN gardens g ON g.id = p.garden_id
+       WHERE p.id = $1 AND g.user_id = $2`,
+      [plantingId, userId]
+    )
+    return res.rows.length > 0
+  }
+
   // POST /harvests
   fastify.post('/', auth, async (request, reply) => {
     const { planting_id, weight_kg, quantity, notes } = request.body
+
+    // Защита от IDOR: нельзя добавить урожай к чужой посадке
+    if (!planting_id || !(await userOwnsPlanting(planting_id, request.user.userId))) {
+      return reply.code(403).send({ error: 'Planting not found or not yours' })
+    }
+
     const result = await fastify.db.query(
       `INSERT INTO harvests (planting_id, weight_kg, quantity, notes, harvested_at)
        VALUES ($1,$2,$3,$4,NOW()) RETURNING *`,
