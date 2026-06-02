@@ -51,7 +51,9 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays) {
  * Чистая функция сборки задач дня.
  * @param careActionsToday — { plantingId: string[] } — действия, залогированные сегодня
  */
-function buildTasks(plantings, weather, lastWateredMap, reminders, today = new Date(), careActionsToday = {}) {
+function buildTasks(plantings, weather, lastWateredMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null) {
+  // Если завтра дождь ≥70% — полив не нужен
+  const rainExpected = precipProb !== null && precipProb >= 70
   const tasks = []
 
   for (const p of plantings) {
@@ -120,8 +122,8 @@ function buildTasks(plantings, weather, lastWateredMap, reminders, today = new D
       }
     }
 
-    // 💧 Нужен полив
-    if (p.watering_freq_days) {
+    // 💧 Нужен полив (пропускаем если ожидается дождь ≥70%)
+    if (p.watering_freq_days && !rainExpected) {
       const lastWatered = lastWateredMap[p.id] || plantedAt
       const daysSinceWatering = Math.floor((today - lastWatered) / 86400000)
       const freq = p.conditions === 'greenhouse'

@@ -95,22 +95,25 @@ module.exports = async function (fastify) {
     }))
 
     // ── 5. ЗАДАЧИ ────────────────────────────────────────────────────────────
-    const rawTasks = buildTasks(plantings, weather, lastWateredMap, reminderTasks, today, careActionsToday)
+    const rawTasks = buildTasks(plantings, weather, lastWateredMap, reminderTasks, today, careActionsToday, weather?.precip_prob_pct ?? null)
     const topTasks = formatTasks(rawTasks)
 
     return {
       garden_id: garden.id,
       garden_name: garden.name,
       weather: weather ? {
-        temp_c:         weather.temp_c        != null ? parseFloat(weather.temp_c)        : null,
-        temp_min:       weather.min_temp_c    != null ? parseFloat(weather.min_temp_c)    : null,
-        temp_max:       weather.max_temp_c    != null ? parseFloat(weather.max_temp_c)    : null,
-        humidity:       weather.humidity_pct,
-        condition:      weather.condition,
-        condition_text: weather.condition_text,
-        frost_risk:     weather.frost_risk,
-        heat_risk:      weather.heat_risk,
+        temp_c:          weather.temp_c        != null ? parseFloat(weather.temp_c)        : null,
+        temp_min:        weather.min_temp_c    != null ? parseFloat(weather.min_temp_c)    : null,
+        temp_max:        weather.max_temp_c    != null ? parseFloat(weather.max_temp_c)    : null,
+        humidity:        weather.humidity_pct,
+        condition:       weather.condition,
+        condition_text:  weather.condition_text,
+        frost_risk:      weather.frost_risk,
+        heat_risk:       weather.heat_risk,
+        precip_prob_pct: weather.precip_prob_pct ?? null,
+        soil_temp_c:     weather.soil_temp_c   != null ? parseFloat(weather.soil_temp_c)  : null,
       } : null,
+      forecast: weather?.forecast_json ?? [],
       tasks:           topTasks,
       tasks_total:     rawTasks.length,
       reminders_today: reminderTasks.length,

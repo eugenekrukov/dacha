@@ -52,10 +52,13 @@ async function fetchWeatherData(lat, lon) {
     'temperature_2m_max',
     'temperature_2m_min',
     'precipitation_sum',
+    'precipitation_probability_max',
     'weather_code'
   ].join(','))
+  url.searchParams.set('hourly', 'soil_temperature_0cm')
+  url.searchParams.set('forecast_hours', '24')
   url.searchParams.set('timezone', 'auto')
-  url.searchParams.set('forecast_days', '3')
+  url.searchParams.set('forecast_days', '7')
 
   const res = await fetch(url.toString(), { timeout: 10000 })
   if (!res.ok) throw new Error(`Open-Meteo error: ${res.status}`)
@@ -73,12 +76,47 @@ async function fetchWeatherData(lat, lon) {
  */
 function parseWeatherData(data) {
   const current = data.current
-  const daily = data.daily
+  const daily   = data.daily
+  const hourly  = data.hourly
 
-  const minTemp = daily.temperature_2m_min?.[0] ?? null
-  const maxTemp = daily.temperature_2m_max?.[0] ?? null
+  const minTemp      = daily.temperature_2m_min?.[0] ?? null
+  const maxTemp      = daily.temperature_2m_max?.[0] ?? null
   const precipitation = daily.precipitation_sum?.[0] ?? 0
-  const weatherCode = current.weather_code ?? 0
+  const weatherCode  = current.weather_code ?? 0
+
+  // Вероятность осадков завтра (индекс 1)
+  const precipProbToday    = daily.precipitation_probability_max?.[0] ?? null
+  const precipProbTomorrow = daily.precipitation_probability_max?.[1] ?? null
+  const precipProb = precipProbTomorrow ?? precipProbToday ?? null
+
+  // Температура почвы — берём ближайший час
+  let soilTemp = null
+  if (hourly?.soil_temperature_0cm) {
+    const now = new Date()
+    const currentHour = now.getHours()
+    soilTemp = hourly.soil_temperature_0cm[currentHour] ?? hourly.soil_temperature_0cm[0] ?? null
+  }
+
+  // 7-дневный прогноз
+  const forecast = []
+  const days = daily.time?.length ?? 0
+  for (let i = 0; i < days; i++) {
+    const code = daily.weather_code?.[i] ?? 0
+    let cat = 'clear'
+    if (code >= 95) cat = 'storm'
+    else if (code >= 71) cat = 'snow'
+    else if (code >= 51) cat = 'rain'
+    else if (code >= 2) cat = 'cloudy'
+    forecast.push({
+      date:           daily.time[i],
+      min_temp_c:     daily.temperature_2m_min?.[i] ?? null,
+      max_temp_c:     daily.temperature_2m_max?.[i] ?? null,
+      precip_mm:      daily.precipitation_sum?.[i] ?? 0,
+      precip_prob_pct: daily.precipitation_probability_max?.[i] ?? null,
+      condition:      cat,
+      condition_text: WMO_CODES[code] ?? 'Неизвестно',
+    })
+  }
 
   // Категория condition (для БД: clear | cloudy | rain | snow | storm)
   let conditionCategory = 'clear'
@@ -88,16 +126,19 @@ function parseWeatherData(data) {
   else if (weatherCode >= 2) conditionCategory = 'cloudy'
 
   return {
-    temp_c: current.temperature_2m ?? null,
-    min_temp_c: minTemp,
-    max_temp_c: maxTemp,
-    humidity_pct: current.relative_humidity_2m ?? null,
-    wind_ms: current.wind_speed_10m ?? null,
-    precip_mm: precipitation,
-    condition: conditionCategory,
+    temp_c:         current.temperature_2m ?? null,
+    min_temp_c:     minTemp,
+    max_temp_c:     maxTemp,
+    humidity_pct:   current.relative_humidity_2m ?? null,
+    wind_ms:        current.wind_speed_10m ?? null,
+    precip_mm:      precipitation,
+    condition:      conditionCategory,
     condition_text: WMO_CODES[weatherCode] ?? 'Неизвестно',
-    frost_risk: minTemp !== null && minTemp <= 2,
-    heat_risk: maxTemp !== null && maxTemp >= 35
+    frost_risk:     minTemp !== null && minTemp <= 2,
+    heat_risk:      maxTemp !== null && maxTemp >= 35,
+    precip_prob_pct: precipProb,
+    soil_temp_c:    soilTemp,
+    forecast_json:  forecast,
   }
 }
 
@@ -133,8 +174,9 @@ async function updateGardenWeather(db, garden) {
   await db.query(
     `INSERT INTO weather_snapshots
      (garden_id, temp_c, min_temp_c, max_temp_c, humidity_pct, wind_ms,
-      precip_mm, condition, condition_text, frost_risk, heat_risk, fetched_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())`,
+      precip_mm, condition, condition_text, frost_risk, heat_risk,
+      precip_prob_pct, soil_temp_c, forecast_json, fetched_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())`,
     [
       gardenId,
       weather.temp_c,
@@ -146,7 +188,10 @@ async function updateGardenWeather(db, garden) {
       weather.condition,
       weather.condition_text,
       weather.frost_risk,
-      weather.heat_risk
+      weather.heat_risk,
+      weather.precip_prob_pct,
+      weather.soil_temp_c,
+      JSON.stringify(weather.forecast_json),
     ]
   )
 
