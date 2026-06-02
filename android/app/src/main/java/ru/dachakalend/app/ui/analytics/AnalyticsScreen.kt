@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,8 +26,12 @@ import ru.dachakalend.app.data.model.AnalyticsSummary
 import ru.dachakalend.app.ui.theme.NunitoFamily
 import ru.dachakalend.app.ui.theme.RussoOneFamily
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
+fun AnalyticsScreen(
+    onBack: () -> Unit = {},
+    viewModel: AnalyticsViewModel = hiltViewModel()
+) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
@@ -44,7 +49,27 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Статистика",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        }
     ) { padding ->
         Box(
             modifier = Modifier
@@ -80,22 +105,6 @@ private fun AnalyticsContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(vertical = 8.dp)
-            ) {
-                Text(
-                    "Статистика",
-                    fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 28.sp,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-        }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatCard(

@@ -863,3 +863,20 @@ pm2 restart dacha-api
 
 **Проверка**: `node --check` OK; кириллица цела; дубль-типы отсутствуют (grep = 0); тестов на
 recommendations нет, прочий тест-сьют не затронут. Не задеплоено (по запросу — только ветка).
+
+### Шаг 2 — вернуть вход в «Статистику» + оживить экспорт CSV
+**Проблема**: экран `AnalyticsScreen` (серия дней, график за 30 дней, прогресс онбординга,
+кнопка экспорта истории в CSV) был зарегистрирован в NavHost, но НИ ОДНА кнопка не вызывала
+`navigate(Screen.Analytics)` → экран и единственный вход к экспорту CSV были недостижимы.
+
+**Изменения**:
+- `ui/settings/SettingsScreen.kt`: новый параметр `onOpenAnalytics`; добавлена секция «ДАННЫЕ»
+  с карточкой-входом «Статистика и история» (иконка Insights, → Analytics).
+- `ui/analytics/AnalyticsScreen.kt`: добавлены `onBack` + TopAppBar с кнопкой «Назад»;
+  убран дублирующий инлайн-заголовок «Статистика» (теперь он в шапке).
+- `MainActivity.kt`: проброшены `onOpenAnalytics` в Settings и `onBack` в Analytics.
+- `navigation/Navigation.kt`: `Screen.Analytics.route` добавлен в `screensWithoutBottomBar`
+  (экран открывается как focused, без нижней панели, с «Назад»).
+
+Путь: Today → шестерёнка (Настройки) → «Статистика и история» → Analytics (+ экспорт CSV).
+**Проверка**: `:app:compileDebugKotlin` — BUILD SUCCESSFUL.

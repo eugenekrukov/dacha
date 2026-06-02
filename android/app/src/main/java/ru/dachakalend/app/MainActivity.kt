@@ -248,7 +248,8 @@ class MainActivity : ComponentActivity() {
                                         launchSingleTop = true
                                     }
                                 },
-                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
+                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) },
+                                onOpenAnalytics = { navController.navigate(Screen.Analytics.route) }
                             )
                         }
                         composable(Screen.Journal.route) {
@@ -304,7 +305,9 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Harvest.route) {
                             HarvestScreen(onAddPlanting = { navController.navigate(Screen.Crops.route) })
                         }
-                        composable(Screen.Analytics.route) { AnalyticsScreen() }
+                        composable(Screen.Analytics.route) {
+                            AnalyticsScreen(onBack = { navController.popBackStack() })
+                        }
                         composable(Screen.Paywall.route) {
                             PaywallScreen(
                                 onAccessGranted = {

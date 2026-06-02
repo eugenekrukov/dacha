@@ -84,5 +84,6 @@ val screensWithoutBottomBar = setOf(
     Screen.Journal.route,
     Screen.Crops.route,
     Screen.CropDetail.routeWithArgs,
-    Screen.Paywall.route
+    Screen.Paywall.route,
+    Screen.Analytics.route
 )
