@@ -2,6 +2,11 @@
 
 const { getDailyLifehack, getSeasonalTip, getStageTip, getLunarTip, getDayOfYear, getZoneDayOffset, WEATHER_TIPS } = require('../data/tips')
 
+const STAGE_LABELS = {
+  sowing: 'Посев', sprouted: 'Всходы', transplanted: 'Высажено в грунт',
+  growing: 'Растёт', flowering: 'Цветёт', harvesting: 'Созревает', done: 'Завершено'
+}
+
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
@@ -133,7 +138,7 @@ module.exports = async function (fastify) {
             priority: 'medium',
             planting_id: planting.id,
             crop_name: planting.crop_name,
-            message: `Пора подкормить ${planting.crop_name} (стадия: ${planting.stage})${fertEntry.product_example ? ' — ' + fertEntry.product_example : ''}`
+            message: `Пора подкормить ${planting.crop_name} (стадия: ${STAGE_LABELS[planting.stage] || planting.stage})${fertEntry.product_example ? ' — ' + fertEntry.product_example : ''}`
           })
         }
       }
