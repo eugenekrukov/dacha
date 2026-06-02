@@ -168,6 +168,7 @@ private fun TodayContent(
     var quickActionNotes by remember { mutableStateOf<String?>(null) }  // для care_task_due
     var selectedPlanting by remember { mutableStateOf<Planting?>(null) }
     var showPlantingPicker by remember { mutableStateOf(false) }
+    var recsExpanded by remember { mutableStateOf(false) }  // «Советы дня»: первые 3 + «показать ещё»
 
     fun onQuickAction(type: String, notes: String? = null) {
         quickActionType  = type
@@ -333,8 +334,9 @@ private fun TodayContent(
                             .coachTargetUnion(coachMarkController, "recs"),
                     )
                 }
+                val visibleRecs = if (recsExpanded) recommendations else recommendations.take(3)
                 items(
-                    recommendations,
+                    visibleRecs,
                     key = { recKey(it) }
                 ) { rec ->
                     Box(Modifier.coachTargetUnion(coachMarkController, "recs")) {
@@ -344,6 +346,21 @@ private fun TodayContent(
                             onDelete     = { onDeleteRec(rec) }
                         ) {
                             SunnyRecommendationCard(rec)
+                        }
+                    }
+                }
+                if (recommendations.size > 3) {
+                    item {
+                        TextButton(
+                            onClick = { recsExpanded = !recsExpanded },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (recsExpanded) "Свернуть"
+                                       else "Показать ещё (${recommendations.size - 3})",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
