@@ -1,5 +1,15 @@
 'use strict'
 
+// Маппинг: название care_task (из БД) → action_type (что пишет Android)
+const CARE_TASK_ACTION_MAP = {
+  'Подвязка':     'tying',
+  'Пасынкование': 'pinching',
+  'Окучивание':   'hilling',
+  'Обрезка':      'pruning',
+  'Прополка':     'weeding',
+  'Рыхление':     'loosening',
+}
+
 const TASK_PRIORITY = {
   frost_alert:    1,
   transplant_due: 2,
@@ -39,8 +49,9 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays) {
 
 /**
  * Чистая функция сборки задач дня.
+ * @param careActionsToday — { plantingId: string[] } — действия, залогированные сегодня
  */
-function buildTasks(plantings, weather, lastWateredMap, reminders, today = new Date()) {
+function buildTasks(plantings, weather, lastWateredMap, reminders, today = new Date(), careActionsToday = {}) {
   const tasks = []
 
   for (const p of plantings) {
@@ -59,10 +70,12 @@ function buildTasks(plantings, weather, lastWateredMap, reminders, today = new D
     }
 
     // 🌱 Пора пересаживать в грунт
+    const todayActions = careActionsToday[p.id] || []
     if (
       p.transplant_days &&
       daysSincePlanting >= p.transplant_days &&
-      ['sowing', 'sprouted'].includes(p.stage)
+      ['sowing', 'sprouted'].includes(p.stage) &&
+      !todayActions.includes('transplanting')
     ) {
       tasks.push({
         type: 'transplant_due',
@@ -84,7 +97,9 @@ function buildTasks(plantings, weather, lastWateredMap, reminders, today = new D
         const diff = offset - daysSincePlanting // отрицательный = просрочено
         if (diff >= -1 && diff <= 3) {
           const key = `${p.id}:${task.name}`
-          if (!addedCareNames.has(key)) {
+          const mappedAction = CARE_TASK_ACTION_MAP[task.name]
+          const alreadyDone = mappedAction && todayActions.includes(mappedAction)
+          if (!addedCareNames.has(key) && !alreadyDone) {
             addedCareNames.add(key)
             const when = diff <= 0 ? 'сегодня' : `через ${diff} дн.`
             tasks.push({
@@ -161,6 +176,7 @@ function formatTasks(tasks) {
     planting_id: t.planting_id || null,
     crop_name: t.crop_name || null,
     days_overdue: t.days_overdue || null,
+    care_task_name: t.care_task_name || null,
   }))
 }
 

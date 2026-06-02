@@ -55,6 +55,24 @@ module.exports = async function (fastify) {
       })
     }
 
+    // ── 3.5. CARE-ДЕЙСТВИЯ ЗА СЕГОДНЯ ────────────────────────────────────────
+    let careActionsToday = {}
+    if (plantings.length > 0) {
+      const ids = plantings.map(p => p.id)
+      const careRes = await fastify.db.query(
+        `SELECT planting_id, array_agg(action_type) as action_types
+         FROM action_logs
+         WHERE planting_id = ANY($1)
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','transplanting')
+           AND logged_at >= CURRENT_DATE
+         GROUP BY planting_id`,
+        [ids]
+      )
+      careRes.rows.forEach(r => {
+        careActionsToday[r.planting_id] = r.action_types
+      })
+    }
+
     // ── 4. НАПОМИНАНИЯ НА СЕГОДНЯ ────────────────────────────────────────────
     const remindersRes = await fastify.db.query(
       `SELECT r.id, r.type, r.message, r.remind_at, c.name as crop_name
@@ -77,7 +95,7 @@ module.exports = async function (fastify) {
     }))
 
     // ── 5. ЗАДАЧИ ────────────────────────────────────────────────────────────
-    const rawTasks = buildTasks(plantings, weather, lastWateredMap, reminderTasks, today)
+    const rawTasks = buildTasks(plantings, weather, lastWateredMap, reminderTasks, today, careActionsToday)
     const topTasks = formatTasks(rawTasks)
 
     return {
