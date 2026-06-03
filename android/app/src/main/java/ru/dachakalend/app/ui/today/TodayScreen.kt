@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -748,23 +749,41 @@ private fun WeatherDetailsCard(
                 }
             }
 
-            // 7-дневный прогноз
+            // 7-дневный прогноз — свёрнут по умолчанию (редко нужен ежедневно), тап разворачивает
             if (forecast.isNotEmpty()) {
+                var forecastExpanded by rememberSaveable { mutableStateOf(false) }
                 HorizontalDivider(color = Color(0xFFEEEEEE))
-                Text(
-                    "Прогноз на 7 дней",
-                    fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.Black,
-                    fontSize   = 13.sp,
-                    color      = Color(0xFF888888)
-                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { forecastExpanded = !forecastExpanded }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    forecast.forEach { day -> ForecastDayChip(day) }
+                    Text(
+                        "Прогноз на 7 дней",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        fontSize   = 13.sp,
+                        color      = Color(0xFF888888)
+                    )
+                    Icon(
+                        if (forecastExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (forecastExpanded) "Свернуть прогноз" else "Показать прогноз",
+                        tint = Color(0xFF888888)
+                    )
+                }
+                if (forecastExpanded) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        forecast.forEach { day -> ForecastDayChip(day) }
+                    }
                 }
             }
         }
