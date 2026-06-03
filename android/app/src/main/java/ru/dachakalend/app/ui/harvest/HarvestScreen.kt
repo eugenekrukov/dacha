@@ -160,22 +160,6 @@ private fun HarvestList(harvests: List<Harvest>) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(vertical = 8.dp)
-            ) {
-                Text(
-                    "Урожай",
-                    fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 28.sp,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-        }
-        item {
             HarvestSummaryCard(harvests)
         }
         item {
