@@ -14,8 +14,8 @@ module.exports = async function (fastify) {
     return res.rows.length > 0
   }
 
-  // POST /plantings
-  fastify.post('/', auth, async (request, reply) => {
+  // POST /plantings — платное действие: гейт по триалу/подписке
+  fastify.post('/', { onRequest: [fastify.authenticate, fastify.requireAccess] }, async (request, reply) => {
     const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes } = request.body
 
     // Защита от IDOR: нельзя создать посадку в чужом участке

@@ -44,6 +44,11 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /** Синхронизирует статус подписки на сервер (best-effort, не валит вызывающего). */
+    suspend fun syncSubscription(active: Boolean) {
+        try { api.syncSubscription(mapOf("active" to active)) } catch (_: Exception) {}
+    }
+
     fun logout() = tokenStorage.clearToken()
 
     private fun parseError(e: Exception): String = when {

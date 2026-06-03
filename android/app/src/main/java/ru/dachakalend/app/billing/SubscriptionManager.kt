@@ -55,6 +55,9 @@ class SubscriptionManager @Inject constructor(
             purchase.purchaseState == PurchaseState.CONFIRMED
         }?.productId
 
+        // Синхронизируем статус подписки на сервер (для серверного гейта платных действий).
+        authRepository.syncSubscription(activeProductId != null)
+
         // Сервер — источник правды по триалу; при сетевой ошибке — офлайн-фолбэк на TokenStorage.
         val (trialActive, trialDaysLeft) = when (val me = authRepository.me()) {
             is Result.Success -> me.data.trialActive to me.data.trialDaysLeft

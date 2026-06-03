@@ -65,6 +65,25 @@ app.decorate('requireAdmin', async function (request, reply) {
     return reply.code(403).send({ error: 'Forbidden: admin only' })
   }
 })
+
+// Access guard: платные действия доступны при активном триале ИЛИ активной подписке.
+// Триал — серверный (users.trial_started_at); подписка — серверное окно (users.subscription_until),
+// которое клиент продлевает синхронизацией POST /auth/subscription. 402 при отсутствии доступа.
+const { hasAccess } = require('./utils/access')
+app.decorate('requireAccess', async function (request, reply) {
+  try {
+    await request.jwtVerify()
+  } catch (err) {
+    return reply.send(err)
+  }
+  const res = await app.db.query(
+    'SELECT trial_started_at, subscription_until FROM users WHERE id = $1',
+    [request.user.userId]
+  )
+  if (!hasAccess(res.rows[0])) {
+    return reply.code(402).send({ error: 'subscription_required' })
+  }
+})
 // Routes
 app.register(require('./routes/auth'), { prefix: '/auth' })
 app.register(require('./routes/gardens'), { prefix: '/gardens' })

@@ -31,6 +31,16 @@ async function buildApp(mockDb) {
     }
   })
 
+  // Гейт доступа: в общих тестах — мягкий (только jwtVerify), чтобы не требовать
+  // подставлять триал в каждый мок. Логика доступа покрыта в access.test.js.
+  fastify.decorate('requireAccess', async function (request, reply) {
+    try {
+      await request.jwtVerify()
+    } catch (err) {
+      reply.send(err)
+    }
+  })
+
   // Регистрируем роуты
   fastify.register(require('../../routes/auth'),      { prefix: '/auth' })
   fastify.register(require('../../routes/gardens'),   { prefix: '/gardens' })

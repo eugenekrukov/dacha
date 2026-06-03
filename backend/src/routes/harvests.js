@@ -19,8 +19,8 @@ module.exports = async function (fastify) {
     return res.rows.length > 0
   }
 
-  // POST /harvests
-  fastify.post('/', auth, async (request, reply) => {
+  // POST /harvests — платное действие: гейт по триалу/подписке
+  fastify.post('/', { onRequest: [fastify.authenticate, fastify.requireAccess] }, async (request, reply) => {
     const { planting_id, weight_kg, quantity, notes } = request.body
 
     // Защита от IDOR: нельзя добавить урожай к чужой посадке

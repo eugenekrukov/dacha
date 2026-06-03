@@ -17,6 +17,10 @@ interface DachaApi {
     @GET("auth/me")
     suspend fun getMe(): UserProfile
 
+    // Синхронизация статуса подписки на сервер (источник правды по подписке — RuStore на клиенте)
+    @POST("auth/subscription")
+    suspend fun syncSubscription(@Body body: Map<String, Boolean>)
+
     // Geocode
     @GET("geocode/suggest")
     suspend fun suggestCity(@Query("q") query: String): List<GeocodeSuggestion>

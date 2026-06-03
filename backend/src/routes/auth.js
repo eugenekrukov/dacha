@@ -1,18 +1,7 @@
 'use strict'
 
 const bcrypt = require('bcrypt')
-
-// Длительность пробного периода (дней). Сервер — источник правды по триалу.
-const TRIAL_DAYS = 7
-
-/** Возвращает { trial_active, trial_days_left } по дате старта триала. */
-function trialInfo(trialStartedAt) {
-  if (!trialStartedAt) return { trial_active: false, trial_days_left: 0 }
-  const startMs = new Date(trialStartedAt).getTime()
-  const daysSince = Math.floor((Date.now() - startMs) / 86_400_000)
-  const daysLeft = Math.max(0, TRIAL_DAYS - daysSince)
-  return { trial_active: daysLeft > 0, trial_days_left: daysLeft }
-}
+const { trialInfo, isSubscribed, SUBSCRIPTION_WINDOW_DAYS } = require('../utils/access')
 
 module.exports = async function (fastify) {
   // POST /auth/register
@@ -82,11 +71,33 @@ module.exports = async function (fastify) {
   // GET /auth/me
   fastify.get('/me', { onRequest: [fastify.authenticate] }, async (request) => {
     const result = await fastify.db.query(
-      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at FROM users WHERE id = $1',
+      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at, subscription_until FROM users WHERE id = $1',
       [request.user.userId]
     )
     const user = result.rows[0]
     if (!user) return user
-    return { ...user, ...trialInfo(user.trial_started_at) }
+    return { ...user, ...trialInfo(user.trial_started_at), subscribed: isSubscribed(user.subscription_until) }
+  })
+
+  // POST /auth/subscription — клиент синхронизирует статус подписки из RuStore.
+  // active=true продлевает серверное окно подтверждения; active=false снимает.
+  fastify.post('/subscription', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['active'],
+        properties: { active: { type: 'boolean' } }
+      }
+    }
+  }, async (request) => {
+    const until = request.body.active
+      ? new Date(Date.now() + SUBSCRIPTION_WINDOW_DAYS * 86_400_000)
+      : null
+    const result = await fastify.db.query(
+      'UPDATE users SET subscription_until = $1 WHERE id = $2 RETURNING subscription_until',
+      [until, request.user.userId]
+    )
+    return { subscription_until: result.rows[0].subscription_until, subscribed: isSubscribed(result.rows[0].subscription_until) }
   })
 }
