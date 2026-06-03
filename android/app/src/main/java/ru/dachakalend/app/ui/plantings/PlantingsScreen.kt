@@ -90,6 +90,9 @@ fun PlantingsScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        // Внешний Scaffold (MainActivity) уже отступает под нав-бар; не добавляем инсет повторно,
+        // иначе снизу появляется пустой отступ.
+        contentWindowInsets = WindowInsets(0),
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddCrop,
@@ -558,7 +561,7 @@ private fun PlantingCard(
                             onDismissRequest = { menuExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("ℹ️ Информация о посадке", fontFamily = NunitoFamily) },
+                                text = { Text("Информация о посадке", fontFamily = NunitoFamily) },
                                 onClick = { menuExpanded = false; onInfo() }
                             )
                             DropdownMenuItem(
@@ -566,7 +569,7 @@ private fun PlantingCard(
                                 onClick = { menuExpanded = false; onEditInfo() }
                             )
                             DropdownMenuItem(
-                                text = { Text("✅ Завершить сезон", fontFamily = NunitoFamily) },
+                                text = { Text("Завершить сезон", fontFamily = NunitoFamily) },
                                 onClick = { menuExpanded = false; onFinishSeason() }
                             )
                             DropdownMenuItem(
