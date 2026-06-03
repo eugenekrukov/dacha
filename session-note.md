@@ -965,3 +965,9 @@ recommendations нет, прочий тест-сьют не затронут. Н
   ссылки на удалённые design-system/pages убраны (правка разрешена пользователем).
 - Запись «Статистика и история» в Настройках оставлена (доп. вход + контекст экспорта).
 ✅ compileDebugKotlin BUILD SUCCESSFUL.
+
+### GRANT care_alert_log + текст подкормки
+- Прод: выдан GRANT SELECT/INSERT/UPDATE/DELETE на care_alert_log + USAGE,SELECT на
+  care_alert_log_id_seq для dacha_user — careRemindersJob больше не падает на правах.
+- `todayLogic.js`: заголовок подкормки теперь «Подкормить <культура> (<продукт>)» вместо
+  «Подкормить: <продукт>» (было неясно, какое растение). 97/97 тестов зелёные.

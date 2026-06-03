@@ -194,7 +194,7 @@ function formatTasks(tasks) {
     switch (t.type) {
       case 'watering_due':     title = `Полить: ${t.crop_name}`; break
       case 'transplant_due':   title = `Высадить в грунт: ${t.crop_name}`; break
-      case 'fertilizing_due':  title = t.product_example ? `Подкормить: ${t.product_example}` : `Подкормить: ${t.crop_name}`; break
+      case 'fertilizing_due':  title = t.product_example ? `Подкормить ${t.crop_name} (${t.product_example})` : `Подкормить: ${t.crop_name}`; break
       case 'harvest_due':      title = `Убрать урожай: ${t.crop_name}`; break
       case 'frost_alert':      title = `Заморозки: ${t.crop_name}`; break
       case 'care_task_due':    title = `${t.care_task_name}: ${t.crop_name}`; break
