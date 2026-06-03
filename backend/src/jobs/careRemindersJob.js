@@ -1,7 +1,7 @@
 'use strict'
 
 const cron = require('node-cron')
-const { sendWateringAlert, sendFertilizingAlert, sendTransplantAlert } = require('../services/pushService')
+const pushService = require('../services/pushService')
 
 function startCareRemindersJob(db) {
   cron.schedule('0 9 * * *', () => {
@@ -10,7 +10,9 @@ function startCareRemindersJob(db) {
   console.log('[care-job] Запущен: проверка полива/подкормки/пересадки каждый день в 09:00')
 }
 
-async function runCareReminders(db) {
+// push внедряется параметром (по умолчанию — реальный сервис) для тестируемости.
+async function runCareReminders(db, push = pushService) {
+  const { sendWateringDigest, sendFertilizingDigest, sendTransplantDigest } = push
   console.log('[care-job] Проверка просроченных задач ухода...')
 
   try {
@@ -37,9 +39,15 @@ async function runCareReminders(db) {
       return
     }
 
-    let wateringAlerts = 0
-    let fertilizingAlerts = 0
-    let transplantAlerts = 0
+    // Корзины по участку: один сводный пуш на тип вместо пуша на каждую посадку.
+    // gardenId -> { watering: [{plantingId, cropName}], fertilizing: [...], transplant: [...] }
+    const buckets = new Map()
+    const bucketFor = (gardenId) => {
+      if (!buckets.has(gardenId)) {
+        buckets.set(gardenId, { watering: [], fertilizing: [], transplant: [] })
+      }
+      return buckets.get(gardenId)
+    }
 
     for (const planting of result.rows) {
       const daysSincePlanting = Math.floor(
@@ -63,11 +71,8 @@ async function runCareReminders(db) {
         : daysSincePlanting
 
       if (daysSinceWatered >= wateringFreq) {
-        const alreadySent = await wasAlertSentToday(db, planting.planting_id, 'watering_due')
-        if (!alreadySent) {
-          await sendWateringAlert(db, planting.garden_id, planting.crop_name, daysSinceWatered)
-          await markAlertSent(db, planting.planting_id, 'watering_due')
-          wateringAlerts++
+        if (!await wasAlertSentToday(db, planting.planting_id, 'watering_due')) {
+          bucketFor(planting.garden_id).watering.push(planting)
         }
       }
 
@@ -85,11 +90,8 @@ async function runCareReminders(db) {
           : daysSincePlanting
 
         if (daysSinceFertilized > 14) {
-          const alreadySent = await wasAlertSentToday(db, planting.planting_id, 'fertilizing_due')
-          if (!alreadySent) {
-            await sendFertilizingAlert(db, planting.garden_id, planting.crop_name, daysSinceFertilized)
-            await markAlertSent(db, planting.planting_id, 'fertilizing_due')
-            fertilizingAlerts++
+          if (!await wasAlertSentToday(db, planting.planting_id, 'fertilizing_due')) {
+            bucketFor(planting.garden_id).fertilizing.push(planting)
           }
         }
       }
@@ -97,18 +99,38 @@ async function runCareReminders(db) {
       // --- Пересадка (только стадия sowing) ---
       // Рассада в стадии посева 14+ дней без пересадки в грунт → пора пересаживать
       if (planting.stage === 'sowing' && daysSincePlanting >= 14) {
-        const alreadySent = await wasAlertSentToday(db, planting.planting_id, 'transplant_due')
-        if (!alreadySent) {
-          await sendTransplantAlert(db, planting.garden_id, planting.crop_name, daysSincePlanting)
-          await markAlertSent(db, planting.planting_id, 'transplant_due')
-          transplantAlerts++
+        if (!await wasAlertSentToday(db, planting.planting_id, 'transplant_due')) {
+          bucketFor(planting.garden_id).transplant.push(planting)
         }
       }
     }
 
-    console.log(`[care-job] Готово: полив=${wateringAlerts}, подкормка=${fertilizingAlerts}, пересадка=${transplantAlerts}`)
+    let wateringAlerts = 0
+    let fertilizingAlerts = 0
+    let transplantAlerts = 0
+
+    // Один дайджест на участок на тип; помечаем каждую вошедшую посадку (дедуп на день).
+    for (const [gardenId, bucket] of buckets) {
+      await sendDigestAndMark(db, gardenId, 'watering_due', bucket.watering, sendWateringDigest)
+      await sendDigestAndMark(db, gardenId, 'fertilizing_due', bucket.fertilizing, sendFertilizingDigest)
+      await sendDigestAndMark(db, gardenId, 'transplant_due', bucket.transplant, sendTransplantDigest)
+      wateringAlerts    += bucket.watering.length
+      fertilizingAlerts += bucket.fertilizing.length
+      transplantAlerts  += bucket.transplant.length
+    }
+
+    console.log(`[care-job] Готово: участков=${buckets.size}, полив=${wateringAlerts}, подкормка=${fertilizingAlerts}, пересадка=${transplantAlerts}`)
   } catch (err) {
     console.error('[care-job] Критическая ошибка:', err.message)
+  }
+}
+
+// Шлёт сводный пуш по корзине (если непустая) и помечает каждую посадку как уведомлённую.
+async function sendDigestAndMark(db, gardenId, alertType, plantings, sendDigest) {
+  if (plantings.length === 0) return
+  await sendDigest(db, gardenId, plantings.map(p => p.crop_name))
+  for (const p of plantings) {
+    await markAlertSent(db, p.planting_id, alertType)
   }
 }
 
@@ -133,4 +155,4 @@ async function markAlertSent(db, plantingId, alertType) {
   )
 }
 
-module.exports = { startCareRemindersJob }
+module.exports = { startCareRemindersJob, runCareReminders }

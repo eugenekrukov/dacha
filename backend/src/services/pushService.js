@@ -80,56 +80,44 @@ async function sendHeatAlert(db, gardenId, tempC) {
   }
 }
 
-async function sendWateringAlert(db, gardenId, cropName, daysSince) {
+// Перечисляет культуры человекочитаемо: «Томат, Огурец и ещё 2».
+function listCrops(cropNames) {
+  const max = 3
+  if (cropNames.length <= max) return cropNames.join(', ')
+  return `${cropNames.slice(0, max).join(', ')} и ещё ${cropNames.length - max}`
+}
+
+// Один сводный пуш на участок вместо отдельного на каждую посадку (борьба со спамом).
+async function sendCareDigest(db, gardenId, type, title, verb, cropNames) {
   try {
+    if (cropNames.length === 0) return
     const tokens = await getTokensForGarden(db, gardenId)
     if (tokens.length === 0) return
-    const title = '💧 Нужен полив'
-    const body = `${cropName} не поливали ${daysSince} дн. Пора полить!`
+    const body = `${verb}: ${listCrops(cropNames)}`
     for (const token of tokens) {
-      await sendPush(token, title, body, { type: 'watering_due', garden_id: String(gardenId) })
+      await sendPush(token, title, body, { type, garden_id: String(gardenId) })
     }
-    console.log(`[push] watering_due: ${cropName} (участок ${gardenId}, ${tokens.length} устройств)`)
+    console.log(`[push] ${type} (дайджест): ${cropNames.length} посадок, участок ${gardenId}, ${tokens.length} устройств`)
   } catch (e) {
-    console.error('[push] Ошибка sendWateringAlert:', e.message)
+    console.error(`[push] Ошибка sendCareDigest(${type}):`, e.message)
   }
 }
 
-async function sendFertilizingAlert(db, gardenId, cropName, daysSince) {
-  try {
-    const tokens = await getTokensForGarden(db, gardenId)
-    if (tokens.length === 0) return
-    const title = '🌿 Нужна подкормка'
-    const body = `${cropName} не подкармливали ${daysSince} дн. Пора внести удобрения!`
-    for (const token of tokens) {
-      await sendPush(token, title, body, { type: 'fertilizing_due', garden_id: String(gardenId) })
-    }
-    console.log(`[push] fertilizing_due: ${cropName} (участок ${gardenId}, ${tokens.length} устройств)`)
-  } catch (e) {
-    console.error('[push] Ошибка sendFertilizingAlert:', e.message)
-  }
-}
+const sendWateringDigest = (db, gardenId, cropNames) =>
+  sendCareDigest(db, gardenId, 'watering_due', '💧 Нужен полив', 'Полейте', cropNames)
 
-async function sendTransplantAlert(db, gardenId, cropName, daysSincePlanting) {
-  try {
-    const tokens = await getTokensForGarden(db, gardenId)
-    if (tokens.length === 0) return
-    const title = '🌱 Пора пересаживать'
-    const body = `${cropName} (${daysSincePlanting} дн.) готова к пересадке в грунт!`
-    for (const token of tokens) {
-      await sendPush(token, title, body, { type: 'transplant_due', garden_id: String(gardenId) })
-    }
-    console.log(`[push] transplant_due: ${cropName} (участок ${gardenId}, ${tokens.length} устройств)`)
-  } catch (e) {
-    console.error('[push] Ошибка sendTransplantAlert:', e.message)
-  }
-}
+const sendFertilizingDigest = (db, gardenId, cropNames) =>
+  sendCareDigest(db, gardenId, 'fertilizing_due', '🌿 Нужна подкормка', 'Подкормите', cropNames)
+
+const sendTransplantDigest = (db, gardenId, cropNames) =>
+  sendCareDigest(db, gardenId, 'transplant_due', '🌱 Пора пересаживать', 'Высадите в грунт', cropNames)
 
 module.exports = {
   sendPush,
   sendFrostAlert,
   sendHeatAlert,
-  sendWateringAlert,
-  sendFertilizingAlert,
-  sendTransplantAlert
+  sendCareDigest,
+  sendWateringDigest,
+  sendFertilizingDigest,
+  sendTransplantDigest
 }
