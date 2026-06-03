@@ -303,4 +303,34 @@ describe('care_task_due', () => {
     )
     expect(tasks.some(t => t.type === 'care_task_due')).toBe(false)
   })
+
+  it('одиночная care-задача остаётся адресной (planting_id сохранён)', () => {
+    const tasks = buildTasks([carePlanting([{ name: 'Прополка', day_offset: 5 }])], null, {}, {}, [], TODAY)
+    const t = tasks.find(t => t.type === 'care_task_due')
+    expect(t.planting_id).toBe(1)
+    expect(t.crops).toBeUndefined()
+  })
+
+  it('однотипные care-задачи разных посадок группируются в одну карточку', () => {
+    const weeders = ['Томат', 'Огурец', 'Перец'].map((c, i) => makePlanting({
+      id: i + 1, crop_name: c, planted_at: daysAgo(10, TODAY),
+      watering_freq_days: null, transplant_days: null, harvest_days: 90,
+      frost_sensitive: false, care_tasks: [{ name: 'Прополка', day_offset: 5 }],
+    }))
+    const tasks = buildTasks(weeders, null, {}, {}, [], TODAY)
+    const care = tasks.filter(t => t.type === 'care_task_due')
+    expect(care).toHaveLength(1)
+    expect(care[0].planting_id).toBeNull()
+    expect(care[0].crops).toEqual(['Томат', 'Огурец', 'Перец'])
+    expect(care[0].days_overdue).toBe(5)
+  })
+
+  it('разные имена care-задач НЕ группируются вместе', () => {
+    const plantings = [
+      makePlanting({ id: 1, crop_name: 'Томат', planted_at: daysAgo(10, TODAY), watering_freq_days: null, transplant_days: null, harvest_days: 90, frost_sensitive: false, care_tasks: [{ name: 'Прополка', day_offset: 5 }] }),
+      makePlanting({ id: 2, crop_name: 'Огурец', planted_at: daysAgo(10, TODAY), watering_freq_days: null, transplant_days: null, harvest_days: 90, frost_sensitive: false, care_tasks: [{ name: 'Рыхление', day_offset: 5 }] }),
+    ]
+    const tasks = buildTasks(plantings, null, {}, {}, [], TODAY)
+    expect(tasks.filter(t => t.type === 'care_task_due')).toHaveLength(2)
+  })
 })

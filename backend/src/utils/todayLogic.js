@@ -52,10 +52,18 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays) {
  * Чистая функция сборки задач дня.
  * @param careActionsToday — { plantingId: string[] } — действия, залогированные сегодня
  */
+// Перечисляет культуры человекочитаемо: «Томат, Огурец и ещё 2».
+function listCrops(crops) {
+  const max = 3
+  if (crops.length <= max) return crops.join(', ')
+  return `${crops.slice(0, max).join(', ')} и ещё ${crops.length - max}`
+}
+
 function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null, lastCareActionMap = {}) {
   // Если завтра дождь ≥70% — полив не нужен
   const rainExpected = precipProb !== null && precipProb >= 70
   const tasks = []
+  const careAccum = [] // care-задачи копим отдельно — потом группируем однотипные
 
   for (const p of plantings) {
     const plantedAt = new Date(p.planted_at)
@@ -121,7 +129,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       addedCareNames.add(key)
       const diff = dueOffset - daysSincePlanting // <= 3; отрицательный = просрочено
       const when = diff <= 0 ? 'сегодня' : `через ${diff} дн.`
-      tasks.push({
+      careAccum.push({
         type: 'care_task_due',
         priority: TASK_PRIORITY.care_task_due,
         planting_id: p.id,
@@ -186,6 +194,32 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
     }
   }
 
+  // Группируем однотипные care-задачи (одно имя на несколько посадок) в одну карточку,
+  // чтобы они не вытесняли полив/урожай из топа. Одиночные остаются адресными
+  // (с planting_id → tappable + индикатор «Требуется» на карточке посадки).
+  const byCareName = new Map()
+  for (const t of careAccum) {
+    if (!byCareName.has(t.care_task_name)) byCareName.set(t.care_task_name, [])
+    byCareName.get(t.care_task_name).push(t)
+  }
+  for (const [name, group] of byCareName) {
+    if (group.length === 1) {
+      tasks.push(group[0])
+    } else {
+      const crops = group.map(g => g.crop_name)
+      tasks.push({
+        type: 'care_task_due',
+        priority: TASK_PRIORITY.care_task_due,
+        planting_id: null, // групповая — без адресной посадки (информационная)
+        crop_name: null,
+        care_task_name: name,
+        crops,
+        message: `${name}: ${listCrops(crops)}`,
+        days_overdue: Math.max(...group.map(g => g.days_overdue || 0)),
+      })
+    }
+  }
+
   tasks.push(...reminders)
 
   tasks.sort((a, b) => {
@@ -206,7 +240,9 @@ function formatTasks(tasks) {
       case 'fertilizing_due':  title = t.product_example ? `Подкормить ${t.crop_name} (${t.product_example})` : `Подкормить: ${t.crop_name}`; break
       case 'harvest_due':      title = `Убрать урожай: ${t.crop_name}`; break
       case 'frost_alert':      title = `Заморозки: ${t.crop_name}`; break
-      case 'care_task_due':    title = `${t.care_task_name}: ${t.crop_name}`; break
+      case 'care_task_due':    title = (t.crops && t.crops.length)
+                                 ? `${t.care_task_name}: ${listCrops(t.crops)}`
+                                 : `${t.care_task_name}: ${t.crop_name}`; break
       default:                 title = t.message || t.type
     }
 
