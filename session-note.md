@@ -1059,3 +1059,21 @@ recommendations нет, прочий тест-сьют не затронут. Н
 - Иконки шапки (Edit/Settings): tint .85→полный белый; зона нажатия 36dp→44dp;
   добавлены `contentDescription` («Изменить участок»/«Настройки») вместо null — для TalkBack.
 ✅ compileDebugKotlin. Требует пересборки APK.
+
+### Баг-фикс — pending-задача пропадала при отмене шторки действия
+**Симптом**: открыть «Записать действие» на карточке посадки и закрыть БЕЗ записи →
+индикатор просроченной задачи на карточке исчезал, но бейдж-счётчик продолжал считать;
+после рестарта задача возвращалась.
+**Причина**: `PlantingsViewModel.closeActionSheet()` снимал pending (`pendingTasks - id` +
+`savePendingTasks`) при ЛЮБОМ закрытии шторки, в т.ч. при отмене. Карточка читает
+in-memory `uiState.pendingTasks` (обновлялась мгновенно), бейдж — `getPendingCount()` из
+prefs (рекомпозится только при навигации) → рассинхрон. На рестарте `/today` пере-сохранял
+pending с сервера (действие не записано) → задача возвращалась.
+**Фикс**: pending снимается только при РЕАЛЬНО записанном действии.
+- `ActionLogBottomSheet`: новый колбэк `onActionLogged` — вызывается в `LaunchedEffect(success)`
+  перед `onDismiss` (по умолчанию `{}`, поведение TodayScreen не меняется).
+- `PlantingsViewModel`: новый `onActionLogged(plantingId)` снимает pending + персистит;
+  `closeActionSheet()` больше pending не трогает (только закрытие + silent reload + снуз).
+- `PlantingsScreen`: прокинут `onActionLogged = { viewModel.onActionLogged(planting.id) }`.
+Теперь отмена ничего не меняет (карточка и счётчик согласованы); запись действия снимает
+индикатор и на сервере (на рестарте не возвращается). ✅ compileDebugKotlin. Пересборка APK.

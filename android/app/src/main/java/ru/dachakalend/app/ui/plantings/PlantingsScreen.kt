@@ -236,6 +236,7 @@ fun PlantingsScreen(
     state.showActionSheet?.let { planting ->
         ActionLogBottomSheet(
             planting = planting,
+            onActionLogged = { viewModel.onActionLogged(planting.id) },
             onDismiss = { viewModel.closeActionSheet() }
         )
     }

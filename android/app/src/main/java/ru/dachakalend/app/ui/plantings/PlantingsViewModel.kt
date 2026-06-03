@@ -200,17 +200,20 @@ class PlantingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showActionSheet = planting)
     }
 
+    /** Действие реально записано → снимаем pending только тогда (не при отмене). */
+    fun onActionLogged(plantingId: Int) {
+        val updatedPending = _uiState.value.pendingTasks - plantingId
+        tokenStorage.savePendingTasks(updatedPending)
+        _uiState.value = _uiState.value.copy(pendingTasks = updatedPending)
+    }
+
     fun closeActionSheet() {
-        val planting = _uiState.value.showActionSheet
-        _uiState.value = _uiState.value.copy(showActionSheet = null)
-        if (planting != null) {
-            val updatedPending = _uiState.value.pendingTasks - planting.id
-            tokenStorage.savePendingTasks(updatedPending)
-            _uiState.value = _uiState.value.copy(
-                pendingTasks = updatedPending,
-                snoozedTaskKeys = tokenStorage.getSnoozedTasksForToday()
-            )
-        }
+        // Закрытие без записи НЕ снимает pending (иначе индикатор и счётчик
+        // рассинхронятся, а после /today задача вернётся). Чистим только в onActionLogged.
+        _uiState.value = _uiState.value.copy(
+            showActionSheet = null,
+            snoozedTaskKeys = tokenStorage.getSnoozedTasksForToday()
+        )
         loadPlantings(silent = true)
     }
 
