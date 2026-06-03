@@ -135,6 +135,14 @@ data class NextCareTask(
     @Json(name = "days_until") val daysUntil: Int
 )
 
+// Просроченная (или наступившая сегодня) care-задача — индикатор «Требует ухода»
+// на карточке посадки. Источник — сервер (GET /plantings), а не кэш экрана «Сегодня».
+@JsonClass(generateAdapter = true)
+data class OverdueCareTask(
+    val name: String,
+    @Json(name = "days_overdue") val daysOverdue: Int
+)
+
 @JsonClass(generateAdapter = true)
 data class Planting(
     val id: Int,
@@ -149,7 +157,8 @@ data class Planting(
     val quantity: Int? = 1,
     val conditions: String? = "soil",
     @Json(name = "watering_freq_days") val wateringFreqDays: Int? = null,
-    @Json(name = "next_care_task") val nextCareTask: NextCareTask? = null
+    @Json(name = "next_care_task") val nextCareTask: NextCareTask? = null,
+    @Json(name = "overdue_care_task") val overdueCareTask: OverdueCareTask? = null
 )
 
 // --- Crop ---

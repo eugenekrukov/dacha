@@ -47,7 +47,7 @@
 
 ## Технический долг
 
-- [x] Тесты бэкенда: **123 passed** ✅ (добавлены access, careRemindersJob, care_task grouping, auto-flag, trial)
+- [x] Тесты бэкенда: **132 passed** ✅ (access, careRemindersJob, care_task grouping, auto-flag, trial, getOverdueCareTask)
 - [x] ARCHITECTURE.md создан ✅
 - [x] Сертификат: certbot.timer активен, истекает 2026-08-26 ✅
 - [x] CLAUDE.md актуализирован под реальный процесс (ssh hetzner, миграции через psql, Write tool, ff-main)
@@ -64,6 +64,10 @@
 - **UI/консистентность**: Material Icons в журнале и селекторе (эмодзи убраны), чистка эмодзи в
   рекомендациях, серверный флаг `auto` вместо строковой эвристики заметок, a11y hero (контраст/touch),
   прогноз на 7 дней сворачиваемый
+- **Просрочка ухода на «Посадках»** (фикс 2 багов): `GET /plantings` отдаёт `overdue_care_task` по
+  посадке (`getOverdueCareTask` в todayLogic.js) → care-просрочки видны на карточках, не зависят от
+  обрезанного кэша «Сегодня». Шторка действий с карточки преселектит нужный тип; pending снимается
+  только если тип закрывает задачу (не «пропадает и возвращается»). Тесты бэкенда: **132 passed**.
 - **Git**: подчищены все стейл-ветки (локально и на origin) → одна `main`
 
 ---

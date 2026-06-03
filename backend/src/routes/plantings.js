@@ -1,6 +1,6 @@
 'use strict'
 
-const { getNextCareTask } = require('../utils/todayLogic')
+const { getNextCareTask, getOverdueCareTask } = require('../utils/todayLogic')
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
@@ -46,14 +46,51 @@ module.exports = async function (fastify) {
       garden_id ? [request.user.userId, garden_id] : [request.user.userId]
     )
 
-    // Вычисляем next_care_task для каждой посадки
-    const now = Date.now()
+    // Care-действия по посадкам — чтобы вычислить просроченные care-задачи (overdue_care_task).
+    // Источник истины тот же, что у /today (getOverdueCareTask), поэтому экраны не расходятся.
+    const ids = result.rows.map(r => r.id)
+    const lastCareMap = {}   // { plantingId: { action_type: Date } } — последнее care-действие по типу
+    const todayCareMap = {}  // { plantingId: string[] } — care-действия за сегодня
+    if (ids.length > 0) {
+      const lastCareRes = await fastify.db.query(
+        `SELECT DISTINCT ON (planting_id, action_type) planting_id, action_type, logged_at
+         FROM action_logs
+         WHERE planting_id = ANY($1)
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening')
+         ORDER BY planting_id, action_type, logged_at DESC`,
+        [ids]
+      )
+      lastCareRes.rows.forEach(r => {
+        if (!lastCareMap[r.planting_id]) lastCareMap[r.planting_id] = {}
+        lastCareMap[r.planting_id][r.action_type] = new Date(r.logged_at)
+      })
+      const todayCareRes = await fastify.db.query(
+        `SELECT planting_id, array_agg(action_type) AS action_types
+         FROM action_logs
+         WHERE planting_id = ANY($1)
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening')
+           AND logged_at >= CURRENT_DATE
+         GROUP BY planting_id`,
+        [ids]
+      )
+      todayCareRes.rows.forEach(r => {
+        todayCareMap[r.planting_id] = r.action_types
+      })
+    }
+
+    // Вычисляем next_care_task (будущие) и overdue_care_task (просроченные/сегодня) для каждой посадки
+    const now = new Date()
     const rows = result.rows.map(p => {
-      const daysSincePlanting = Math.floor((now - new Date(p.planted_at)) / 86400000)
+      const plantedAt = new Date(p.planted_at)
+      const daysSincePlanting = Math.floor((now - plantedAt) / 86400000)
       const nextCareTask = getNextCareTask(p.care_tasks, daysSincePlanting, p.harvest_days)
+      // Завершённым посадкам уход не нужен
+      const overdueCareTask = p.stage === 'done'
+        ? null
+        : getOverdueCareTask(p.care_tasks, plantedAt, now, p.harvest_days, lastCareMap[p.id] || {}, todayCareMap[p.id] || [])
       // Не передаём care_tasks клиенту — это внутренние данные
       const { care_tasks, ...rest } = p
-      return { ...rest, next_care_task: nextCareTask }
+      return { ...rest, next_care_task: nextCareTask, overdue_care_task: overdueCareTask }
     })
 
     return rows

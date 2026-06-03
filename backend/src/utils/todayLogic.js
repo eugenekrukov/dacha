@@ -49,6 +49,47 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays) {
 }
 
 /**
+ * Возвращает самую просроченную (или наступившую сегодня) НЕвыполненную care-задачу
+ * для одной посадки — источник индикатора «Требует ухода» на экране «Посадки».
+ * В отличие от getNextCareTask (только будущие задачи), здесь рассматриваются только
+ * наступившие: dueOffset <= daysSincePlanting. Логика «выполнено» идентична buildTasks
+ * (doneSinceDue / doneToday), чтобы экраны «Сегодня» и «Посадки» не расходились.
+ *
+ * @returns {{ name: string, days_overdue: number } | null}
+ */
+function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDone = {}, todayActions = []) {
+  if (!careTasks || careTasks.length === 0) return null
+  const limit = harvestDays || 180
+  const daysSincePlanting = Math.floor((today - plantedAt) / 86400000)
+  let best = null
+
+  for (const task of careTasks) {
+    // Последняя наступившая дата задачи (<= сегодня)
+    let dueOffset = null
+    let offset = task.day_offset
+    while (offset <= limit && offset <= daysSincePlanting) {
+      dueOffset = offset
+      if (!task.repeat_days) break
+      offset += task.repeat_days
+    }
+    if (dueOffset === null) continue // ещё не наступила
+
+    const mappedAction = CARE_TASK_ACTION_MAP[task.name]
+    const dueDate = new Date(plantedAt.getTime() + dueOffset * 86400000)
+    const lastDone = mappedAction ? lastCareDone[mappedAction] : null
+    const doneSinceDue = lastDone && new Date(lastDone) >= dueDate
+    const doneToday = mappedAction && todayActions.includes(mappedAction)
+    if (doneSinceDue || doneToday) continue
+
+    const daysOverdue = daysSincePlanting - dueOffset
+    if (!best || daysOverdue > best.days_overdue) {
+      best = { name: task.name, days_overdue: daysOverdue }
+    }
+  }
+  return best
+}
+
+/**
  * Чистая функция сборки задач дня.
  * @param careActionsToday — { plantingId: string[] } — действия, залогированные сегодня
  */
@@ -285,4 +326,4 @@ function formatTasks(tasks) {
   })
 }
 
-module.exports = { buildTasks, formatTasks, getNextCareTask }
+module.exports = { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask }

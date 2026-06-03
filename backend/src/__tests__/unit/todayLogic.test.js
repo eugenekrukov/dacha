@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks } = require('../../utils/todayLogic')
+const { buildTasks, getOverdueCareTask } = require('../../utils/todayLogic')
 
 // ─── Фабрики тестовых данных ─────────────────────────────────────────────────
 
@@ -332,5 +332,65 @@ describe('care_task_due', () => {
     ]
     const tasks = buildTasks(plantings, null, {}, {}, [], TODAY)
     expect(tasks.filter(t => t.type === 'care_task_due')).toHaveLength(2)
+  })
+})
+
+// ─── getOverdueCareTask (индикатор «Требует ухода» на экране «Посадки») ────────
+
+describe('getOverdueCareTask', () => {
+  // posadка 10 дней назад → плановое наступление в day_offset дней
+  const plantedAt = new Date(daysAgo(10, TODAY))
+
+  it('возвращает просроченную задачу с days_overdue', () => {
+    const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 5 }], plantedAt, TODAY, 90)
+    expect(r).toEqual({ name: 'Прополка', days_overdue: 5 })
+  })
+
+  it('наступившая сегодня задача → days_overdue = 0', () => {
+    const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 10 }], plantedAt, TODAY, 90)
+    expect(r).toEqual({ name: 'Прополка', days_overdue: 0 })
+  })
+
+  it('будущая задача (ещё не наступила) → null', () => {
+    // в отличие от /today здесь НЕ показываем за 3 дня вперёд
+    const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 12 }], plantedAt, TODAY, 90)
+    expect(r).toBeNull()
+  })
+
+  it('null если действие сделано в день наступления или позже (doneSinceDue)', () => {
+    const lastCare = { weeding: new Date(daysAgo(2, TODAY)) } // позже due (due ≈ 5 дн. назад)
+    const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 5 }], plantedAt, TODAY, 90, lastCare)
+    expect(r).toBeNull()
+  })
+
+  it('показывается, если действие было ДО наступления задачи', () => {
+    const lastCare = { weeding: new Date(daysAgo(8, TODAY)) } // до due
+    const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 5 }], plantedAt, TODAY, 90, lastCare)
+    expect(r).toEqual({ name: 'Прополка', days_overdue: 5 })
+  })
+
+  it('null если действие сделано сегодня (todayActions)', () => {
+    const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 5 }], plantedAt, TODAY, 90, {}, ['weeding'])
+    expect(r).toBeNull()
+  })
+
+  it('выбирает самую просроченную из нескольких задач', () => {
+    const tasks = [
+      { name: 'Прополка', day_offset: 8 }, // overdue 2
+      { name: 'Рыхление', day_offset: 3 }, // overdue 7
+    ]
+    const r = getOverdueCareTask(tasks, plantedAt, TODAY, 90)
+    expect(r).toEqual({ name: 'Рыхление', days_overdue: 7 })
+  })
+
+  it('null если care_tasks пустой', () => {
+    expect(getOverdueCareTask([], plantedAt, TODAY, 90)).toBeNull()
+    expect(getOverdueCareTask(null, plantedAt, TODAY, 90)).toBeNull()
+  })
+
+  it('учитывает repeat_days (берёт последнее наступление)', () => {
+    // day_offset=3, repeat=3 → наступления 3,6,9; посадке 10 дней → последнее на 9 → overdue 1
+    const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 3, repeat_days: 3 }], plantedAt, TODAY, 90)
+    expect(r).toEqual({ name: 'Прополка', days_overdue: 1 })
   })
 })

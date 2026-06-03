@@ -550,5 +550,20 @@ ModalBottomSheet(
   (НЕ `DropdownMenu` в `Box` — он перекрывает поле и крадёт фокус). Список — под полем, поле редактируемо.
 - **Реактивный счётчик задач**: `TokenStorage.pendingCount: StateFlow<Int>` (обновляется в
   `savePendingTasks`/`snoozeTask`/`logout`). В Compose — `collectAsState()`, не разовый вызов `getPendingCount()`.
-- **Снятие pending**: только при реально записанном действии — колбэк `onActionLogged` в
-  `ActionLogBottomSheet` → `PlantingsViewModel.onActionLogged()`. `closeActionSheet()` pending НЕ трогает.
+- **Снятие pending**: только при реально записанном действии — колбэк `onActionLogged(loggedType)` в
+  `ActionLogBottomSheet` → `PlantingsViewModel.onActionLogged(plantingId, loggedType)`. Снимаем из кэша
+  **только если тип закрывает задачу** (`watering_due`→`watering`, `care_task_due`→`careTaskActionType()`
+  и т.д.) — иначе после `/today` задача вернётся, а индикатор бы ложно пропал. `closeActionSheet()` pending НЕ трогает.
+
+## 18. Просрочка ухода на экране «Посадки» (сессия 2026-06-03, фикс)
+
+- **Источник истины — сервер, не кэш «Сегодня»**. Кэш `TokenStorage.pendingTasks` режется до топ-7 и
+  теряет сгруппированные care-задачи (`planting_id: null`), поэтому просрочки не доходили до «Посадок».
+- `GET /plantings` отдаёт по каждой посадке `overdue_care_task: { name, days_overdue }` — самую
+  просроченную/наступившую невыполненную care-задачу. Чистая функция `getOverdueCareTask()` в
+  `utils/todayLogic.js` (логика «выполнено» = `doneSinceDue`/`doneToday`, идентична `buildTasks`).
+- На карточке посадки care-индикатор берётся из `planting.overdueCareTask` (Android `OverdueCareTask`),
+  а `pendingAction` (кэш) — только для НЕ-care типов. Снуз care использует тот же ключ, что «Сегодня»:
+  `"care_task_due:$plantingId:$cropName:$name"`.
+- При открытии `ActionLogBottomSheet` с карточки — **преселект** типа/заметки из `overdueCareTask`/pending
+  (как на «Сегодня»), чтобы пользователь записал именно закрывающее задачу действие.

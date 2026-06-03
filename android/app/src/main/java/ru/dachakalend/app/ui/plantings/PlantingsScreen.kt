@@ -30,6 +30,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
+import ru.dachakalend.app.ui.actions.careTaskActionType
 import ru.dachakalend.app.ui.theme.NunitoFamily
 import ru.dachakalend.app.ui.theme.RussoOneFamily
 import java.time.LocalDate
@@ -234,9 +235,29 @@ fun PlantingsScreen(
 
     // Шторка журнала действий
     state.showActionSheet?.let { planting ->
+        // Преселект типа действия (как на «Сегодня»): если у посадки есть просроченный
+        // уход или pending-задача — сразу подставляем нужный тип и заметку, чтобы
+        // пользователь записал именно то действие, что закрывает задачу.
+        val pending = state.pendingTasks[planting.id]
+        val overdue = planting.overdueCareTask
+        val preselectedType = when {
+            overdue != null                    -> careTaskActionType(overdue.name)
+            pending?.type == "watering_due"    -> "watering"
+            pending?.type == "fertilizing_due" -> "fertilizing"
+            pending?.type == "transplant_due"  -> "transplanting"
+            pending?.type == "care_task_due"   -> careTaskActionType(pending.careTaskName)
+            else                               -> null
+        }
+        val preselectedNotes = when {
+            overdue != null                  -> overdue.name
+            pending?.type == "care_task_due" -> pending.careTaskName
+            else                             -> null
+        }
         ActionLogBottomSheet(
             planting = planting,
-            onActionLogged = { viewModel.onActionLogged(planting.id) },
+            preselectedType = preselectedType,
+            initialNotes = preselectedNotes,
+            onActionLogged = { type -> viewModel.onActionLogged(planting.id, type) },
             onDismiss = { viewModel.closeActionSheet() }
         )
     }
@@ -354,13 +375,24 @@ private fun PlantingCard(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    // Проверяем, отложена ли задача. Ключ снуза: "type:plantingId:cropName:careTaskName"
-    val isSnoozed = pendingAction != null && run {
-        val key = "${pendingAction.type}:${planting.id}:${planting.cropName}:${pendingAction.careTaskName}"
+    // Просрочка ухода (care) приходит с сервера и не зависит от обрезанного/сгруппированного
+    // кэша «Сегодня» — поэтому показывается на «Посадках» всегда. Ключ снуза совпадает с «Сегодня».
+    val overdueCare = planting.overdueCareTask
+    val careSnoozed = overdueCare != null && run {
+        val key = "care_task_due:${planting.id}:${planting.cropName}:${overdueCare.name}"
         key in snoozedTaskKeys
     }
-    // Задача считается срочной только если НЕ отложена
-    val isUrgent = pendingAction != null && !isSnoozed
+    val careUrgent = overdueCare != null && !careSnoozed
+
+    // pendingAction (кэш «Сегодня») оставляем только для НЕ-care задач — care идёт с сервера.
+    val nonCarePending = pendingAction?.takeIf { it.type != "care_task_due" }
+    val nonCareSnoozed = nonCarePending != null && run {
+        val key = "${nonCarePending.type}:${planting.id}:${planting.cropName}:${nonCarePending.careTaskName}"
+        key in snoozedTaskKeys
+    }
+    val nonCareUrgent = nonCarePending != null && !nonCareSnoozed
+
+    val isUrgent = careUrgent || nonCareUrgent
 
     Card(
         modifier = Modifier
@@ -417,32 +449,40 @@ private fun PlantingCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    // Требуется действие (или отложено)
-                    if (pendingAction != null) {
-                        val baseLabel = when (pendingAction.type) {
-                            "care_task_due" ->
-                                planting.nextCareTask?.name?.let { "Требуется: $it" }
-                                    ?: pendingAction.careTaskName?.let { "Требуется: $it" }
-                                    ?: PENDING_ACTION_LABELS[pendingAction.type]
-                                    ?: pendingAction.type
-                            "fertilizing_due" -> {
-                                // careTaskName заполняется только для care_task_due;
-                                // для fertilizing_due бэкенд название удобрения не передаёт
-                                pendingAction.careTaskName
-                                    ?.let { "Требуется подкормка: $it" }
-                                    ?: PENDING_ACTION_LABELS[pendingAction.type]
-                                    ?: pendingAction.type
-                            }
-                            else ->
-                                PENDING_ACTION_LABELS[pendingAction.type] ?: pendingAction.type
+                    // Требует ухода — просроченная/наступившая care-задача (источник: сервер)
+                    if (overdueCare != null) {
+                        val base = buildString {
+                            append("Требуется: ${overdueCare.name}")
+                            if (overdueCare.daysOverdue > 0) append(" · просрочено ${overdueCare.daysOverdue} дн.")
                         }
-                        val pendingLabel = if (isSnoozed) "$baseLabel (отложено)" else baseLabel
                         Text(
-                            text = pendingLabel,
+                            text = if (careSnoozed) "$base (отложено)" else base,
                             fontFamily = NunitoFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
-                            color = if (isSnoozed)
+                            color = if (careSnoozed)
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            else
+                                MaterialTheme.colorScheme.error
+                        )
+                    }
+                    // Прочие pending-задачи (полив/подкормка/пересадка/урожай/заморозки) — кэш «Сегодня»
+                    if (nonCarePending != null) {
+                        val baseLabel = when (nonCarePending.type) {
+                            "fertilizing_due" ->
+                                // careTaskName для fertilizing_due бэкенд не передаёт — fallback на ярлык
+                                nonCarePending.careTaskName?.let { "Требуется подкормка: $it" }
+                                    ?: PENDING_ACTION_LABELS[nonCarePending.type]
+                                    ?: nonCarePending.type
+                            else ->
+                                PENDING_ACTION_LABELS[nonCarePending.type] ?: nonCarePending.type
+                        }
+                        Text(
+                            text = if (nonCareSnoozed) "$baseLabel (отложено)" else baseLabel,
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = if (nonCareSnoozed)
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             else
                                 MaterialTheme.colorScheme.error

@@ -23,7 +23,7 @@ import ru.dachakalend.app.ui.theme.RussoOneFamily
 fun ActionLogBottomSheet(
     planting: Planting,
     onDismiss: () -> Unit,
-    onActionLogged: () -> Unit = {},
+    onActionLogged: (loggedType: String) -> Unit = {},
     preselectedType: String? = null,
     initialNotes: String? = null,
     viewModel: ActionLogViewModel = hiltViewModel()
@@ -36,8 +36,8 @@ fun ActionLogBottomSheet(
     LaunchedEffect(Unit) { viewModel.reset() }
     LaunchedEffect(state.success) {
         if (state.success) {
-            // Действие реально записано → сообщаем (снять pending), затем закрываем.
-            onActionLogged()
+            // Действие реально записано → сообщаем тип (для корректного снятия pending), затем закрываем.
+            onActionLogged(selectedType ?: "")
             sheetState.hide()
             onDismiss()
         }

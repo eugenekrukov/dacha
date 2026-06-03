@@ -15,6 +15,7 @@ import ru.dachakalend.app.data.model.UpdatePlantingInfoRequest
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.navigation.Screen
+import ru.dachakalend.app.ui.actions.careTaskActionType
 import javax.inject.Inject
 
 data class PlantingsUiState(
@@ -200,8 +201,23 @@ class PlantingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showActionSheet = planting)
     }
 
-    /** Действие реально записано → снимаем pending только тогда (не при отмене). */
-    fun onActionLogged(plantingId: Int) {
+    /**
+     * Действие реально записано → снимаем pending из кэша «Сегодня» ТОЛЬКО если
+     * залогированный тип действительно закрывает задачу. Иначе (например, для care-задачи
+     * «Прополка» записали «Полив») задача на сервере остаётся просроченной и после
+     * перезагрузки вернулась бы — поэтому индикатор оставляем. Просрочка care-задач
+     * берётся из сервера (overdue_care_task) и обновится при loadPlantings в closeActionSheet.
+     */
+    fun onActionLogged(plantingId: Int, loggedType: String) {
+        val pending = _uiState.value.pendingTasks[plantingId] ?: return
+        val satisfies = when (pending.type) {
+            "watering_due"    -> loggedType == "watering"
+            "fertilizing_due" -> loggedType == "fertilizing"
+            "transplant_due"  -> loggedType == "transplanting"
+            "care_task_due"   -> loggedType == careTaskActionType(pending.careTaskName)
+            else              -> false
+        }
+        if (!satisfies) return
         val updatedPending = _uiState.value.pendingTasks - plantingId
         tokenStorage.savePendingTasks(updatedPending)
         _uiState.value = _uiState.value.copy(pendingTasks = updatedPending)
