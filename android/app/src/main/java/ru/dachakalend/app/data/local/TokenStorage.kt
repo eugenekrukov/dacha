@@ -1,7 +1,10 @@
 package ru.dachakalend.app.data.local
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,9 +15,39 @@ class TokenStorage @Inject constructor(
 ) {
     private val prefs = context.getSharedPreferences("dacha_prefs", Context.MODE_PRIVATE)
 
-    fun saveToken(token: String) = prefs.edit { putString(KEY_TOKEN, token) }
-    fun getToken(): String? = prefs.getString(KEY_TOKEN, null)
-    fun clearToken() = prefs.edit { remove(KEY_TOKEN) }
+    // Токен хранится в зашифрованном хранилище (EncryptedSharedPreferences).
+    // Если keystore недоступен/повреждён — деградируем до обычных prefs, чтобы не крашить вход.
+    private val tokenPrefs: SharedPreferences by lazy { createTokenPrefs() }
+
+    private fun createTokenPrefs(): SharedPreferences {
+        return try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            val secure = EncryptedSharedPreferences.create(
+                context,
+                "dacha_secure_prefs",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+            // Миграция токена из старого незашифрованного хранилища
+            val legacy = prefs.getString(KEY_TOKEN, null)
+            if (legacy != null) {
+                if (secure.getString(KEY_TOKEN, null) == null) {
+                    secure.edit(commit = true) { putString(KEY_TOKEN, legacy) }
+                }
+                prefs.edit { remove(KEY_TOKEN) }
+            }
+            secure
+        } catch (_: Exception) {
+            prefs
+        }
+    }
+
+    fun saveToken(token: String) = tokenPrefs.edit { putString(KEY_TOKEN, token) }
+    fun getToken(): String? = tokenPrefs.getString(KEY_TOKEN, null)
+    fun clearToken() = tokenPrefs.edit { remove(KEY_TOKEN) }
 
     fun saveGardenId(id: Int) = prefs.edit { putInt(KEY_GARDEN_ID, id) }
     fun getGardenId(): Int = prefs.getInt(KEY_GARDEN_ID, -1)
@@ -218,8 +251,11 @@ class TokenStorage @Inject constructor(
     fun isCoachDone(): Boolean = prefs.getBoolean(KEY_COACH_DONE, false)
     fun setCoachDone()         = prefs.edit { putBoolean(KEY_COACH_DONE, true) }
 
-    /** Полный выход — очищает все данные приложения */
-    fun logout() = prefs.edit { clear() }
+    /** Полный выход — очищает все данные приложения (включая зашифрованный токен) */
+    fun logout() {
+        prefs.edit { clear() }
+        if (tokenPrefs !== prefs) tokenPrefs.edit { clear() }
+    }
 
     companion object {
         private const val KEY_TOKEN           = "auth_token"

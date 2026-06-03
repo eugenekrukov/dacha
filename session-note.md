@@ -946,3 +946,11 @@ recommendations нет, прочий тест-сьют не затронут. Н
 - `.gitignore`: добавлены backend/coverage/, android/app/release/ (APK 5.5М), android/local.properties.
 - Сняты с трекинга: backend/coverage/** (сгенерированный отчёт), android/local.properties.
   (рабочие файлы на диске сохранены — git rm --cached).
+
+### P1 — токен в зашифрованном хранилище (EncryptedSharedPreferences)
+`TokenStorage`: токен теперь в EncryptedSharedPreferences ("dacha_secure_prefs"), а не в
+открытом dacha_prefs. Миграция: старый токен из dacha_prefs переносится в зашифрованное и
+удаляется из открытого при первом доступе. Защитный фолбэк: если keystore недоступен/повреждён —
+деградируем до обычных prefs (вход не падает). logout() чистит оба хранилища.
+Зависимость: androidx.security:security-crypto 1.1.0-alpha06. ✅ compileDebugKotlin.
+Примечание: сборка из CLI требует ANDROID_HOME (local.properties теперь gitignored).

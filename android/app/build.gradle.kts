@@ -108,6 +108,9 @@ dependencies {
     // Настройки
     implementation(libs.datastore.preferences)
 
+    // Шифрованное хранилище для токена
+    implementation(libs.androidx.security.crypto)
+
     // WorkManager + Hilt-Work
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.work)
