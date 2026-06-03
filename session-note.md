@@ -971,3 +971,33 @@ recommendations нет, прочий тест-сьют не затронут. Н
   care_alert_log_id_seq для dacha_user — careRemindersJob больше не падает на правах.
 - `todayLogic.js`: заголовок подкормки теперь «Подкормить <культура> (<продукт>)» вместо
   «Подкормить: <продукт>» (было неясно, какое растение). 97/97 тестов зелёные.
+
+---
+
+## NEXT (новая сессия): Серверный триал (P1)
+
+**Проблема**: 7-дневный триал считается на клиенте (`TokenStorage.isTrialActive()` от
+`first_launch_date` в SharedPreferences) и обходится сбросом данных/переустановкой.
+Перенести на сервер, привязав к user_id.
+
+**Чек-лист подзадач**:
+1. [ ] Миграция `0XX_user_trial.sql`: `ALTER TABLE users ADD COLUMN trial_started_at TIMESTAMPTZ`
+   (DEFAULT NOW() для новых; бэкофилл существующим — например, created_at). Опц. вычислять
+   trial_ends_at = trial_started_at + 7 дней на лету.
+2. [ ] `routes/auth.js`: при register проставлять trial_started_at; в `GET /auth/me` отдавать
+   `trial_started_at`, `trial_active` (bool), `trial_days_left` (int).
+3. [ ] (Опц.) гейтить платные действия на сервере, если триал истёк и нет подписки —
+   но подписка проверяется в RuStore на клиенте, так что минимум: сервер = источник правды
+   по триалу, клиент его читает.
+4. [ ] Android `Models.kt`: добавить поля в модель /auth/me. `SubscriptionManager` берёт
+   isTrialActive/trialDaysLeft с сервера (через AuthRepository.me), а не из TokenStorage.
+   Локальные `isTrialActive/trialDaysLeft/getFirstLaunchDate` в TokenStorage — выпилить или
+   оставить как офлайн-фолбэк.
+5. [ ] Тесты backend (vitest, мок-БД): /auth/me возвращает trial_active/days_left корректно;
+   register ставит trial_started_at.
+6. [ ] Деплой: миграция `sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/0XX_*.sql`,
+   затем `cd /var/www/dacha-api && git pull origin main && cd backend && npm install && pm2 restart dacha-api`.
+
+**Окружение**: backend-тесты `npx vitest run`; Android-сборка — `$env:JAVA_HOME=...jbr`,
+`$env:ANDROID_HOME=...Sdk`, `gradlew.bat` через PowerShell. SSH `ssh hetzner` только из PowerShell.
+Деплой ТОЛЬКО dacha-api (не landing-factory). Кириллица в .js — Write/Edit, не Set-Content.
