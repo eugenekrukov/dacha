@@ -29,6 +29,7 @@ val ACTION_TYPES = listOf(
     "hilling"       to "⛏️ Окучивание",
     "pruning"       to "🌿 Обрезка",
     "weeding"       to "🌾 Прополка",
+    "loosening"     to "🪏 Рыхление",
     "other"         to "📋 Другое"
 )
 
