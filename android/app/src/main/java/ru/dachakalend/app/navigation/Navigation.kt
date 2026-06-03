@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String) {
@@ -46,6 +46,9 @@ sealed class Screen(val route: String) {
     // Sprint 5
     object Analytics : Screen("analytics")
 
+    // Хаб «Информация» (таб): справочник + статистика
+    object Info : Screen("info")
+
     // Монетизация
     object Paywall : Screen("paywall")
 
@@ -69,7 +72,7 @@ val bottomNavItems = listOf(
     BottomNavItem(Screen.Today, "Сегодня", Icons.Default.Home),
     BottomNavItem(Screen.Calendar, "Календарь", Icons.Default.CalendarMonth),
     BottomNavItem(Screen.Plantings, "Посадки", Icons.Default.Grass),
-    BottomNavItem(Screen.Harvest, "Урожай", Icons.Default.Spa),
+    BottomNavItem(Screen.Info, "Информация", Icons.Default.Info),
 )
 
 val screensWithoutBottomBar = setOf(
@@ -85,5 +88,6 @@ val screensWithoutBottomBar = setOf(
     Screen.Crops.route,
     Screen.CropDetail.routeWithArgs,
     Screen.Paywall.route,
-    Screen.Analytics.route
+    Screen.Analytics.route,
+    Screen.Harvest.route
 )

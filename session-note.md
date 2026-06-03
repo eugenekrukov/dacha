@@ -954,3 +954,14 @@ recommendations нет, прочий тест-сьют не затронут. Н
 деградируем до обычных prefs (вход не падает). logout() чистит оба хранилища.
 Зависимость: androidx.security:security-crypto 1.1.0-alpha06. ✅ compileDebugKotlin.
 Примечание: сборка из CLI требует ANDROID_HOME (local.properties теперь gitignored).
+
+### Шаг 4 — перестройка нижней навигации + CLAUDE.md
+- Нижний таб-бар: Сегодня · Календарь · Посадки · **Информация** (был «Урожай»).
+- «Урожай» убран из таб-бара: вход — кнопка «Урожай» в шапке «Посадок»; экран стал
+  pushed (добавлен TopAppBar + «Назад»), внесён в screensWithoutBottomBar.
+- Новый таб **«Информация»** (`Screen.Info`) → `InfoHubScreen`: хаб с карточками
+  «Справочник культур» (→ Crops) и «Статистика» (→ Analytics).
+- `CLAUDE.md`: раздел UI/UX Flow переписан — источник правды UI_MANIFEST.md + Theme.kt,
+  ссылки на удалённые design-system/pages убраны (правка разрешена пользователем).
+- Запись «Статистика и история» в Настройках оставлена (доп. вход + контекст экспорта).
+✅ compileDebugKotlin BUILD SUCCESSFUL.

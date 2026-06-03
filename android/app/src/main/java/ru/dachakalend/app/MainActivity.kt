@@ -37,6 +37,7 @@ import ru.dachakalend.app.ui.garden.GardenEditScreen
 import ru.dachakalend.app.ui.garden.OnboardingCropsScreen
 import ru.dachakalend.app.ui.analytics.AnalyticsScreen
 import ru.dachakalend.app.ui.harvest.HarvestScreen
+import ru.dachakalend.app.ui.info.InfoHubScreen
 import ru.dachakalend.app.ui.journal.JournalScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
 import ru.dachakalend.app.ui.settings.SettingsScreen
@@ -288,7 +289,8 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Plantings.route) {
                             PlantingsScreen(
                                 onAddCrop = { navController.navigate(Screen.Crops.route) },
-                                onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) }
+                                onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) },
+                                onOpenHarvest = { navController.navigate(Screen.Harvest.route) }
                             )
                         }
                         composable(
@@ -299,11 +301,21 @@ class MainActivity : ComponentActivity() {
                         ) {
                             PlantingsScreen(
                                 onAddCrop = { navController.navigate(Screen.Crops.route) },
-                                onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) }
+                                onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) },
+                                onOpenHarvest = { navController.navigate(Screen.Harvest.route) }
                             )
                         }
                         composable(Screen.Harvest.route) {
-                            HarvestScreen(onAddPlanting = { navController.navigate(Screen.Crops.route) })
+                            HarvestScreen(
+                                onAddPlanting = { navController.navigate(Screen.Crops.route) },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable(Screen.Info.route) {
+                            InfoHubScreen(
+                                onOpenCrops     = { navController.navigate(Screen.Crops.route) },
+                                onOpenAnalytics = { navController.navigate(Screen.Analytics.route) }
+                            )
                         }
                         composable(Screen.Analytics.route) {
                             AnalyticsScreen(onBack = { navController.popBackStack() })

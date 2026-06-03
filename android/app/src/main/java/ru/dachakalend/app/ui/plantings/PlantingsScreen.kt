@@ -64,6 +64,7 @@ fun PlantingsScreen(
     onAddCrop: () -> Unit,
     onCropDetail: (Int) -> Unit = {},
     onOpenCropDetail: (Int) -> Unit = onCropDetail,
+    onOpenHarvest: () -> Unit = {},
     viewModel: PlantingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -137,11 +138,13 @@ fun PlantingsScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(MaterialTheme.colorScheme.background)
-                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
                             "Посадки",
@@ -150,6 +153,20 @@ fun PlantingsScreen(
                             fontSize = 28.sp,
                             color = MaterialTheme.colorScheme.onBackground
                         )
+                        TextButton(onClick = onOpenHarvest) {
+                            Icon(
+                                Icons.Default.Spa,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                "Урожай",
+                                fontFamily = NunitoFamily,
+                                fontWeight = FontWeight.Black,
+                                softWrap = false
+                            )
+                        }
                     }
                 }
                 item {
