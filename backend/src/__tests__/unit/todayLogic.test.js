@@ -246,3 +246,61 @@ describe('крайние случаи', () => {
     expect(tasks.some(t => t.type === 'reminder')).toBe(true)
   })
 })
+
+// ─── Care-задачи (Рыхление/Прополка/…) ─────────────────────────────────────────
+
+describe('care_task_due', () => {
+  // Посадка 10 дней назад, без полива/пересадки/урожая — изолируем care-задачу
+  const carePlanting = (careTasks) => makePlanting({
+    planted_at: daysAgo(10, TODAY),
+    watering_freq_days: null,
+    transplant_days: null,
+    harvest_days: 90,
+    frost_sensitive: false,
+    care_tasks: careTasks,
+  })
+
+  it('просроченная >1 дня care-задача НЕ теряется (регресс окна -1..+3)', () => {
+    // day_offset=5, посадке 10 дней → просрочка 5 дней
+    const tasks = buildTasks([carePlanting([{ name: 'Прополка', day_offset: 5 }])], null, {}, {}, [], TODAY)
+    const t = tasks.find(t => t.type === 'care_task_due' && t.care_task_name === 'Прополка')
+    expect(t).toBeTruthy()
+    expect(t.days_overdue).toBe(5)
+  })
+
+  it('НЕ показывается, если действие сделано в день наступления или позже', () => {
+    // due date = posadка + 5 дн.; прополка залогирована 2 дня назад (позже due) → выполнено
+    const lastCare = { 1: { weeding: new Date(daysAgo(2, TODAY)) } }
+    const tasks = buildTasks([carePlanting([{ name: 'Прополка', day_offset: 5 }])], null, {}, {}, [], TODAY, {}, null, lastCare)
+    expect(tasks.some(t => t.type === 'care_task_due')).toBe(false)
+  })
+
+  it('ПОКАЗЫВАЕТСЯ, если последнее действие было ДО наступления задачи', () => {
+    // due = posadка + 5 дн. (≈5 дн. назад); прополка была 8 дней назад (до due) → ещё актуально
+    const lastCare = { 1: { weeding: new Date(daysAgo(8, TODAY)) } }
+    const tasks = buildTasks([carePlanting([{ name: 'Прополка', day_offset: 5 }])], null, {}, {}, [], TODAY, {}, null, lastCare)
+    expect(tasks.some(t => t.type === 'care_task_due')).toBe(true)
+  })
+
+  it('НЕ показывается раньше чем за 3 дня до наступления', () => {
+    // day_offset=20, посадке 10 дней → ещё 10 дней до задачи (> +3)
+    const tasks = buildTasks([carePlanting([{ name: 'Прополка', day_offset: 20 }])], null, {}, {}, [], TODAY)
+    expect(tasks.some(t => t.type === 'care_task_due')).toBe(false)
+  })
+
+  it('показывается за 2 дня до наступления (в окне +3)', () => {
+    // day_offset=12, посадке 10 дней → через 2 дня
+    const tasks = buildTasks([carePlanting([{ name: 'Прополка', day_offset: 12 }])], null, {}, {}, [], TODAY)
+    const t = tasks.find(t => t.type === 'care_task_due')
+    expect(t).toBeTruthy()
+    expect(t.days_overdue).toBe(0)
+  })
+
+  it('НЕ показывается, если действие сделано сегодня (careActionsToday)', () => {
+    const tasks = buildTasks(
+      [carePlanting([{ name: 'Прополка', day_offset: 5 }])],
+      null, {}, {}, [], TODAY, { 1: ['weeding'] }
+    )
+    expect(tasks.some(t => t.type === 'care_task_due')).toBe(false)
+  })
+})

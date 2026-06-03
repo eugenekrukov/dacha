@@ -52,7 +52,7 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays) {
  * Чистая функция сборки задач дня.
  * @param careActionsToday — { plantingId: string[] } — действия, залогированные сегодня
  */
-function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null) {
+function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null, lastCareActionMap = {}) {
   // Если завтра дождь ≥70% — полив не нужен
   const rainExpected = precipProb !== null && precipProb >= 70
   const tasks = []
@@ -90,37 +90,46 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       })
     }
 
-    // 🌿 care_tasks — наступающие в окне -1…+3 дня
+    // 🌿 care_tasks — показываем с +3 дней до наступления и ПОКА не выполнено
+    // (просрочка не «теряется», как у полива/подкормки). «Выполнено» = соответствующее
+    // действие залогировано в день наступления задачи или позже.
     const careTasks = p.care_tasks || []
+    const careLimit = p.harvest_days || 180
+    const lastCareDone = lastCareActionMap[p.id] || {}
     const addedCareNames = new Set()
     for (const task of careTasks) {
+      // Находим последнюю наступившую (или близкую, до +3 дней) дату задачи
+      let dueOffset = null
       let offset = task.day_offset
-      const limit = p.harvest_days || 180
-      while (offset <= limit) {
-        const diff = offset - daysSincePlanting // отрицательный = просрочено
-        if (diff >= -1 && diff <= 3) {
-          const key = `${p.id}:${task.name}`
-          const mappedAction = CARE_TASK_ACTION_MAP[task.name]
-          const alreadyDone = mappedAction && todayActions.includes(mappedAction)
-          if (!addedCareNames.has(key) && !alreadyDone) {
-            addedCareNames.add(key)
-            const when = diff <= 0 ? 'сегодня' : `через ${diff} дн.`
-            tasks.push({
-              type: 'care_task_due',
-              priority: TASK_PRIORITY.care_task_due,
-              planting_id: p.id,
-              crop_name: p.crop_name,
-              care_task_name: task.name,
-              message: `${p.crop_name}: ${task.name} — ${when}`,
-              days_overdue: diff < 0 ? -diff : 0,
-            })
-          }
-          break
-        }
-        if (diff > 3) break
+      while (offset <= careLimit && offset <= daysSincePlanting + 3) {
+        dueOffset = offset
         if (!task.repeat_days) break
         offset += task.repeat_days
       }
+      if (dueOffset === null) continue // ещё не наступила
+
+      const key = `${p.id}:${task.name}`
+      if (addedCareNames.has(key)) continue
+
+      const mappedAction = CARE_TASK_ACTION_MAP[task.name]
+      const dueDate = new Date(plantedAt.getTime() + dueOffset * 86400000)
+      const lastDone = mappedAction ? lastCareDone[mappedAction] : null
+      const doneSinceDue = lastDone && new Date(lastDone) >= dueDate
+      const doneToday = mappedAction && todayActions.includes(mappedAction)
+      if (doneSinceDue || doneToday) continue
+
+      addedCareNames.add(key)
+      const diff = dueOffset - daysSincePlanting // <= 3; отрицательный = просрочено
+      const when = diff <= 0 ? 'сегодня' : `через ${diff} дн.`
+      tasks.push({
+        type: 'care_task_due',
+        priority: TASK_PRIORITY.care_task_due,
+        planting_id: p.id,
+        crop_name: p.crop_name,
+        care_task_name: task.name,
+        message: `${p.crop_name}: ${task.name} — ${when}`,
+        days_overdue: diff < 0 ? -diff : 0,
+      })
     }
 
     // 💧 Нужен полив (пропускаем если ожидается дождь ≥70%)

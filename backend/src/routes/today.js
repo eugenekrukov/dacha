@@ -89,6 +89,24 @@ module.exports = async function (fastify) {
       })
     }
 
+    // ── 3.7. ПОСЛЕДНЕЕ CARE-ДЕЙСТВИЕ ПО ТИПУ (чтобы не повторять выполненное) ──
+    let lastCareActionMap = {}
+    if (plantings.length > 0) {
+      const ids = plantings.map(p => p.id)
+      const lastCareRes = await fastify.db.query(
+        `SELECT DISTINCT ON (planting_id, action_type) planting_id, action_type, logged_at
+         FROM action_logs
+         WHERE planting_id = ANY($1)
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening')
+         ORDER BY planting_id, action_type, logged_at DESC`,
+        [ids]
+      )
+      lastCareRes.rows.forEach(r => {
+        if (!lastCareActionMap[r.planting_id]) lastCareActionMap[r.planting_id] = {}
+        lastCareActionMap[r.planting_id][r.action_type] = new Date(r.logged_at)
+      })
+    }
+
     // ── 4. НАПОМИНАНИЯ НА СЕГОДНЯ ────────────────────────────────────────────
     const remindersRes = await fastify.db.query(
       `SELECT r.id, r.type, r.message, r.remind_at, c.name as crop_name
@@ -111,7 +129,7 @@ module.exports = async function (fastify) {
     }))
 
     // ── 5. ЗАДАЧИ ────────────────────────────────────────────────────────────
-    const rawTasks = buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminderTasks, today, careActionsToday, weather?.precip_prob_pct ?? null)
+    const rawTasks = buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminderTasks, today, careActionsToday, weather?.precip_prob_pct ?? null, lastCareActionMap)
     const topTasks = formatTasks(rawTasks)
 
     return {
