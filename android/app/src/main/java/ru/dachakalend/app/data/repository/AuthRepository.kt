@@ -35,6 +35,15 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /** Профиль текущего пользователя с серверным статусом триала. */
+    suspend fun me(): Result<UserProfile> {
+        return try {
+            Result.Success(api.getMe())
+        } catch (e: Exception) {
+            Result.Error(parseError(e))
+        }
+    }
+
     fun logout() = tokenStorage.clearToken()
 
     private fun parseError(e: Exception): String = when {

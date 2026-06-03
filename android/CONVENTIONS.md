@@ -127,6 +127,7 @@ if (gardenId == -1) return Result.Error("Участок не выбран")
 | `TodayRepository` | `getToday()` | `Result<TodayResponse>` |
 | `AuthRepository` | `login(email, password)` | `Result<UserProfile>` |
 | `AuthRepository` | `register(name, email, password)` | `Result<UserProfile>` |
+| `AuthRepository` | `me()` | `Result<UserProfile>` (профиль + серверный триал) |
 | `GardenRepository` | `loadGardens()` | `Result<List<Garden>>` |
 | `GardenRepository` | `createGarden(name, region, city?)` | `Result<Garden>` |
 | `GardenRepository` | `hasGarden()` | `Boolean` |

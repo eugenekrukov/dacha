@@ -1001,3 +1001,27 @@ recommendations нет, прочий тест-сьют не затронут. Н
 **Окружение**: backend-тесты `npx vitest run`; Android-сборка — `$env:JAVA_HOME=...jbr`,
 `$env:ANDROID_HOME=...Sdk`, `gradlew.bat` через PowerShell. SSH `ssh hetzner` только из PowerShell.
 Деплой ТОЛЬКО dacha-api (не landing-factory). Кириллица в .js — Write/Edit, не Set-Content.
+
+---
+
+## Сессия 2026-06-03 — Серверный триал (P1) ✅
+
+Триал перенесён с клиента на сервер, привязка к `user_id`. Процесс: коммит в
+`feature/ux-improvements`, ff `main`, push обе, VPS тянет `main`.
+
+**Backend (commit 268ef15):**
+- Миграция `014_user_trial.sql`: `users.trial_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
+  бэкофилл существующим = `created_at`.
+- `routes/auth.js`: константа `TRIAL_DAYS=7` + хелпер `trialInfo()`. `POST /register` и
+  `GET /auth/me` отдают `trial_active` (bool) и `trial_days_left` (int).
+- Тесты `auth.test.js`: +2 кейса (/me свежий триал → active/7; старше 7 дней → inactive/0),
+  register проверяет триал-поля. Сьют 99/99 зелёный.
+- Деплой: миграция применена (3 юзера бэкофилл), `pm2 restart dacha-api`. Проверено живьём:
+  `/auth/me` (user 2) → `trial_active:true, trial_days_left:2`.
+
+**Android (Этап 4):**
+- `Models.kt UserProfile`: + `trialActive`/`trialDaysLeft` (nullable-дефолты — login отдаёт без них).
+- `AuthRepository.me()` → `Result<UserProfile>` (новый метод, в CONVENTIONS.md §репозитории).
+- `SubscriptionManager.refresh()`: триал берётся с сервера через `authRepository.me()`;
+  при сетевой ошибке (Result не Success) — офлайн-фолбэк на `TokenStorage`. Локальные
+  `isTrialActive/trialDaysLeft` в TokenStorage оставлены как фолбэк. ✅ compileDebugKotlin.

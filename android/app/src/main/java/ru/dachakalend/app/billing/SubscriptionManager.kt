@@ -10,6 +10,8 @@ import ru.rustore.sdk.billingclient.model.purchase.PaymentResult
 import ru.rustore.sdk.billingclient.model.purchase.Purchase
 import ru.rustore.sdk.billingclient.model.purchase.PurchaseState
 import ru.dachakalend.app.data.local.TokenStorage
+import ru.dachakalend.app.data.repository.AuthRepository
+import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -32,7 +34,8 @@ data class SubscriptionStatus(
 
 @Singleton
 class SubscriptionManager @Inject constructor(
-    private val tokenStorage: TokenStorage
+    private val tokenStorage: TokenStorage,
+    private val authRepository: AuthRepository
 ) {
     private val _status = MutableStateFlow(
         SubscriptionStatus(
@@ -43,7 +46,7 @@ class SubscriptionManager @Inject constructor(
     )
     val status: StateFlow<SubscriptionStatus> = _status.asStateFlow()
 
-    /** Загружает реальный статус из RuStore. Вызывается при старте и после покупки. */
+    /** Загружает реальный статус из RuStore + триал с сервера. Вызывается при старте и после покупки. */
     suspend fun refresh() {
         _status.value = _status.value.copy(isLoading = true)
         val purchases = fetchActivePurchases()
@@ -52,10 +55,16 @@ class SubscriptionManager @Inject constructor(
             purchase.purchaseState == PurchaseState.CONFIRMED
         }?.productId
 
+        // Сервер — источник правды по триалу; при сетевой ошибке — офлайн-фолбэк на TokenStorage.
+        val (trialActive, trialDaysLeft) = when (val me = authRepository.me()) {
+            is Result.Success -> me.data.trialActive to me.data.trialDaysLeft
+            else              -> tokenStorage.isTrialActive() to tokenStorage.trialDaysLeft()
+        }
+
         _status.value = SubscriptionStatus(
             isSubscribed    = activeProductId != null,
-            isTrialActive   = tokenStorage.isTrialActive(),
-            trialDaysLeft   = tokenStorage.trialDaysLeft(),
+            isTrialActive   = trialActive,
+            trialDaysLeft   = trialDaysLeft,
             isLoading       = false,
             activeProductId = activeProductId
         )

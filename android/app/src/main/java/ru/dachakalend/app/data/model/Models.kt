@@ -21,7 +21,10 @@ data class AuthResponse(
 data class UserProfile(
     val id: Int,
     val name: String,
-    val email: String
+    val email: String,
+    // Серверный триал (источник правды). login отдаёт без них → дефолты.
+    @Json(name = "trial_active") val trialActive: Boolean = false,
+    @Json(name = "trial_days_left") val trialDaysLeft: Int = 0
 )
 
 // --- Today Screen ---
