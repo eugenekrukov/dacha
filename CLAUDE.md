@@ -74,12 +74,12 @@ See `session-note.md` for session logs.
 
 These rules exist because of past incidents that caused data loss and encoding corruption:
 
-| Tool | Use for | Never use for |
+| Tool | Use for | Avoid for |
 |---|---|---|
-| `bash cat > file << 'EOF'` | All backend `.js` files | — |
-| Write tool | All files when bash is unavailable | Backend `.js` if bash works |
-| Edit tool | **Never on Windows-mounted paths** | Any file in the project |
-| PowerShell `Set-Content` | **Never** | Any `.js` file — corrupts Cyrillic to Windows-1252 |
+| **Write tool** | Основной способ для всех файлов, включая backend `.js` — сохраняет UTF-8 (кириллицу) | — |
+| **SSH heredoc** (`cat > file << 'EOF'` на VPS) | Прямые правки `.js` на сервере | — |
+| **Edit tool** | Мелкие точечные правки, в т.ч. с кириллицей (работает) | Осторожно на больших файлах — изредка может обрезать на Windows-путях |
+| PowerShell `Set-Content` | **Никогда** | Любой файл с кириллицей — перекодирует UTF-8 как Windows-1252 |
 
 **After writing any file via bash, verify:**
 ```bash
@@ -93,8 +93,10 @@ wc -c /path/to/file     # check size is reasonable
 
 ## Git Workflow
 
-- Create feature branch before starting: `git checkout -b feature/...`
+- Работаем в ветке `feature/...` (текущая: `feature/ux-improvements`).
+- Каждый этап: commit в feature → `git checkout main && git merge --ff-only feature/...` → push **обеих** веток. VPS тянет `main`.
 - **Always commit + push locally BEFORE pulling on VPS.**
+- Деплоим **только `dacha-api`** — не трогаем `landing-admin` / другие pm2-процессы на том же VPS.
 - After finishing a feature: update `summary.md` (check off task) and append to `session-note.md`.
 
 ---
@@ -102,16 +104,19 @@ wc -c /path/to/file     # check size is reasonable
 ## Deploy
 
 ```bash
-# 1. LOCAL — commit and push first (always)
-git add -A && git commit -m "feat/fix: description" && git push origin <branch>
+# 1. LOCAL — commit and push first (always), деплоим с main
+git add -A && git commit -m "feat/fix: description"
+git checkout main && git merge --ff-only feature/... && git push origin main && git push origin feature/...
 
-# 2. VPS — only after step 1 (run from PowerShell)
-ssh eugenekrukov@dacha.studio1008.com
-cd /var/www/dacha-api/backend
-git pull origin <branch>
-npm install              # if package.json changed
-npm run migrate          # if new migration files in src/db/migrations/
+# 2. VPS — only after step 1. SSH ТОЛЬКО из PowerShell (ssh hetzner; bash не резолвит Windows-ключ)
+ssh hetzner
+cd /var/www/dacha-api && git pull origin main
+cd backend && npm install                        # if package.json changed
+# Миграции — от суперюзера postgres (DDL/GRANT требуют прав; npm run migrate под dacha_user их не имеет):
+sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/0XX_*.sql   # если есть новая миграция
 pm2 restart dacha-api
 ```
 
 > If you skip step 1, `git pull` on VPS won't bring new code — deploy is pointless.
+> Backend-тесты: `npx vitest run` (мок-БД, Postgres не нужен). Android-сборка из CLI:
+> `$env:JAVA_HOME=...jbr; $env:ANDROID_HOME=...Sdk; gradlew.bat :app:compileDebugKotlin` (PowerShell).
