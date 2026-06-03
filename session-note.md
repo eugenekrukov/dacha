@@ -1,6 +1,42 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-06-02  
+**Дата последней сессии**: 2026-06-03  
+
+---
+
+## ЗАКРЫТИЕ СЕССИИ 2026-06-03
+
+**Состояние репозитория**: одна ветка `main` (== `origin/main`, коммит после `chore(gitignore)`).
+Все стейл-ветки удалены локально и на origin. Рабочее дерево чистое. `.claude/` в `.gitignore`.
+
+**Что сделано** (детали — в блоках ниже по файлу): серверный триал (014) + серверный гейт
+платных действий (016, requireAccess→402) + синк подписки с клиента; push-дайджест;
+группировка однотипных care-задач; фиксы (pending только при записи; просроченные care не выпадают
+из /today; «Рыхление» в селекторе; автоподстановка города под полем; реактивный бейдж);
+консистентность (Material Icons в журнале/селекторе, чистка эмодзи в рекомендациях, серверный
+флаг `auto`); a11y hero; сворачиваемый прогноз; актуализация CLAUDE.md.
+
+**Backend задеплоен** на dacha-api (миграции 014/015/016 применены, pm2 restart, проверено).
+Сьют **123/123**.
+
+**ЕДИНСТВЕННЫЙ незакрытый шаг**: пересборка APK в Android Studio + проверка Android-изменений
+на устройстве (логин-триал, гейт 402 после истечения, бейдж, иконки, автоподстановка города,
+сворачиваемый прогноз). CLI-сборка `compileDebugKotlin` — зелёная.
+
+### Как продолжить в следующей сессии
+1. `cd "C:\Projects\Dacha\Календарь дачника"` → стартовать Claude.
+2. Прочитать (по CLAUDE.md): `summary.md` (статус/бэклог), этот `session-note.md` (сверху),
+   `android/CONVENTIONS.md` (§16–17 — новые паттерны), при коде — `TESTING.md`.
+3. Новую задачу начинать от `main`: `git checkout -b feature/<name>`. Процесс: commit →
+   `git checkout main && git merge --ff-only feature/<name>` → push обеих → VPS тянет main.
+4. Деплой backend: `ssh hetzner` (PowerShell) → `cd /var/www/dacha-api && git pull origin main`
+   → `cd backend && npm install` → миграции `sudo -u postgres psql -d dacha_db -f .../0XX.sql`
+   → `pm2 restart dacha-api`. Деплоим ТОЛЬКО dacha-api.
+5. Тесты backend: `npx vitest run` (мок-БД). Сборка Android: `$env:JAVA_HOME=...jbr;
+   $env:ANDROID_HOME=...Sdk; .\gradlew.bat :app:compileDebugKotlin` (PowerShell).
+
+---
+
 
 ---
 

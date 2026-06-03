@@ -12,12 +12,19 @@
 
 ## Следующая сессия (приоритет ↓)
 
-### ⏳ Ожидает слияния
-- [ ] `feature/pricking-out-action-type` → смержить в `main` после проверки билда
+### ⏳ Незакрытые шаги
+- [ ] **Пересборка APK** (Android Studio) + проверка на устройстве всех Android-изменений
+  серии 2026-06-03 (серверный триал/подписка, реактивный бейдж, иконки журнала/селектора,
+  a11y hero, фикс pending, фикс автоподстановки города, сворачиваемый прогноз).
+- Гигиена git: одна ветка `main` (стейл-ветки удалены локально и на origin 2026-06-03).
 
 ### 🔴 Критично — всё закрыто ✅
 
 ### 🟡 Важно — всё закрыто ✅
+
+### 🔒 Безопасность / монетизация (сессия 2026-06-03) ✅
+- Серверный триал (migration 014), серверный гейт платных действий (migration 016 + requireAccess → 402)
+- P0: IDOR-проверки, JWT expiry + fail-fast secret, rate-limit, helmet, CORS, EncryptedSharedPreferences
 
 ### 🎨 Дизайн Solar Dacha — ✅ применён (2026-06-02)
 - Nunito Black, оранжевый gradient hero, кремовый фон `#FFF8EB`
@@ -40,9 +47,24 @@
 
 ## Технический долг
 
-- [x] Тесты: 96 passed ✅ (gardens, plantings, actions, harvests, analytics, reminders добавлены 2026-06-02)
+- [x] Тесты бэкенда: **123 passed** ✅ (добавлены access, careRemindersJob, care_task grouping, auto-flag, trial)
 - [x] ARCHITECTURE.md создан ✅
 - [x] Сертификат: certbot.timer активен, истекает 2026-08-26 ✅
+- [x] CLAUDE.md актуализирован под реальный процесс (ssh hetzner, миграции через psql, Write tool, ff-main)
+
+## Сделано за сессию 2026-06-03
+
+- **Серверный триал** (migration 014, `/auth/me` отдаёт trial_active/days_left) — вместо клиентского
+- **Серверный гейт платных действий** (migration 016, requireAccess → 402; клиент синкает подписку)
+- **Push-дайджест**: один пуш на участок/тип вместо пуша на каждую посадку (careRemindersJob)
+- **Группировка однотипных care-задач** в задачах дня (не вытесняют полив/урожай из топ-7)
+- **Баг-фиксы**: pending снимается только при записи действия; просроченные care-задачи не выпадают
+  из /today (убрано окно diff>=-1, «выполнено» по дате последнего действия); «Рыхление» в селекторе;
+  автоподстановка города под полем (ExposedDropdownMenuBox); реактивный бейдж (StateFlow)
+- **UI/консистентность**: Material Icons в журнале и селекторе (эмодзи убраны), чистка эмодзи в
+  рекомендациях, серверный флаг `auto` вместо строковой эвристики заметок, a11y hero (контраст/touch),
+  прогноз на 7 дней сворачиваемый
+- **Git**: подчищены все стейл-ветки (локально и на origin) → одна `main`
 
 ---
 
@@ -93,7 +115,7 @@
 ## Реализованные API (справка)
 
 ```
-POST /auth/register  POST /auth/login  GET /auth/me
+POST /auth/register  POST /auth/login  GET /auth/me  POST /auth/subscription
 POST /gardens  GET /gardens  GET /gardens/:id  PUT /gardens/:id
 GET /crops  GET /crops/:id  POST /crops  PUT /crops/:id
 POST /plantings  GET /plantings  GET /plantings/:id
