@@ -18,19 +18,20 @@ data class ActionLogUiState(
     val error: String? = null
 )
 
+// Метки без эмодзи: иконку даёт actionIcon() (Material Icons) — единообразно с журналом.
 val ACTION_TYPES = listOf(
-    "watering"      to "💧 Полив",
-    "fertilizing"   to "🌿 Подкормка",
-    "treatment"     to "🛡️ Обработка",
-    "pricking_out"  to "🪴 Пикировка",
-    "transplanting" to "🌱 Высадка",
-    "tying"         to "🪢 Подвязка",
-    "pinching"      to "✂️ Пасынкование",
-    "hilling"       to "⛏️ Окучивание",
-    "pruning"       to "🌿 Обрезка",
-    "weeding"       to "🌾 Прополка",
-    "loosening"     to "🪏 Рыхление",
-    "other"         to "📋 Другое"
+    "watering"      to "Полив",
+    "fertilizing"   to "Подкормка",
+    "treatment"     to "Обработка",
+    "pricking_out"  to "Пикировка",
+    "transplanting" to "Высадка",
+    "tying"         to "Подвязка",
+    "pinching"      to "Пасынкование",
+    "hilling"       to "Окучивание",
+    "pruning"       to "Обрезка",
+    "weeding"       to "Прополка",
+    "loosening"     to "Рыхление",
+    "other"         to "Другое"
 )
 
 // Маппинг care_task_name → action_type (должен совпадать с CARE_TASK_ACTION_MAP на бэкенде)

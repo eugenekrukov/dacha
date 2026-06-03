@@ -9,22 +9,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.Eco
-import androidx.compose.material.icons.filled.Grass
-import androidx.compose.material.icons.filled.HealthAndSafety
-import androidx.compose.material.icons.filled.Spa
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.ActionLog
+import ru.dachakalend.app.ui.actions.actionIcon
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 // Метки без эмодзи: иконку даёт actionIcon() (Material Icons, как на экране «Сегодня»).
@@ -42,16 +36,6 @@ private val ACTION_LABELS = mapOf(
     "loosening"     to "Рыхление",
     "other"         to "Другое"
 )
-
-// Material Icons по типу действия — единая лексика с TodayScreen (taskIcon/recStyle).
-private fun actionIcon(type: String): ImageVector = when (type) {
-    "watering"                      -> Icons.Default.WaterDrop
-    "fertilizing"                   -> Icons.Default.Eco
-    "treatment"                     -> Icons.Default.HealthAndSafety
-    "transplanting", "pricking_out" -> Icons.Default.Grass
-    "pinching", "pruning"           -> Icons.Default.ContentCut
-    else                            -> Icons.Default.Spa
-}
 
 private fun formatDate(iso: String): String = try {
     val d = java.time.LocalDate.parse(iso)

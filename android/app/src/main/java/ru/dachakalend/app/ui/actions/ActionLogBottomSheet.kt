@@ -85,6 +85,7 @@ fun ActionLogBottomSheet(
                     Button(
                         onClick = { selectedType = type },
                         shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isSelected)
                                 MaterialTheme.colorScheme.primary
@@ -97,6 +98,12 @@ fun ActionLogBottomSheet(
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
+                        Icon(
+                            imageVector = actionIcon(type),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Text(
                             label,
                             fontFamily = NunitoFamily,
