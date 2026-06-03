@@ -11,8 +11,13 @@ import ru.dachakalend.app.data.model.GeocodeSuggestion
 /**
  * Поле ввода населённого пункта с автодополнением.
  * Дебаунс — в ViewModel (Flow.debounce 400мс).
- * Подсказки — DropdownMenu привязан к TextField через Box.
+ *
+ * Используем ExposedDropdownMenuBox: список открывается ПОД строкой ввода (привязан к
+ * её якорю и ширине), поле остаётся редактируемым (клавиатура не закрывается, можно
+ * добавлять/удалять символы — список обновляется). Раньше был DropdownMenu внутри Box,
+ * который рисовался поверх поля и перехватывал фокус.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CityInputField(
     value: String,
@@ -26,7 +31,12 @@ fun CityInputField(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        Box {
+        val expanded = suggestions.isNotEmpty()
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { /* раскрытие определяется наличием подсказок, не тапом */ }
+        ) {
             OutlinedTextField(
                 value = value,
                 onValueChange = { new ->
@@ -40,16 +50,16 @@ fun CityInputField(
                     else Text("Обязательно — для точного прогноза погоды")
                 },
                 isError = isError,
-                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                enabled = enabled
+                enabled = enabled,
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
             )
 
-            // DropdownMenu позиционируется относительно Box (под TextField)
-            DropdownMenu(
-                expanded = suggestions.isNotEmpty(),
-                onDismissRequest = { /* не закрывать по клику вне — пользователь продолжает печатать */ },
-                modifier = Modifier.fillMaxWidth()
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { /* закрытие — через очистку запроса/выбор, ввод не прерываем */ }
             ) {
                 suggestions.forEach { s ->
                     DropdownMenuItem(
