@@ -76,7 +76,7 @@ module.exports = async function (fastify) {
           priority: 'medium',
           planting_id: planting.id,
           crop_name: planting.crop_name,
-          message: `🌡️ Жара ${weather.max_temp_c}°C — поливайте ${planting.crop_name} только вечером после 19:00, иначе листья получат ожог`
+          message: `Жара ${weather.max_temp_c}°C — поливайте ${planting.crop_name} только вечером после 19:00, иначе листья получат ожог`
         })
         break // Один раз на участок достаточно
       }
@@ -205,8 +205,8 @@ module.exports = async function (fastify) {
           crop_name: crop.name,
           days_until: 0,
           message: isSeedling
-            ? `🌱 Сейчас время сеять рассаду ${crop.name} (${timeMsg})`
-            : `🌱 Сейчас время сеять ${crop.name} в грунт (${timeMsg})`
+            ? `Сейчас время сеять рассаду ${crop.name} (${timeMsg})`
+            : `Сейчас время сеять ${crop.name} в грунт (${timeMsg})`
         })
       } else if (daysUntilStart > 0 && daysUntilStart <= LOOKAHEAD) {
         // Окно откроется в ближайшие 14 дней
@@ -216,8 +216,8 @@ module.exports = async function (fastify) {
           crop_name: crop.name,
           days_until: daysUntilStart,
           message: isSeedling
-            ? `📅 Через ${daysUntilStart} дн. — время начать рассаду ${crop.name}`
-            : `📅 Через ${daysUntilStart} дн. — время сеять ${crop.name} в грунт`
+            ? `Через ${daysUntilStart} дн. — время начать рассаду ${crop.name}`
+            : `Через ${daysUntilStart} дн. — время сеять ${crop.name} в грунт`
         })
       }
     }
