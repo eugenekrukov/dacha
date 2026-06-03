@@ -580,6 +580,12 @@ ModalBottomSheet(
   осмысленное: для подкормки — пример удобрения, для «Обработки» — препарат (`overdue_care_task.product`)
   или «от чего». Препараты — статическая карта `CARE_TASK_PRODUCT` в `todayLogic.js` (3 обработки),
   отдаётся в `overdue_care_task.product` и в задачах `/today` (`product`).
+- **Авто-заметка реактивна**: в `ActionLogBottomSheet` подстановка живёт только пока выбран изначально
+  предложенный тип (`selectedType == preselectedType`). Сменили действие — авто-текст исчезает
+  (ручной текст не трогаем). Авто-заметка теперь осмысленна → пишется с `auto=false` (видна в журнале
+  и «Сделано сегодня»); старое скрытие авто-дублей фактически не используется.
+- **«Сегодня» перечитывается по ON_RESUME** (`DisposableEffect`, как «Посадки») — действия, записанные
+  на других экранах, сразу появляются в «Сделано сегодня».
 - **Бейдж BottomNav = `TokenStorage.pendingCount`**, но теперь это ЯВНЫЙ счётчик
   (`saveAttentionCount`), который считают ViewModel'ы функцией `attentionCount(plantings, pending, snoozed)`
   по тем же данным, что рисуют карточки (серверный `overdueCareTask` + non-care pending). Care в кэш

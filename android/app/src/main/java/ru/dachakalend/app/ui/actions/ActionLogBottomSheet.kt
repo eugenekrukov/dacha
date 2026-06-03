@@ -29,9 +29,19 @@ fun ActionLogBottomSheet(
     viewModel: ActionLogViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    var notes by remember { mutableStateOf(initialNotes ?: "") }
     var selectedType by remember { mutableStateOf(preselectedType) }
+    // Заметка авто-подставляется (препарат «Обработки» / удобрение) ТОЛЬКО когда выбран
+    // изначально предложенный тип. Сменили действие на другое — авто-текст исчезает.
+    // Текст, введённый пользователем вручную, не затираем.
+    var notes by remember { mutableStateOf(if (selectedType == preselectedType) initialNotes ?: "" else "") }
+    var lastAuto by remember { mutableStateOf(if (selectedType == preselectedType) initialNotes else null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    LaunchedEffect(selectedType) {
+        val auto = if (selectedType == preselectedType) initialNotes else null
+        if (notes == (lastAuto ?: "")) notes = auto ?: ""   // пользователь не редактировал авто-текст
+        lastAuto = auto
+    }
 
     LaunchedEffect(Unit) { viewModel.reset() }
     LaunchedEffect(state.success) {
@@ -143,10 +153,9 @@ fun ActionLogBottomSheet(
                         if (type == "transplanting") {
                             viewModel.logTransplanting(planting.id)
                         } else {
-                            // auto = заметка осталась авто-подставленной (имя задачи/удобрения),
-                            // пользователь её не менял → в журнале скроем как дубль.
-                            val isAuto = !initialNotes.isNullOrBlank() && notes == initialNotes
-                            viewModel.logAction(planting.id, type, notes.ifBlank { null }, auto = isAuto)
+                            // Заметка теперь содержит осмысленное (препарат «Обработки» / удобрение
+                            // или текст пользователя) — показываем её в журнале: auto = false.
+                            viewModel.logAction(planting.id, type, notes.ifBlank { null }, auto = false)
                         }
                     }
                 },
