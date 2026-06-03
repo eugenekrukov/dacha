@@ -33,3 +33,6 @@ desktop.ini
 backend/coverage/
 android/app/release/
 android/local.properties
+
+# Agent / IDE config (not project code)
+.claude/
