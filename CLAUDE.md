@@ -103,6 +103,12 @@ wc -c /path/to/file     # check size is reasonable
 
 ## Deploy
 
+> **Git-модель (обязательна).** `main` — единственная интеграционная ветка; фичи вливаются в неё
+> `--ff-only`. **VPS — read-only зеркало `origin/main`: на сервере НИКОГДА не коммитят и не правят
+> файлы под git.** Поэтому деплой выполняется через `fetch + reset --hard origin/main`, а НЕ `git pull`
+> (pull может создать merge-коммит и развести серверный `main` с origin — что ломает будущие деплои).
+> Серверное состояние живёт вне git: `.env` (в `.gitignore`), pm2. `reset --hard` их не трогает.
+
 ```bash
 # 1. LOCAL — commit and push first (always), деплоим с main
 git add -A && git commit -m "feat/fix: description"
@@ -110,13 +116,13 @@ git checkout main && git merge --ff-only feature/... && git push origin main && 
 
 # 2. VPS — only after step 1. SSH ТОЛЬКО из PowerShell (ssh hetzner; bash не резолвит Windows-ключ)
 ssh hetzner
-cd /var/www/dacha-api && git pull origin main
+cd /var/www/dacha-api && git fetch origin && git reset --hard origin/main   # НЕ git pull
 cd backend && npm install                        # if package.json changed
 # Миграции — от суперюзера postgres (DDL/GRANT требуют прав; npm run migrate под dacha_user их не имеет):
 sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/0XX_*.sql   # если есть новая миграция
 pm2 restart dacha-api
 ```
 
-> If you skip step 1, `git pull` on VPS won't bring new code — deploy is pointless.
+> If you skip step 1, `reset --hard origin/main` on VPS won't bring new code — deploy is pointless.
 > Backend-тесты: `npx vitest run` (мок-БД, Postgres не нужен). Android-сборка из CLI:
 > `$env:JAVA_HOME=...jbr; $env:ANDROID_HOME=...Sdk; gradlew.bat :app:compileDebugKotlin` (PowerShell).

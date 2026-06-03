@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks, getOverdueCareTask } = require('../../utils/todayLogic')
+const { buildTasks, getOverdueCareTask, careTaskActionType } = require('../../utils/todayLogic')
 
 // ─── Фабрики тестовых данных ─────────────────────────────────────────────────
 
@@ -392,5 +392,44 @@ describe('getOverdueCareTask', () => {
     // day_offset=3, repeat=3 → наступления 3,6,9; посадке 10 дней → последнее на 9 → overdue 1
     const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 3, repeat_days: 3 }], plantedAt, TODAY, 90)
     expect(r).toEqual({ name: 'Прополка', days_overdue: 1 })
+  })
+
+  it('«Обработка от …» закрывается действием treatment', () => {
+    const lastCare = { treatment: new Date(daysAgo(1, TODAY)) } // позже due
+    const r = getOverdueCareTask([{ name: 'Обработка от капустной мухи', day_offset: 5 }], plantedAt, TODAY, 90, lastCare)
+    expect(r).toBeNull()
+  })
+
+  it('описательное имя «Первое окучивание» закрывается hilling', () => {
+    const lastCare = { hilling: new Date(daysAgo(1, TODAY)) }
+    const r = getOverdueCareTask([{ name: 'Первое окучивание', day_offset: 5 }], plantedAt, TODAY, 90, lastCare)
+    expect(r).toBeNull()
+  })
+})
+
+// ─── careTaskActionType (имя care-задачи → action_type, по ключевому слову) ────
+
+describe('careTaskActionType', () => {
+  it.each([
+    ['Подвязка', 'tying'],
+    ['Пасынкование', 'pinching'],
+    ['Прищипка верхушки', 'pinching'],
+    ['Удаление пасынков', 'pinching'],
+    ['Первое окучивание', 'hilling'],
+    ['Второе окучивание', 'hilling'],
+    ['Обрезка нижних листьев', 'pruning'],
+    ['Прополка', 'weeding'],
+    ['Рыхление', 'loosening'],
+    ['Обработка от капустной мухи', 'treatment'],
+    ['Обработка от фитофторы', 'treatment'],
+  ])('%s → %s', (name, expected) => {
+    expect(careTaskActionType(name)).toBe(expected)
+  })
+
+  it('незамапленные имена → null', () => {
+    expect(careTaskActionType('Прореживание (первое)')).toBeNull()
+    expect(careTaskActionType('Прекратить полив')).toBeNull()
+    expect(careTaskActionType('Удаление стрелок')).toBeNull()
+    expect(careTaskActionType(null)).toBeNull()
   })
 })

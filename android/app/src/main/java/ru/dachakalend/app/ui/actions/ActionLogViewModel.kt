@@ -34,15 +34,22 @@ val ACTION_TYPES = listOf(
     "other"         to "Другое"
 )
 
-// Маппинг care_task_name → action_type (должен совпадать с CARE_TASK_ACTION_MAP на бэкенде)
-fun careTaskActionType(careTaskName: String?): String = when (careTaskName) {
-    "Подвязка"     -> "tying"
-    "Пасынкование" -> "pinching"
-    "Окучивание"   -> "hilling"
-    "Обрезка"      -> "pruning"
-    "Прополка"     -> "weeding"
-    "Рыхление"     -> "loosening"
-    else           -> "other"
+// Маппинг care_task_name → action_type. По КЛЮЧЕВОМУ СЛОВУ (имена в БД описательные:
+// «Первое окучивание», «Обработка от капустной мухи», «Обрезка нижних листьев»).
+// Должен совпадать с careTaskActionType() на бэкенде (utils/todayLogic.js).
+// Незамапленные имена → "other" (на сервере — null: задача не закрывается этим действием).
+fun careTaskActionType(careTaskName: String?): String {
+    val n = careTaskName?.lowercase() ?: return "other"
+    return when {
+        n.contains("подвяз")                        -> "tying"
+        n.contains("пасынк") || n.contains("прищип") -> "pinching"
+        n.contains("окучив")                        -> "hilling"
+        n.contains("обрезк")                        -> "pruning"
+        n.contains("прополк")                       -> "weeding"
+        n.contains("рыхлен")                        -> "loosening"
+        n.contains("обработк") || n.contains("опрыск") -> "treatment"
+        else                                         -> "other"
+    }
 }
 
 @HiltViewModel

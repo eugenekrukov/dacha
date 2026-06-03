@@ -464,25 +464,27 @@ Modifier.coachTargetUnion(controller, "tasks")   // на SectionTitle И на к
 
 ## 12. Деплой на VPS — обязательный порядок
 
-**Нельзя делать `git pull` на VPS без предварительного коммита и пуша локально.**
+**Git-модель**: `main` — единственная интеграционная ветка (фичи вливаются `--ff-only`).
+**VPS — read-only зеркало `origin/main`**: на сервере НИКОГДА не коммитят и не правят файлы под git.
+Деплой — через `fetch + reset --hard origin/main`, а **НЕ `git pull`** (pull создаёт merge-коммит и
+разводит серверный `main` с origin → ломает будущие деплои). Серверное состояние (`.env`, pm2) — вне git.
 
 Порядок всегда такой:
 
 ```bash
-# 1. ЛОКАЛЬНО — сначала коммит и пуш
-git add -A
-git commit -m "feat/fix: описание"
-git push origin <branch>
+# 1. ЛОКАЛЬНО — сначала коммит, ff-merge в main и пуш
+git add -A && git commit -m "feat/fix: описание"
+git checkout main && git merge --ff-only <branch> && git push origin main
 
-# 2. ТОЛЬКО ПОТОМ — на VPS (из PowerShell)
-cd /var/www/dacha-api/backend
-git stash          # если есть локальные правки на VPS
-git pull origin <branch>
-npm run migrate    # если были новые миграции
+# 2. ТОЛЬКО ПОТОМ — на VPS (ssh из PowerShell). Деплоим ТОЛЬКО dacha-api.
+cd /var/www/dacha-api
+git fetch origin && git reset --hard origin/main   # НЕ git pull
+cd backend && npm install                          # если менялся package.json
+sudo -u postgres psql -d dacha_db -f src/db/migrations/0XX_*.sql   # если есть новая миграция
 pm2 restart dacha-api
 ```
 
-> Если пропустить шаг 1 — `git pull` не принесёт новый код, и деплой бессмысленен.
+> Если пропустить шаг 1 — `reset --hard origin/main` не принесёт новый код, и деплой бессмысленен.
 
 ---
 

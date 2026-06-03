@@ -79,7 +79,7 @@ module.exports = async function (fastify) {
         `SELECT planting_id, array_agg(action_type) as action_types
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','transplanting','fertilizing')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','transplanting','fertilizing')
            AND logged_at >= CURRENT_DATE
          GROUP BY planting_id`,
         [ids]
@@ -97,7 +97,7 @@ module.exports = async function (fastify) {
         `SELECT DISTINCT ON (planting_id, action_type) planting_id, action_type, logged_at
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment')
          ORDER BY planting_id, action_type, logged_at DESC`,
         [ids]
       )

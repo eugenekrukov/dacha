@@ -1,13 +1,26 @@
 'use strict'
 
-// Маппинг: название care_task (из БД) → action_type (что пишет Android)
-const CARE_TASK_ACTION_MAP = {
-  'Подвязка':     'tying',
-  'Пасынкование': 'pinching',
-  'Окучивание':   'hilling',
-  'Обрезка':      'pruning',
-  'Прополка':     'weeding',
-  'Рыхление':     'loosening',
+// Care-action_type'ы, которыми Android закрывает care-задачи. Этот же список —
+// в SQL-фильтрах today.js / plantings.js (lastCareActionMap, careActionsToday).
+const CARE_ACTION_TYPES = ['tying', 'pinching', 'hilling', 'pruning', 'weeding', 'loosening', 'treatment']
+
+// Сопоставление имени care_task (из БД) → action_type (что пишет Android).
+// По КЛЮЧЕВОМУ СЛОВУ, а не дословно: имена в БД описательные («Первое окучивание»,
+// «Обработка от капустной мухи», «Обрезка нижних листьев», «Прищипка верхушки»).
+// ВАЖНО: держать в синхроне с careTaskActionType() на Android (ActionLogViewModel.kt)
+// и со списком CARE_ACTION_TYPES в SQL. Незамапленные имена (Прореживание, Прекратить
+// полив, Удаление стрелок) → null: для них нет подходящего действия.
+function careTaskActionType(name) {
+  if (!name) return null
+  const n = name.toLowerCase()
+  if (n.includes('подвяз'))                            return 'tying'
+  if (n.includes('пасынк') || n.includes('прищип'))    return 'pinching'
+  if (n.includes('окучив'))                            return 'hilling'
+  if (n.includes('обрезк'))                            return 'pruning'
+  if (n.includes('прополк'))                           return 'weeding'
+  if (n.includes('рыхлен'))                            return 'loosening'
+  if (n.includes('обработк') || n.includes('опрыск'))  return 'treatment'
+  return null
 }
 
 const TASK_PRIORITY = {
@@ -74,7 +87,7 @@ function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDo
     }
     if (dueOffset === null) continue // ещё не наступила
 
-    const mappedAction = CARE_TASK_ACTION_MAP[task.name]
+    const mappedAction = careTaskActionType(task.name)
     const dueDate = new Date(plantedAt.getTime() + dueOffset * 86400000)
     const lastDone = mappedAction ? lastCareDone[mappedAction] : null
     const doneSinceDue = lastDone && new Date(lastDone) >= dueDate
@@ -160,7 +173,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       const key = `${p.id}:${task.name}`
       if (addedCareNames.has(key)) continue
 
-      const mappedAction = CARE_TASK_ACTION_MAP[task.name]
+      const mappedAction = careTaskActionType(task.name)
       const dueDate = new Date(plantedAt.getTime() + dueOffset * 86400000)
       const lastDone = mappedAction ? lastCareDone[mappedAction] : null
       const doneSinceDue = lastDone && new Date(lastDone) >= dueDate
@@ -326,4 +339,4 @@ function formatTasks(tasks) {
   })
 }
 
-module.exports = { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask }
+module.exports = { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, CARE_ACTION_TYPES }
