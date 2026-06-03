@@ -496,20 +496,28 @@ private fun SunnyHero(
                     text          = dateText,
                     fontFamily    = NunitoFamily,
                     fontWeight    = FontWeight.ExtraBold,
-                    fontSize      = 11.sp,
-                    color         = Color.White.copy(alpha = .80f),
-                    letterSpacing = 1.5.sp
+                    // a11y: крупнее + полностью белый + тень для читаемости на оранжевом (аудитория 50+)
+                    fontSize      = 13.sp,
+                    color         = Color.White,
+                    letterSpacing = 1.5.sp,
+                    style         = TextStyle(
+                        shadow = Shadow(
+                            color      = Color(0x55000000),
+                            offset     = Offset(0f, 1f),
+                            blurRadius = 6f
+                        )
+                    )
                 )
                 Row {
-                    IconButton(onClick = onEditGarden, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Edit, null,
-                            tint = Color.White.copy(alpha = .85f),
-                            modifier = Modifier.size(18.dp))
+                    IconButton(onClick = onEditGarden, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Default.Edit, "Изменить участок",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp))
                     }
-                    IconButton(onClick = onOpenSettings, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Settings, null,
-                            tint = Color.White.copy(alpha = .85f),
-                            modifier = Modifier.size(18.dp))
+                    IconButton(onClick = onOpenSettings, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Default.Settings, "Настройки",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp))
                     }
                 }
             }
