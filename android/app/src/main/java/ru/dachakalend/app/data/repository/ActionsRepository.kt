@@ -21,8 +21,8 @@ class ActionsRepository @Inject constructor(private val api: DachaApi) {
         Result.Error(e.message ?: "Ошибка загрузки действий")
     }
 
-    suspend fun logAction(plantingId: Int, type: String, notes: String? = null): Result<ActionLog> = try {
-        Result.Success(api.createAction(CreateActionRequest(plantingId, type, notes)))
+    suspend fun logAction(plantingId: Int, type: String, notes: String? = null, auto: Boolean = false): Result<ActionLog> = try {
+        Result.Success(api.createAction(CreateActionRequest(plantingId, type, notes, auto)))
     } catch (e: Exception) {
         Result.Error(e.message ?: "Ошибка записи действия")
     }

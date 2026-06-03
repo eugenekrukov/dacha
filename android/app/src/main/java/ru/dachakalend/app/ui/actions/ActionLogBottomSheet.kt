@@ -136,7 +136,10 @@ fun ActionLogBottomSheet(
                         if (type == "transplanting") {
                             viewModel.logTransplanting(planting.id)
                         } else {
-                            viewModel.logAction(planting.id, type, notes.ifBlank { null })
+                            // auto = заметка осталась авто-подставленной (имя задачи/удобрения),
+                            // пользователь её не менял → в журнале скроем как дубль.
+                            val isAuto = !initialNotes.isNullOrBlank() && notes == initialNotes
+                            viewModel.logAction(planting.id, type, notes.ifBlank { null }, auto = isAuto)
                         }
                     }
                 },

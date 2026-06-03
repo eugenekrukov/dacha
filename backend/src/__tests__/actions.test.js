@@ -48,6 +48,44 @@ describe('POST /actions', () => {
     await app.close()
   })
 
+  it('сохраняет флаг auto=true при подставленной заметке', async () => {
+    let insertParams
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('INSERT INTO action_logs')) { insertParams = params; return { rows: [{ ...ACTION, auto: true }] } }
+        return { rows: [{ id: 1 }] } // проверка владельца проходит
+      },
+    }))
+    const token = makeToken(app)
+
+    await supertest(app.server)
+      .post('/actions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ planting_id: 1, type: 'loosening', notes: 'Рыхление', auto: true })
+
+    expect(insertParams[3]).toBe(true) // auto — 4-й параметр INSERT
+    await app.close()
+  })
+
+  it('auto по умолчанию false', async () => {
+    let insertParams
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('INSERT INTO action_logs')) { insertParams = params; return { rows: [ACTION] } }
+        return { rows: [{ id: 1 }] }
+      },
+    }))
+    const token = makeToken(app)
+
+    await supertest(app.server)
+      .post('/actions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ planting_id: 1, type: 'watering' })
+
+    expect(insertParams[3]).toBe(false)
+    await app.close()
+  })
+
   it('401 без токена', async () => {
     const app = await buildApp(makeMockDb())
     const res = await supertest(app.server).post('/actions').send({ planting_id: 1, action_type: 'watering' })

@@ -269,6 +269,8 @@ data class ActionLog(
     @Json(name = "crop_name") val cropName: String?,
     @Json(name = "action_type") val type: String,
     val notes: String?,
+    // true = заметка подставлена автоматически (имя задачи/удобрения) → скрываем в журнале
+    val auto: Boolean = false,
     @Json(name = "logged_at") val loggedAt: String
 )
 
@@ -276,7 +278,8 @@ data class ActionLog(
 data class CreateActionRequest(
     @Json(name = "planting_id") val plantingId: Int,
     val type: String,
-    val notes: String? = null
+    val notes: String? = null,
+    val auto: Boolean = false
 )
 
 // --- Reminder request ---

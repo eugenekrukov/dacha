@@ -57,10 +57,10 @@ class ActionLogViewModel @Inject constructor(
         _uiState.value = ActionLogUiState()
     }
 
-    fun logAction(plantingId: Int, type: String, notes: String? = null) {
+    fun logAction(plantingId: Int, type: String, notes: String? = null, auto: Boolean = false) {
         viewModelScope.launch {
             _uiState.value = ActionLogUiState(isLoading = true)
-            when (val result = actionsRepository.logAction(plantingId, type, notes)) {
+            when (val result = actionsRepository.logAction(plantingId, type, notes, auto)) {
                 is Result.Success -> _uiState.value = ActionLogUiState(success = true)
                 is Result.Error   -> _uiState.value = ActionLogUiState(error = result.message)
                 is Result.Loading -> Unit

@@ -18,6 +18,7 @@ module.exports = async function (fastify) {
   fastify.post('/', auth, async (request, reply) => {
     const { planting_id, notes } = request.body
     const action_type = request.body.action_type ?? request.body.type
+    const auto = request.body.auto === true // заметка подставлена автоматически (не введена юзером)
 
     // Защита от IDOR: нельзя писать в журнал чужой посадки
     if (!planting_id || !(await userOwnsPlanting(planting_id, request.user.userId))) {
@@ -25,9 +26,9 @@ module.exports = async function (fastify) {
     }
 
     const result = await fastify.db.query(
-      `INSERT INTO action_logs (planting_id, action_type, notes, logged_at)
-       VALUES ($1,$2,$3,NOW()) RETURNING *`,
-      [planting_id, action_type, notes]
+      `INSERT INTO action_logs (planting_id, action_type, notes, auto, logged_at)
+       VALUES ($1,$2,$3,$4,NOW()) RETURNING *`,
+      [planting_id, action_type, notes, auto]
     )
     return reply.code(201).send(result.rows[0])
   })
