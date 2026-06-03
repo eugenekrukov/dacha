@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 val showBottomBar = currentRoute !in screensWithoutBottomBar
-                val activePlantings = tokenStorage.getPendingCount()
+                val activePlantings by tokenStorage.pendingCount.collectAsState()
 
                 val coachMarkController = remember { CoachMarkController() }
                 val showCoachMark = remember {

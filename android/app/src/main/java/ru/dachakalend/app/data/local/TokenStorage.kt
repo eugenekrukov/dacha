@@ -6,6 +6,9 @@ import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,6 +17,15 @@ class TokenStorage @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
     private val prefs = context.getSharedPreferences("dacha_prefs", Context.MODE_PRIVATE)
+
+    // Реактивный счётчик pending-задач для бейджа BottomNav — чтобы обновлялся сразу
+    // (а не только при навигации). Обновляется в savePendingTasks / snoozeTask.
+    private val _pendingCount = MutableStateFlow(0)
+    val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()
+
+    private fun refreshPendingCount() { _pendingCount.value = getPendingCount() }
+
+    init { refreshPendingCount() }
 
     // Токен хранится в зашифрованном хранилище (EncryptedSharedPreferences).
     // Если keystore недоступен/повреждён — деградируем до обычных prefs, чтобы не крашить вход.
@@ -75,6 +87,7 @@ class TokenStorage @Inject constructor(
             "$id\t${info.type}\t${info.careTaskName ?: ""}\t${info.cropName ?: ""}\t${info.title ?: ""}"
         }
         prefs.edit { putString(KEY_PENDING_TASKS, encoded) }
+        refreshPendingCount()
     }
 
     fun getPendingTasks(): Map<Int, PendingTaskInfo> {
@@ -177,6 +190,7 @@ class TokenStorage @Inject constructor(
                            else raw.split(",").filter { it.startsWith("$today|") }
         val updated = (todayEntries + "$today|$targetDate|$key").distinct().joinToString(",")
         prefs.edit { putString(KEY_SNOOZED_TASKS, updated) }
+        refreshPendingCount() // снуз влияет на бейдж (getPendingCount исключает отложенные)
     }
 
     fun getSnoozedTasksForToday(): Set<String> {
@@ -255,6 +269,7 @@ class TokenStorage @Inject constructor(
     fun logout() {
         prefs.edit { clear() }
         if (tokenPrefs !== prefs) tokenPrefs.edit { clear() }
+        refreshPendingCount()
     }
 
     companion object {
