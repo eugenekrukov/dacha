@@ -2,6 +2,18 @@
 
 const bcrypt = require('bcrypt')
 
+// Длительность пробного периода (дней). Сервер — источник правды по триалу.
+const TRIAL_DAYS = 7
+
+/** Возвращает { trial_active, trial_days_left } по дате старта триала. */
+function trialInfo(trialStartedAt) {
+  if (!trialStartedAt) return { trial_active: false, trial_days_left: 0 }
+  const startMs = new Date(trialStartedAt).getTime()
+  const daysSince = Math.floor((Date.now() - startMs) / 86_400_000)
+  const daysLeft = Math.max(0, TRIAL_DAYS - daysSince)
+  return { trial_active: daysLeft > 0, trial_days_left: daysLeft }
+}
+
 module.exports = async function (fastify) {
   // POST /auth/register
   fastify.post('/register', {
@@ -28,14 +40,14 @@ module.exports = async function (fastify) {
 
     const passwordHash = await bcrypt.hash(password, 10)
     const result = await db.query(
-      'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, created_at',
+      'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, created_at, trial_started_at',
       [email, passwordHash, name]
     )
 
     const user = result.rows[0]
     const token = fastify.jwt.sign({ userId: user.id, email: user.email })
 
-    return reply.code(201).send({ token, user })
+    return reply.code(201).send({ token, user: { ...user, ...trialInfo(user.trial_started_at) } })
   })
 
   // POST /auth/login
@@ -70,9 +82,11 @@ module.exports = async function (fastify) {
   // GET /auth/me
   fastify.get('/me', { onRequest: [fastify.authenticate] }, async (request) => {
     const result = await fastify.db.query(
-      'SELECT id, email, name, push_token, notification_settings, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at FROM users WHERE id = $1',
       [request.user.userId]
     )
-    return result.rows[0]
+    const user = result.rows[0]
+    if (!user) return user
+    return { ...user, ...trialInfo(user.trial_started_at) }
   })
 }
