@@ -52,6 +52,18 @@ fun careTaskActionType(careTaskName: String?): String {
     }
 }
 
+/**
+ * Заметка, которую осмысленно авто-подставить при логировании care-задачи.
+ * Название действия (Прополка, Рыхление…) в заметку НЕ пишем — оно и так выбрано типом.
+ * Только для «Обработки» подставляем «от чего» (например, «от капустной мухи»),
+ * т.к. это уточняет действие. Для остального — null (пустая заметка).
+ */
+fun treatmentNote(careTaskName: String?): String? {
+    if (careTaskName == null) return null
+    if (careTaskActionType(careTaskName) != "treatment") return null
+    return careTaskName.replaceFirst(Regex("(?i)^обработка\\s*"), "").trim().ifBlank { null }
+}
+
 @HiltViewModel
 class ActionLogViewModel @Inject constructor(
     private val actionsRepository: ActionsRepository,

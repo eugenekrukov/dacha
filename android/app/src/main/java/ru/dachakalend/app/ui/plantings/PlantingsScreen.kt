@@ -31,6 +31,7 @@ import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 import ru.dachakalend.app.ui.actions.careTaskActionType
+import ru.dachakalend.app.ui.actions.treatmentNote
 import ru.dachakalend.app.ui.theme.NunitoFamily
 import ru.dachakalend.app.ui.theme.RussoOneFamily
 import java.time.LocalDate
@@ -248,10 +249,13 @@ fun PlantingsScreen(
             pending?.type == "care_task_due"   -> careTaskActionType(pending.careTaskName)
             else                               -> null
         }
+        // Заметка: название действия не пишем. Для подкормки — пример удобрения,
+        // для «Обработки» — «от чего». Прочее — пусто.
         val preselectedNotes = when {
-            overdue != null                  -> overdue.name
-            pending?.type == "care_task_due" -> pending.careTaskName
-            else                             -> null
+            overdue != null                    -> overdue.product ?: treatmentNote(overdue.name)
+            pending?.type == "fertilizing_due" -> pending.careTaskName
+            pending?.type == "care_task_due"   -> treatmentNote(pending.careTaskName)
+            else                               -> null
         }
         ActionLogBottomSheet(
             planting = planting,
@@ -465,6 +469,16 @@ private fun PlantingCard(
                             else
                                 MaterialTheme.colorScheme.error
                         )
+                        // Подсказка «чем обрабатывать» — рекомендованный препарат
+                        overdueCare.product?.let { prod ->
+                            Text(
+                                text = "Препарат: $prod",
+                                fontFamily = NunitoFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     // Прочие pending-задачи (полив/подкормка/пересадка/урожай/заморозки) — кэш «Сегодня»
                     if (nonCarePending != null) {

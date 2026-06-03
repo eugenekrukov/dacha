@@ -343,12 +343,13 @@ describe('getOverdueCareTask', () => {
 
   it('возвращает просроченную задачу с days_overdue', () => {
     const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 5 }], plantedAt, TODAY, 90)
-    expect(r).toEqual({ name: 'Прополка', days_overdue: 5 })
+    expect(r).toMatchObject({ name: 'Прополка', days_overdue: 5 })
+    expect(r.product).toBeNull() // Прополка — не обработка, препарата нет
   })
 
   it('наступившая сегодня задача → days_overdue = 0', () => {
     const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 10 }], plantedAt, TODAY, 90)
-    expect(r).toEqual({ name: 'Прополка', days_overdue: 0 })
+    expect(r).toMatchObject({ name: 'Прополка', days_overdue: 0 })
   })
 
   it('будущая задача (ещё не наступила) → null', () => {
@@ -366,7 +367,7 @@ describe('getOverdueCareTask', () => {
   it('показывается, если действие было ДО наступления задачи', () => {
     const lastCare = { weeding: new Date(daysAgo(8, TODAY)) } // до due
     const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 5 }], plantedAt, TODAY, 90, lastCare)
-    expect(r).toEqual({ name: 'Прополка', days_overdue: 5 })
+    expect(r).toMatchObject({ name: 'Прополка', days_overdue: 5 })
   })
 
   it('null если действие сделано сегодня (todayActions)', () => {
@@ -380,7 +381,7 @@ describe('getOverdueCareTask', () => {
       { name: 'Рыхление', day_offset: 3 }, // overdue 7
     ]
     const r = getOverdueCareTask(tasks, plantedAt, TODAY, 90)
-    expect(r).toEqual({ name: 'Рыхление', days_overdue: 7 })
+    expect(r).toMatchObject({ name: 'Рыхление', days_overdue: 7 })
   })
 
   it('null если care_tasks пустой', () => {
@@ -391,7 +392,12 @@ describe('getOverdueCareTask', () => {
   it('учитывает repeat_days (берёт последнее наступление)', () => {
     // day_offset=3, repeat=3 → наступления 3,6,9; посадке 10 дней → последнее на 9 → overdue 1
     const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 3, repeat_days: 3 }], plantedAt, TODAY, 90)
-    expect(r).toEqual({ name: 'Прополка', days_overdue: 1 })
+    expect(r).toMatchObject({ name: 'Прополка', days_overdue: 1 })
+  })
+
+  it('«Обработка от …» отдаёт рекомендованный препарат (product)', () => {
+    const r = getOverdueCareTask([{ name: 'Обработка от капустной мухи', day_offset: 5 }], plantedAt, TODAY, 90)
+    expect(r).toMatchObject({ name: 'Обработка от капустной мухи', days_overdue: 5, product: 'Базудин' })
   })
 
   it('«Обработка от …» закрывается действием treatment', () => {

@@ -18,14 +18,20 @@ class TokenStorage @Inject constructor(
 ) {
     private val prefs = context.getSharedPreferences("dacha_prefs", Context.MODE_PRIVATE)
 
-    // Реактивный счётчик pending-задач для бейджа BottomNav — чтобы обновлялся сразу
-    // (а не только при навигации). Обновляется в savePendingTasks / snoozeTask.
+    // Реактивный счётчик «требующих внимания» посадок для бейджа BottomNav.
+    // Источник истины — ViewModel (TodayViewModel/PlantingsViewModel считают его по тем же
+    // данным, что рисуют карточки: overdueCareTask + non-care pending), чтобы бейдж и
+    // карточки никогда не расходились. Сюда значение кладётся через saveAttentionCount().
     private val _pendingCount = MutableStateFlow(0)
     val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()
 
-    private fun refreshPendingCount() { _pendingCount.value = getPendingCount() }
+    init { _pendingCount.value = prefs.getInt(KEY_ATTENTION_COUNT, 0) }
 
-    init { refreshPendingCount() }
+    /** Явно выставить счётчик бейджа (считается во ViewModel). Персистится между запусками. */
+    fun saveAttentionCount(count: Int) {
+        prefs.edit { putInt(KEY_ATTENTION_COUNT, count) }
+        _pendingCount.value = count
+    }
 
     // Токен хранится в зашифрованном хранилище (EncryptedSharedPreferences).
     // Если keystore недоступен/повреждён — деградируем до обычных prefs, чтобы не крашить вход.
@@ -87,7 +93,6 @@ class TokenStorage @Inject constructor(
             "$id\t${info.type}\t${info.careTaskName ?: ""}\t${info.cropName ?: ""}\t${info.title ?: ""}"
         }
         prefs.edit { putString(KEY_PENDING_TASKS, encoded) }
-        refreshPendingCount()
     }
 
     fun getPendingTasks(): Map<Int, PendingTaskInfo> {
@@ -112,16 +117,6 @@ class TokenStorage @Inject constructor(
                 }
             }
         }.toMap()
-    }
-
-    // Учитывает только НЕ отложенные задачи, чтобы бейдж не вводил в заблуждение
-    fun getPendingCount(): Int {
-        val pending = getPendingTasks()
-        val snoozed = getSnoozedTasksForToday()
-        return pending.entries.count { (plantingId, info) ->
-            val key = "${info.type}:${plantingId}:${info.cropName}:${info.careTaskName}"
-            key !in snoozed
-        }
     }
 
     // Настройки уведомлений — все включены по умолчанию
@@ -190,7 +185,7 @@ class TokenStorage @Inject constructor(
                            else raw.split(",").filter { it.startsWith("$today|") }
         val updated = (todayEntries + "$today|$targetDate|$key").distinct().joinToString(",")
         prefs.edit { putString(KEY_SNOOZED_TASKS, updated) }
-        refreshPendingCount() // снуз влияет на бейдж (getPendingCount исключает отложенные)
+        // Бейдж пересчитывает ViewModel (saveAttentionCount) после снуза — снуз влияет на счётчик.
     }
 
     fun getSnoozedTasksForToday(): Set<String> {
@@ -269,7 +264,7 @@ class TokenStorage @Inject constructor(
     fun logout() {
         prefs.edit { clear() }
         if (tokenPrefs !== prefs) tokenPrefs.edit { clear() }
-        refreshPendingCount()
+        _pendingCount.value = 0
     }
 
     companion object {
@@ -278,6 +273,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_CLIMATE_ZONE    = "climate_zone"
         private const val KEY_PLANTINGS_COUNT = "active_plantings_count"
         private const val KEY_PENDING_TASKS   = "pending_tasks"
+        private const val KEY_ATTENTION_COUNT = "attention_count"
         private const val KEY_DISMISSED_RECS  = "dismissed_recs"
         private const val KEY_DELETED_RECS    = "deleted_recs"
         private const val KEY_SNOOZED_TASKS   = "snoozed_tasks"

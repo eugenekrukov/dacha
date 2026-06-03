@@ -37,6 +37,26 @@ data class PlantingsUiState(
         get() = if (stageFilter == null) plantings else plantings.filter { it.stage == stageFilter }
 }
 
+/**
+ * Число посадок, требующих внимания — ровно то, что подсвечивается на карточке
+ * (overdueCareTask с сервера ИЛИ non-care pending из кэша, не отложенные).
+ * Единый источник для бейджа BottomNav, чтобы счётчик и карточки не расходились.
+ * Используется и в TodayViewModel.
+ */
+fun attentionCount(
+    plantings: List<Planting>,
+    pending: Map<Int, TokenStorage.PendingTaskInfo>,
+    snoozed: Set<String>
+): Int = plantings.count { p ->
+    val careUrgent = p.overdueCareTask?.let {
+        "care_task_due:${p.id}:${p.cropName}:${it.name}" !in snoozed
+    } ?: false
+    val nonCareUrgent = pending[p.id]?.takeIf { it.type != "care_task_due" }?.let {
+        "${it.type}:${p.id}:${p.cropName}:${it.careTaskName}" !in snoozed
+    } ?: false
+    careUrgent || nonCareUrgent
+}
+
 @HiltViewModel
 class PlantingsViewModel @Inject constructor(
     private val plantingsRepository: PlantingsRepository,
@@ -66,12 +86,16 @@ class PlantingsViewModel @Inject constructor(
             val pending = tokenStorage.getPendingTasks()
             val snoozed = tokenStorage.getSnoozedTasksForToday()
             when (val result = plantingsRepository.getPlantings(gardenId)) {
-                is Result.Success -> _uiState.value = _uiState.value.copy(
-                    plantings = result.data,
-                    isLoading = false,
-                    pendingTasks = pending,
-                    snoozedTaskKeys = snoozed
-                )
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        plantings = result.data,
+                        isLoading = false,
+                        pendingTasks = pending,
+                        snoozedTaskKeys = snoozed
+                    )
+                    // Бейдж = то, что реально подсвечено на карточках (карточки server-driven).
+                    tokenStorage.saveAttentionCount(attentionCount(result.data, pending, snoozed))
+                }
                 is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false)
                 is Result.Loading -> Unit
             }

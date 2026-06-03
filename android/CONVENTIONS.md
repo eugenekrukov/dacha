@@ -569,3 +569,22 @@ ModalBottomSheet(
   `"care_task_due:$plantingId:$cropName:$name"`.
 - При открытии `ActionLogBottomSheet` с карточки — **преселект** типа/заметки из `overdueCareTask`/pending
   (как на «Сегодня»), чтобы пользователь записал именно закрывающее задачу действие.
+
+## 19. Паттерны сессии 2026-06-03 (вторая итерация)
+
+- **Маппинг care-задач — по ключевому слову** (`careTaskActionType` в `ActionLogViewModel.kt` и
+  `utils/todayLogic.js`): имена в БД описательные («Первое окучивание», «Обработка от капустной мухи»).
+  Синхронны бэкенд+Android. Незамапленные → `other`/`null`. Тип `treatment` добавлен в SQL-фильтры
+  care-действий (`today.js`, `plantings.js`), иначе «Обработка» не закрывалась бы.
+- **Заметка к действию**: имя действия в заметку НЕ пишем (`treatmentNote()`). Авто-подставляем только
+  осмысленное: для подкормки — пример удобрения, для «Обработки» — препарат (`overdue_care_task.product`)
+  или «от чего». Препараты — статическая карта `CARE_TASK_PRODUCT` в `todayLogic.js` (3 обработки),
+  отдаётся в `overdue_care_task.product` и в задачах `/today` (`product`).
+- **Бейдж BottomNav = `TokenStorage.pendingCount`**, но теперь это ЯВНЫЙ счётчик
+  (`saveAttentionCount`), который считают ViewModel'ы функцией `attentionCount(plantings, pending, snoozed)`
+  по тем же данным, что рисуют карточки (серверный `overdueCareTask` + non-care pending). Care в кэш
+  `pendingTasks` больше НЕ кладётся (TodayViewModel фильтрует `care_task_due`). Это исключает «дрейф»
+  бейджа. Снуз/лог действия пересчитывают счётчик.
+- **Раскраска расписания** в `PlantingInfoBottomSheet` (`buildSchedule`): 🟢 выполнено (приглушённо,
+  зачёркнуто) · 🔴 просрочено · ⚪ предстоит. «Выполнено» = действие нужного типа в окне
+  `[дата_работы, дата_след_повтора)`. Урожай — нейтрально (логируется отдельно).

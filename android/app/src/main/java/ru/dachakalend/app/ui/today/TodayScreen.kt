@@ -48,6 +48,7 @@ import ru.dachakalend.app.data.model.WeatherSummary
 import androidx.compose.foundation.BorderStroke
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 import ru.dachakalend.app.ui.actions.careTaskActionType
+import ru.dachakalend.app.ui.actions.treatmentNote
 import ru.dachakalend.app.ui.onboarding.CoachMarkController
 import ru.dachakalend.app.ui.onboarding.coachMarkSteps
 import ru.dachakalend.app.ui.onboarding.coachTarget
@@ -289,7 +290,13 @@ private fun TodayContent(
                                 onClick = if (taskPlanting != null) {
                                     {
                                         selectedPlanting = taskPlanting
-                                        quickActionNotes = task.careTaskName
+                                        // Название действия в заметку не пишем. Для подкормки
+                                        // careTaskName = пример удобрения (полезно), для «Обработки» — «от чего».
+                                        quickActionNotes = when (task.type) {
+                                            "fertilizing_due" -> task.careTaskName
+                                            "care_task_due"   -> task.product ?: treatmentNote(task.careTaskName)
+                                            else              -> null
+                                        }
                                         quickActionType  = when (task.type) {
                                             "watering_due"    -> "watering"
                                             "fertilizing_due" -> "fertilizing"

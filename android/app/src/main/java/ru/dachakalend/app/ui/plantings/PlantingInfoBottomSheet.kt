@@ -12,9 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextDecoration
 import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.CareTask
 import ru.dachakalend.app.data.model.Planting
+import ru.dachakalend.app.ui.actions.careTaskActionType
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -53,26 +56,73 @@ private fun plantedDate(sownAt: String?): LocalDate? = sownAt?.let {
     runCatching { LocalDate.parse(it.take(10)) }.getOrNull()
 }
 
-private fun offsetDate(base: LocalDate, days: Int): String {
-    val d = base.plusDays(days.toLong())
-    return "%02d.%02d.%02d".format(d.dayOfMonth, d.monthValue, d.year % 100)
+private fun fmtDate(d: LocalDate): String =
+    "%02d.%02d.%02d".format(d.dayOfMonth, d.monthValue, d.year % 100)
+
+// ── Статус работы в расписании ───────────────────────────────────────────────
+private enum class SchedStatus { DONE, MISSED, UPCOMING, NEUTRAL }
+private data class SchedRow(val name: String, val dateStr: String, val date: LocalDate, val status: SchedStatus)
+
+private fun actionLocalDate(iso: String): LocalDate? =
+    runCatching { java.time.OffsetDateTime.parse(iso).toLocalDate() }.getOrNull()
+        ?: runCatching { LocalDate.parse(iso.take(10)) }.getOrNull()
+
+// Какие action_type закрывают строку расписания. null → статус не вычисляем (нейтрально).
+private fun rowActionTypes(name: String): Set<String>? = when {
+    name.contains("Пересадка", true) || name.contains("пикировк", true) -> setOf("transplanting", "pricking_out")
+    name.contains("урожай", true) -> null  // урожай логируется отдельно (не через действия)
+    else -> careTaskActionType(name).let { if (it == "other") null else setOf(it) }
 }
 
-// Разворачиваем повторяющиеся задачи до harvestDays (или 120 дней).
-// Возвращает Triple(название, отформатированная дата, LocalDate для сортировки).
-private fun expandTasks(tasks: List<CareTask>, planted: LocalDate, harvestDays: Int?): List<Triple<String, String, LocalDate>> {
+/**
+ * Строит расписание работ со статусом: DONE (выполнено), MISSED (просрочено),
+ * UPCOMING (предстоит), NEUTRAL (статус не определяем — урожай).
+ * «Выполнено» = есть действие нужного типа в окне [дата_работы, дата_след_повтора).
+ */
+private fun buildSchedule(
+    transplantDays: Int?,
+    careTasks: List<CareTask>?,
+    harvestDays: Int?,
+    planted: LocalDate,
+    actions: List<ActionLog>,
+    today: LocalDate
+): List<SchedRow> {
+    val rows = mutableListOf<SchedRow>()
+    fun statusOf(name: String, date: LocalDate, next: LocalDate?): SchedStatus {
+        val types = rowActionTypes(name) ?: return SchedStatus.NEUTRAL
+        val done = actions.any { a ->
+            a.type in types && actionLocalDate(a.loggedAt)?.let { d ->
+                !d.isBefore(date) && (next == null || d.isBefore(next))
+            } == true
+        }
+        return when {
+            done                 -> SchedStatus.DONE
+            date.isBefore(today) -> SchedStatus.MISSED
+            else                 -> SchedStatus.UPCOMING
+        }
+    }
+    transplantDays?.let {
+        val d = planted.plusDays(it.toLong())
+        rows += SchedRow("🌿 Пересадка/пикировка", fmtDate(d), d, statusOf("Пересадка", d, null))
+    }
     val limit = harvestDays ?: 120
-    val result = mutableListOf<Triple<String, String, LocalDate>>()
-    for (task in tasks) {
+    careTasks?.forEach { task ->
+        val occ = mutableListOf<LocalDate>()
         var offset = task.dayOffset
         while (offset <= limit) {
-            val date = planted.plusDays(offset.toLong())
-            result += Triple(task.name, offsetDate(planted, offset), date)
+            occ += planted.plusDays(offset.toLong())
             if (task.repeatDays == null) break
             offset += task.repeatDays
         }
+        occ.forEachIndexed { i, d ->
+            rows += SchedRow(task.name, fmtDate(d), d, statusOf(task.name, d, occ.getOrNull(i + 1)))
+        }
     }
-    return result
+    harvestDays?.let {
+        val d = planted.plusDays(it.toLong())
+        rows += SchedRow("🌾 Сбор урожая", fmtDate(d), d, SchedStatus.NEUTRAL)
+    }
+    return rows.sortedBy { it.date }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -141,24 +191,22 @@ fun PlantingInfoBottomSheet(
                 // ── 2. Расчётные даты процессов ───────────────────────────
                 val crop = state.crop
                 if (planted != null && crop != null) {
-                    // Triple(название, строка даты, LocalDate для сортировки)
-                    val taskDates = mutableListOf<Triple<String, String, LocalDate>>()
-
-                    crop.transplantDays?.let {
-                        taskDates += Triple("🌿 Пересадка/пикировка", offsetDate(planted, it), planted.plusDays(it.toLong()))
-                    }
-                    crop.careTasks?.let { tasks ->
-                        taskDates += expandTasks(tasks, planted, crop.harvestDays)
-                    }
-                    crop.harvestDays?.let {
-                        taskDates += Triple("🌾 Сбор урожая", offsetDate(planted, it), planted.plusDays(it.toLong()))
-                    }
-
-                    if (taskDates.isNotEmpty()) {
+                    val schedule = buildSchedule(
+                        transplantDays = crop.transplantDays,
+                        careTasks      = crop.careTasks,
+                        harvestDays    = crop.harvestDays,
+                        planted        = planted,
+                        actions        = state.recentActions,
+                        today          = LocalDate.now()
+                    )
+                    if (schedule.isNotEmpty()) {
                         InfoSection(title = "Расписание работ") {
-                            taskDates.sortedBy { it.third }.forEach { (name, date, _) ->
-                                InfoRow2(name, date)
-                            }
+                            Text(
+                                "🟢 выполнено · 🔴 просрочено · ⚪ предстоит",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            schedule.forEach { row -> SchedRowView(row) }
                         }
                     }
                 }
@@ -208,6 +256,32 @@ private fun InfoSection(title: String, content: @Composable ColumnScope.() -> Un
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             content()
         }
+    }
+}
+
+@Composable
+private fun SchedRowView(row: SchedRow) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val (color, marker, strike) = when (row.status) {
+        SchedStatus.DONE     -> Triple(muted, "🟢 ", true)
+        SchedStatus.MISSED   -> Triple(MaterialTheme.colorScheme.error, "🔴 ", false)
+        SchedStatus.UPCOMING -> Triple(MaterialTheme.colorScheme.onSurface, "⚪ ", false)
+        SchedStatus.NEUTRAL  -> Triple(muted, "", false)
+    }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(
+            "$marker${row.name}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+            textDecoration = if (strike) TextDecoration.LineThrough else null,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            row.dateStr,
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+            fontWeight = if (row.status == SchedStatus.MISSED) FontWeight.Bold else FontWeight.Normal
+        )
     }
 }
 

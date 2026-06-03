@@ -20,6 +20,7 @@ import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.RecommendationsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.data.repository.TodayRepository
+import ru.dachakalend.app.ui.plantings.attentionCount
 import ru.rustore.sdk.pushclient.RuStorePushClient
 import javax.inject.Inject
 
@@ -77,6 +78,12 @@ class TodayViewModel @Inject constructor(
     fun snoozeTask(key: String) {
         tokenStorage.snoozeTask(key)
         _snoozedTasks.value = _snoozedTasks.value + key
+        // Снуз влияет на бейдж — пересчитываем по текущим посадкам.
+        (_uiState.value as? TodayUiState.Success)?.data?.let { data ->
+            tokenStorage.saveAttentionCount(
+                attentionCount(data.plantings, tokenStorage.getPendingTasks(), tokenStorage.getSnoozedTasksForToday())
+            )
+        }
     }
 
     fun deleteTask(key: String) {
@@ -146,10 +153,13 @@ class TodayViewModel @Inject constructor(
             val todayDate = java.time.LocalDate.now().toString() // "2026-05-31"
             val todayActions = allActions.filter { it.loggedAt.startsWith(todayDate) }
 
-            // Сохраняем pending-задачи для Badge и карточек посадок
+            // Кэш pending для НЕ-care задач (полив/подкормка/пересадка/урожай). Care-просрочка
+            // теперь server-driven (Planting.overdueCareTask) — в кэш её не кладём, чтобы бейдж
+            // и карточки считались из одного источника.
+            val plantingsList = if (plantingsResult is Result.Success) plantingsResult.data else emptyList()
             if (todayResult is Result.Success) {
                 val pending = todayResult.data.tasks
-                    .filter { it.plantingId != null }
+                    .filter { it.plantingId != null && it.type != "care_task_due" }
                     .associate { it.plantingId!! to TokenStorage.PendingTaskInfo(
                         type         = it.type,
                         careTaskName = it.careTaskName,
@@ -157,6 +167,10 @@ class TodayViewModel @Inject constructor(
                         title        = it.title
                     )}
                 tokenStorage.savePendingTasks(pending)
+                // Бейдж = число посадок, требующих внимания (как на карточках «Посадок»).
+                tokenStorage.saveAttentionCount(
+                    attentionCount(plantingsList, pending, tokenStorage.getSnoozedTasksForToday())
+                )
             }
 
             _uiState.value = when (todayResult) {

@@ -47,7 +47,9 @@ data class TodayTask(
     @Json(name = "planting_id") val plantingId: Int?,
     @Json(name = "crop_name") val cropName: String?,
     @Json(name = "days_overdue") val daysOverdue: Int?,
-    @Json(name = "care_task_name") val careTaskName: String? = null
+    @Json(name = "care_task_name") val careTaskName: String? = null,
+    // Рекомендованный препарат для care-задач-обработок (чем обрабатывать)
+    val product: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -140,7 +142,9 @@ data class NextCareTask(
 @JsonClass(generateAdapter = true)
 data class OverdueCareTask(
     val name: String,
-    @Json(name = "days_overdue") val daysOverdue: Int
+    @Json(name = "days_overdue") val daysOverdue: Int,
+    // Рекомендованный препарат для «Обработки» (чем обрабатывать); null для прочих care-задач
+    val product: String? = null
 )
 
 @JsonClass(generateAdapter = true)

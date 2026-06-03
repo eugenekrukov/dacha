@@ -10,6 +10,15 @@ const CARE_ACTION_TYPES = ['tying', 'pinching', 'hilling', 'pruning', 'weeding',
 // ВАЖНО: держать в синхроне с careTaskActionType() на Android (ActionLogViewModel.kt)
 // и со списком CARE_ACTION_TYPES в SQL. Незамапленные имена (Прореживание, Прекратить
 // полив, Удаление стрелок) → null: для них нет подходящего действия.
+// Рекомендованный препарат для care-задач-обработок (что/чем). Подсказка пользователю
+// «чем обрабатывать» + авто-подстановка в заметку. Ключ = каноничное имя из 008_care_tasks.
+// Источник: treatment в базе знаний (006_seed_crops_extended.sql).
+const CARE_TASK_PRODUCT = {
+  'Обработка от фитофторы':     'Ридомил Голд, бордоская смесь',
+  'Обработка от капустной мухи': 'Базудин',
+  'Обработка от серой гнили':    'Свитч, Фундазол',
+}
+
 function careTaskActionType(name) {
   if (!name) return null
   const n = name.toLowerCase()
@@ -96,7 +105,7 @@ function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDo
 
     const daysOverdue = daysSincePlanting - dueOffset
     if (!best || daysOverdue > best.days_overdue) {
-      best = { name: task.name, days_overdue: daysOverdue }
+      best = { name: task.name, days_overdue: daysOverdue, product: CARE_TASK_PRODUCT[task.name] || null }
     }
   }
   return best
@@ -189,6 +198,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
         planting_id: p.id,
         crop_name: p.crop_name,
         care_task_name: task.name,
+        product: CARE_TASK_PRODUCT[task.name] || null,
         message: `${p.crop_name}: ${task.name} — ${when}`,
         days_overdue: diff < 0 ? -diff : 0,
       })
@@ -267,6 +277,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
         planting_id: null, // групповая — без адресной посадки (информационная)
         crop_name: null,
         care_task_name: name,
+        product: CARE_TASK_PRODUCT[name] || null,
         crops,
         message: `${name}: ${listCrops(crops)}`,
         days_overdue: Math.max(...group.map(g => g.days_overdue || 0)),
@@ -335,6 +346,7 @@ function formatTasks(tasks) {
       crop_name: t.crop_name || null,
       days_overdue: t.days_overdue || null,
       care_task_name: t.care_task_name || t.product_example || null,
+      product: t.product || null,
     }
   })
 }
