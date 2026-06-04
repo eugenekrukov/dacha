@@ -83,6 +83,8 @@ private fun buildSchedule(
     transplantDays: Int?,
     careTasks: List<CareTask>?,
     harvestDays: Int?,
+    wateringFreqDays: Int?,
+    conditions: String?,
     planted: LocalDate,
     actions: List<ActionLog>,
     today: LocalDate
@@ -116,6 +118,25 @@ private fun buildSchedule(
         }
         occ.forEachIndexed { i, d ->
             rows += SchedRow(task.name, fmtDate(d), d, statusOf(task.name, d, occ.getOrNull(i + 1)))
+        }
+    }
+    // 💧 Полив — предстоящие отметки каждые interval дней (теплица ×0.8, как на бэке).
+    // Показываем только будущие: прошлые фактические поливы видны в «Истории действий»,
+    // а ряд «просрочено» для частого полива был бы визуальным шумом.
+    wateringFreqDays?.let { freq ->
+        val interval = if (conditions == "greenhouse") maxOf(1, Math.round(freq * 0.8).toInt()) else freq
+        if (interval >= 1) {
+            val wLimit = minOf(harvestDays ?: 120, 120)
+            var offset = interval
+            var shown = 0
+            while (offset <= wLimit && shown < 40) {
+                val d = planted.plusDays(offset.toLong())
+                if (!d.isBefore(today)) {
+                    rows += SchedRow("💧 Полив", fmtDate(d), d, SchedStatus.UPCOMING)
+                    shown++
+                }
+                offset += interval
+            }
         }
     }
     harvestDays?.let {
@@ -198,12 +219,14 @@ fun PlantingInfoBottomSheet(
                 val crop = state.crop
                 if (planted != null && crop != null) {
                     val schedule = buildSchedule(
-                        transplantDays = crop.transplantDays,
-                        careTasks      = crop.careTasks,
-                        harvestDays    = crop.harvestDays,
-                        planted        = planted,
-                        actions        = state.recentActions,
-                        today          = LocalDate.now()
+                        transplantDays   = crop.transplantDays,
+                        careTasks        = crop.careTasks,
+                        harvestDays      = crop.harvestDays,
+                        wateringFreqDays = crop.wateringFreqDays,
+                        conditions       = planting.conditions,
+                        planted          = planted,
+                        actions          = state.recentActions,
+                        today            = LocalDate.now()
                     )
                     if (schedule.isNotEmpty()) {
                         InfoSection(title = "Расписание работ") {
