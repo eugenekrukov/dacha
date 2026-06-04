@@ -1,6 +1,42 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-06-03  
+**Дата последней сессии**: 2026-06-04  
+
+---
+
+## ЗАКРЫТИЕ СЕССИИ 2026-06-04
+
+**Состояние репозитория**: одна ветка `main` (== `origin/main`, HEAD `ddbf40e`). Рабочее дерево
+чистое. VPS выровнен на `origin/main` (вчерашний merge-коммит убран через `reset --hard`).
+
+**Тема сессии**: просрочка ухода на экране «Посадки» + связанные доработки. **Бэкенд задеплоен**
+на dacha-api (новый деплой-регламент `git fetch + reset --hard origin/main`, pm2 restart, проверено
+живым `GET /plantings`). Сьют **147/147**. CLI-сборка `compileDebugKotlin` — зелёная.
+
+**Что сделано** (детали — в `summary.md`, блок 2026-06-04):
+- `GET /plantings` отдаёт `overdue_care_task {name, days_overdue, product}` по каждой посадке
+  (`getOverdueCareTask`) → care-просрочки видны на карточках, не зависят от кэша «Сегодня».
+- Снятие pending только при закрывающем типе; маппинг care-имён по ключевому слову + тип `treatment`
+  (+ в SQL-фильтрах); препарат обработки (`CARE_TASK_PRODUCT`); реактивная заметка (`auto=false`).
+- Бейдж «Посадки» из серверных данных (`saveAttentionCount`); «Сегодня» по ON_RESUME; раскраска
+  расписания в «Информации о посадке»; UI-полиш (отступ снизу, эмодзи в меню).
+- **Git-модель**: VPS — read-only зеркало `origin/main`, деплой `fetch + reset --hard` (НЕ `pull`).
+
+**ЕДИНСТВЕННЫЙ незакрытый шаг**: пересборка APK с `main` (`ddbf40e`) + проверка на устройстве
+(просрочка/препарат на карточках, заметка, бейдж, раскраска расписания, отступ снизу).
+
+### Как продолжить в следующей сессии
+1. `cd "C:\Projects\Dacha\Календарь дачника"` → стартовать Claude.
+2. Прочитать (по CLAUDE.md): `summary.md`, этот `session-note.md` (сверху), `android/CONVENTIONS.md`
+   (§12 деплой, §16–19 — паттерны care/заметок/бейджа), при коде — `TESTING.md`.
+3. Новую задачу от `main`: `git checkout -b feature/<name>` → commit →
+   `git checkout main && git merge --ff-only feature/<name>` → push.
+4. **Деплой backend** (новый регламент): `ssh hetzner` → `cd /var/www/dacha-api &&
+   git fetch origin && git reset --hard origin/main` → `cd backend && npm install` (если менялся
+   package.json) → миграции `sudo -u postgres psql -d dacha_db -f .../0XX.sql` → `pm2 restart dacha-api`.
+   Деплоим ТОЛЬКО dacha-api. **Не `git pull`** (создаёт merge-коммит).
+5. Тесты backend: `npx vitest run`. Сборка Android: `$env:JAVA_HOME=...jbr;
+   $env:ANDROID_HOME=...Sdk; .\gradlew.bat :app:compileDebugKotlin` (PowerShell).
 
 ---
 
