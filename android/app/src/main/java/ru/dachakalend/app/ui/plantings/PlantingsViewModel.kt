@@ -34,7 +34,17 @@ data class PlantingsUiState(
     val snoozedTaskKeys: Set<String> = emptySet()
 ) {
     val filteredPlantings: List<Planting>
-        get() = if (stageFilter == null) plantings else plantings.filter { it.stage == stageFilter }
+        get() = when (stageFilter) {
+            // «Все» — активные посадки без архива (завершённые сезоны скрыты)
+            null   -> plantings.filter { it.stage != "done" }
+            // Архив — только завершённые сезоны
+            "done" -> plantings.filter { it.stage == "done" }
+            else   -> plantings.filter { it.stage == stageFilter }
+        }
+
+    /** Есть ли завершённые посадки — для показа чипа-архива «Завершённые». */
+    val hasArchived: Boolean
+        get() = plantings.any { it.stage == "done" }
 }
 
 /**

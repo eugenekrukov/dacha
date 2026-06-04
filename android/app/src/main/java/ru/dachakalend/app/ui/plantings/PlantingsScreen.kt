@@ -219,6 +219,30 @@ fun PlantingsScreen(
                                 }
                             )
                         }
+                        // Архив завершённых сезонов — отдельный чип, только если есть что показывать
+                        if (state.hasArchived) {
+                            item {
+                                FilterChip(
+                                    selected = state.stageFilter == "done",
+                                    onClick = {
+                                        viewModel.setStageFilter(if (state.stageFilter == "done") null else "done")
+                                    },
+                                    shape = RoundedCornerShape(100.dp),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                        selectedLabelColor = Color.White
+                                    ),
+                                    label = {
+                                        Text(
+                                            "Завершённые",
+                                            fontFamily = NunitoFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            softWrap = false
+                                        )
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
                 items(state.filteredPlantings, key = { it.id }) { planting ->
