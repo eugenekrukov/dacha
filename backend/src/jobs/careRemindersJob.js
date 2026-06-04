@@ -150,11 +150,12 @@ async function wasAlertSentToday(db, plantingId, alertType) {
 }
 
 async function markAlertSent(db, plantingId, alertType) {
+  // Дедуп на день обеспечивает wasAlertSentToday() (проверка перед вставкой); cron — раз в сутки,
+  // гонок нет. ON CONFLICT по выражению sent_at::date не используем: у таблицы нет matching
+  // unique-индекса, а bare-выражение в таргете давало syntax error и роняло весь care-job.
   await db.query(
     `INSERT INTO care_alert_log (planting_id, alert_type, sent_at)
-     VALUES ($1, $2, NOW())
-     ON CONFLICT (planting_id, alert_type, sent_at::date)
-     DO NOTHING`,
+     VALUES ($1, $2, NOW())`,
     [plantingId, alertType]
   )
 }
