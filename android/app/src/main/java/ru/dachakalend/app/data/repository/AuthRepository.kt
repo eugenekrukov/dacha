@@ -4,6 +4,7 @@ import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.LoginRequest
 import ru.dachakalend.app.data.model.RegisterRequest
+import ru.dachakalend.app.data.model.PromoRedeemResponse
 import ru.dachakalend.app.data.model.UserProfile
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,6 +48,22 @@ class AuthRepository @Inject constructor(
     /** Синхронизирует статус подписки на сервер (best-effort, не валит вызывающего). */
     suspend fun syncSubscription(active: Boolean) {
         try { api.syncSubscription(mapOf("active" to active)) } catch (_: Exception) {}
+    }
+
+    /** Погашает промокод. Сервер выдаёт промо-доступ и возвращает его статус. */
+    suspend fun redeemPromo(code: String): Result<PromoRedeemResponse> {
+        return try {
+            Result.Success(api.redeemPromo(mapOf("code" to code)))
+        } catch (e: Exception) {
+            Result.Error(parsePromoError(e))
+        }
+    }
+
+    private fun parsePromoError(e: Exception): String = when {
+        e.message?.contains("404") == true -> "Промокод не найден"
+        e.message?.contains("409") == true -> "Промокод уже использован"
+        e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
+        else -> "Не удалось активировать промокод"
     }
 
     fun logout() = tokenStorage.clearToken()

@@ -1,7 +1,7 @@
 'use strict'
 
 const bcrypt = require('bcrypt')
-const { trialInfo, isSubscribed, SUBSCRIPTION_WINDOW_DAYS } = require('../utils/access')
+const { trialInfo, isSubscribed, hasPromo, isLifetimePromo, SUBSCRIPTION_WINDOW_DAYS } = require('../utils/access')
 
 module.exports = async function (fastify) {
   // POST /auth/register
@@ -71,12 +71,18 @@ module.exports = async function (fastify) {
   // GET /auth/me
   fastify.get('/me', { onRequest: [fastify.authenticate] }, async (request) => {
     const result = await fastify.db.query(
-      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at, subscription_until FROM users WHERE id = $1',
+      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at, subscription_until, promo_until FROM users WHERE id = $1',
       [request.user.userId]
     )
     const user = result.rows[0]
     if (!user) return user
-    return { ...user, ...trialInfo(user.trial_started_at), subscribed: isSubscribed(user.subscription_until) }
+    return {
+      ...user,
+      ...trialInfo(user.trial_started_at),
+      subscribed: isSubscribed(user.subscription_until),
+      promo_active: hasPromo(user.promo_until),
+      promo_lifetime: isLifetimePromo(user.promo_until)
+    }
   })
 
   // POST /auth/subscription — клиент синхронизирует статус подписки из RuStore.

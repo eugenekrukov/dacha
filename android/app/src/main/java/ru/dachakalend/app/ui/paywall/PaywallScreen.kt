@@ -2,6 +2,7 @@ package ru.dachakalend.app.ui.paywall
 
 import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,10 +41,11 @@ fun PaywallScreen(
     val uiState by viewModel.uiState.collectAsState()
     val activity = LocalContext.current as Activity
     var selectedPlan by remember { mutableStateOf("yearly") }
+    var promoCode by remember { mutableStateOf("") }
 
-    // После успешной покупки или если доступ уже есть — переходим
-    LaunchedEffect(uiState.status) {
-        if (uiState.status.isSubscribed) onAccessGranted()
+    // После успешной покупки, активации промокода или если доступ уже есть — переходим
+    LaunchedEffect(uiState.status, uiState.redeemSuccess) {
+        if (uiState.status.isSubscribed || uiState.status.isPromo || uiState.redeemSuccess) onAccessGranted()
     }
 
     uiState.error?.let { error ->
@@ -227,6 +229,92 @@ fun PaywallScreen(
                     fontSize = 13.sp,
                     color = Color(0xFF888888)
                 )
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // ─── Промокод ───────────────────────────────────────────────
+            HorizontalDivider(color = Color(0xFFEADFCB))
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = "Есть промокод?",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 15.sp,
+                color = Color(0xFF1A1A1A)
+            )
+            Spacer(Modifier.height(10.dp))
+
+            OutlinedTextField(
+                value = promoCode,
+                onValueChange = {
+                    promoCode = it.uppercase()
+                    if (uiState.redeemError != null) viewModel.dismissRedeemError()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !uiState.isRedeeming,
+                placeholder = {
+                    Text(
+                        "DACHA-XXXX-XXXX",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFBBBBBB)
+                    )
+                },
+                textStyle = LocalTextStyle.current.copy(
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Bold
+                ),
+                isError = uiState.redeemError != null,
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Orange,
+                    cursorColor = Orange
+                )
+            )
+
+            AnimatedVisibility(visible = uiState.redeemError != null) {
+                Text(
+                    text = uiState.redeemError ?: "",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp)
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = { viewModel.redeemPromo(promoCode) },
+                enabled = promoCode.isNotBlank() && !uiState.isRedeeming,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(2.dp, Orange)
+            ) {
+                if (uiState.isRedeeming) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Orange,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Активировать промокод",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 15.sp,
+                        color = Orange,
+                        softWrap = false
+                    )
+                }
             }
 
             // Ошибка

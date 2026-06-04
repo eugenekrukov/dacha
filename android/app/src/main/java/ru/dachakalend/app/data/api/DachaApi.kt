@@ -21,6 +21,10 @@ interface DachaApi {
     @POST("auth/subscription")
     suspend fun syncSubscription(@Body body: Map<String, Boolean>)
 
+    // Погашение промокода — бесплатный доступ (lifetime / month)
+    @POST("promo/redeem")
+    suspend fun redeemPromo(@Body body: Map<String, String>): PromoRedeemResponse
+
     // Geocode
     @GET("geocode/suggest")
     suspend fun suggestCity(@Query("q") query: String): List<GeocodeSuggestion>

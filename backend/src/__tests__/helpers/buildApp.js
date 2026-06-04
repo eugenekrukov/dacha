@@ -43,6 +43,7 @@ async function buildApp(mockDb) {
 
   // Регистрируем роуты
   fastify.register(require('../../routes/auth'),      { prefix: '/auth' })
+  fastify.register(require('../../routes/promo'),     { prefix: '/promo' })
   fastify.register(require('../../routes/gardens'),   { prefix: '/gardens' })
   fastify.register(require('../../routes/today'),     { prefix: '/today' })
   fastify.register(require('../../routes/actions'),   { prefix: '/actions' })

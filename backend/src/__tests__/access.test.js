@@ -2,7 +2,7 @@
 
 const supertest = require('supertest')
 const Fastify = require('fastify')
-const { hasAccess, isSubscribed, trialInfo } = require('../utils/access')
+const { hasAccess, isSubscribed, trialInfo, hasPromo, isLifetimePromo, LIFETIME_UNTIL } = require('../utils/access')
 
 const daysAgo = (n) => new Date(Date.now() - n * 86_400_000)
 const daysAhead = (n) => new Date(Date.now() + n * 86_400_000)
@@ -33,6 +33,26 @@ describe('access.hasAccess (логика гейта)', () => {
   it('trialInfo: свежий=7/active, старый=0/inactive', () => {
     expect(trialInfo(new Date())).toMatchObject({ trial_active: true, trial_days_left: 7 })
     expect(trialInfo(daysAgo(8))).toMatchObject({ trial_active: false, trial_days_left: 0 })
+  })
+
+  it('промо активно (будущая дата) → доступ есть даже без триала и подписки', () => {
+    expect(hasAccess({ trial_started_at: daysAgo(10), subscription_until: null, promo_until: daysAhead(5) })).toBe(true)
+  })
+
+  it('промо истекло → доступа нет', () => {
+    expect(hasAccess({ trial_started_at: daysAgo(10), subscription_until: null, promo_until: daysAgo(1) })).toBe(false)
+  })
+
+  it('hasPromo: будущая=true, прошлая/нет=false', () => {
+    expect(hasPromo(daysAhead(1))).toBe(true)
+    expect(hasPromo(daysAgo(1))).toBe(false)
+    expect(hasPromo(null)).toBe(false)
+  })
+
+  it('isLifetimePromo: LIFETIME_UNTIL=true, обычная будущая=false', () => {
+    expect(isLifetimePromo(LIFETIME_UNTIL)).toBe(true)
+    expect(isLifetimePromo(daysAhead(30))).toBe(false)
+    expect(isLifetimePromo(null)).toBe(false)
   })
 })
 

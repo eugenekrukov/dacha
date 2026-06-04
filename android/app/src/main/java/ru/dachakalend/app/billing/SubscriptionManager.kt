@@ -26,10 +26,12 @@ data class SubscriptionStatus(
     val isSubscribed: Boolean = false,
     val isTrialActive: Boolean = false,
     val trialDaysLeft: Int = 0,
+    val isPromo: Boolean = false,          // активен промо-доступ (по коду)
+    val isPromoLifetime: Boolean = false,  // промо «навсегда»
     val isLoading: Boolean = false,
     val activeProductId: String? = null
 ) {
-    val isAccessAllowed: Boolean get() = isSubscribed || isTrialActive
+    val isAccessAllowed: Boolean get() = isSubscribed || isTrialActive || isPromo
 }
 
 @Singleton
@@ -58,19 +60,44 @@ class SubscriptionManager @Inject constructor(
         // Синхронизируем статус подписки на сервер (для серверного гейта платных действий).
         authRepository.syncSubscription(activeProductId != null)
 
-        // Сервер — источник правды по триалу; при сетевой ошибке — офлайн-фолбэк на TokenStorage.
-        val (trialActive, trialDaysLeft) = when (val me = authRepository.me()) {
+        // Сервер — источник правды по триалу и промо; при сетевой ошибке — офлайн-фолбэк на TokenStorage.
+        val me = authRepository.me()
+        val (trialActive, trialDaysLeft) = when (me) {
             is Result.Success -> me.data.trialActive to me.data.trialDaysLeft
             else              -> tokenStorage.isTrialActive() to tokenStorage.trialDaysLeft()
         }
+        val isPromo = (me as? Result.Success)?.data?.promoActive ?: _status.value.isPromo
+        val isPromoLifetime = (me as? Result.Success)?.data?.promoLifetime ?: _status.value.isPromoLifetime
 
         _status.value = SubscriptionStatus(
             isSubscribed    = activeProductId != null,
             isTrialActive   = trialActive,
             trialDaysLeft   = trialDaysLeft,
+            isPromo         = isPromo,
+            isPromoLifetime = isPromoLifetime,
             isLoading       = false,
             activeProductId = activeProductId
         )
+    }
+
+    /**
+     * Погашает промокод. При успехе сразу обновляет статус доступа из /auth/me.
+     * Возвращает Result, чтобы экран показал ошибку («не найден» / «уже использован»).
+     */
+    suspend fun redeemPromo(code: String): Result<Unit> {
+        return when (val res = authRepository.redeemPromo(code.trim())) {
+            is Result.Success -> {
+                // Оптимистично отражаем доступ и перечитываем серверный статус
+                _status.value = _status.value.copy(
+                    isPromo = res.data.promoActive,
+                    isPromoLifetime = res.data.promoLifetime
+                )
+                refresh()
+                Result.Success(Unit)
+            }
+            is Result.Error -> Result.Error(res.message)
+            is Result.Loading -> Result.Loading
+        }
     }
 
     fun isAccessAllowed(): Boolean = _status.value.isAccessAllowed

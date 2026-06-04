@@ -10,12 +10,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.billing.SubscriptionManager
 import ru.dachakalend.app.billing.SubscriptionStatus
+import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 
 data class PaywallUiState(
     val status: SubscriptionStatus = SubscriptionStatus(),
     val isPurchasing: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isRedeeming: Boolean = false,
+    val redeemError: String? = null,
+    val redeemSuccess: Boolean = false
 )
 
 @HiltViewModel
@@ -73,5 +77,23 @@ class PaywallViewModel @Inject constructor(
 
     fun dismissError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    /** Погашение промокода. При успехе redeemSuccess=true → экран закрывается (доступ выдан). */
+    fun redeemPromo(code: String) {
+        val trimmed = code.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRedeeming = true, redeemError = null)
+            when (val res = subscriptionManager.redeemPromo(trimmed)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isRedeeming = false, redeemSuccess = true)
+                is Result.Error   -> _uiState.value = _uiState.value.copy(isRedeeming = false, redeemError = res.message)
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun dismissRedeemError() {
+        _uiState.value = _uiState.value.copy(redeemError = null)
     }
 }

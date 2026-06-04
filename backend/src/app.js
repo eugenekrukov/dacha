@@ -77,7 +77,7 @@ app.decorate('requireAccess', async function (request, reply) {
     return reply.send(err)
   }
   const res = await app.db.query(
-    'SELECT trial_started_at, subscription_until FROM users WHERE id = $1',
+    'SELECT trial_started_at, subscription_until, promo_until FROM users WHERE id = $1',
     [request.user.userId]
   )
   if (!hasAccess(res.rows[0])) {
@@ -86,6 +86,7 @@ app.decorate('requireAccess', async function (request, reply) {
 })
 // Routes
 app.register(require('./routes/auth'), { prefix: '/auth' })
+app.register(require('./routes/promo'), { prefix: '/promo' })
 app.register(require('./routes/gardens'), { prefix: '/gardens' })
 app.register(require('./routes/crops'), { prefix: '/crops' })
 app.register(require('./routes/plantings'), { prefix: '/plantings' })

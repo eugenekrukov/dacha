@@ -24,7 +24,17 @@ data class UserProfile(
     val email: String,
     // Серверный триал (источник правды). login отдаёт без них → дефолты.
     @Json(name = "trial_active") val trialActive: Boolean = false,
-    @Json(name = "trial_days_left") val trialDaysLeft: Int = 0
+    @Json(name = "trial_days_left") val trialDaysLeft: Int = 0,
+    // Промо-доступ (только /auth/me). promoActive — активен сейчас, promoLifetime — навсегда.
+    @Json(name = "promo_active") val promoActive: Boolean = false,
+    @Json(name = "promo_lifetime") val promoLifetime: Boolean = false
+)
+
+@JsonClass(generateAdapter = true)
+data class PromoRedeemResponse(
+    val type: String,                                   // "lifetime" | "month"
+    @Json(name = "promo_active") val promoActive: Boolean,
+    @Json(name = "promo_lifetime") val promoLifetime: Boolean
 )
 
 // --- Today Screen ---
