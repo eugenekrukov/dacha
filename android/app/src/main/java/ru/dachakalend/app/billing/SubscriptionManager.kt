@@ -10,6 +10,7 @@ import ru.rustore.sdk.billingclient.model.purchase.PaymentResult
 import ru.rustore.sdk.billingclient.model.purchase.Purchase
 import ru.rustore.sdk.billingclient.model.purchase.PurchaseState
 import ru.dachakalend.app.data.local.TokenStorage
+import ru.dachakalend.app.data.model.PromoRedeemResponse
 import ru.dachakalend.app.data.repository.AuthRepository
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
@@ -82,9 +83,10 @@ class SubscriptionManager @Inject constructor(
 
     /**
      * Погашает промокод. При успехе сразу обновляет статус доступа из /auth/me.
-     * Возвращает Result, чтобы экран показал ошибку («не найден» / «уже использован»).
+     * Возвращает данные кода (тип/lifetime) — экран показывает подтверждение,
+     * либо ошибку («не найден» / «уже использован»).
      */
-    suspend fun redeemPromo(code: String): Result<Unit> {
+    suspend fun redeemPromo(code: String): Result<PromoRedeemResponse> {
         return when (val res = authRepository.redeemPromo(code.trim())) {
             is Result.Success -> {
                 // Оптимистично отражаем доступ и перечитываем серверный статус
@@ -93,7 +95,7 @@ class SubscriptionManager @Inject constructor(
                     isPromoLifetime = res.data.promoLifetime
                 )
                 refresh()
-                Result.Success(Unit)
+                Result.Success(res.data)
             }
             is Result.Error -> Result.Error(res.message)
             is Result.Loading -> Result.Loading

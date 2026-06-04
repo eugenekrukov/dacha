@@ -122,7 +122,7 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                 colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = if (subStatus.isSubscribed) androidx.compose.ui.graphics.Color(0xFFE8F5E9)
+                    containerColor = if (subStatus.isSubscribed || subStatus.isPromo) androidx.compose.ui.graphics.Color(0xFFE8F5E9)
                                      else if (subStatus.isTrialActive) androidx.compose.ui.graphics.Color(0xFFFFF3E0)
                                      else MaterialTheme.colorScheme.errorContainer
                 ),
@@ -139,6 +139,7 @@ fun SettingsScreen(
                         Text(
                             text = when {
                                 subStatus.isSubscribed  -> "Дачник Про ✓"
+                                subStatus.isPromo       -> "Дачник Про ✓"
                                 subStatus.isTrialActive -> "Пробный период"
                                 else                    -> "Подписка истекла"
                             },
@@ -148,9 +149,11 @@ fun SettingsScreen(
                         )
                         Text(
                             text = when {
-                                subStatus.isSubscribed  -> "Подписка активна"
-                                subStatus.isTrialActive -> "Осталось ${subStatus.trialDaysLeft} дн."
-                                else                    -> "Оформите подписку"
+                                subStatus.isSubscribed     -> "Подписка активна"
+                                subStatus.isPromoLifetime  -> "Доступ навсегда (промокод)"
+                                subStatus.isPromo          -> "Доступ по промокоду"
+                                subStatus.isTrialActive    -> "Осталось ${subStatus.trialDaysLeft} дн."
+                                else                       -> "Оформите подписку"
                             },
                             fontFamily = NunitoFamily,
                             fontWeight = FontWeight.SemiBold,
@@ -158,7 +161,8 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    if (!subStatus.isSubscribed) {
+                    // Кнопку «Купить» прячем при любом активном доступе (подписка или промокод)
+                    if (!subStatus.isSubscribed && !subStatus.isPromo) {
                         TextButton(onClick = { onOpenPaywall?.invoke() }) {
                             Icon(
                                 Icons.Default.Star,

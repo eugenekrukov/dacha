@@ -1,6 +1,7 @@
 package ru.dachakalend.app.ui.paywall
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -39,13 +40,18 @@ fun PaywallScreen(
     viewModel: PaywallViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val activity = LocalContext.current as Activity
+    val context = LocalContext.current
+    val activity = context as Activity
     var selectedPlan by remember { mutableStateOf("yearly") }
     var promoCode by remember { mutableStateOf("") }
 
-    // После успешной покупки, активации промокода или если доступ уже есть — переходим
-    LaunchedEffect(uiState.status, uiState.redeemSuccess) {
-        if (uiState.status.isSubscribed || uiState.status.isPromo || uiState.redeemSuccess) onAccessGranted()
+    // Навигация — ТОЛЬКО по явному событию выдачи доступа (покупка/восстановление/промокод).
+    // Не по ambient-статусу: иначе экран, открытый из настроек при активном доступе, сразу закрывался бы.
+    LaunchedEffect(uiState.accessGranted) {
+        if (uiState.accessGranted) {
+            uiState.redeemMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+            onAccessGranted()
+        }
     }
 
     uiState.error?.let { error ->
@@ -65,6 +71,7 @@ fun PaywallScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .imePadding()               // поле промокода не перекрывается клавиатурой
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

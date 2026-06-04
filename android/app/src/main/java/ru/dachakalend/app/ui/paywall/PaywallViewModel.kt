@@ -19,7 +19,12 @@ data class PaywallUiState(
     val error: String? = null,
     val isRedeeming: Boolean = false,
     val redeemError: String? = null,
-    val redeemSuccess: Boolean = false
+    // Явное событие «доступ только что выдан» (покупка/восстановление/промокод) → навигация на главную.
+    // НЕ выводим из ambient-статуса, иначе экран, открытый из настроек при активном доступе,
+    // моментально закрывался бы.
+    val accessGranted: Boolean = false,
+    // Текст тоста-подтверждения после успешного промокода (null для покупки/восстановления).
+    val redeemMessage: String? = null
 )
 
 @HiltViewModel
@@ -39,26 +44,19 @@ class PaywallViewModel @Inject constructor(
         viewModelScope.launch { subscriptionManager.refresh() }
     }
 
-    fun purchaseMonthly(activity: Activity) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isPurchasing = true, error = null)
-            try {
-                subscriptionManager.purchaseMonthly(activity)
-                subscriptionManager.refresh()
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Ошибка при оформлении подписки")
-            } finally {
-                _uiState.value = _uiState.value.copy(isPurchasing = false)
-            }
-        }
-    }
+    fun purchaseMonthly(activity: Activity) = runPurchase { subscriptionManager.purchaseMonthly(activity) }
+    fun purchaseYearly(activity: Activity)  = runPurchase { subscriptionManager.purchaseYearly(activity) }
 
-    fun purchaseYearly(activity: Activity) {
+    private fun runPurchase(buy: suspend () -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isPurchasing = true, error = null)
             try {
-                subscriptionManager.purchaseYearly(activity)
+                buy()
                 subscriptionManager.refresh()
+                // Навигируем только если покупка реально дала доступ
+                if (subscriptionManager.isAccessAllowed()) {
+                    _uiState.value = _uiState.value.copy(accessGranted = true)
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = "Ошибка при оформлении подписки")
             } finally {
@@ -71,7 +69,12 @@ class PaywallViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isPurchasing = true, error = null)
             subscriptionManager.refresh()
-            _uiState.value = _uiState.value.copy(isPurchasing = false)
+            val restored = subscriptionManager.isAccessAllowed()
+            _uiState.value = _uiState.value.copy(
+                isPurchasing = false,
+                accessGranted = restored,
+                error = if (restored) null else "Активная подписка не найдена"
+            )
         }
     }
 
@@ -79,14 +82,22 @@ class PaywallViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(error = null)
     }
 
-    /** Погашение промокода. При успехе redeemSuccess=true → экран закрывается (доступ выдан). */
+    /** Погашение промокода. При успехе показываем подтверждение и выдаём доступ (accessGranted). */
     fun redeemPromo(code: String) {
         val trimmed = code.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRedeeming = true, redeemError = null)
             when (val res = subscriptionManager.redeemPromo(trimmed)) {
-                is Result.Success -> _uiState.value = _uiState.value.copy(isRedeeming = false, redeemSuccess = true)
+                is Result.Success -> {
+                    val msg = if (res.data.promoLifetime) "Промокод активирован — доступ навсегда"
+                              else "Промокод активирован — доступ на 30 дней"
+                    _uiState.value = _uiState.value.copy(
+                        isRedeeming = false,
+                        accessGranted = true,
+                        redeemMessage = msg
+                    )
+                }
                 is Result.Error   -> _uiState.value = _uiState.value.copy(isRedeeming = false, redeemError = res.message)
                 is Result.Loading -> Unit
             }
