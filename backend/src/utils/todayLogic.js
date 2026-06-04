@@ -32,6 +32,16 @@ function careTaskActionType(name) {
   return null
 }
 
+// Интервал полива с учётом условий. Теплица → поливать ЧАЩЕ: без дождя и ветрового испарения
+// снаружи грунт под укрытием прогревается и пересыхает быстрее, поэтому интервал КОРОЧЕ (×0.8).
+// Единая функция-источник правды для today.js, careRemindersJob.js и Android (CalendarViewModel).
+const GREENHOUSE_WATERING_FACTOR = 0.8
+function wateringIntervalDays(freqDays, conditions) {
+  const base = freqDays || 3
+  const factor = conditions === 'greenhouse' ? GREENHOUSE_WATERING_FACTOR : 1
+  return Math.max(1, Math.round(base * factor))
+}
+
 const TASK_PRIORITY = {
   frost_alert:      1,
   transplant_due:   2,
@@ -132,8 +142,8 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
     const plantedAt = new Date(p.planted_at)
     const daysSincePlanting = Math.floor((today - plantedAt) / 86400000)
 
-    // 🚨 Угроза заморозков
-    if (p.frost_sensitive && weather && weather.frost_risk === true) {
+    // 🚨 Угроза заморозков (теплица защищает — для greenhouse алерт не показываем)
+    if (p.frost_sensitive && p.conditions !== 'greenhouse' && weather && weather.frost_risk === true) {
       tasks.push({
         type: 'frost_alert',
         priority: TASK_PRIORITY.frost_alert,
@@ -208,9 +218,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
     if (p.watering_freq_days && !rainExpected) {
       const lastWatered = lastWateredMap[p.id] || plantedAt
       const daysSinceWatering = Math.floor((today - lastWatered) / 86400000)
-      const freq = p.conditions === 'greenhouse'
-        ? Math.ceil(p.watering_freq_days * 1.3)
-        : p.watering_freq_days
+      const freq = wateringIntervalDays(p.watering_freq_days, p.conditions)
       if (daysSinceWatering >= freq) {
         tasks.push({
           type: 'watering_due',
@@ -351,4 +359,4 @@ function formatTasks(tasks) {
   })
 }
 
-module.exports = { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, CARE_ACTION_TYPES }
+module.exports = { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, wateringIntervalDays, CARE_ACTION_TYPES }

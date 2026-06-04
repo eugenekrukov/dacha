@@ -629,3 +629,16 @@ ModalBottomSheet(
   Покупка оформляется сразу (RuStore), доступ = промо ИЛИ подписка.
 - **Формат даты**: `formatPromoDate(iso)` в `SettingsScreen.kt` (ISO `OffsetDateTime` → `DD.MM.YYYY`),
   импортируется и в Paywall.
+
+## 21. Параметры посадки: тип (грунт/теплица) и количество (сессия 2026-06-04)
+
+- **Полив — единый источник правды** `wateringIntervalDays(freqDays, conditions)` в
+  `backend/utils/todayLogic.js`. Теплица → интервал КОРОЧЕ (×0.8 = поливать чаще), мин. 1 день,
+  `Math.round`. Используется в `today.js`, `careRemindersJob.js`. **Android-зеркало** —
+  `CalendarViewModel.kt` (та же формула ×0.8). Меняешь коэффициент — правь оба места.
+- **Теплица защищает от заморозков**: per-посадочный `frost_alert` в `buildTasks` пропускается для
+  `conditions==='greenhouse'`. Пуш заморозков на участок (`weatherJob`/`pushService`) — общий, остаётся.
+- **`conditions`** задаётся чипами в `PlantingSetupBottomSheet`/`PlantingEditBottomSheet` (`soil`/`greenhouse`).
+- **`quantity` → ожидаемый урожай**: `crops.yield_per_plant_kg` (миграция 019). `Planting.yieldPerPlantKg`
+  приходит из `GET /plantings`. На «Информации о посадке» — «Ожидаемый урожай ~X кг» = `quantity × yield`.
+  Для культур без данных (цветы) поле NULL → строка не показывается.

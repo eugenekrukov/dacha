@@ -174,6 +174,7 @@ data class Planting(
     val quantity: Int? = 1,
     val conditions: String? = "soil",
     @Json(name = "watering_freq_days") val wateringFreqDays: Int? = null,
+    @Json(name = "yield_per_plant_kg") val yieldPerPlantKg: Double? = null,
     @Json(name = "next_care_task") val nextCareTask: NextCareTask? = null,
     @Json(name = "overdue_care_task") val overdueCareTask: OverdueCareTask? = null
 )

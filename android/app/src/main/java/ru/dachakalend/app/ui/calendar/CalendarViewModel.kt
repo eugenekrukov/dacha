@@ -143,10 +143,11 @@ class CalendarViewModel @Inject constructor(
             val sown = planting.sownAt?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
                 ?: return@forEach
 
-            // Полив — по wateringFreqDays
-            val freqDays = planting.wateringFreqDays?.let {
-                if (planting.conditions == "greenhouse") (it * 1.3).toInt() else it
-            } ?: 3
+            // Полив — по wateringFreqDays. Теплица → поливать ЧАЩЕ (×0.8 к интервалу),
+            // единый расчёт с бэкендом (utils/todayLogic.wateringIntervalDays).
+            val freqDays = (planting.wateringFreqDays ?: 3).let { base ->
+                if (planting.conditions == "greenhouse") Math.max(1, Math.round(base * 0.8).toInt()) else base
+            }
 
             val wateringBase = planting.lastActionAt
                 ?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }

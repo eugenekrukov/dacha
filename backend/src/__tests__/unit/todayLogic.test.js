@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks, getOverdueCareTask, careTaskActionType } = require('../../utils/todayLogic')
+const { buildTasks, getOverdueCareTask, careTaskActionType, wateringIntervalDays } = require('../../utils/todayLogic')
 
 // ─── Фабрики тестовых данных ─────────────────────────────────────────────────
 
@@ -84,6 +84,45 @@ describe('frost_alert', () => {
     const tasks = buildTasks(plantings, makeWeather({ frost_risk: true }), {}, {}, [], TODAY)
     const alerts = tasks.filter(t => t.type === 'frost_alert')
     expect(alerts).toHaveLength(2)
+  })
+
+  it('НЕ генерируется для теплицы (conditions=greenhouse защищает)', () => {
+    const tasks = buildTasks(
+      [makePlanting({ frost_sensitive: true, conditions: 'greenhouse' })],
+      makeWeather({ frost_risk: true }),
+      {}, {}, [], TODAY
+    )
+    expect(tasks.some(t => t.type === 'frost_alert')).toBe(false)
+  })
+})
+
+// ─── Интервал полива (теплица × 0.8) ───────────────────────────────────────────
+
+describe('wateringIntervalDays', () => {
+  it('грунт → интервал без изменений', () => {
+    expect(wateringIntervalDays(3, 'soil')).toBe(3)
+    expect(wateringIntervalDays(5, 'soil')).toBe(5)
+  })
+
+  it('теплица → интервал короче (×0.8, округление)', () => {
+    expect(wateringIntervalDays(5, 'greenhouse')).toBe(4)   // 4.0
+    expect(wateringIntervalDays(3, 'greenhouse')).toBe(2)   // 2.4 → 2
+  })
+
+  it('минимум 1 день и фолбэк 3 при отсутствии частоты', () => {
+    expect(wateringIntervalDays(1, 'greenhouse')).toBe(1)   // 0.8 → max(1)
+    expect(wateringIntervalDays(null, 'soil')).toBe(3)
+  })
+
+  it('теплица поливается раньше грунта (короче интервал)', () => {
+    // 4 дня без воды: грунт (интервал 5) ещё НЕ поливаем, теплица (интервал 4) — уже пора
+    const lastWatered = { 1: new Date(daysAgo(4, TODAY)) }
+    const soil = buildTasks([makePlanting({ id: 1, watering_freq_days: 5, conditions: 'soil', frost_sensitive: false })],
+      makeWeather(), lastWatered, {}, [], TODAY)
+    const gh   = buildTasks([makePlanting({ id: 1, watering_freq_days: 5, conditions: 'greenhouse', frost_sensitive: false })],
+      makeWeather(), lastWatered, {}, [], TODAY)
+    expect(soil.some(t => t.type === 'watering_due')).toBe(false)
+    expect(gh.some(t => t.type === 'watering_due')).toBe(true)
   })
 })
 

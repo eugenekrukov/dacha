@@ -2,6 +2,7 @@
 
 const cron = require('node-cron')
 const pushService = require('../services/pushService')
+const { wateringIntervalDays } = require('../utils/todayLogic')
 
 function startCareRemindersJob(db) {
   cron.schedule('0 9 * * *', () => {
@@ -54,11 +55,8 @@ async function runCareReminders(db, push = pushService) {
         (Date.now() - new Date(planting.planted_at)) / 86400000
       )
 
-      // --- Полив ---
-      const wateringFreqRaw = planting.watering_freq_days || 3
-      const wateringFreq = planting.conditions === 'greenhouse'
-        ? Math.round(wateringFreqRaw * 1.3)
-        : wateringFreqRaw
+      // --- Полив --- (единый расчёт интервала с учётом теплицы — utils/todayLogic)
+      const wateringFreq = wateringIntervalDays(planting.watering_freq_days, planting.conditions)
 
       const lastWateredRow = await db.query(
         `SELECT logged_at FROM action_logs

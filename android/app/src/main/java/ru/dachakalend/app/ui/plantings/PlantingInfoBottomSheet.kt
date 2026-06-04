@@ -186,6 +186,12 @@ fun PlantingInfoBottomSheet(
                     InfoRow2("Дата посадки", planting.sownAt?.let { formatShort(it) } ?: "—")
                     InfoRow2("Условия", if (planting.conditions == "greenhouse") "🏠 Теплица" else "🌱 Грунт")
                     InfoRow2("Количество растений", "${planting.quantity ?: 1} шт.")
+                    // Ожидаемый урожай = количество × урожайность с куста (если известна для культуры)
+                    planting.yieldPerPlantKg?.let { perPlant ->
+                        val expected = perPlant * (planting.quantity ?: 1)
+                        val s = "%.1f".format(expected).removeSuffix(",0").removeSuffix(".0")
+                        InfoRow2("Ожидаемый урожай", "~$s кг")
+                    }
                 }
 
                 // ── 2. Расчётные даты процессов ───────────────────────────
