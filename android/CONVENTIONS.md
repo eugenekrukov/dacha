@@ -594,3 +594,25 @@ ModalBottomSheet(
 - **Раскраска расписания** в `PlantingInfoBottomSheet` (`buildSchedule`): 🟢 выполнено (приглушённо,
   зачёркнуто) · 🔴 просрочено · ⚪ предстоит. «Выполнено» = действие нужного типа в окне
   `[дата_работы, дата_след_повтора)`. Урожай — нейтрально (логируется отдельно).
+
+## 20. Промокоды — бесплатный доступ по коду (сессия 2026-06-04)
+
+- **Два типа**: `lifetime` (навсегда) и `month` (30 дней, продлевается при повторном погашении).
+  Коды одноразовые, генерируются вручную: `node scripts/gen-promo.js <lifetime|month> [count]`.
+- **Серверный источник истины — отдельная колонка `users.promo_until`** (НЕ `subscription_until`):
+  синхронизация подписки RuStore (`POST /auth/subscription active=false`) обнуляет `subscription_until`,
+  и если бы промо лежало там — затёрлось бы. `hasAccess` = триал ИЛИ подписка ИЛИ `hasPromo(promo_until)`.
+  lifetime = `promo_until` в далёком будущем (`LIFETIME_UNTIL` 2999), порог lifetime — `2900`.
+- **Погашение** `POST /promo/redeem {code}`: атомарный claim
+  `UPDATE promo_codes SET redeemed_by=$user WHERE code=$1 AND redeemed_by IS NULL RETURNING type`
+  (без транзакции — claim-first исключает гонку). 404 `invalid_code`, 409 `code_already_used`.
+  `/auth/me` отдаёт `promo_active`/`promo_lifetime` → `UserProfile`. Код нормализуется `trim().uppercase()`.
+- **Android**: поле ввода на `PaywallScreen` → `PaywallViewModel.redeemPromo` →
+  `SubscriptionManager.redeemPromo` (возвращает `PromoRedeemResponse`; после успеха `refresh()`).
+  `SubscriptionStatus.isAccessAllowed` включает `isPromo`; в Настройках приоритет
+  `подписка → промо → триал`, кнопка «Купить» скрыта при `isSubscribed || isPromo`.
+- **Навигация Paywall — по явному событию `accessGranted`, НЕ по ambient-статусу.** Иначе экран,
+  открытый из настроек при активном доступе (триал/промо/подписка), моментально закрывался бы.
+  Покупка/восстановление/промокод выставляют `accessGranted=true`; промо ещё показывает Toast-подтверждение.
+- **Поле ввода в скролле + клавиатура**: на прокручиваемой колонке Paywall — `Modifier.imePadding()`
+  (манифест уже `windowSoftInputMode=adjustResize`), иначе клавиатура перекрывает поле промокода.

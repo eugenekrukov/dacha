@@ -13,11 +13,13 @@
 ## Следующая сессия (приоритет ↓)
 
 ### ⏳ Незакрытые шаги
-- [ ] **Пересборка APK** (Android Studio) с актуального `main` (`ddbf40e`) + проверка на устройстве
-  изменений 2026-06-04: просрочка ухода на «Посадках», препарат «Обработки» и заметка, реактивная
-  подстановка, бейдж из серверных данных, раскраска расписания в «Информации о посадке», убранный
-  отступ снизу. (Бэкенд уже задеплоен на dacha-api через `reset --hard origin/main`.)
-- Гигиена git: одна ветка `main`. VPS выровнен на `origin/main` (merge-коммит убран 2026-06-04).
+- [ ] **Пересборка APK** (Android Studio) с актуального `main` (`e54ae43`) + проверка на устройстве:
+  - промокоды: ввод кода на Paywall, тост-подтверждение, статус «Доступ по промокоду» в Настройках,
+    клавиатура не перекрывает поле, «Купить»/Paywall не выбрасывают при активном доступе;
+  - архив завершённых сезонов: «Все» без `done`, чип «Завершённые»;
+  - (ранее) просрочка ухода/препарат/заметка/бейдж/раскраска расписания 2026-06-04.
+  Бэкенд промокодов (миграция 017 + `/promo/redeem`) **задеплоен** на dacha-api, коды гасятся.
+- Гигиена git: одна ветка `main` (== origin, HEAD `e54ae43`). Стейл-ветки feature/* удалить при случае.
 
 ### 🔴 Критично — всё закрыто ✅
 
@@ -66,6 +68,28 @@
   рекомендациях, серверный флаг `auto` вместо строковой эвристики заметок, a11y hero (контраст/touch),
   прогноз на 7 дней сворачиваемый
 - **Git**: подчищены все стейл-ветки (локально и на origin) → одна `main`
+
+---
+
+## Сделано за сессию 2026-06-04 (вторая: промокоды + архив сезонов)
+
+### Промокоды — бесплатный доступ по коду
+- **Бэкенд** (задеплоен, тесты **157 passed**): миграция `017_promo_codes.sql` (`users.promo_until` +
+  таблица `promo_codes`), `access.js` (`hasPromo`/`isLifetimePromo`, `hasAccess` += промо),
+  роут `POST /promo/redeem` (атомарный claim, 404/409), `/auth/me` отдаёт `promo_active`/`promo_lifetime`.
+  Промо в ОТДЕЛЬНОЙ колонке `promo_until` — синк RuStore `{active:false}` его не затирает.
+- **Два типа**: `lifetime` (навсегда), `month` (30 дней, продлевается). Коды одноразовые.
+- **Скрипт генерации**: `backend/scripts/gen-promo.js <lifetime|month> [count]` → коды `DACHA-XXXX-XXXX`.
+  ⚠️ После миграции на VPS: `ALTER TABLE promo_codes OWNER TO dacha_user;` (иначе permission denied).
+- **Android**: поле «Есть промокод?» на Paywall, `redeemPromo` через `SubscriptionManager`
+  (`PromoRedeemResponse`), `isAccessAllowed` += `isPromo`; статус в Настройках (`подписка→промо→триал`).
+- **4 UX-фикса Paywall** (commit `e54ae43`): `imePadding` (клавиатура не перекрывает поле);
+  Toast-подтверждение перед переходом; **навигация по явному `accessGranted`, не по ambient-статусу**
+  (Paywall/«Купить» больше не выбрасывают при активном доступе); кнопка «Купить» скрыта при доступе.
+
+### Архив завершённых сезонов
+- «Завершить сезон» (`stage='done'`) теперь даёт настоящий архив: «Все» показывает только активные,
+  добавлен чип «Завершённые» (только если архив непуст). `PlantingsViewModel.filteredPlantings`/`hasArchived`.
 
 ---
 
@@ -144,6 +168,7 @@
 
 ```
 POST /auth/register  POST /auth/login  GET /auth/me  POST /auth/subscription
+POST /promo/redeem
 POST /gardens  GET /gardens  GET /gardens/:id  PUT /gardens/:id
 GET /crops  GET /crops/:id  POST /crops  PUT /crops/:id
 POST /plantings  GET /plantings  GET /plantings/:id
