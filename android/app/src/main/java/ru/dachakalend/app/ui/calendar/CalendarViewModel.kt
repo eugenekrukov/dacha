@@ -93,6 +93,8 @@ class CalendarViewModel @Inject constructor(
         val today = LocalDate.now()
         val horizon = today.plusDays(60)
         val cropsById = crops.associateBy { it.id }
+        // Завершённые посадки (сезон закрыт) — их работы/напоминания/отложенные задачи в календаре не показываем.
+        val donePlantingIds = plantings.filter { it.stage == "done" }.map { it.id }.toSet()
 
         // Задачи из /today — на сегодняшнюю дату
         todayTasks.forEach { task ->
@@ -108,8 +110,9 @@ class CalendarViewModel @Inject constructor(
                 .add(DayEvent(today, label, task.type))
         }
 
-        // Напоминания
+        // Напоминания (кроме привязанных к завершённой посадке)
         reminders.forEach { reminder ->
+            if (reminder.plantingId != null && reminder.plantingId in donePlantingIds) return@forEach
             runCatching {
                 val date = LocalDate.parse(reminder.remindAt.take(10))
                 result.getOrPut(date) { mutableListOf() }
@@ -197,6 +200,9 @@ class CalendarViewModel @Inject constructor(
 
             val parts = snoozed.key.split(":", limit = 4)
             val type         = parts.getOrNull(0) ?: return@forEach
+            // Ключ: "type:plantingId:cropName:careTaskName" — пропускаем отложенные задачи завершённых посадок
+            val plantingId   = parts.getOrNull(1)?.toIntOrNull()
+            if (plantingId != null && plantingId in donePlantingIds) return@forEach
             val cropName     = parts.getOrNull(2)?.takeIf { it != "null" } ?: ""
             val careTaskName = parts.getOrNull(3)?.takeIf { it != "null" }
 
