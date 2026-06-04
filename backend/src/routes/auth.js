@@ -81,7 +81,8 @@ module.exports = async function (fastify) {
       ...trialInfo(user.trial_started_at),
       subscribed: isSubscribed(user.subscription_until),
       promo_active: hasPromo(user.promo_until),
-      promo_lifetime: isLifetimePromo(user.promo_until)
+      promo_lifetime: isLifetimePromo(user.promo_until),
+      promo_until: hasPromo(user.promo_until) ? user.promo_until : null
     }
   })
 

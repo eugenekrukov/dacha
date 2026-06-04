@@ -13,9 +13,16 @@ function makeMockDb({ codes = {}, users = {} } = {}) {
     state: { codes, users },
     async query(sql, params) {
       const s = this.state
-      if (sql.includes('SELECT type, redeemed_by FROM promo_codes')) {
+      if (sql.includes('FROM promo_codes WHERE code')) {
         const c = s.codes[params[0]]
-        return { rows: c ? [{ type: c.type, redeemed_by: c.redeemed_by }] : [] }
+        return {
+          rows: c ? [{
+            type: c.type,
+            duration_days: c.duration_days ?? null,
+            expires_at: c.expires_at ?? null,
+            redeemed_by: c.redeemed_by
+          }] : []
+        }
       }
       if (sql.includes('UPDATE promo_codes SET redeemed_by')) {
         const [userId, code] = params
@@ -23,7 +30,7 @@ function makeMockDb({ codes = {}, users = {} } = {}) {
         if (!c || c.redeemed_by) return { rows: [] }
         c.redeemed_by = userId
         c.redeemed_at = new Date()
-        return { rows: [{ type: c.type }] }
+        return { rows: [{ type: c.type, duration_days: c.duration_days ?? null }] }
       }
       if (sql.includes('SELECT promo_until FROM users')) {
         const u = s.users[params[0]] || {}
@@ -106,6 +113,47 @@ describe('POST /promo/redeem', () => {
       .post('/promo/redeem').set('Authorization', `Bearer ${token}`).send({ code: 'DACHA-MNTH-CODE' })
     expect(res.status).toBe(200)
     expect(res.body.promo_lifetime).toBe(true)
+    await app.close()
+  })
+
+  it('код с произвольным сроком (days 90) → доступ ~90 дней', async () => {
+    const db = makeMockDb({ codes: { 'DACHA-D90D-CODE': { type: 'days', duration_days: 90, redeemed_by: null } } })
+    const app = await buildApp(db)
+    const token = makeToken(app, 1)
+    const res = await supertest(app.server)
+      .post('/promo/redeem').set('Authorization', `Bearer ${token}`).send({ code: 'DACHA-D90D-CODE' })
+    expect(res.status).toBe(200)
+    expect(res.body.promo_lifetime).toBe(false)
+    const days = (new Date(res.body.promo_until).getTime() - Date.now()) / 86_400_000
+    expect(days).toBeGreaterThan(89)
+    expect(days).toBeLessThan(91)
+    await app.close()
+  })
+
+  it('код с истёкшим дедлайном активации → 410 code_expired', async () => {
+    const db = makeMockDb({
+      codes: { 'DACHA-EXPR-CODE': { type: 'month', duration_days: 30, redeemed_by: null, expires_at: new Date(Date.now() - 86_400_000) } }
+    })
+    const app = await buildApp(db)
+    const token = makeToken(app, 1)
+    const res = await supertest(app.server)
+      .post('/promo/redeem').set('Authorization', `Bearer ${token}`).send({ code: 'DACHA-EXPR-CODE' })
+    expect(res.status).toBe(410)
+    expect(res.body.error).toBe('code_expired')
+    // код не должен быть погашен
+    expect(db.state.codes['DACHA-EXPR-CODE'].redeemed_by).toBeNull()
+    await app.close()
+  })
+
+  it('код с будущим дедлайном активации → 200', async () => {
+    const db = makeMockDb({
+      codes: { 'DACHA-FUTR-CODE': { type: 'month', duration_days: 30, redeemed_by: null, expires_at: new Date(Date.now() + 86_400_000) } }
+    })
+    const app = await buildApp(db)
+    const token = makeToken(app, 1)
+    const res = await supertest(app.server)
+      .post('/promo/redeem').set('Authorization', `Bearer ${token}`).send({ code: 'DACHA-FUTR-CODE' })
+    expect(res.status).toBe(200)
     await app.close()
   })
 

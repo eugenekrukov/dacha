@@ -62,6 +62,7 @@ class AuthRepository @Inject constructor(
     private fun parsePromoError(e: Exception): String = when {
         e.message?.contains("404") == true -> "Промокод не найден"
         e.message?.contains("409") == true -> "Промокод уже использован"
+        e.message?.contains("410") == true -> "Срок действия промокода истёк"
         e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
         else -> "Не удалось активировать промокод"
     }

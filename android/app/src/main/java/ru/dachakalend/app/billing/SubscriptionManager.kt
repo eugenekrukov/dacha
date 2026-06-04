@@ -29,6 +29,7 @@ data class SubscriptionStatus(
     val trialDaysLeft: Int = 0,
     val isPromo: Boolean = false,          // активен промо-доступ (по коду)
     val isPromoLifetime: Boolean = false,  // промо «навсегда»
+    val promoUntil: String? = null,        // ISO-дата окончания промо-доступа (null = нет/вечно)
     val isLoading: Boolean = false,
     val activeProductId: String? = null
 ) {
@@ -69,6 +70,7 @@ class SubscriptionManager @Inject constructor(
         }
         val isPromo = (me as? Result.Success)?.data?.promoActive ?: _status.value.isPromo
         val isPromoLifetime = (me as? Result.Success)?.data?.promoLifetime ?: _status.value.isPromoLifetime
+        val promoUntil = (me as? Result.Success)?.data?.promoUntil ?: _status.value.promoUntil
 
         _status.value = SubscriptionStatus(
             isSubscribed    = activeProductId != null,
@@ -76,6 +78,7 @@ class SubscriptionManager @Inject constructor(
             trialDaysLeft   = trialDaysLeft,
             isPromo         = isPromo,
             isPromoLifetime = isPromoLifetime,
+            promoUntil      = promoUntil,
             isLoading       = false,
             activeProductId = activeProductId
         )
@@ -92,7 +95,8 @@ class SubscriptionManager @Inject constructor(
                 // Оптимистично отражаем доступ и перечитываем серверный статус
                 _status.value = _status.value.copy(
                     isPromo = res.data.promoActive,
-                    isPromoLifetime = res.data.promoLifetime
+                    isPromoLifetime = res.data.promoLifetime,
+                    promoUntil = res.data.promoUntil
                 )
                 refresh()
                 Result.Success(res.data)

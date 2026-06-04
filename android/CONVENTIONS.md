@@ -616,3 +616,16 @@ ModalBottomSheet(
   Покупка/восстановление/промокод выставляют `accessGranted=true`; промо ещё показывает Toast-подтверждение.
 - **Поле ввода в скролле + клавиатура**: на прокручиваемой колонке Paywall — `Modifier.imePadding()`
   (манифест уже `windowSoftInputMode=adjustResize`), иначе клавиатура перекрывает поле промокода.
+
+### Срок действия и произвольная длительность (доработка)
+
+- **Миграция 018**: `promo_codes.duration_days` (NULL = lifetime, иначе N дней доступа) и
+  `promo_codes.expires_at` (дедлайн АКТИВАЦИИ кода, NULL = бессрочно). Тип `days` для произвольного срока.
+  `redeem` проверяет `expires_at` до claim → **410 `code_expired`**; `promo_until` считается по `duration_days`
+  (фолбэк: `month`→30). `/auth/me` отдаёт `promo_until` (ISO) → `UserProfile.promoUntil` → `SubscriptionStatus.promoUntil`.
+- **Скрипт**: `node scripts/gen-promo.js <lifetime|month|days N> [count] [--expires=YYYY-MM-DD]`.
+- **«Купить» во время промо разрешена**: в Настройках кнопка скрыта только при `isSubscribed`
+  (не при `isPromo`); Paywall показывает бейдж «Промокод активен до DD.MM.YYYY / навсегда».
+  Покупка оформляется сразу (RuStore), доступ = промо ИЛИ подписка.
+- **Формат даты**: `formatPromoDate(iso)` в `SettingsScreen.kt` (ISO `OffsetDateTime` → `DD.MM.YYYY`),
+  импортируется и в Paywall.

@@ -24,6 +24,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.ui.theme.NunitoFamily
 import ru.dachakalend.app.ui.theme.RussoOneFamily
 
+/** ISO-дата ("2026-07-04T00:00:00.000Z") → "04.07.2026". null/ошибка → null. */
+fun formatPromoDate(iso: String?): String? {
+    if (iso.isNullOrBlank()) return null
+    return try {
+        val d = java.time.OffsetDateTime.parse(iso)
+        "%02d.%02d.%04d".format(d.dayOfMonth, d.monthValue, d.year)
+    } catch (_: Exception) {
+        try {
+            val d = java.time.LocalDate.parse(iso.take(10))
+            "%02d.%02d.%04d".format(d.dayOfMonth, d.monthValue, d.year)
+        } catch (_: Exception) { null }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -151,7 +165,8 @@ fun SettingsScreen(
                             text = when {
                                 subStatus.isSubscribed     -> "Подписка активна"
                                 subStatus.isPromoLifetime  -> "Доступ навсегда (промокод)"
-                                subStatus.isPromo          -> "Доступ по промокоду"
+                                subStatus.isPromo          -> "Доступ по промокоду" +
+                                    (formatPromoDate(subStatus.promoUntil)?.let { " до $it" } ?: "")
                                 subStatus.isTrialActive    -> "Осталось ${subStatus.trialDaysLeft} дн."
                                 else                       -> "Оформите подписку"
                             },
@@ -161,8 +176,9 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    // Кнопку «Купить» прячем при любом активном доступе (подписка или промокод)
-                    if (!subStatus.isSubscribed && !subStatus.isPromo) {
+                    // «Купить» доступна и во время промо — подписку можно оформить заранее.
+                    // Скрываем только при активной подписке.
+                    if (!subStatus.isSubscribed) {
                         TextButton(onClick = { onOpenPaywall?.invoke() }) {
                             Icon(
                                 Icons.Default.Star,

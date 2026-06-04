@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.ui.settings.formatPromoDate
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 private val Orange = Color(0xFFFF7B00)
@@ -112,8 +113,28 @@ fun PaywallScreen(
                 lineHeight = 22.sp
             )
 
-            // Триал-бейдж
-            if (uiState.status.isTrialActive) {
+            // Бейдж активного промо (приоритетнее триала)
+            if (uiState.status.isPromo) {
+                Spacer(Modifier.height(16.dp))
+                val promoText = if (uiState.status.isPromoLifetime) "Промокод активен — доступ навсегда"
+                    else formatPromoDate(uiState.status.promoUntil)?.let { "Промокод активен до $it" }
+                        ?: "Промокод активен"
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(100.dp))
+                        .background(Green)
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = promoText,
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Color.White
+                    )
+                }
+            } else if (uiState.status.isTrialActive) {
+                // Триал-бейдж
                 Spacer(Modifier.height(16.dp))
                 Box(
                     modifier = Modifier
