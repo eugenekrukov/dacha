@@ -88,12 +88,13 @@ class ActionLogViewModel @Inject constructor(
         }
     }
 
-    /** Логирует "Высаживание" и переводит стадию в growing — задача transplant_due исчезнет. */
+    /** Логирует "Высаживание" и переводит стадию в transplanted («Высажено в грунт») —
+     *  задача transplant_due исчезнет, подкормки/урожай учитывают transplanted как фазу роста. */
     fun logTransplanting(plantingId: Int) {
         viewModelScope.launch {
             _uiState.value = ActionLogUiState(isLoading = true)
             actionsRepository.logAction(plantingId, "transplanting", null)
-            when (val result = plantingsRepository.updateStage(plantingId, "growing")) {
+            when (val result = plantingsRepository.updateStage(plantingId, "transplanted")) {
                 is Result.Success -> _uiState.value = ActionLogUiState(success = true)
                 is Result.Error   -> _uiState.value = ActionLogUiState(error = result.message)
                 is Result.Loading -> Unit

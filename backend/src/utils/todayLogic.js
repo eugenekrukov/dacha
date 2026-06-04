@@ -156,12 +156,14 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       })
     }
 
-    // 🌱 Пора пересаживать в грунт
+    // 🌱 Пора пересаживать в грунт — только для рассадного способа (sowing_method='seedling').
+    // Прямой посев ('direct') в грунт не пересаживают.
     const todayActions = careActionsToday[p.id] || []
     if (
       p.transplant_days &&
+      p.sowing_method !== 'direct' &&
       daysSincePlanting >= p.transplant_days &&
-      ['sowing', 'sprouted'].includes(p.stage) &&
+      p.stage === 'sowing' &&
       !todayActions.includes('transplanting')
     ) {
       tasks.push({
@@ -234,9 +236,11 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       }
     }
 
-    // 🌿 Нужна подкормка (по fertilizing_schedule для текущей стадии)
+    // 🌿 Нужна подкормка (по fertilizing_schedule для текущей стадии).
+    // После высадки стадия 'transplanted' соответствует фазе 'growing' (так размечен график подкормок).
     const fertilizingSchedule = p.fertilizing_schedule || []
-    const fertEntry = fertilizingSchedule.find(f => f.stage === p.stage)
+    const fertStage = p.stage === 'transplanted' ? 'growing' : p.stage
+    const fertEntry = fertilizingSchedule.find(f => f.stage === fertStage)
     if (fertEntry && !todayActions.includes('fertilizing')) {
       const lastFertilized = lastFertilizedMap[p.id] || plantedAt
       const daysSinceFertilized = Math.floor((today - lastFertilized) / 86400000)
@@ -253,11 +257,13 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       }
     }
 
-    // 🌾 Пора убирать урожай
+    // 🌾 Пора убирать урожай.
+    // Прямой посев растёт в грунте с момента посева (стадия остаётся 'sowing'), поэтому для него
+    // урожай считаем по harvest_days напрямую; рассадные — после высадки (growing/transplanted/…).
     if (
       p.harvest_days &&
       daysSincePlanting >= p.harvest_days &&
-      ['growing', 'flowering', 'harvesting', 'transplanted'].includes(p.stage)
+      (p.sowing_method === 'direct' || ['growing', 'flowering', 'harvesting', 'transplanted'].includes(p.stage))
     ) {
       tasks.push({
         type: 'harvest_due',

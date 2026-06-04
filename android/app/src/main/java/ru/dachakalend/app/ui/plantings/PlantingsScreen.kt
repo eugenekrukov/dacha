@@ -39,7 +39,6 @@ import java.time.format.DateTimeFormatter
 
 val STAGE_LABELS = mapOf(
     "sowing"      to "Посеяно",
-    "sprouted"    to "Взошло",
     "transplanted" to "Высажено в грунт",
     "growing"     to "Растёт",
     "flowering"   to "Цветёт",
@@ -47,7 +46,7 @@ val STAGE_LABELS = mapOf(
     "done"        to "Завершено"
 )
 
-val STAGE_ORDER = listOf("sowing", "sprouted", "transplanted", "growing", "flowering", "harvesting", "done")
+val STAGE_ORDER = listOf("sowing", "transplanted", "growing", "flowering", "harvesting", "done")
 
 private fun formatIsoDate(iso: String): String = try {
     val date = java.time.OffsetDateTime.parse(iso)
@@ -296,7 +295,8 @@ fun PlantingsScreen(
     // Шторка настройки новой посадки
     state.pendingCropId?.let { cropId ->
         PlantingSetupBottomSheet(
-            onConfirm = { date, qty, cond -> viewModel.confirmPlanting(cropId, date, qty, cond) },
+            defaultSeedling = state.pendingCropTransplantDays != null,
+            onConfirm = { date, qty, cond, method -> viewModel.confirmPlanting(cropId, date, qty, cond, method) },
             onDismiss = { viewModel.dismissSetupSheet() }
         )
     }
@@ -376,7 +376,7 @@ fun PlantingsScreen(
     state.editingPlanting?.let { planting ->
         PlantingEditBottomSheet(
             planting = planting,
-            onConfirm = { date, qty, cond -> viewModel.saveEditedInfo(planting.id, date, qty, cond) },
+            onConfirm = { date, qty, cond, method -> viewModel.saveEditedInfo(planting.id, date, qty, cond, method) },
             onDismiss = { viewModel.dismissEditSheet() }
         )
     }
@@ -635,7 +635,8 @@ private fun PlantingCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlantingSetupBottomSheet(
-    onConfirm: (date: String, quantity: Int, conditions: String) -> Unit,
+    defaultSeedling: Boolean,
+    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -643,6 +644,7 @@ private fun PlantingSetupBottomSheet(
     var dateDisplay by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))) }
     var quantity by remember { mutableStateOf("1") }
     var conditions by remember { mutableStateOf("soil") }
+    var sowingMethod by remember(defaultSeedling) { mutableStateOf(if (defaultSeedling) "seedling" else "direct") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -726,10 +728,40 @@ private fun PlantingSetupBottomSheet(
                 )
             }
 
+            Text(
+                "Способ посадки",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = sowingMethod == "direct",
+                    onClick = { sowingMethod = "direct" },
+                    shape = RoundedCornerShape(100.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    ),
+                    label = { Text("Сразу в грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                )
+                FilterChip(
+                    selected = sowingMethod == "seedling",
+                    onClick = { sowingMethod = "seedling" },
+                    shape = RoundedCornerShape(100.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    ),
+                    label = { Text("Через рассаду", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                )
+            }
+
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick = {
-                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions)
+                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
@@ -757,7 +789,7 @@ private fun PlantingSetupBottomSheet(
 @Composable
 private fun PlantingEditBottomSheet(
     planting: Planting,
-    onConfirm: (date: String, quantity: Int, conditions: String) -> Unit,
+    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -772,6 +804,7 @@ private fun PlantingEditBottomSheet(
     var dateDisplay by remember { mutableStateOf(initialDateDisplay) }
     var quantity by remember { mutableStateOf((planting.quantity ?: 1).toString()) }
     var conditions by remember { mutableStateOf(planting.conditions ?: "soil") }
+    var sowingMethod by remember { mutableStateOf(if (planting.sowingMethod == "direct") "direct" else "seedling") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -855,9 +888,39 @@ private fun PlantingEditBottomSheet(
                 )
             }
 
+            Text(
+                "Способ посадки",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = sowingMethod == "direct",
+                    onClick = { sowingMethod = "direct" },
+                    shape = RoundedCornerShape(100.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    ),
+                    label = { Text("Сразу в грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                )
+                FilterChip(
+                    selected = sowingMethod == "seedling",
+                    onClick = { sowingMethod = "seedling" },
+                    shape = RoundedCornerShape(100.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    ),
+                    label = { Text("Через рассаду", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                )
+            }
+
             Spacer(Modifier.height(8.dp))
             Button(
-                onClick = { onConfirm(date, quantity.toIntOrNull() ?: 1, conditions) },
+                onClick = { onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod) },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {

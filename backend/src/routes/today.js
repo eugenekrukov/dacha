@@ -27,7 +27,7 @@ module.exports = async function (fastify) {
 
     // ── 2. АКТИВНЫЕ ПОСАДКИ (включая care_tasks и conditions) ───────────────
     const plantingsRes = await fastify.db.query(
-      `SELECT p.id, p.planted_at, p.stage, p.quantity, p.conditions,
+      `SELECT p.id, p.planted_at, p.stage, p.quantity, p.conditions, p.sowing_method,
               c.name as crop_name, c.category,
               c.watering_freq_days, c.transplant_days,
               c.harvest_days, c.frost_sensitive, c.care_tasks, c.fertilizing_schedule

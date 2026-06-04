@@ -171,15 +171,15 @@ describe('watering_due', () => {
 // ─── Пересадка ────────────────────────────────────────────────────────────────
 
 describe('transplant_due', () => {
-  it('появляется когда stage=sprouted и прошло >= transplant_days', () => {
+  it('появляется когда stage=sowing (рассада) и прошло >= transplant_days', () => {
     const tasks = buildTasks(
-      [makePlanting({ stage: 'sprouted', transplant_days: 7, planted_at: daysAgo(10, TODAY) })],
+      [makePlanting({ stage: 'sowing', sowing_method: 'seedling', transplant_days: 7, planted_at: daysAgo(10, TODAY) })],
       makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'transplant_due')).toBe(true)
   })
 
-  it('НЕ появляется если stage != sprouted', () => {
+  it('НЕ появляется если stage != sowing', () => {
     const tasks = buildTasks(
       [makePlanting({ stage: 'growing', transplant_days: 7, planted_at: daysAgo(10, TODAY) })],
       makeWeather(), {}, {}, [], TODAY
@@ -187,9 +187,17 @@ describe('transplant_due', () => {
     expect(tasks.some(t => t.type === 'transplant_due')).toBe(false)
   })
 
+  it('НЕ появляется для прямого посева (sowing_method=direct)', () => {
+    const tasks = buildTasks(
+      [makePlanting({ stage: 'sowing', sowing_method: 'direct', transplant_days: 7, planted_at: daysAgo(10, TODAY) })],
+      makeWeather(), {}, {}, [], TODAY
+    )
+    expect(tasks.some(t => t.type === 'transplant_due')).toBe(false)
+  })
+
   it('НЕ появляется если не прошло достаточно дней', () => {
     const tasks = buildTasks(
-      [makePlanting({ stage: 'sprouted', transplant_days: 14, planted_at: daysAgo(5, TODAY) })],
+      [makePlanting({ stage: 'sowing', sowing_method: 'seedling', transplant_days: 14, planted_at: daysAgo(5, TODAY) })],
       makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'transplant_due')).toBe(false)
@@ -215,12 +223,20 @@ describe('harvest_due', () => {
     expect(tasks.some(t => t.type === 'harvest_due')).toBe(true)
   })
 
-  it('НЕ появляется для stage=sowing', () => {
+  it('НЕ появляется для stage=sowing (рассада ещё не высажена)', () => {
     const tasks = buildTasks(
-      [makePlanting({ stage: 'sowing', harvest_days: 10, planted_at: daysAgo(15, TODAY) })],
+      [makePlanting({ stage: 'sowing', sowing_method: 'seedling', harvest_days: 10, planted_at: daysAgo(15, TODAY) })],
       makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'harvest_due')).toBe(false)
+  })
+
+  it('появляется для прямого посева на stage=sowing (растёт в грунте)', () => {
+    const tasks = buildTasks(
+      [makePlanting({ stage: 'sowing', sowing_method: 'direct', harvest_days: 10, planted_at: daysAgo(15, TODAY) })],
+      makeWeather(), {}, {}, [], TODAY
+    )
+    expect(tasks.some(t => t.type === 'harvest_due')).toBe(true)
   })
 })
 

@@ -12,6 +12,7 @@ import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.CreatePlantingRequest
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.UpdatePlantingInfoRequest
+import ru.dachakalend.app.data.repository.CropsRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.navigation.Screen
@@ -26,6 +27,7 @@ data class PlantingsUiState(
     val showActionSheet: Planting? = null,
     val successMessage: String? = null,
     val pendingCropId: Int? = null,
+    val pendingCropTransplantDays: Int? = null,
     val editingPlanting: Planting? = null,
     val showInfoSheet: Planting? = null,
     val confirmDeletePlanting: Planting? = null,
@@ -70,6 +72,7 @@ fun attentionCount(
 @HiltViewModel
 class PlantingsViewModel @Inject constructor(
     private val plantingsRepository: PlantingsRepository,
+    private val cropsRepository: CropsRepository,
     private val tokenStorage: TokenStorage,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -82,6 +85,15 @@ class PlantingsViewModel @Inject constructor(
         val newCropId = savedStateHandle.get<Int>(Screen.Plantings.ARG_NEW_CROP_ID)
         if (newCropId != null && newCropId != -1) {
             _uiState.value = _uiState.value.copy(pendingCropId = newCropId)
+            loadPendingCropDefault(newCropId)
+        }
+    }
+
+    /** Грузим transplant_days культуры → дефолт тоггла способа посадки (есть рассадный период → «через рассаду»). */
+    private fun loadPendingCropDefault(cropId: Int) {
+        viewModelScope.launch {
+            val transplantDays = (cropsRepository.getCrop(cropId) as? Result.Success)?.data?.transplantDays
+            _uiState.value = _uiState.value.copy(pendingCropTransplantDays = transplantDays)
         }
     }
 
@@ -112,16 +124,16 @@ class PlantingsViewModel @Inject constructor(
         }
     }
 
-    fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String) {
-        _uiState.value = _uiState.value.copy(pendingCropId = null)
-        createPlanting(cropId, date, quantity, conditions)
+    fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String) {
+        _uiState.value = _uiState.value.copy(pendingCropId = null, pendingCropTransplantDays = null)
+        createPlanting(cropId, date, quantity, conditions, sowingMethod)
     }
 
     fun dismissSetupSheet() {
-        _uiState.value = _uiState.value.copy(pendingCropId = null)
+        _uiState.value = _uiState.value.copy(pendingCropId = null, pendingCropTransplantDays = null)
     }
 
-    private fun createPlanting(cropId: Int, date: String, quantity: Int, conditions: String) {
+    private fun createPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String) {
         viewModelScope.launch {
             val gardenId = tokenStorage.getGardenId()
             if (gardenId == -1) {
@@ -133,7 +145,8 @@ class PlantingsViewModel @Inject constructor(
                 gardenId = gardenId,
                 sownAt = date,
                 quantity = quantity,
-                conditions = conditions
+                conditions = conditions,
+                sowingMethod = sowingMethod
             )
             when (val result = plantingsRepository.createPlanting(request)) {
                 is Result.Success -> {
@@ -154,10 +167,10 @@ class PlantingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(editingPlanting = null)
     }
 
-    fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String) {
+    fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String) {
         _uiState.value = _uiState.value.copy(editingPlanting = null)
         viewModelScope.launch {
-            val request = UpdatePlantingInfoRequest(plantedAt = date, quantity = quantity, conditions = conditions)
+            val request = UpdatePlantingInfoRequest(plantedAt = date, quantity = quantity, conditions = conditions, sowingMethod = sowingMethod)
             when (plantingsRepository.updateInfo(plantingId, request)) {
                 is Result.Success -> {
                     _uiState.value = _uiState.value.copy(successMessage = "Посадка обновлена!")

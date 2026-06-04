@@ -1253,7 +1253,6 @@ private val REC_TYPE_LABELS = mapOf(
 
 private val STAGE_LABELS = mapOf(
     "sowing"       to "Посеяно",
-    "sprouted"     to "Взошло",
     "transplanted" to "Высажено в грунт",
     "growing"      to "Растёт",
     "flowering"    to "Цветёт",

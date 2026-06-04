@@ -88,14 +88,24 @@ describe('careRemindersJob — сводный дайджест', () => {
     expect(push.sendFertilizingDigest).toHaveBeenCalledWith(db, 1, ['Перец'])
   })
 
-  it('пересадка: стадия sowing и >=14 дней → дайджест пересадки', async () => {
+  it('пересадка: рассада в стадии sowing и >= transplant_days → дайджест пересадки', async () => {
     const db = makeDb({
-      plantings: [planting({ stage: 'sowing', crop_name: 'Капуста' })],
+      plantings: [planting({ stage: 'sowing', sowing_method: 'seedling', transplant_days: 14, crop_name: 'Капуста' })],
     })
 
     await runCareReminders(db, push)
 
     expect(push.sendTransplantDigest).toHaveBeenCalledTimes(1)
     expect(push.sendTransplantDigest).toHaveBeenCalledWith(db, 1, ['Капуста'])
+  })
+
+  it('пересадка: прямой посев (direct) — дайджеста нет', async () => {
+    const db = makeDb({
+      plantings: [planting({ stage: 'sowing', sowing_method: 'direct', transplant_days: null, crop_name: 'Морковь' })],
+    })
+
+    await runCareReminders(db, push)
+
+    expect(push.sendTransplantDigest).not.toHaveBeenCalled()
   })
 })

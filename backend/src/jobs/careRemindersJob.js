@@ -24,6 +24,7 @@ async function runCareReminders(db, push = pushService) {
         p.planted_at,
         p.conditions,
         p.stage,
+        p.sowing_method,
         c.name          AS crop_name,
         c.watering_freq_days,
         c.fertilizing_schedule,
@@ -94,9 +95,14 @@ async function runCareReminders(db, push = pushService) {
         }
       }
 
-      // --- Пересадка (только стадия sowing) ---
-      // Рассада в стадии посева 14+ дней без пересадки в грунт → пора пересаживать
-      if (planting.stage === 'sowing' && daysSincePlanting >= 14) {
+      // --- Пересадка (только рассадные: sowing_method='seedling' и есть transplant_days) ---
+      // Прямой посев в грунт не пересаживают.
+      if (
+        planting.sowing_method !== 'direct' &&
+        planting.transplant_days &&
+        planting.stage === 'sowing' &&
+        daysSincePlanting >= planting.transplant_days
+      ) {
         if (!await wasAlertSentToday(db, planting.planting_id, 'transplant_due')) {
           bucketFor(planting.garden_id).transplant.push(planting)
         }

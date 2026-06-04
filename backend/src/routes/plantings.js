@@ -16,7 +16,8 @@ module.exports = async function (fastify) {
 
   // POST /plantings — платное действие: гейт по триалу/подписке
   fastify.post('/', { onRequest: [fastify.authenticate, fastify.requireAccess] }, async (request, reply) => {
-    const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes } = request.body
+    const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes, sowing_method = 'seedling' } = request.body
+    const method = sowing_method === 'direct' ? 'direct' : 'seedling'
 
     // Защита от IDOR: нельзя создать посадку в чужом участке
     if (!garden_id || !(await userOwnsGarden(garden_id, request.user.userId))) {
@@ -24,9 +25,9 @@ module.exports = async function (fastify) {
     }
 
     const result = await fastify.db.query(
-      `INSERT INTO plantings (garden_id, crop_id, planted_at, quantity, conditions, notes, stage)
-       VALUES ($1,$2,$3,$4,$5,$6,'sowing') RETURNING *`,
-      [garden_id, crop_id, planted_at || new Date(), quantity, conditions, notes]
+      `INSERT INTO plantings (garden_id, crop_id, planted_at, quantity, conditions, notes, stage, sowing_method)
+       VALUES ($1,$2,$3,$4,$5,$6,'sowing',$7) RETURNING *`,
+      [garden_id, crop_id, planted_at || new Date(), quantity, conditions, notes, method]
     )
     return reply.code(201).send(result.rows[0])
   })
@@ -138,17 +139,19 @@ module.exports = async function (fastify) {
 
   // PATCH /plantings/:id/info
   fastify.patch('/:id/info', auth, async (request, reply) => {
-    const { planted_at, quantity, conditions } = request.body
+    const { planted_at, quantity, conditions, sowing_method } = request.body
+    const method = sowing_method === 'direct' || sowing_method === 'seedling' ? sowing_method : null
     // Защита от IDOR: обновляем только посадку в участке текущего пользователя
     const result = await fastify.db.query(
       `UPDATE plantings
-       SET planted_at = COALESCE($1, planted_at),
-           quantity   = COALESCE($2, quantity),
-           conditions = COALESCE($3, conditions),
-           updated_at = NOW()
-       WHERE id = $4 AND garden_id IN (SELECT id FROM gardens WHERE user_id=$5)
+       SET planted_at    = COALESCE($1, planted_at),
+           quantity      = COALESCE($2, quantity),
+           conditions    = COALESCE($3, conditions),
+           sowing_method = COALESCE($4, sowing_method),
+           updated_at    = NOW()
+       WHERE id = $5 AND garden_id IN (SELECT id FROM gardens WHERE user_id=$6)
        RETURNING *`,
-      [planted_at ?? null, quantity ?? null, conditions ?? null, request.params.id, request.user.userId]
+      [planted_at ?? null, quantity ?? null, conditions ?? null, method, request.params.id, request.user.userId]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
     return result.rows[0]

@@ -173,6 +173,7 @@ data class Planting(
     @Json(name = "last_action_at") val lastActionAt: String? = null,
     val quantity: Int? = 1,
     val conditions: String? = "soil",
+    @Json(name = "sowing_method") val sowingMethod: String? = "seedling",
     @Json(name = "watering_freq_days") val wateringFreqDays: Int? = null,
     @Json(name = "yield_per_plant_kg") val yieldPerPlantKg: Double? = null,
     @Json(name = "next_care_task") val nextCareTask: NextCareTask? = null,
@@ -275,7 +276,8 @@ data class CreatePlantingRequest(
     @Json(name = "planted_at") val sownAt: String?,
     val notes: String? = null,
     val quantity: Int = 1,
-    val conditions: String = "soil"
+    val conditions: String = "soil",
+    @Json(name = "sowing_method") val sowingMethod: String = "seedling"   // seedling | direct
 )
 
 // --- UpdatePlantingInfoRequest ---
@@ -284,7 +286,8 @@ data class CreatePlantingRequest(
 data class UpdatePlantingInfoRequest(
     @Json(name = "planted_at") val plantedAt: String? = null,
     val quantity: Int? = null,
-    val conditions: String? = null
+    val conditions: String? = null,
+    @Json(name = "sowing_method") val sowingMethod: String? = null
 )
 
 // --- ActionLog ---

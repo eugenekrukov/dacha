@@ -85,6 +85,7 @@ private fun buildSchedule(
     harvestDays: Int?,
     wateringFreqDays: Int?,
     conditions: String?,
+    sowingMethod: String?,
     planted: LocalDate,
     actions: List<ActionLog>,
     today: LocalDate
@@ -103,7 +104,8 @@ private fun buildSchedule(
             else                 -> SchedStatus.UPCOMING
         }
     }
-    transplantDays?.let {
+    // Высадка в грунт — только для рассадного способа; прямой посев не пересаживают.
+    if (sowingMethod != "direct") transplantDays?.let {
         val d = planted.plusDays(it.toLong())
         rows += SchedRow("🌿 Пересадка/пикировка", fmtDate(d), d, statusOf("Пересадка", d, null))
     }
@@ -224,6 +226,7 @@ fun PlantingInfoBottomSheet(
                         harvestDays      = crop.harvestDays,
                         wateringFreqDays = crop.wateringFreqDays,
                         conditions       = planting.conditions,
+                        sowingMethod     = planting.sowingMethod,
                         planted          = planted,
                         actions          = state.recentActions,
                         today            = LocalDate.now()
