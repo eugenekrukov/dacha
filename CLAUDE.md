@@ -87,7 +87,19 @@ tail -3 /path/to/file   # check content not truncated
 wc -c /path/to/file     # check size is reasonable
 ```
 
-**SSH to VPS works only from PowerShell** (not from bash sandbox) — Windows SSH key is configured there.
+### SSH к VPS (важно — как подключается Claude)
+
+- **Хост-алиас**: `hetzner` → `root@78.47.58.211`, конфиг `C:\Users\e-kru\.ssh\config`,
+  ключ `C:\Users\e-kru\.ssh\hetzner` (ED25519, **зашифрован passphrase**).
+- **Из bash-песочницы Claude НЕ работает `ssh hetzner`**: там MSYS-овый `/usr/bin/ssh` без доступа к
+  Windows ssh-agent (`SSH_AUTH_SOCK` пуст), а ключ зашифрован → `Permission denied (publickey)`.
+- **Рабочий способ из bash Claude** — вызывать Windows-клиент явно (он берёт расшифрованный ключ из
+  Windows ssh-agent, где passphrase уже введён интерактивно):
+  ```bash
+  /c/Windows/System32/OpenSSH/ssh.exe hetzner "<команда>"
+  ```
+- Интерактивно у разработчика обычный `ssh hetzner` (PowerShell) работает как раньше.
+- Предусловие: служба `ssh-agent` Running и ключ загружен (`ssh-add -l` показывает `hetzner`).
 
 ---
 
@@ -114,8 +126,9 @@ wc -c /path/to/file     # check size is reasonable
 git add -A && git commit -m "feat/fix: description"
 git checkout main && git merge --ff-only feature/... && git push origin main && git push origin feature/...
 
-# 2. VPS — only after step 1. SSH ТОЛЬКО из PowerShell (ssh hetzner; bash не резолвит Windows-ключ)
-ssh hetzner
+# 2. VPS — only after step 1.
+#    Claude из bash: /c/Windows/System32/OpenSSH/ssh.exe hetzner "<cmd>"  (см. раздел «SSH к VPS»)
+#    Разработчик интерактивно: ssh hetzner
 cd /var/www/dacha-api && git fetch origin && git reset --hard origin/main   # НЕ git pull
 cd backend && npm install                        # if package.json changed
 # Миграции — от суперюзера postgres (DDL/GRANT требуют прав; npm run migrate под dacha_user их не имеет):
