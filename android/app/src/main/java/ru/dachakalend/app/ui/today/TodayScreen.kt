@@ -29,7 +29,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -180,35 +179,11 @@ private fun TodayContent(
     onOpenJournal: () -> Unit = {},
     onAddPlanting: () -> Unit = {}
 ) {
+    // Запись действия из карточки задачи дня (тип/заметка преднастроены по задаче)
     var quickActionType  by remember { mutableStateOf<String?>(null) }
     var quickActionNotes by remember { mutableStateOf<String?>(null) }  // для care_task_due
     var selectedPlanting by remember { mutableStateOf<Planting?>(null) }
-    var showPlantingPicker by remember { mutableStateOf(false) }
     var recsExpanded by remember { mutableStateOf(false) }  // «Советы дня»: первые 3 + «показать ещё»
-
-    fun onQuickAction(type: String, notes: String? = null) {
-        quickActionType  = type
-        quickActionNotes = notes
-        when {
-            plantings.isEmpty() -> {}
-            plantings.size == 1 -> selectedPlanting = plantings.first()
-            else                -> showPlantingPicker = true
-        }
-    }
-
-    if (showPlantingPicker) {
-        PlantingPickerBottomSheet(
-            plantings = plantings,
-            onSelect  = { planting ->
-                selectedPlanting = planting
-                showPlantingPicker = false
-            },
-            onDismiss = {
-                showPlantingPicker = false
-                quickActionType = null
-            }
-        )
-    }
 
     if (selectedPlanting != null && quickActionType != null) {
         ActionLogBottomSheet(
@@ -236,8 +211,6 @@ private fun TodayContent(
             if (weatherVisible) { put("weather", i); i++ }
             if (tasksVisible)   { put("tasks",   i); i += 1 + tasks.size }
             else if (plantings.isEmpty()) i++   // empty card
-            i++ // spacer
-            put("quick_actions", i); i++
             if (recsVisible) { put("recs", i) }
         }
     }
@@ -334,16 +307,6 @@ private fun TodayContent(
                 }
             }
             // Если посадки есть, но задач нет — ничего не показываем (нормальный день)
-
-            // Быстрые действия
-            item { Spacer(Modifier.height(8.dp)) }
-            item {
-                SunnyQuickActions(
-                    enabled  = plantings.isNotEmpty(),
-                    onAction = { type -> onQuickAction(type) },
-                    modifier = Modifier.coachTarget(coachMarkController, "quick_actions"),
-                )
-            }
 
             // Рекомендации
             if (recommendations.isNotEmpty()) {
@@ -1049,119 +1012,6 @@ private fun SunnyTaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
     }
 }
 
-// ─── Quick actions ─────────────────────────────────────────────────────────
-
-@Composable
-private fun SunnyQuickActions(enabled: Boolean, onAction: (String) -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        SectionTitle(
-            icon  = Icons.Default.Bolt,
-            title = "Быстрые действия"
-        )
-        Spacer(Modifier.height(10.dp))
-        Row(
-            modifier              = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            SunnyActionButton(
-                modifier    = Modifier.weight(1f),
-                label       = "Полив",
-                icon        = Icons.Default.WaterDrop,
-                gradient    = Brush.linearGradient(listOf(Color(0xFF42B3F5), Color(0xFF1565C0))),
-                shadowColor = Color(0xFF1565C0),
-                enabled     = enabled,
-                onClick     = { onAction("watering") }
-            )
-            SunnyActionButton(
-                modifier    = Modifier.weight(1f),
-                label       = "Подкормка",
-                icon        = Icons.Default.Spa,
-                gradient    = Brush.linearGradient(listOf(Color(0xFFFFD54F), Color(0xFFE65100))),
-                shadowColor = Color(0xFFE65100),
-                enabled     = enabled,
-                onClick     = { onAction("fertilizing") }
-            )
-            SunnyActionButton(
-                modifier    = Modifier.weight(1f),
-                label       = "Обработка",
-                icon        = Icons.Default.HealthAndSafety,
-                gradient    = Brush.linearGradient(listOf(Color(0xFFA5D6A7), Color(0xFF2E7D32))),
-                shadowColor = Color(0xFF2E7D32),
-                enabled     = enabled,
-                onClick     = { onAction("treatment") }
-            )
-        }
-        if (!enabled) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text       = "Добавьте посадку, чтобы фиксировать действия",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize   = 12.sp,
-                color      = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun SunnyActionButton(
-    modifier: Modifier,
-    label: String,
-    icon: ImageVector,
-    gradient: Brush,
-    shadowColor: Color,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val alpha = if (enabled) 1f else 0.45f
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)          // квадратные кнопки как на макете
-            .shadow(
-                elevation = if (enabled) 8.dp else 0.dp,
-                shape     = RoundedCornerShape(20.dp),
-                ambientColor = shadowColor.copy(alpha = .35f),
-                spotColor    = shadowColor.copy(alpha = .35f)
-            )
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (enabled) gradient else Brush.linearGradient(listOf(Color.Gray, Color.Gray)))
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment   = Alignment.CenterHorizontally,
-            verticalArrangement   = Arrangement.spacedBy(6.dp)
-        ) {
-            // Icon in frosted pill
-            Box(
-                modifier         = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = .22f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector        = icon,
-                    contentDescription = label,
-                    tint               = Color.White.copy(alpha = alpha),
-                    modifier           = Modifier.size(22.dp)
-                )
-            }
-            Text(
-                text       = label,
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Black,
-                fontSize   = 12.sp,
-                color      = Color.White.copy(alpha = alpha),
-                softWrap   = false,
-                maxLines   = 1,
-                overflow   = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
 // ─── Recommendation card ───────────────────────────────────────────────────
 
 @Composable
@@ -1390,65 +1240,6 @@ private fun EmptyTasksCard(hasPlantings: Boolean, onAddPlanting: () -> Unit) {
                     Text("Добавить посадку", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, softWrap = false)
                 }
             }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PlantingPickerBottomSheet(
-    plantings: List<Planting>,
-    onSelect: (Planting) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, windowInsets = WindowInsets(0)) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                "Для какой культуры?",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Black,
-                fontSize   = 18.sp,
-                modifier   = Modifier.padding(bottom = 4.dp)
-            )
-            plantings.forEach { planting ->
-                Surface(
-                    modifier = Modifier.fillMaxWidth().clickable { onSelect(planting) },
-                    shape    = RoundedCornerShape(16.dp),
-                    color    = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Row(
-                        modifier              = Modifier.padding(14.dp),
-                        verticalAlignment     = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("🌱", fontSize = 20.sp)
-                        Column {
-                            Text(
-                                planting.cropName ?: "Посадка #${planting.id}",
-                                fontFamily = NunitoFamily,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize   = 15.sp,
-                                maxLines   = 1,
-                                overflow   = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                STAGE_LABELS[planting.stage] ?: planting.stage,
-                                fontFamily = NunitoFamily,
-                                fontSize   = 12.sp,
-                                color      = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.height(8.dp))
         }
     }
 }

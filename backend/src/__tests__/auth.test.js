@@ -43,6 +43,16 @@ describe('POST /auth/register', () => {
     expect(res.body.user.trial_days_left).toBe(7)
   })
 
+  it('регистрация без имени возвращает 201 (name опционально)', async () => {
+    const res = await supertest(app.server)
+      .post('/auth/register')
+      .send({ email: 'new@test.com', password: 'password123' })
+
+    expect(res.status).toBe(201)
+    expect(res.body).toHaveProperty('token')
+    expect(res.body.user).toMatchObject({ email: 'new@test.com' })
+  })
+
   it('повторный email возвращает 409', async () => {
     const appConflict = await buildApp(makeMockDb({
       query: async (sql) => {

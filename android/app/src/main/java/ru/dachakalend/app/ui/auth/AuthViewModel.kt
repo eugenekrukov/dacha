@@ -51,8 +51,8 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun register(name: String, email: String, password: String) {
-        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+    fun register(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
             _uiState.value = AuthUiState.Error("Заполните все поля")
             return
         }
@@ -62,7 +62,7 @@ class AuthViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            _uiState.value = when (val result = authRepository.register(name, email, password)) {
+            _uiState.value = when (val result = authRepository.register(email, password)) {
                 is Result.Success -> AuthUiState.SuccessNoGarden // новый пользователь — нет участка
                 is Result.Error   -> AuthUiState.Error(result.message)
                 is Result.Loading -> AuthUiState.Loading

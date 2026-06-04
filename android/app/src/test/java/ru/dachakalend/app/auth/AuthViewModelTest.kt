@@ -16,6 +16,7 @@ import org.junit.Before
 import org.junit.Test
 import ru.dachakalend.app.data.model.UserProfile
 import ru.dachakalend.app.data.repository.AuthRepository
+import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.ui.auth.AuthUiState
 import ru.dachakalend.app.ui.auth.AuthViewModel
@@ -25,6 +26,7 @@ class AuthViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repository: AuthRepository
+    private lateinit var gardenRepository: GardenRepository
     private lateinit var viewModel: AuthViewModel
 
     private val fakeUser = UserProfile(id = 1, name = "Test", email = "test@test.com")
@@ -33,7 +35,9 @@ class AuthViewModelTest {
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         repository = mockk()
-        viewModel = AuthViewModel(repository)
+        // relaxed: hasGarden() → false по умолчанию → успех логина даёт SuccessNoGarden
+        gardenRepository = mockk(relaxed = true)
+        viewModel = AuthViewModel(repository, gardenRepository)
     }
 
     @After
@@ -54,7 +58,7 @@ class AuthViewModelTest {
             assertEquals(AuthUiState.Loading, awaitItem())
 
             dispatcher.scheduler.advanceUntilIdle()
-            assertEquals(AuthUiState.Success, awaitItem())
+            assertEquals(AuthUiState.SuccessNoGarden, awaitItem())
         }
     }
 
@@ -102,14 +106,14 @@ class AuthViewModelTest {
 
     @Test
     fun `register success transitions to Success`() = runTest {
-        coEvery { repository.register(any(), any(), any()) } returns Result.Success(fakeUser)
+        coEvery { repository.register(any(), any()) } returns Result.Success(fakeUser)
 
         viewModel.uiState.test {
             awaitItem()  // Idle
-            viewModel.register("Test", "test@test.com", "password123")
+            viewModel.register("test@test.com", "password123")
             awaitItem()  // Loading
             dispatcher.scheduler.advanceUntilIdle()
-            assertEquals(AuthUiState.Success, awaitItem())
+            assertEquals(AuthUiState.SuccessNoGarden, awaitItem())
         }
     }
 
@@ -117,7 +121,7 @@ class AuthViewModelTest {
     fun `register with password less than 6 chars shows Error`() = runTest {
         viewModel.uiState.test {
             awaitItem()  // Idle
-            viewModel.register("Test", "test@test.com", "123")
+            viewModel.register("test@test.com", "123")
             val error = awaitItem() as AuthUiState.Error
             assertTrue(error.message.contains("6"))
         }
@@ -125,12 +129,12 @@ class AuthViewModelTest {
 
     @Test
     fun `register with 409 error shows appropriate message`() = runTest {
-        coEvery { repository.register(any(), any(), any()) } returns
+        coEvery { repository.register(any(), any()) } returns
             Result.Error("Пользователь с таким email уже существует")
 
         viewModel.uiState.test {
             awaitItem()
-            viewModel.register("Test", "exists@test.com", "password123")
+            viewModel.register("exists@test.com", "password123")
             awaitItem()  // Loading
             dispatcher.scheduler.advanceUntilIdle()
             val error = awaitItem() as AuthUiState.Error

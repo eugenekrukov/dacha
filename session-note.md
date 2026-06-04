@@ -4,6 +4,71 @@
 
 ---
 
+## ЗАКРЫТИЕ СЕССИИ 2026-06-04 (шестая: убрано имя + релизная сборка + правки тестов)
+
+**Темы**: подписанная release-сборка (R8), декларация данных RuStore, удаление поля «Имя»,
+ревизия Android unit-тестов.
+
+**Что сделано:**
+- **R8 / подписанный release**: добавлены keep/dontwarn-правила в `app/proguard-rules.pro` для Tink
+  (`EncryptedSharedPreferences`): `-dontwarn com.google.errorprone.annotations.**`,
+  `-keep class com.google.crypto.tink.**`, `-dontwarn com.google.api.client.http.**`,
+  `-dontwarn org.joda.time.**` + стандартные retrofit/okhttp/okio. `minifyReleaseWithR8` зелёный.
+- **Поле «Имя» убрано из регистрации** (нигде не использовалось): Android `RegisterScreen`/
+  `AuthViewModel`/`AuthRepository.register` → `(email, password)`; `RegisterRequest` без `name`;
+  `UserProfile.name` → nullable. Backend `/auth/register`: `name` опционально (`required:[email,password]`,
+  `INSERT ... name ?? null`). Колонка `users.name` уже nullable. **Бэкенд-изменение → деплой.**
+- **Тесты**: backend +1 (регистрация без имени) → **169/169**. Android unit-тесты: тест-КОД
+  исправлен (сигнатуры `register`, конструкторы `Auth/ActionLog/TodayViewModel`,
+  `AuthUiState.SuccessNoGarden`) — компилируется, но ЗАПУСК блокирован багом тулчейна (см. ниже).
+
+**Найденные проблемы (зафиксированы в summary.md как E1–E3):**
+- E1 — почта не верифицируется (нет SMTP; нет подтверждения email и сброса пароля).
+- E2 — `POST_NOTIFICATIONS` не запрашивается в рантайме (на Android 13+ уведомления молча не идут).
+- E3 — Android unit-тесты не запускаются: `testDebugUnitTest` → `ClassNotFoundException` на тест-классе
+  (AGP 9.2.1 + built-in Kotlin не кладёт `transformDebugUnitTestClassesWithAsm/dirs` в classpath воркера).
+  Рабочая проверка Android — `compileDebugKotlin`; логика покрыта backend-сьютом.
+
+**RuStore-декларация данных** (для публикации): местоположение (приблизит./точное), email, ID пользователей,
+ID устройства (push-токен), другой пользовательский контент, история покупок (статус подписки). «Имя» больше
+НЕ собирается. Обоснование чувствительных разрешений — location ×2 + POST_NOTIFICATIONS.
+
+**Сборка**: `compileDebugKotlin` ✅, `compileDebugUnitTestKotlin` ✅, `minifyReleaseWithR8` ✅,
+backend `vitest` **169/169** ✅. **Бэкенд задеплоен** (см. ниже по факту).
+
+**Незакрытые шаги для следующей сессии**: E1–E3 (бэклог), пересборка/проверка APK с актуального main.
+
+---
+
+## ЗАКРЫТИЕ СЕССИИ 2026-06-04 (пятая: архив в календаре/действиях + стрелка «Культуры» + удаление быстрых действий)
+
+**Темы**: утечки архивных (`stage='done'`) посадок в UI; навигация в «Справочнике культур»;
+ревизия блока «Быстрые действия».
+
+**Что сделано** (только Android, бэкенд НЕ затронут):
+- **Календарь**: задачи из `/today` добавлялись на сегодня без проверки `donePlantingIds` — работы
+  завершённого Томата всё равно показывались. Добавлен фильтр в `CalendarViewModel.buildEvents`
+  (`task.plantingId in donePlantingIds → skip`). Клиентские поливы/уход уже фильтровались.
+- **Стрелка «Назад» в «Культурах»**: `CropsScreen` получил параметр `onBack`, заголовок «Культуры»
+  теперь в `Row` со стрелкой `ArrowBack` (как `CropDetailScreen`); в `MainActivity` передан
+  `navController.popBackStack()`.
+- **Архивные посадки в быстрых действиях**: `TodayViewModel` теперь кладёт в UI только
+  `plantingsList.filter { it.stage != "done" }`.
+- **Блок «Быстрые действия» удалён целиком** (по решению пользователя). Полив — единственное частое
+  действие; подкормка/обработка требуют препарата, редки и уже всплывают как задачи дня с
+  предзаполненным препаратом. Удалены `SunnyQuickActions`/`SunnyActionButton`/`PlantingPickerBottomSheet`,
+  хелпер `onQuickAction`, стейт `showPlantingPicker`, coach-step `quick_actions`. ОСТАВЛЕНЫ
+  `ActionLogBottomSheet` + стейты `selectedPlanting`/`quickActionType`/`quickActionNotes` — их
+  переиспользуют карточки задач дня. Все действия теперь фиксируются через задачи дня и карточки посадок.
+
+**Сборка `compileDebugKotlin` — зелёная.** Тесты backend не запускались (бэкенд не менялся).
+
+**ЕДИНСТВЕННЫЙ незакрытый шаг**: пересборка APK + проверка на устройстве (Томат-архив не даёт работ
+в календаре; стрелка возврата в «Культурах»; экран «Сегодня» без блока быстрых действий; запись
+действия из карточки задачи дня по-прежнему работает).
+
+---
+
 ## ЗАКРЫТИЕ СЕССИИ 2026-06-04 (четвёртая: способ посадки + расписание/календарь)
 
 **Темы**: предстоящие поливы в расписании посадки; не показывать работы завершённых культур в

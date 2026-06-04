@@ -428,7 +428,8 @@ Text(
 
 **Архитектура:**
 - `CoachMarkController` живёт в `remember {}` в `MainActivity` — один инстанс на всё приложение
-- `coachMarkSteps` — глобальный `val` в `CoachMarkOverlay.kt`, определяет 6 шагов
+- `coachMarkSteps` — глобальный `val` в `CoachMarkOverlay.kt`, определяет 5 шагов
+  (шаг `quick_actions` удалён вместе с блоком быстрых действий — см. историю сессий)
 - Overlay рендерится в `Box` поверх `Scaffold` в `MainActivity` — перекрывает в том числе нав-бар
 
 **Показ ровно один раз:**

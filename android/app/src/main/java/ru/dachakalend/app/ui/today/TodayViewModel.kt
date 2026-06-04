@@ -178,7 +178,8 @@ class TodayViewModel @Inject constructor(
                     TodayScreenData(
                         today          = todayResult.data,
                         recommendations = if (recsResult is Result.Success) recsResult.data else emptyList(),
-                        plantings      = if (plantingsResult is Result.Success) plantingsResult.data else emptyList(),
+                        // Завершённые (архивные) посадки не показываем в быстрых действиях
+                        plantings      = plantingsList.filter { it.stage != "done" },
                         todayActions   = todayActions
                     )
                 )

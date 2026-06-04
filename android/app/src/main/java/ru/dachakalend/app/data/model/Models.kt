@@ -20,7 +20,7 @@ data class AuthResponse(
 @JsonClass(generateAdapter = true)
 data class UserProfile(
     val id: Int,
-    val name: String,
+    val name: String? = null,   // имя больше не собирается при регистрации; старые записи могут содержать
     val email: String,
     // Серверный триал (источник правды). login отдаёт без них → дефолты.
     @Json(name = "trial_active") val trialActive: Boolean = false,
@@ -124,7 +124,6 @@ data class Recommendation(
 
 @JsonClass(generateAdapter = true)
 data class RegisterRequest(
-    val name: String,
     val email: String,
     val password: String
 )

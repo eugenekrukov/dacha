@@ -10,11 +10,11 @@ module.exports = async function (fastify) {
     schema: {
       body: {
         type: 'object',
-        required: ['email', 'password', 'name'],
+        required: ['email', 'password'],
         properties: {
           email:    { type: 'string', format: 'email' },
           password: { type: 'string', minLength: 6 },
-          name:     { type: 'string' }
+          name:     { type: 'string' }   // опционально (имя больше не собирается клиентом)
         }
       }
     }
@@ -30,7 +30,7 @@ module.exports = async function (fastify) {
     const passwordHash = await bcrypt.hash(password, 10)
     const result = await db.query(
       'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, created_at, trial_started_at',
-      [email, passwordHash, name]
+      [email, passwordHash, name ?? null]
     )
 
     const user = result.rows[0]

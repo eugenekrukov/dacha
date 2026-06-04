@@ -18,6 +18,7 @@ import org.junit.Before
 import org.junit.Test
 import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.repository.ActionsRepository
+import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.ui.actions.ActionLogViewModel
 
@@ -26,6 +27,7 @@ class ActionLogViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repository: ActionsRepository
+    private lateinit var plantingsRepository: PlantingsRepository
     private lateinit var viewModel: ActionLogViewModel
 
     private fun fakeAction(type: String) = ActionLog(
@@ -41,7 +43,8 @@ class ActionLogViewModelTest {
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         repository = mockk()
-        viewModel = ActionLogViewModel(repository)
+        plantingsRepository = mockk(relaxed = true)
+        viewModel = ActionLogViewModel(repository, plantingsRepository)
     }
 
     @After

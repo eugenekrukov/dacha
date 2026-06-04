@@ -96,8 +96,9 @@ class CalendarViewModel @Inject constructor(
         // Завершённые посадки (сезон закрыт) — их работы/напоминания/отложенные задачи в календаре не показываем.
         val donePlantingIds = plantings.filter { it.stage == "done" }.map { it.id }.toSet()
 
-        // Задачи из /today — на сегодняшнюю дату
+        // Задачи из /today — на сегодняшнюю дату (кроме привязанных к завершённой посадке)
         todayTasks.forEach { task ->
+            if (task.plantingId != null && task.plantingId in donePlantingIds) return@forEach
             val label = when (task.type) {
                 "watering_due"    -> "💧 Полив: ${task.cropName ?: ""}"
                 "fertilizing_due" -> "🌿 Подкормка: ${task.cropName ?: ""}"

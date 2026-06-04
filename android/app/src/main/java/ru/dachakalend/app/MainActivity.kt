@@ -335,6 +335,7 @@ class MainActivity : ComponentActivity() {
                             val cropsViewModel: CropsViewModel = hiltViewModel()
                             CropsScreen(
                                 viewModel = cropsViewModel,
+                                onBack = { navController.popBackStack() },
                                 onCropClick = { crop ->
                                     cropsViewModel.selectCrop(crop)
                                     navController.navigate(Screen.CropDetail.route(crop.id))

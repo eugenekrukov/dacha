@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Search
@@ -27,6 +28,7 @@ import ru.dachakalend.app.ui.theme.RussoOneFamily
 @Composable
 fun CropsScreen(
     onCropClick: (Crop) -> Unit,
+    onBack: (() -> Unit)? = null,
     viewModel: CropsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -36,12 +38,24 @@ fun CropsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .padding(horizontal = 4.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            } else {
+                Spacer(Modifier.width(12.dp))
+            }
             Text(
                 "Культуры",
                 fontFamily = NunitoFamily,

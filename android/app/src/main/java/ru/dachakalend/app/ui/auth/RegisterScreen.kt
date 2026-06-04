@@ -35,7 +35,6 @@ fun RegisterScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -96,16 +95,6 @@ fun RegisterScreen(
             Spacer(Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Имя", fontFamily = NunitoFamily) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
                 label = { Text("Email", fontFamily = NunitoFamily) },
@@ -152,7 +141,7 @@ fun RegisterScreen(
             Spacer(Modifier.height(8.dp))
 
             Button(
-                onClick = { viewModel.register(name, email, password) },
+                onClick = { viewModel.register(email, password) },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp),
                 enabled = uiState !is AuthUiState.Loading
