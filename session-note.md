@@ -18,12 +18,13 @@ Unisender Go маленький бесплатный лимит.
   `sendMail` приоритет: `BREVO_API_KEY` → Brevo; `UNISENDER_GO_API_KEY` → Unisender; `SMTP_HOST` → SMTP; off.
 - `.env.example`: блок Brevo (вариант 1) + Unisender (вариант 2) + SMTP-фолбэк. Тесты **179/179** ✅.
 
-**Незакрытые шаги**:
-1. Аккаунт Brevo: регистрация, подтвердить домен `studio1008.com` (Senders/Domains → DKIM/SPF/brevo-code,
-   записи CNAME/TXT в reg.ru), получить API-ключ (SMTP & API → API Keys).
-2. На VPS `.env`: `BREVO_API_KEY=<ключ>`, `SMTP_FROM=noreply@studio1008.com`, `APP_NAME=...`;
-   деплой ветки (`git fetch+reset`, npm install НЕ нужен, `pm2 restart`).
-3. Тест: регистрация → код на почту; сброс пароля → код → новый пароль.
+**ЗАДЕПЛОЕНО И ПРОВЕРЕНО** (2026-06-05): домен `studio1008.com` подтверждён в Brevo (DKIM/SPF/TXT в reg.ru),
+ключ `BREVO_API_KEY` вписан в `.env` пользователем (через меня НЕ проходил). Сервер на `2069e9f`,
+`pm2 restart` выполнен, health 200. Прямой тест Brevo API → 201 messageId, письмо во «Входящих» Gmail.
+Сквозной тест: `POST /auth/forgot-password` → `{ok:true}` мгновенно, без ошибок в логах. E1 рабочий в проде.
+
+**Остаётся**: перевыпустить засветившийся в чате первый Brevo-ключ (если ещё не); пересборка/проверка
+Android-APK (экраны verify/reset, баннер) на устройстве.
 
 ---
 
