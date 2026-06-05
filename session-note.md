@@ -1,6 +1,66 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-06-04  
+**Дата последней сессии**: 2026-06-05  
+
+---
+
+## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E1: подтверждение email + сброс пароля)
+
+**Тема**: бэклог-пункт E1 — почта не верифицировалась (нет SMTP), не было восстановления пароля.
+**Решения пользователя**: 6-значный код в приложении (не ссылка); мягкий гейт (пускаем, баннер-напоминание);
+оба флоу сразу; generic SMTP через env (nodemailer).
+
+**Бэкенд:**
+- `services/emailService.js` — nodemailer, провайдер-независимый (env `SMTP_*`, `APP_NAME`). Без `SMTP_HOST`
+  почта отключена, флоу не падает (как pushService). `generateCode()` (6 цифр), письма verify/reset.
+- Миграция `023_email_verification.sql`: `users.email_verified` (существующие → true; новые → false) +
+  таблица `email_codes(user_id, code, purpose verify|reset, expires_at, used_at)`. Коды 15 мин, одноразовые.
+- `routes/auth.js`: register шлёт код verify (best-effort); `/auth/me` отдаёт `email_verified`. Новые роуты:
+  `POST /verify-email` (auth), `/resend-verification` (auth, 3/10мин), `/forgot-password` (публ., всегда 200 —
+  не раскрываем email), `/reset-password` (публ., заодно email_verified=true). `package.json` += nodemailer.
+- `.env.example` += SMTP-блок. Тесты backend **179/179** (+10: verify-email, forgot/reset-password).
+
+**Android:**
+- `UserProfile.emailVerified` (дефолт true — login не отдаёт поле). `DachaApi`/`AuthRepository` += 4 метода.
+- `VerifyEmailScreen`+VM (после регистрации `RegisterScreen` отдаёт email → экран с «Позже» → CreateGarden;
+  из Настроек — баннер «Подтвердите email» → тот же экран без «Позже»). `SettingsViewModel` грузит профиль
+  (`me()`), перечитывает по ON_RESUME. `PasswordResetScreen`+VM (двухшаговый: email → код+новый пароль),
+  вход из `LoginScreen` «Забыли пароль?». Навигация: `Screen.VerifyEmail` (+args email/fromRegister),
+  `Screen.PasswordReset`. Детали — `CONVENTIONS.md §23`.
+
+**Сборка**: backend `vitest` **179/179** ✅, Android `:app:compileDebugKotlin` ✅ (BUILD SUCCESSFUL).
+
+**Незакрытые шаги (КРИТИЧНО — деплой):**
+1. **Деплой бэкенда**: `git fetch + reset --hard origin/main` → `cd backend && npm install` (nodemailer!) →
+   `sudo -u postgres psql -d dacha_db -f .../023_email_verification.sql` →
+   `ALTER TABLE email_codes OWNER TO dacha_user;` → задать `SMTP_*` в `.env` → `pm2 restart dacha-api`.
+2. Пересборка APK + проверка на устройстве (регистрация→код, баннер в Настройках, забыли пароль→сброс→вход).
+3. Параллельно остаётся незакрытым E2 (APK с runtime-запросом уведомлений) и более ранние изменения.
+
+**Остаток бэклога**: E3 (Android unit-тесты — баг тулчейна). + «Could» из ТЗ.
+
+---
+
+## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E2: runtime-запрос POST_NOTIFICATIONS)
+
+**Тема**: бэклог-пункт E2 — на Android 13+ (API ≥ 33) уведомления молча не показывались, т.к.
+разрешение `POST_NOTIFICATIONS` объявлено в манифесте, но не запрашивалось в рантайме.
+
+**Что сделано** (только Android, бэкенд НЕ затронут):
+- **`TokenStorage`**: флаг `isNotifPermissionAsked()`/`setNotifPermissionAsked()` (ключ
+  `notif_permission_asked`) — чтобы спросить ровно один раз. Чистится при `logout()`.
+- **`MainActivity`**: `rememberLauncherForActivityResult(RequestPermission())` + `LaunchedEffect(Unit)`,
+  который запускает запрос когда `SDK_INT >= TIRAMISU`, пользователь залогинен + есть участок, разрешение
+  не выдано и ещё не спрашивали. Колбэк ставит флаг `setNotifPermissionAsked()`.
+- Детали — `CONVENTIONS.md §22`.
+
+**Сборка**: `:app:compileDebugKotlin` ✅ (BUILD SUCCESSFUL). Бэкенд не менялся — тесты/деплой не нужны.
+
+**ЕДИНСТВЕННЫЙ незакрытый шаг**: пересборка APK + проверка на устройстве с Android 13+ (при первом входе
+в приложение появляется системный диалог запроса уведомлений; после выдачи напоминания/пуши доходят).
+
+**Остаток бэклога**: E1 (верификация email + сброс пароля), E3 (Android unit-тесты не запускаются — баг
+тулчейна). + «Could» из ТЗ.
 
 ---
 

@@ -35,6 +35,8 @@ import ru.dachakalend.app.ui.paywall.PaywallScreen
 import ru.dachakalend.app.notification.NotificationHelper
 import ru.dachakalend.app.ui.auth.LoginScreen
 import ru.dachakalend.app.ui.auth.RegisterScreen
+import ru.dachakalend.app.ui.auth.VerifyEmailScreen
+import ru.dachakalend.app.ui.auth.PasswordResetScreen
 import ru.dachakalend.app.ui.calendar.CalendarScreen
 import ru.dachakalend.app.ui.crops.CropDetailScreen
 import ru.dachakalend.app.ui.crops.CropsScreen
@@ -228,14 +230,59 @@ class MainActivity : ComponentActivity() {
                                         popUpTo(Screen.Login.route) { inclusive = true }
                                     }
                                 },
-                                onGoToRegister = { navController.navigate(Screen.Register.route) }
+                                onGoToRegister = { navController.navigate(Screen.Register.route) },
+                                onForgotPassword = { navController.navigate(Screen.PasswordReset.route) }
                             )
                         }
                         composable(Screen.Register.route) {
                             RegisterScreen(
-                                onRegisterSuccess = {
-                                    navController.navigate(Screen.CreateGarden.route) {
+                                onRegisterSuccess = { email ->
+                                    // Мягкий гейт: после регистрации предлагаем подтвердить email,
+                                    // но даём «Позже» → переход к созданию участка.
+                                    navController.navigate(Screen.VerifyEmail.route(email, fromRegister = true)) {
                                         popUpTo(Screen.Login.route) { inclusive = true }
+                                    }
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable(
+                            route = Screen.VerifyEmail.route,
+                            arguments = listOf(
+                                navArgument(Screen.VerifyEmail.ARG_EMAIL) {
+                                    type = NavType.StringType; defaultValue = ""
+                                },
+                                navArgument(Screen.VerifyEmail.ARG_FROM_REGISTER) {
+                                    type = NavType.BoolType; defaultValue = false
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val email = backStackEntry.arguments?.getString(Screen.VerifyEmail.ARG_EMAIL)?.ifBlank { null }
+                            val fromRegister = backStackEntry.arguments?.getBoolean(Screen.VerifyEmail.ARG_FROM_REGISTER) ?: false
+                            VerifyEmailScreen(
+                                email = email,
+                                onVerified = {
+                                    if (fromRegister) {
+                                        navController.navigate(Screen.CreateGarden.route) {
+                                            popUpTo(Screen.VerifyEmail.route) { inclusive = true }
+                                        }
+                                    } else {
+                                        navController.popBackStack()
+                                    }
+                                },
+                                onSkip = if (fromRegister) ({
+                                    navController.navigate(Screen.CreateGarden.route) {
+                                        popUpTo(Screen.VerifyEmail.route) { inclusive = true }
+                                    }
+                                }) else null
+                            )
+                        }
+                        composable(Screen.PasswordReset.route) {
+                            PasswordResetScreen(
+                                onDone = {
+                                    // Пароль изменён → возвращаемся ко входу
+                                    navController.navigate(Screen.Login.route) {
+                                        popUpTo(Screen.PasswordReset.route) { inclusive = true }
                                     }
                                 },
                                 onBack = { navController.popBackStack() }
@@ -275,7 +322,10 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onOpenPaywall = { navController.navigate(Screen.Paywall.route) },
-                                onOpenAnalytics = { navController.navigate(Screen.Analytics.route) }
+                                onOpenAnalytics = { navController.navigate(Screen.Analytics.route) },
+                                onVerifyEmail = { email ->
+                                    navController.navigate(Screen.VerifyEmail.route(email, fromRegister = false))
+                                }
                             )
                         }
                         composable(Screen.Journal.route) {

@@ -20,6 +20,17 @@ sealed class Screen(val route: String) {
     object CreateGarden : Screen("create_garden")
     object OnboardingCrops : Screen("onboarding_crops")
 
+    // Подтверждение email (после регистрации — с «Позже»; из настроек — без)
+    object VerifyEmail : Screen("verify_email?email={email}&fromRegister={fromRegister}") {
+        const val ARG_EMAIL = "email"
+        const val ARG_FROM_REGISTER = "fromRegister"
+        fun route(email: String?, fromRegister: Boolean) =
+            "verify_email?$ARG_EMAIL=${android.net.Uri.encode(email ?: "")}&$ARG_FROM_REGISTER=$fromRegister"
+    }
+
+    // Сброс пароля по коду из письма
+    object PasswordReset : Screen("password_reset")
+
     // Garden edit
     object GardenEdit : Screen("garden_edit")
 
@@ -82,6 +93,8 @@ val screensWithoutBottomBar = setOf(
     Screen.Register.route,
     Screen.CreateGarden.route,
     Screen.OnboardingCrops.route,
+    Screen.VerifyEmail.route,
+    Screen.PasswordReset.route,
     Screen.GardenEdit.route,
     Screen.Settings.route,
     Screen.Journal.route,

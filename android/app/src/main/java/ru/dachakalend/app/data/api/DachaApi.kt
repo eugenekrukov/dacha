@@ -21,6 +21,22 @@ interface DachaApi {
     @POST("auth/subscription")
     suspend fun syncSubscription(@Body body: Map<String, Boolean>)
 
+    // Подтверждение email кодом из письма (текущий пользователь)
+    @POST("auth/verify-email")
+    suspend fun verifyEmail(@Body body: Map<String, String>)
+
+    // Повторная отправка кода подтверждения
+    @POST("auth/resend-verification")
+    suspend fun resendVerification()
+
+    // Сброс пароля: запрос кода на email (публичный)
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body body: Map<String, String>)
+
+    // Сброс пароля: установка нового пароля по коду (публичный)
+    @POST("auth/reset-password")
+    suspend fun resetPassword(@Body body: Map<String, String>)
+
     // Погашение промокода — бесплатный доступ (lifetime / month)
     @POST("promo/redeem")
     suspend fun redeemPromo(@Body body: Map<String, String>): PromoRedeemResponse

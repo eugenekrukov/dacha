@@ -67,6 +67,52 @@ class AuthRepository @Inject constructor(
         else -> "Не удалось активировать промокод"
     }
 
+    /** Подтверждает email кодом из письма. */
+    suspend fun verifyEmail(code: String): Result<Unit> {
+        return try {
+            api.verifyEmail(mapOf("code" to code.trim()))
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(parseCodeError(e))
+        }
+    }
+
+    /** Повторно запрашивает код подтверждения email (best-effort). */
+    suspend fun resendVerification(): Result<Unit> {
+        return try {
+            api.resendVerification()
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(parseError(e))
+        }
+    }
+
+    /** Запрашивает код для сброса пароля. Сервер всегда отвечает успехом (не раскрывает email). */
+    suspend fun forgotPassword(email: String): Result<Unit> {
+        return try {
+            api.forgotPassword(mapOf("email" to email.trim()))
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(parseError(e))
+        }
+    }
+
+    /** Устанавливает новый пароль по коду из письма. */
+    suspend fun resetPassword(email: String, code: String, password: String): Result<Unit> {
+        return try {
+            api.resetPassword(mapOf("email" to email.trim(), "code" to code.trim(), "password" to password))
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(parseCodeError(e))
+        }
+    }
+
+    private fun parseCodeError(e: Exception): String = when {
+        e.message?.contains("400") == true -> "Неверный или просроченный код"
+        e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
+        else -> "Не удалось проверить код"
+    }
+
     fun logout() = tokenStorage.clearToken()
 
     private fun parseError(e: Exception): String = when {

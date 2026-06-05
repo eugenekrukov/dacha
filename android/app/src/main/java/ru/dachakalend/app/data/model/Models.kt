@@ -29,7 +29,10 @@ data class UserProfile(
     // promoUntil — ISO-дата окончания доступа (null если промо нет или оно вечное).
     @Json(name = "promo_active") val promoActive: Boolean = false,
     @Json(name = "promo_lifetime") val promoLifetime: Boolean = false,
-    @Json(name = "promo_until") val promoUntil: String? = null
+    @Json(name = "promo_until") val promoUntil: String? = null,
+    // Подтверждён ли email. login не отдаёт поле → дефолт true (не доставать баннером);
+    // /auth/me и register отдают реальное значение (новый пользователь = false).
+    @Json(name = "email_verified") val emailVerified: Boolean = true
 )
 
 @JsonClass(generateAdapter = true)

@@ -127,8 +127,12 @@ if (gardenId == -1) return Result.Error("Участок не выбран")
 | `TodayRepository` | `getToday()` | `Result<TodayResponse>` |
 | `AuthRepository` | `login(email, password)` | `Result<UserProfile>` |
 | `AuthRepository` | `register(name, email, password)` | `Result<UserProfile>` |
-| `AuthRepository` | `me()` | `Result<UserProfile>` (профиль + серверный триал/подписка) |
+| `AuthRepository` | `me()` | `Result<UserProfile>` (профиль + серверный триал/подписка + `emailVerified`) |
 | `AuthRepository` | `syncSubscription(active)` | `Unit` (best-effort, шлёт статус подписки на сервер) |
+| `AuthRepository` | `verifyEmail(code)` | `Result<Unit>` (подтверждение email кодом) |
+| `AuthRepository` | `resendVerification()` | `Result<Unit>` (повторная отправка кода) |
+| `AuthRepository` | `forgotPassword(email)` | `Result<Unit>` (запрос кода сброса; сервер всегда успех) |
+| `AuthRepository` | `resetPassword(email, code, password)` | `Result<Unit>` (новый пароль по коду) |
 | `GardenRepository` | `loadGardens()` | `Result<List<Garden>>` |
 | `GardenRepository` | `createGarden(name, region, city?)` | `Result<Garden>` |
 | `GardenRepository` | `hasGarden()` | `Boolean` |
@@ -652,3 +656,48 @@ ModalBottomSheet(
 - **`quantity` → ожидаемый урожай**: `crops.yield_per_plant_kg` (миграция 019). `Planting.yieldPerPlantKg`
   приходит из `GET /plantings`. На «Информации о посадке» — «Ожидаемый урожай ~X кг» = `quantity × yield`.
   Для культур без данных (цветы) поле NULL → строка не показывается.
+
+## 23. Подтверждение email + сброс пароля (E1, сессия 2026-06-05)
+
+**Механизм — 6-значный код в письме** (не ссылка: нет веб-инфраструктуры/deep links). Мягкий гейт:
+после регистрации НЕ блокируем вход.
+
+### Бэкенд
+- **Миграция `023`**: `users.email_verified BOOLEAN` (существующие → `true`, грандфатеринг; новые → `false`)
+  + таблица `email_codes(user_id, code, purpose, expires_at, used_at)`. `purpose`: `verify` | `reset`.
+  ⚠️ После миграции на VPS: `ALTER TABLE email_codes OWNER TO dacha_user;` (как с `promo_codes`).
+- **`services/emailService.js`** — nodemailer, провайдер-независимый. Транспорт лениво из env
+  (`SMTP_HOST/PORT/SECURE/USER/PASS/FROM`, `APP_NAME`). **Если `SMTP_HOST` пуст — почта отключена**
+  (код генерируется, письмо не уходит, флоу НЕ падает — как `pushService` без токенов). `generateCode()` —
+  6 цифр. Коды живут 15 минут, одноразовые; новый код гасит прежние того же `purpose` (`issueCode`).
+- **Роуты `auth.js`**: `register` шлёт код `verify` (best-effort, не валит регистрацию); `/auth/me`
+  отдаёт `email_verified`. Новые: `POST /verify-email {code}` (auth), `POST /resend-verification` (auth,
+  3/10мин), `POST /forgot-password {email}` (публичный, **всегда 200** — не раскрываем существование email),
+  `POST /reset-password {email, code, password}` (публичный; заодно `email_verified=true`).
+- Тесты: backend **179/179** (+10).
+
+### Android
+- `UserProfile.emailVerified` (`@Json email_verified`, **дефолт true** — login не отдаёт поле, чтобы не
+  доставать баннером; `/auth/me`+`register` отдают реальное значение).
+- **Подтверждение**: `VerifyEmailScreen`/`VerifyEmailViewModel`. После регистрации `RegisterScreen`
+  отдаёт `email` в `onRegisterSuccess(email)` → `Screen.VerifyEmail.route(email, fromRegister=true)`
+  с кнопкой «Позже» → `CreateGarden`. Из Настроек — баннер «Подтвердите email» (если `emailVerified==false`)
+  → тот же экран `fromRegister=false` (без «Позже», возврат `popBackStack`). `SettingsViewModel` грузит
+  профиль (`me()`), перечитывает по `ON_RESUME`.
+- **Сброс пароля**: `PasswordResetScreen`/`PasswordResetViewModel` — двухшаговый на одном экране
+  (`ResetStep.REQUEST_CODE` → `ENTER_NEW_PASSWORD`). Вход из `LoginScreen` («Забыли пароль?»).
+- Простые тела запросов — `Map<String,String>` (как `redeemPromo`). Ошибка кода (400) → «Неверный или
+  просроченный код» (`parseCodeError`).
+
+## 22. Runtime-разрешение POST_NOTIFICATIONS (Android 13+, сессия 2026-06-05)
+
+- На API ≥ 33 (`TIRAMISU`) уведомления **молча не показываются** без runtime-запроса разрешения,
+  даже когда оно объявлено в манифесте. Запрос — в `MainActivity` через
+  `rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission())`.
+- **Триггер**: `LaunchedEffect(Unit)` запускает запрос один раз, когда пользователь уже в приложении
+  (`isLoggedIn() && hasGarden()`) — напоминания тогда имеют смысл. Гейт: `Build.VERSION.SDK_INT >= 33`,
+  разрешение не выдано (`ContextCompat.checkSelfPermission`), и `!tokenStorage.isNotifPermissionAsked()`.
+- **Спрашиваем РОВНО один раз**: флаг `TokenStorage.isNotifPermissionAsked()`/`setNotifPermissionAsked()`
+  (ключ `notif_permission_asked`) ставится в колбэке лаунчера. После отказа система всё равно не покажет
+  диалог повторно — повторный запрос бессмысленен. Флаг чистится при `logout()` (через `prefs.clear()`).
+- `NotificationHelper.show*` уже проверяют `areNotificationsEnabled()` — при отказе пуши тихо не падают.

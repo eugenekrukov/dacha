@@ -189,3 +189,138 @@ describe('GET /auth/me', () => {
     await app.close()
   })
 })
+
+describe('POST /auth/verify-email', () => {
+  it('валидный код → 200 + email_verified=true', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('FROM email_codes')) return { rows: [{ id: 5 }] }  // код найден
+        return { rows: [] }  // UPDATE email_codes / UPDATE users
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/auth/verify-email')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.email_verified).toBe(true)
+    await app.close()
+  })
+
+  it('неверный/истёкший код → 400', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/auth/verify-email')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ code: '000000' })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+
+  it('без токена → 401', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server).post('/auth/verify-email').send({ code: '123456' })
+    expect(res.status).toBe(401)
+    await app.close()
+  })
+})
+
+describe('POST /auth/forgot-password', () => {
+  it('существующий email → 200 (код выдан)', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT id FROM users')) return { rows: [{ id: 1 }] }
+        return { rows: [] }
+      },
+    }))
+
+    const res = await supertest(app.server)
+      .post('/auth/forgot-password')
+      .send({ email: 'user@test.com' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    await app.close()
+  })
+
+  it('несуществующий email → тоже 200 (не раскрываем существование)', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
+
+    const res = await supertest(app.server)
+      .post('/auth/forgot-password')
+      .send({ email: 'nobody@test.com' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    await app.close()
+  })
+
+  it('невалидный email → 400', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server).post('/auth/forgot-password').send({ email: 'bad' })
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+})
+
+describe('POST /auth/reset-password', () => {
+  it('валидный код → 200', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT id FROM users')) return { rows: [{ id: 1 }] }
+        if (sql.includes('FROM email_codes')) return { rows: [{ id: 7 }] }
+        return { rows: [] }
+      },
+    }))
+
+    const res = await supertest(app.server)
+      .post('/auth/reset-password')
+      .send({ email: 'user@test.com', code: '123456', password: 'newpassword' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    await app.close()
+  })
+
+  it('неверный код → 400', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT id FROM users')) return { rows: [{ id: 1 }] }
+        return { rows: [] }  // код не найден
+      },
+    }))
+
+    const res = await supertest(app.server)
+      .post('/auth/reset-password')
+      .send({ email: 'user@test.com', code: '000000', password: 'newpassword' })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+
+  it('несуществующий email → 400', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
+
+    const res = await supertest(app.server)
+      .post('/auth/reset-password')
+      .send({ email: 'nobody@test.com', code: '123456', password: 'newpassword' })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+
+  it('короткий пароль → 400', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server)
+      .post('/auth/reset-password')
+      .send({ email: 'user@test.com', code: '123456', password: '123' })
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+})

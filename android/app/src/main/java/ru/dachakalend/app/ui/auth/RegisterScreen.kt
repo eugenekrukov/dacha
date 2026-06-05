@@ -29,7 +29,7 @@ import ru.dachakalend.app.ui.theme.RussoOneFamily
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    onRegisterSuccess: () -> Unit,
+    onRegisterSuccess: (email: String) -> Unit,
     onBack: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -42,7 +42,7 @@ fun RegisterScreen(
     LaunchedEffect(uiState) {
         if (uiState is AuthUiState.SuccessNoGarden || uiState is AuthUiState.SuccessHasGarden) {
             viewModel.resetState()
-            onRegisterSuccess()
+            onRegisterSuccess(email.trim())
         }
     }
 

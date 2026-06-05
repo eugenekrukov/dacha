@@ -13,7 +13,14 @@
 ## Следующая сессия (приоритет ↓)
 
 ### ⏳ Незакрытые шаги
-- [ ] **Пересборка APK** (Android Studio) с актуального `main` (`e54ae43`) + проверка на устройстве:
+- [ ] **Деплой бэкенда E1** (подтверждение email + сброс пароля): `git fetch + reset --hard origin/main`
+  → `cd backend && npm install` (добавлен **nodemailer**) → миграция `023_email_verification.sql`
+  (под postgres) → **`ALTER TABLE email_codes OWNER TO dacha_user;`** → задать **SMTP-переменные**
+  в `.env` (SMTP_HOST/PORT/SECURE/USER/PASS/FROM) → `pm2 restart dacha-api`. Без SMTP письма не уходят,
+  но регистрация/сброс не падают (коды просто не доставляются).
+- [ ] **Пересборка APK** (Android Studio) с актуального `main` + проверка на устройстве:
+  - E1: после регистрации экран «Подтвердите email» (код/«Позже»); баннер в Настройках; «Забыли пароль?»
+    на входе → запрос кода → новый пароль → вход;
   - промокоды: ввод кода на Paywall, тост-подтверждение, статус «Доступ по промокоду» в Настройках,
     клавиатура не перекрывает поле, «Купить»/Paywall не выбрасывают при активном доступе;
   - архив завершённых сезонов: «Все» без `done`, чип «Завершённые»;
@@ -94,8 +101,8 @@
 
 | # | Задача (отложено) | Почему |
 |---|---|---|
-| E1 | **Верификация email + сброс пароля** (SMTP/почтовый сервис, флоу подтверждения/reset) | захват аккаунта на чужой email, нет восстановления пароля |
-| E2 | **Runtime-запрос POST_NOTIFICATIONS** (API ≥ 33) | иначе пуши/напоминания не доходят на Android 13+ |
+| ~~E1~~ | ~~**Верификация email + сброс пароля**~~ ✅ 2026-06-05 (требует деплоя: миграция 023 + SMTP env + npm i) | захват аккаунта на чужой email, нет восстановления пароля |
+| ~~E2~~ | ~~**Runtime-запрос POST_NOTIFICATIONS** (API ≥ 33)~~ ✅ 2026-06-05 | иначе пуши/напоминания не доходят на Android 13+ |
 | E3 | **Android unit-тесты не запускаются** (баг тулчейна, не кода) | `testDebugUnitTest` падает с `ClassNotFoundException` на самом тест-классе: AGP 9.2.1 + built-in Kotlin (`built_in_kotlinc`) не подключает каталог `transformDebugUnitTestClassesWithAsm/dirs` в classpath воркера. Тест-КОД исправлен и компилируется (сигнатуры `register`, конструкторы `Auth/ActionLog/TodayViewModel`, `AuthUiState.SuccessNoGarden`). Рабочая проверка Android — `compileDebugKotlin`; логику покрывает backend-сьют (169/169). Чинить = трогать тулчейн (обход ASM/coverage или даунгрейд AGP до 8.x). |
 
 ---
@@ -234,6 +241,8 @@
 
 ```
 POST /auth/register  POST /auth/login  GET /auth/me  POST /auth/subscription
+POST /auth/verify-email  POST /auth/resend-verification
+POST /auth/forgot-password  POST /auth/reset-password
 POST /promo/redeem
 POST /gardens  GET /gardens  GET /gardens/:id  PUT /gardens/:id
 GET /crops  GET /crops/:id  POST /crops  PUT /crops/:id

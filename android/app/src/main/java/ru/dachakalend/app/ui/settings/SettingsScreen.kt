@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,15 +46,28 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onOpenPaywall: (() -> Unit)? = null,
     onOpenAnalytics: () -> Unit = {},
+    onVerifyEmail: (email: String?) -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings      by viewModel.settings.collectAsState()
     val loggedOut     by viewModel.loggedOut.collectAsState()
     val subStatus     by viewModel.subscriptionStatus.collectAsState()
+    val emailVerified by viewModel.emailVerified.collectAsState()
+    val email         by viewModel.email.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(loggedOut) {
         if (loggedOut) onLogout()
+    }
+
+    // Перечитываем профиль при возврате на экран (например, после подтверждения email).
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) viewModel.loadProfile()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     if (showLogoutDialog) {
@@ -122,6 +136,52 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            // ─── Баннер подтверждения email (только если email не подтверждён) ─────
+            if (emailVerified == false) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onVerifyEmail(email) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.MarkEmailUnread,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Подтвердите email",
+                                fontFamily = NunitoFamily,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                "Нужно для восстановления доступа к аккаунту",
+                                fontFamily = NunitoFamily,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
             // ─── Блок подписки ────────────────────────────────────────────────────
             Text(
                 text = "ПОДПИСКА",

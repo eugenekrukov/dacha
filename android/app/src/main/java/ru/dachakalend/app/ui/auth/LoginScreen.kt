@@ -29,6 +29,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onLoginNeedGarden: () -> Unit = {},
     onGoToRegister: () -> Unit,
+    onForgotPassword: () -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -132,7 +133,15 @@ fun LoginScreen(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = onForgotPassword) {
+            Text(
+                "Забыли пароль?",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         TextButton(onClick = onGoToRegister) {
             Text(
                 "Нет аккаунта? Зарегистрироваться",
