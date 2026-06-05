@@ -66,12 +66,14 @@ module.exports = async function (fastify) {
     const user = result.rows[0]
     const token = fastify.jwt.sign({ userId: user.id, email: user.email })
 
-    // Отправляем код подтверждения email (best-effort — не валим регистрацию при сбое почты).
+    // Отправляем код подтверждения email (best-effort, НЕ блокируя ответ — почта уходит
+    // в фоне, чтобы запрос не висел при недоступности почтового сервиса).
     try {
       const code = await issueCode(db, user.id, 'verify')
-      await sendVerificationCode(user.email, code)
+      sendVerificationCode(user.email, code).catch(e =>
+        fastify.log.warn(`[auth] не удалось отправить код подтверждения: ${e.message}`))
     } catch (e) {
-      fastify.log.warn(`[auth] не удалось отправить код подтверждения: ${e.message}`)
+      fastify.log.warn(`[auth] issueCode (verify) failed: ${e.message}`)
     }
 
     return reply.code(201).send({ token, user: { ...user, ...trialInfo(user.trial_started_at) } })
@@ -175,7 +177,8 @@ module.exports = async function (fastify) {
     if (user && !user.email_verified) {
       try {
         const code = await issueCode(db, request.user.userId, 'verify')
-        await sendVerificationCode(user.email, code)
+        sendVerificationCode(user.email, code).catch(e =>
+          fastify.log.warn(`[auth] resend-verification send: ${e.message}`))
       } catch (e) {
         fastify.log.warn(`[auth] resend-verification: ${e.message}`)
       }
@@ -196,7 +199,8 @@ module.exports = async function (fastify) {
     if (res.rows.length > 0) {
       try {
         const code = await issueCode(db, res.rows[0].id, 'reset')
-        await sendPasswordResetCode(request.body.email, code)
+        sendPasswordResetCode(request.body.email, code).catch(e =>
+          fastify.log.warn(`[auth] forgot-password send: ${e.message}`))
       } catch (e) {
         fastify.log.warn(`[auth] forgot-password: ${e.message}`)
       }

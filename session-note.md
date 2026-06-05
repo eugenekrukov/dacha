@@ -4,6 +4,35 @@
 
 ---
 
+## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E1.1: почта через Unisender Go — обход блокировки SMTP на Hetzner)
+
+**Проблема**: после деплоя E1 сброс пароля давал таймаут. Диагностика с VPS показала: **Hetzner режет
+исходящий SMTP** — порты 25/465/2525 закрыты, на 587 проходит TCP+SMTP-приветствие, но TLS-handshake
+(STARTTLS) виснет наглухо. Прямой SMTP (reg.ru `scp93.hosting.reg.ru`) с этого сервера невозможен.
+Порт 443 (HTTPS) открыт.
+
+**Решение (выбор пользователя)**: российский транзакционный сервис по HTTP API — **Unisender Go**.
+- `emailService.js`: добавлен драйвер `sendViaUnisender` (POST `go1.unisender.ru/ru/transactional/api/v1/
+  email/send.json`, заголовок `X-API-KEY`, тело `message{recipients,subject,from_email,from_name,body,
+  skip_unsubscribe:1}`, AbortController-таймаут 12с). `sendMail` выбирает драйвер: `UNISENDER_GO_API_KEY`
+  → HTTP API; иначе `SMTP_HOST` → nodemailer; иначе off. Новых npm-зависимостей нет (`node-fetch` уже есть).
+- SMTP-транспорт получил таймауты (10–12с). Отправка в роутах (`register`/`resend`/`forgot-password`) —
+  **fire-and-forget** (`.catch()` без `await`) → запрос больше не висит при недоступности почты.
+- `.env.example`: блок Unisender Go + SMTP помечен фолбэком. `CONVENTIONS.md §23` обновлён.
+- Тесты backend **179/179** ✅ (состав не менялся; почта в тестах off → no-op).
+
+**Деплой E1 (выполнен пользователем ранее)**: код `673018f` на сервере, миграция 023 применена
+(`email_codes` owner `dacha_user`, `users.email_verified` есть), nodemailer установлен.
+
+**Незакрытые шаги**:
+1. Аккаунт Unisender Go: зарегистрировать, подтвердить домен `studio1008.com` (SPF/DKIM-записи из кабинета),
+   подтвердить отправителя `noreply@studio1008.com`, получить API-ключ.
+2. На VPS в `.env`: `UNISENDER_GO_API_KEY=<ключ>`, `SMTP_FROM=noreply@studio1008.com`, `APP_NAME=...`;
+   деплой ветки `feature/email-unisender` (`git fetch+reset`, **npm install не нужен**, `pm2 restart`).
+3. Проверка: регистрация → код на почту; сброс пароля → код → новый пароль → вход.
+
+---
+
 ## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E1: подтверждение email + сброс пароля)
 
 **Тема**: бэклог-пункт E1 — почта не верифицировалась (нет SMTP), не было восстановления пароля.

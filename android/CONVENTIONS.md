@@ -666,10 +666,16 @@ ModalBottomSheet(
 - **Миграция `023`**: `users.email_verified BOOLEAN` (существующие → `true`, грандфатеринг; новые → `false`)
   + таблица `email_codes(user_id, code, purpose, expires_at, used_at)`. `purpose`: `verify` | `reset`.
   ⚠️ После миграции на VPS: `ALTER TABLE email_codes OWNER TO dacha_user;` (как с `promo_codes`).
-- **`services/emailService.js`** — nodemailer, провайдер-независимый. Транспорт лениво из env
-  (`SMTP_HOST/PORT/SECURE/USER/PASS/FROM`, `APP_NAME`). **Если `SMTP_HOST` пуст — почта отключена**
-  (код генерируется, письмо не уходит, флоу НЕ падает — как `pushService` без токенов). `generateCode()` —
-  6 цифр. Коды живут 15 минут, одноразовые; новый код гасит прежние того же `purpose` (`issueCode`).
+- **`services/emailService.js`** — два драйвера, выбор по env: **Unisender Go (HTTP API, порт 443)**
+  если задан `UNISENDER_GO_API_KEY`, иначе **SMTP** (nodemailer) если задан `SMTP_HOST`, иначе почта
+  отключена (код генерируется, письмо не уходит, флоу НЕ падает — как `pushService` без токенов).
+  `generateCode()` — 6 цифр. Коды живут 15 минут, одноразовые; новый код гасит прежние того же `purpose`.
+  Отправитель — `SMTP_FROM` + `APP_NAME` (общие для обоих драйверов). У SMTP-транспорта жёсткие таймауты
+  (10–12с). Отправка писем в роутах — **fire-and-forget** (`.catch()` без `await`), чтобы запрос не висел.
+- ⚠️ **Hetzner режет исходящий SMTP** (порты 25/465/587 — TLS глохнет). Поэтому на этом VPS почта идёт
+  **только через Unisender Go** (HTTP API, 443 открыт). SMTP-драйвер оставлен как фолбэк для других хостингов.
+  Endpoint: `POST https://go1.unisender.ru/ru/transactional/api/v1/email/send.json`, заголовок `X-API-KEY`,
+  тело `{ message: { recipients:[{email}], subject, from_email, from_name, body:{html,plaintext}, skip_unsubscribe:1 } }`.
 - **Роуты `auth.js`**: `register` шлёт код `verify` (best-effort, не валит регистрацию); `/auth/me`
   отдаёт `email_verified`. Новые: `POST /verify-email {code}` (auth), `POST /resend-verification` (auth,
   3/10мин), `POST /forgot-password {email}` (публичный, **всегда 200** — не раскрываем существование email),

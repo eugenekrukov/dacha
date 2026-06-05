@@ -1,6 +1,7 @@
 'use strict'
 
 const nodemailer = require('nodemailer')
+const fetch = require('node-fetch')
 
 // Транспорт создаётся лениво и кэшируется. Если SMTP_HOST не задан — почта отключена
 // (как pushService при отсутствии токенов): функции логируют предупреждение и no-op,
@@ -27,7 +28,12 @@ function getTransport() {
     secure: process.env.SMTP_SECURE === 'true' || port === 465,
     auth: process.env.SMTP_USER
       ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-      : undefined
+      : undefined,
+    // Жёсткие таймауты: если порт/SMTP недоступен (напр. хостинг режет исходящий SMTP) —
+    // быстрый отказ вместо зависания запроса на минуты.
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 12000
   })
   return cachedTransport
 }
@@ -46,10 +52,60 @@ function generateCode() {
 const APP_NAME = () => process.env.APP_NAME || 'Календарь дачника'
 const FROM = () => process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@dacha.local'
 
+// Unisender Go — отправка через HTTP API (порт 443), обходит блокировку исходящего SMTP
+// на хостинге (Hetzner режет 25/465/587). Включается заданием UNISENDER_GO_API_KEY.
+const UNISENDER_HOST = () => process.env.UNISENDER_GO_HOST || 'go1.unisender.ru'
+
+async function sendViaUnisender(to, subject, text, html) {
+  const apiKey = process.env.UNISENDER_GO_API_KEY
+  const url = `https://${UNISENDER_HOST()}/ru/transactional/api/v1/email/send.json`
+  const payload = {
+    message: {
+      recipients: [{ email: to }],
+      subject,
+      from_email: FROM(),
+      from_name: APP_NAME(),
+      body: { html, plaintext: text },
+      // Транзакционное письмо (код подтверждения) — без ссылки отписки.
+      // Требует включённой опции транзакционных писем в аккаунте Unisender Go.
+      skip_unsubscribe: 1
+    }
+  }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 12000)
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || data.status === 'error') {
+      console.error(`[email] Unisender ошибка (${res.status}): ${JSON.stringify(data)}`)
+      return false
+    }
+    if (Array.isArray(data.failed_emails) && data.failed_emails.length > 0) {
+      console.error(`[email] Unisender не доставлено: ${data.failed_emails.join(', ')}`)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.error('[email] Unisender сетевая ошибка:', e.message)
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function sendMail(to, subject, text, html) {
+  // Приоритет: HTTP API (Unisender Go) → SMTP → отключено.
+  if (process.env.UNISENDER_GO_API_KEY) {
+    return sendViaUnisender(to, subject, text, html)
+  }
   const transport = getTransport()
   if (!transport) {
-    console.warn(`[email] письмо "${subject}" для ${to} не отправлено (SMTP отключён)`)
+    console.warn(`[email] письмо "${subject}" для ${to} не отправлено (почта отключена)`)
     return false
   }
   try {
