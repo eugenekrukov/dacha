@@ -98,8 +98,47 @@ async function sendViaUnisender(to, subject, text, html) {
   }
 }
 
+// Brevo (ex-Sendinblue) — транзакционная почта по HTTP API (порт 443). Подтверждение
+// домена через CNAME/TXT (не NS), бесплатный тариф. Включается заданием BREVO_API_KEY.
+async function sendViaBrevo(to, subject, text, html) {
+  const apiKey = process.env.BREVO_API_KEY
+  const payload = {
+    sender: { name: APP_NAME(), email: FROM() },
+    to: [{ email: to }],
+    subject,
+    htmlContent: html,
+    textContent: text
+  }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 12000)
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'content-type': 'application/json',
+        'accept': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    })
+    if (res.ok) return true  // 201 Created
+    const data = await res.text().catch(() => '')
+    console.error(`[email] Brevo ошибка (${res.status}): ${data}`)
+    return false
+  } catch (e) {
+    console.error('[email] Brevo сетевая ошибка:', e.message)
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function sendMail(to, subject, text, html) {
-  // Приоритет: HTTP API (Unisender Go) → SMTP → отключено.
+  // Приоритет: Brevo → Unisender Go → SMTP → отключено.
+  if (process.env.BREVO_API_KEY) {
+    return sendViaBrevo(to, subject, text, html)
+  }
   if (process.env.UNISENDER_GO_API_KEY) {
     return sendViaUnisender(to, subject, text, html)
   }

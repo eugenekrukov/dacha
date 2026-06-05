@@ -4,6 +4,29 @@
 
 ---
 
+## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E1.2: переход на Brevo — Unisender требует NS-трекинг-домен)
+
+**Проблема**: Unisender Go при отправке вернул ошибку **229 `Custom backend domain or tracking domain
+required`** — нужен трекинг/бэкенд-домен, т.е. NS-делегирование `noreply.studio1008.com` на
+`uns1/2/3.unisender.com`. Но reg.ru в веб-редакторе **не даёт добавлять NS** для поддомена. Также у
+Unisender Go маленький бесплатный лимит.
+
+**Решение (выбор пользователя)**: **Brevo** (ex-Sendinblue) — бесплатный тариф, HTTP API на 443,
+подтверждение домена через **CNAME/TXT** (reg.ru это умеет, без NS).
+- `emailService.js`: добавлен драйвер `sendViaBrevo` (POST `https://api.brevo.com/v3/smtp/email`,
+  заголовок `api-key`, тело `{sender,to,subject,htmlContent,textContent}`, успех 201, таймаут 12с).
+  `sendMail` приоритет: `BREVO_API_KEY` → Brevo; `UNISENDER_GO_API_KEY` → Unisender; `SMTP_HOST` → SMTP; off.
+- `.env.example`: блок Brevo (вариант 1) + Unisender (вариант 2) + SMTP-фолбэк. Тесты **179/179** ✅.
+
+**Незакрытые шаги**:
+1. Аккаунт Brevo: регистрация, подтвердить домен `studio1008.com` (Senders/Domains → DKIM/SPF/brevo-code,
+   записи CNAME/TXT в reg.ru), получить API-ключ (SMTP & API → API Keys).
+2. На VPS `.env`: `BREVO_API_KEY=<ключ>`, `SMTP_FROM=noreply@studio1008.com`, `APP_NAME=...`;
+   деплой ветки (`git fetch+reset`, npm install НЕ нужен, `pm2 restart`).
+3. Тест: регистрация → код на почту; сброс пароля → код → новый пароль.
+
+---
+
 ## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E1.1: почта через Unisender Go — обход блокировки SMTP на Hetzner)
 
 **Проблема**: после деплоя E1 сброс пароля давал таймаут. Диагностика с VPS показала: **Hetzner режет
