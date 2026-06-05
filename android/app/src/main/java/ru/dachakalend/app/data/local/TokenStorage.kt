@@ -260,6 +260,11 @@ class TokenStorage @Inject constructor(
     fun isCoachDone(): Boolean = prefs.getBoolean(KEY_COACH_DONE, false)
     fun setCoachDone()         = prefs.edit { putBoolean(KEY_COACH_DONE, true) }
 
+    // Запрашивали ли уже runtime-разрешение POST_NOTIFICATIONS (Android 13+).
+    // Спрашиваем ровно один раз — после отказа система всё равно не покажет диалог снова.
+    fun isNotifPermissionAsked(): Boolean = prefs.getBoolean(KEY_NOTIF_PERM_ASKED, false)
+    fun setNotifPermissionAsked()         = prefs.edit { putBoolean(KEY_NOTIF_PERM_ASKED, true) }
+
     /** Полный выход — очищает все данные приложения (включая зашифрованный токен) */
     fun logout() {
         prefs.edit { clear() }
@@ -281,6 +286,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_FIRST_LAUNCH    = "first_launch_date"
         private const val KEY_INTRO_DONE      = "intro_done"
         private const val KEY_COACH_DONE      = "coach_done"
+        private const val KEY_NOTIF_PERM_ASKED = "notif_permission_asked"
         const val TRIAL_DAYS                  = 7L
 
         const val NOTIF_FROST      = "frost_alert"

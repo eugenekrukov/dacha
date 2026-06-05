@@ -1,9 +1,16 @@
 package ru.dachakalend.app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -96,6 +103,24 @@ class MainActivity : ComponentActivity() {
                                 launchSingleTop = true
                             }
                         }
+                    }
+                }
+
+                // Runtime-запрос POST_NOTIFICATIONS (Android 13+). Без него на API ≥ 33
+                // уведомления молча не показываются. Спрашиваем один раз, когда пользователь
+                // уже в приложении (залогинен + есть участок) — напоминания имеют смысл.
+                val context = LocalContext.current
+                val notifPermLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission()
+                ) { tokenStorage.setNotifPermissionAsked() }
+                LaunchedEffect(Unit) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        tokenStorage.isLoggedIn() && tokenStorage.hasGarden() &&
+                        !tokenStorage.isNotifPermissionAsked() &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                            != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 }
 
