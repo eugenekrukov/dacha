@@ -41,6 +41,14 @@ interface DachaApi {
     @POST("promo/redeem")
     suspend fun redeemPromo(@Body body: Map<String, String>): PromoRedeemResponse
 
+    // Billing (ЮKassa) — создание платежа: возвращает ссылку на оплату (confirmation_url)
+    @POST("billing/create-payment")
+    suspend fun createPayment(@Body body: Map<String, String>): CreatePaymentResponse
+
+    // Billing — отключить автопродление подписки
+    @POST("billing/cancel-autorenew")
+    suspend fun cancelAutoRenew()
+
     // Geocode
     @GET("geocode/suggest")
     suspend fun suggestCity(@Query("q") query: String): List<GeocodeSuggestion>

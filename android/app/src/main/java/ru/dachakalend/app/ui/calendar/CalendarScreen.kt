@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.ui.theme.DachaColorScheme
 import ru.dachakalend.app.ui.theme.NunitoFamily
-import ru.dachakalend.app.ui.theme.RussoOneFamily
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth

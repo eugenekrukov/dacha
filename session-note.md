@@ -4,6 +4,103 @@
 
 ---
 
+## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E4-Android: RuStore Billing → ЮKassa)
+
+**Что сделано** (Android E4, `compileDebugKotlin` BUILD SUCCESSFUL):
+- `SubscriptionManager` переписан без `RuStoreBillingClientFactory`: `refresh()` читает `/auth/me`
+  (источник правды по подписке = вебхук ЮKassa); `startPayment(plan)` → `confirmation_url`;
+  `cancelAutoRenew()`. `SubscriptionStatus` += `subscriptionUntil`/`autoRenew`/`plan`.
+- `BillingRepository` (new) — `createPayment(plan): Result<String>`, `cancelAutoRenew(): Result<Unit>`.
+  `DachaApi` += `createPayment`/`cancelAutoRenew`. `UserProfile` += `subscribed`/`subscriptionUntil`/
+  `autoRenew`/`plan`/`hasSavedCard`; новый `CreatePaymentResponse`.
+- `PaywallViewModel.purchase(plan)` → ссылка оплаты; `PaywallScreen` открывает её в Chrome Custom Tab
+  (`androidx.browser`), по `ON_RESUME` поллит `/auth/me` (8×1.5с, флаг `paymentStarted`). Убрана
+  «Восстановить покупки». Футер обновлён (ЮKassa, автопродление в Настройках).
+- Настройки: дата окончания подписки + тоггл «Автопродление» (выкл → `cancel-autorenew`; вкл — новой
+  оплатой). `SettingsViewModel.cancelAutoRenew()`.
+- `App.kt` — убран `RuStoreBillingClientFactory.init` (Push НЕ тронут). `build.gradle.kts`/
+  `libs.versions.toml` — RuStore Billing убран, добавлен `androidx.browser`; `RUSTORE_CONSOLE_APP_ID` удалён.
+- `CONVENTIONS.md §11` переписан под ЮKassa; таблица репозиториев += `BillingRepository`.
+
+**Незакрытое по E4**: деплой бэкенда (нужны ключи ЮKassa самозанятого) + проверка APK на устройстве
+(оплата картой → возврат → доступ; отключение автопродления; промокоды/триал). Android unit-тесты
+не запускаются (баг тулчейна E3) — проверка через `compileDebugKotlin`.
+
+**Следующий эпик**: E5 (реклама РСЯ для GP/Samsung) — флейворы + Yandex Mobile Ads SDK.
+
+---
+
+## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E4-бэкенд: ЮKassa реализован)
+
+**Что сделано** (бэкенд E4, тесты **196/196** — было 179, +17):
+- Миграция `024_yookassa_billing.sql` (`users.payment_method_id`/`auto_renew`/`plan` + таблица
+  `payments` с `yk_payment_id UNIQUE` для идемпотентности). ⚠️ деплой: `ALTER TABLE payments OWNER TO dacha_user;`
+- `services/yookassaService.js` — `createPayment` (redirect + `save_payment_method:true`),
+  `chargeRecurring` (по `payment_method_id`, без confirmation), `getPayment` (верификация вебхука),
+  `buildReceipt` (чек 54-ФЗ, самозанятый `vat_code=1`). Basic-auth + `Idempotence-Key` (crypto.randomUUID).
+  Без `YOOKASSA_SHOP_ID`/`SECRET_KEY` — биллинг off (как email/push).
+- `routes/billing.js` — `POST /create-payment {plan}` → `confirmation_url` (503 если off);
+  `POST /webhook` (публичный: при включённом биллинге перезапрашивает платёж из API = защита от
+  подделки; идемпотентность по `yk_payment_id`; `succeeded` → `extendSubscription` + сохранить карту +
+  `auto_renew=true`; `canceled` → запись); `POST /cancel-autorenew` (auth).
+- `jobs/renewalJob.js` (cron 10:00) — автосписание для истекающих ≤1 дня; защита от двойного списания;
+  продление делает вебхук (единый источник истины). Подключён в `app.js` onReady.
+- `utils/access.js` += `extendSubscription(currentUntil, days)` (продлевает от конца активной подписки).
+- `/auth/me` += `auto_renew`/`plan`/`subscription_until`/`has_saved_card` (токен карты наружу НЕ отдаём).
+- `.env.example` += блок ЮKassa. Тесты: `billing.test.js` (12), `renewalJob.test.js` (5).
+
+**НЕ задеплоено** (нужны ключи самозанятого ЮKassa): миграция 024 + OWNER, `YOOKASSA_SHOP_ID`/
+`YOOKASSA_SECRET_KEY`/`YOOKASSA_RETURN_URL` в `.env`, вебхук `…/billing/webhook` в кабинете ЮKassa.
+
+**Следующий шаг**: Android-часть E4 — вырезать RuStore Billing из `SubscriptionManager`, оплата через
+Custom Tab по `confirmation_url`, тоггл автопродления в Настройках. Затем эпик E5 (реклама РСЯ).
+
+---
+
+## ПЛАН СЕССИИ 2026-06-05 (E4: RuStore Billing → ЮKassa — RuStore не подключает самозанятых)
+
+**Проблема**: RuStore больше НЕ подключает монетизацию самозанятым → внутримагазинный биллинг
+недоступен. Переход на прямые платежи картой через **ЮKassa (YooKassa)**. Также за сессию закрыты
+пункты 1–2 прошлого бэклога: Brevo-ключ перевыпущен ✅, APK пересобран и проверен на устройстве ✅.
+
+**Решения пользователя**: провайдер **ЮKassa**; модель **автопродление (рекуррент)**; дистрибуция
+**RuStore + Google Play + Samsung**; платёжный UI — **Chrome Custom Tab + `confirmation_url`**
+(карта сохраняется на сервере). Сначала — зафиксировать план в доках (этот блок), потом код.
+
+**⚠️ Риск магазинов**: Google Play / Samsung требуют свой биллинг для in-app подписок (Google Play
+Billing в РФ не работает с 2022 → серая зона). Оплату изолировать в `BillingRepository` для гейта
+по build-флейвору при модерации. Бизнес-решение пользователя — техника готова к обоим сценариям.
+
+**Архитектура** (детали и чеклист — `summary.md`, блок «E4»):
+- Серверный гейт уже на «оплачено до даты» (`subscription_until`/`hasAccess`/402) — меняем ТОЛЬКО
+  источник флага: вебхук ЮKassa вместо `POST /auth/subscription`. Триал/промокоды/402 — без изменений.
+- Рекуррент ЮKassa: 1-й платёж `save_payment_method:true` → `payment_method.id`; автосписания —
+  серверный `POST /v3/payments` с `payment_method_id` без `confirmation`; вебхуки
+  `payment.succeeded`/`canceled`; чек 54-ФЗ через объект `receipt`. Basic-auth + `Idempotence-Key`.
+- Бэкенд: миграция `024` (`payment_method_id`/`auto_renew`/`plan` + таблица `payments`),
+  `services/yookassaService.js`, `routes/billing.js` (create-payment/webhook/cancel-autorenew),
+  cron `renewalJob.js`. Env `YOOKASSA_SHOP_ID`/`YOOKASSA_SECRET_KEY`/`YOOKASSA_RETURN_URL`.
+- Android: вырезать `RuStoreBillingClientFactory` из `SubscriptionManager` (Push НЕ трогать),
+  оплата через Custom Tab, тоггл автопродления в Настройках.
+
+**Анализ магазинов (2026-06-05)**: оплата из РФ невозможна в GP (биллинг РФ-аккаунтам отключён
+26.12.2024; внешняя оплата разрешена только в США/ЕЭЗ; даже зарубежное юрлицо не спасает — РФ-карта
+не пройдёт в Google-биллинге) и Samsung. RuStore разрешает альтернативные платежи вне своих SDK
+БЕЗ комиссии → ЮKassa в RuStore-сборке легитимна (основной канал). Вывод: монетизация РАЗНАЯ по сторам.
+
+**E5 — реклама РСЯ для GP/Samsung** (бесплатная модель, делаем после E4): AdMob/Google не вариант
+(новые РФ-аккаунты закрыты) → **Yandex Mobile Ads SDK 8.0.0** (работает с самозанятыми, нативный
+Compose: `rememberBannerAdState`/`Banner`, `rememberInterstitialAdLoader`). Флейворы
+`rustore`/`gplay`/`samsung` + `BuildConfig` `PAYMENTS_ENABLED`/`ADS_ENABLED`; SDK рекламы только в
+gplay/samsung через source sets (rustore — no-op `AdController`). Бэкенд: `users.store` снимает
+жёсткий 402 для неплатёжных сторов. Детали и чеклист — `summary.md` блок E5.
+
+**Следующий шаг**: реализация E4 — начать с бэкенда (миграция + сервис + роуты + вебхук + cron + тесты),
+затем Android под готовый API. Нужен аккаунт ЮKassa (Shop ID + Secret Key) для самозанятого. E5 (реклама)
+— следующим эпиком; нужен аккаунт РСЯ + ID объявлений.
+
+---
+
 ## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E1.2: переход на Brevo — Unisender требует NS-трекинг-домен)
 
 **Проблема**: Unisender Go при отправке вернул ошибку **229 `Custom backend domain or tracking domain

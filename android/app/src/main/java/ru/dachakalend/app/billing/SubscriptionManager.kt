@@ -1,26 +1,20 @@
 package ru.dachakalend.app.billing
 
-import android.app.Activity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
-import ru.rustore.sdk.billingclient.RuStoreBillingClientFactory
-import ru.rustore.sdk.billingclient.model.purchase.PaymentResult
-import ru.rustore.sdk.billingclient.model.purchase.Purchase
-import ru.rustore.sdk.billingclient.model.purchase.PurchaseState
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.PromoRedeemResponse
 import ru.dachakalend.app.data.repository.AuthRepository
+import ru.dachakalend.app.data.repository.BillingRepository
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.resume
 
-/** ID подписок из RuStore Консоль → Монетизация → Подписки */
+/** Идентификаторы тарифов для бэкенда ЮKassa. */
 object SubscriptionProduct {
-    const val MONTHLY = "dacha_pro_monthly"   // 299 ₽/мес
-    const val YEARLY  = "dacha_pro_yearly"    // 1990 ₽/год
+    const val MONTHLY = "monthly"   // 299 ₽/мес
+    const val YEARLY  = "yearly"    // 1990 ₽/год
 }
 
 data class SubscriptionStatus(
@@ -30,16 +24,24 @@ data class SubscriptionStatus(
     val isPromo: Boolean = false,          // активен промо-доступ (по коду)
     val isPromoLifetime: Boolean = false,  // промо «навсегда»
     val promoUntil: String? = null,        // ISO-дата окончания промо-доступа (null = нет/вечно)
-    val isLoading: Boolean = false,
-    val activeProductId: String? = null
+    val subscriptionUntil: String? = null, // ISO-дата окончания подписки (null = нет)
+    val autoRenew: Boolean = false,        // включено ли автопродление
+    val plan: String? = null,              // текущий тариф (monthly/yearly)
+    val isLoading: Boolean = false
 ) {
     val isAccessAllowed: Boolean get() = isSubscribed || isTrialActive || isPromo
 }
 
+/**
+ * Источник истины по доступу — сервер (/auth/me). Подписка приходит из вебхука ЮKassa
+ * (не из стора). Оплата — через BillingRepository: createPayment → ссылка для Custom Tab,
+ * после возврата клиент перечитывает статус (refresh).
+ */
 @Singleton
 class SubscriptionManager @Inject constructor(
     private val tokenStorage: TokenStorage,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val billingRepository: BillingRepository
 ) {
     private val _status = MutableStateFlow(
         SubscriptionStatus(
@@ -50,38 +52,44 @@ class SubscriptionManager @Inject constructor(
     )
     val status: StateFlow<SubscriptionStatus> = _status.asStateFlow()
 
-    /** Загружает реальный статус из RuStore + триал с сервера. Вызывается при старте и после покупки. */
+    /** Перечитывает статус доступа с сервера (триал/подписка/промо). Офлайн → фолбэк на TokenStorage. */
     suspend fun refresh() {
         _status.value = _status.value.copy(isLoading = true)
-        val purchases = fetchActivePurchases()
-        val activeProductId = purchases.firstOrNull { purchase: Purchase ->
-            purchase.productId in setOf(SubscriptionProduct.MONTHLY, SubscriptionProduct.YEARLY) &&
-            purchase.purchaseState == PurchaseState.CONFIRMED
-        }?.productId
-
-        // Синхронизируем статус подписки на сервер (для серверного гейта платных действий).
-        authRepository.syncSubscription(activeProductId != null)
-
-        // Сервер — источник правды по триалу и промо; при сетевой ошибке — офлайн-фолбэк на TokenStorage.
-        val me = authRepository.me()
-        val (trialActive, trialDaysLeft) = when (me) {
-            is Result.Success -> me.data.trialActive to me.data.trialDaysLeft
-            else              -> tokenStorage.isTrialActive() to tokenStorage.trialDaysLeft()
+        when (val me = authRepository.me()) {
+            is Result.Success -> {
+                val d = me.data
+                _status.value = SubscriptionStatus(
+                    isSubscribed      = d.subscribed,
+                    isTrialActive     = d.trialActive,
+                    trialDaysLeft     = d.trialDaysLeft,
+                    isPromo           = d.promoActive,
+                    isPromoLifetime   = d.promoLifetime,
+                    promoUntil        = d.promoUntil,
+                    subscriptionUntil = d.subscriptionUntil,
+                    autoRenew         = d.autoRenew,
+                    plan              = d.plan,
+                    isLoading         = false
+                )
+            }
+            else -> {
+                // Сетевая ошибка: триал из локального хранилища, остальное оставляем как было.
+                _status.value = _status.value.copy(
+                    isTrialActive = tokenStorage.isTrialActive(),
+                    trialDaysLeft = tokenStorage.trialDaysLeft(),
+                    isLoading     = false
+                )
+            }
         }
-        val isPromo = (me as? Result.Success)?.data?.promoActive ?: _status.value.isPromo
-        val isPromoLifetime = (me as? Result.Success)?.data?.promoLifetime ?: _status.value.isPromoLifetime
-        val promoUntil = (me as? Result.Success)?.data?.promoUntil ?: _status.value.promoUntil
+    }
 
-        _status.value = SubscriptionStatus(
-            isSubscribed    = activeProductId != null,
-            isTrialActive   = trialActive,
-            trialDaysLeft   = trialDaysLeft,
-            isPromo         = isPromo,
-            isPromoLifetime = isPromoLifetime,
-            promoUntil      = promoUntil,
-            isLoading       = false,
-            activeProductId = activeProductId
-        )
+    /** Создаёт платёж в ЮKassa и возвращает confirmation_url для открытия в Custom Tab. */
+    suspend fun startPayment(plan: String): Result<String> = billingRepository.createPayment(plan)
+
+    /** Отключает автопродление и обновляет статус. */
+    suspend fun cancelAutoRenew(): Result<Unit> {
+        val res = billingRepository.cancelAutoRenew()
+        if (res is Result.Success) refresh()
+        return res
     }
 
     /**
@@ -92,7 +100,6 @@ class SubscriptionManager @Inject constructor(
     suspend fun redeemPromo(code: String): Result<PromoRedeemResponse> {
         return when (val res = authRepository.redeemPromo(code.trim())) {
             is Result.Success -> {
-                // Оптимистично отражаем доступ и перечитываем серверный статус
                 _status.value = _status.value.copy(
                     isPromo = res.data.promoActive,
                     isPromoLifetime = res.data.promoLifetime,
@@ -107,25 +114,4 @@ class SubscriptionManager @Inject constructor(
     }
 
     fun isAccessAllowed(): Boolean = _status.value.isAccessAllowed
-
-    suspend fun purchaseMonthly(activity: Activity) = purchase(SubscriptionProduct.MONTHLY)
-    suspend fun purchaseYearly(activity: Activity)  = purchase(SubscriptionProduct.YEARLY)
-
-    private suspend fun purchase(productId: String): Unit =
-        suspendCancellableCoroutine { cont ->
-            RuStoreBillingClientFactory.getSingleton()
-                .purchases
-                .purchaseProduct(productId = productId)
-                .addOnSuccessListener { _: PaymentResult -> cont.resume(Unit) }
-                .addOnFailureListener { _: Throwable     -> cont.resume(Unit) }
-        }
-
-    private suspend fun fetchActivePurchases(): List<Purchase> =
-        suspendCancellableCoroutine { cont ->
-            RuStoreBillingClientFactory.getSingleton()
-                .purchases
-                .getPurchases()
-                .addOnSuccessListener { result: List<Purchase> -> cont.resume(result) }
-                .addOnFailureListener { _: Throwable            -> cont.resume(emptyList()) }
-        }
 }

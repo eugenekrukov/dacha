@@ -87,6 +87,7 @@ app.decorate('requireAccess', async function (request, reply) {
 // Routes
 app.register(require('./routes/auth'), { prefix: '/auth' })
 app.register(require('./routes/promo'), { prefix: '/promo' })
+app.register(require('./routes/billing'), { prefix: '/billing' })
 app.register(require('./routes/gardens'), { prefix: '/gardens' })
 app.register(require('./routes/crops'), { prefix: '/crops' })
 app.register(require('./routes/plantings'), { prefix: '/plantings' })
@@ -106,9 +107,11 @@ app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOStrin
 // Background jobs — стартуют после инициализации БД
 const { startWeatherJob } = require('./jobs/weatherJob')
 const { startCareRemindersJob } = require('./jobs/careRemindersJob')
+const { startRenewalJob } = require('./jobs/renewalJob')
 app.addHook('onReady', async () => {
   startWeatherJob(app.db)
   startCareRemindersJob(app.db)
+  startRenewalJob(app.db)
 })
 
 // Start

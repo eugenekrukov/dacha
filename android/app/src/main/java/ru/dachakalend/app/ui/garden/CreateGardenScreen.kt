@@ -25,7 +25,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.LocationHelper
 import ru.dachakalend.app.ui.theme.NunitoFamily
-import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 
 private val GARDEN_TYPES = listOf(

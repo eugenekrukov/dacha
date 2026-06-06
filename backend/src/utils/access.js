@@ -45,7 +45,17 @@ function hasAccess(user) {
     hasPromo(user && user.promo_until)
 }
 
+/**
+ * Новая дата окончания подписки после оплаты на `days` дней.
+ * Если подписка ещё активна — продлеваем от её конца (не теряем оплаченное);
+ * иначе — от текущего момента.
+ */
+function extendSubscription(currentUntil, days) {
+  const base = isSubscribed(currentUntil) ? new Date(currentUntil) : new Date()
+  return new Date(base.getTime() + days * 86_400_000)
+}
+
 module.exports = {
   TRIAL_DAYS, SUBSCRIPTION_WINDOW_DAYS, PROMO_MONTH_DAYS, LIFETIME_UNTIL,
-  trialInfo, isSubscribed, hasPromo, isLifetimePromo, hasAccess
+  trialInfo, isSubscribed, hasPromo, isLifetimePromo, hasAccess, extendSubscription
 }

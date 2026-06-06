@@ -90,6 +90,11 @@ class SettingsViewModel @Inject constructor(
         _settings.value = _settings.value.copy(transplant = enabled)
     }
 
+    /** Отключает автопродление подписки (доступ доживает до конца оплаченного периода). */
+    fun cancelAutoRenew() {
+        viewModelScope.launch { subscriptionManager.cancelAutoRenew() }
+    }
+
     fun logout() {
         tokenStorage.logout()
         _loggedOut.value = true

@@ -33,7 +33,6 @@ import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 import ru.dachakalend.app.ui.actions.careTaskActionType
 import ru.dachakalend.app.ui.actions.treatmentNote
 import ru.dachakalend.app.ui.theme.NunitoFamily
-import ru.dachakalend.app.ui.theme.RussoOneFamily
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 

@@ -13,25 +13,128 @@
 ## Следующая сессия (приоритет ↓)
 
 ### ⏳ Незакрытые шаги
+- [ ] 🔑 **Перевыпустить секретный ключ ЮKassa** (live-ключ засветился в переписке при настройке —
+  как было с Brevo). Shop ID 1376599 — не секрет. Новый ключ вписать в `.env` на VPS напрямую.
 - [x] **Деплой бэкенда E1** ✅ ЗАДЕПЛОЕН и проверен в проде (2026-06-05). Почта — через **Brevo HTTP API**
   (не SMTP: Hetzner режет исходящие 25/465/587). Миграция 023 применена, домен `studio1008.com`
   подтверждён в Brevo, `BREVO_API_KEY` в `.env`. Сквозной тест сброса пароля → код приходит на почту.
   Драйвер выбирается по env: `BREVO_API_KEY` → Brevo; `UNISENDER_GO_API_KEY` → Unisender; `SMTP_HOST` → SMTP.
-- [ ] 🔑 Перевыпустить первый Brevo-ключ (засветился в переписке при настройке).
-- [ ] **Пересборка APK** (Android Studio) с актуального `main` + проверка на устройстве:
-  - E2: запрос разрешения на уведомления при первом входе (Android 13+);
-  - E1: после регистрации экран «Подтвердите email» (код/«Позже»); баннер в Настройках; «Забыли пароль?»
-    на входе → запрос кода → новый пароль → вход;
-  - промокоды: ввод кода на Paywall, тост-подтверждение, статус «Доступ по промокоду» в Настройках,
-    клавиатура не перекрывает поле, «Купить»/Paywall не выбрасывают при активном доступе;
-  - архив завершённых сезонов: «Все» без `done`, чип «Завершённые»;
-  - (ранее) просрочка ухода/препарат/заметка/бейдж/раскраска расписания 2026-06-04.
+- [x] 🔑 Перевыпустить первый Brevo-ключ (засветился в переписке при настройке). ✅ 2026-06-05
+- [x] **Пересборка APK** (Android Studio) с актуального `main` + проверка на устройстве. ✅ 2026-06-05
+  Проверено: запрос разрешения на уведомления (Android 13+); экраны «Подтвердите email»/«Забыли пароль?» +
+  баннер в Настройках; промокоды (ввод/тост/статус/клавиатура/«Купить» при активном доступе);
+  архив завершённых сезонов; ранее — просрочка ухода/препарат/заметка/бейдж/раскраска расписания.
   Бэкенд промокодов (миграция 017 + `/promo/redeem`) **задеплоен** на dacha-api, коды гасятся.
 - Гигиена git: `main` == `origin/main`, HEAD `04ff8f8`. Стейл-ветки сессии 2026-06-05
   (`feature/notif-permission`, `feature/email-verification`, `feature/email-unisender`, `feature/email-brevo`)
   уже влиты `--ff-only` — можно удалить при случае.
 
-### 🔴 Критично — всё закрыто ✅
+### 🔴 КРИТИЧНО — E4: переход RuStore Billing → ЮKassa (рекуррент)
+
+**Причина**: RuStore больше НЕ подключает монетизацию самозанятым. Внутримагазинный биллинг
+недоступен → переходим на прямые платежи картой через **ЮKassa (YooKassa)**.
+
+**Решения пользователя (2026-06-05)**: провайдер **ЮKassa**; модель **автопродление (рекуррент)**;
+дистрибуция **RuStore + Google Play + Samsung Store**; платёжный UI — **Chrome Custom Tab +
+`confirmation_url`** (карта сохраняется на сервере, без тяжёлого SDK).
+
+**⚠️ Магазины — оплата невозможна для РФ-аудитории** (анализ 2026-06-05):
+- **Google Play**: in-app биллинг для РФ-аккаунта отключён с 26.12.2024; внешняя оплата разрешена
+  только в США/ЕЭЗ, не в РФ. Даже зарубежное юрлицо НЕ спасает — РФ-пользователь не сможет
+  заплатить картой в Google-биллинге. Платный путь в GP для РФ-аудитории закрыт с обеих сторон.
+- **Samsung Galaxy Store**: прямые платежи из РФ недоступны; канал второстепенный.
+- **RuStore**: подключение монетизации самозанятым остановлено (12.12.2025, отключение 01.02.2026) —
+  это и есть блокер. НО RuStore официально разрешает альтернативные платежи вне своих SDK и
+  **не берёт комиссию** → интеграция ЮKassa в RuStore-сборке легитимна. **Основной канал дохода.**
+
+**Решение по монетизации — РАЗНОЕ по сторам** (см. эпик E5 ниже):
+- `rustore` — платный гейт: триал → подписка ЮKassa (E4). Рекламы нет. Жёсткий 402 остаётся.
+- `gplay`/`samsung` — оплаты нет → бесплатно с рекламой **РСЯ (Yandex Mobile Ads SDK)**, жёсткий
+  402-гейт снимается (AdMob/Google не вариант — новые РФ-аккаунты не регистрируются).
+
+**Ключевая идея**: серверный гейт уже построен на «оплачено до даты» (`subscription_until`,
+`hasAccess`, 402). Меняем ТОЛЬКО источник платного флага: вместо синка RuStore-клиента
+(`POST /auth/subscription`) — **вебхук ЮKassa**. Триал, промокоды, гейт 402 — НЕ трогаем.
+
+**Схема рекуррента ЮKassa** (подтверждено по докам): (1) первый платёж `save_payment_method:true`
+→ в ответе/вебхуке `payment_method.id`; (2) автосписания — серверный `POST /v3/payments` с
+`payment_method_id`, `capture:true`, без `confirmation`; (3) вебхуки `payment.succeeded`/`canceled`;
+(4) чек 54-ФЗ — объект `receipt` (email + позиции). Все запросы — Basic-auth `shopId:secretKey` +
+обязательный `Idempotence-Key`.
+
+**Бэкенд ✅ ГОТОВ (2026-06-05, тесты 196/196, НЕ задеплоен)**:
+- [x] Миграция `024_yookassa_billing.sql`: `users.payment_method_id`, `users.auto_renew`, `users.plan`;
+  таблица `payments(yk_payment_id UNIQUE, status, amount, plan, is_recurring)`. ⚠️ после миграции
+  `ALTER TABLE payments OWNER TO dacha_user;`
+- [x] `services/yookassaService.js`: `createPayment` (redirect + `save_payment_method`),
+  `chargeRecurring` (по `payment_method_id`), `getPayment` (верификация вебхука), `buildReceipt`
+  (чек 54-ФЗ, самозанятый `vat_code=1`). Без `YOOKASSA_SHOP_ID` — биллинг off.
+- [x] `routes/billing.js`: `create-payment` → `confirmation_url` (503 если off); `webhook` (публичный,
+  перезапрос платежа из API + идемпотентность по `yk_payment_id`, `succeeded` → `extendSubscription`
+  + сохранить карту + `auto_renew=true`); `cancel-autorenew`. `/auth/me` += `auto_renew`/`plan`/
+  `subscription_until`/`has_saved_card`.
+- [x] Cron `jobs/renewalJob.js` (10:00): списывает рekуррент для истекающих ≤1 дня; защита от двойного
+  списания (нет рекуррент-платежа за 2 дня); продление — по вебхуку (единый источник истины).
+- [x] `access.js extendSubscription`; `.env.example` += блок ЮKassa; тесты `billing.test.js` (12) +
+  `renewalJob.test.js` (5) + `yookassaService.test.js` (6). Всего **202/202**.
+- [x] **Чеки/налоги (самозанятый)**: `buildReceipt` шлёт `customer.email` + позицию, `vat_code=1`
+  (без НДС). Чек переключается env `YOOKASSA_RECEIPT_MODE` (`on`/`off`). Самозанятый освобождён от
+  ККТ → чек НПД (422-ФЗ) формирует **интеграция ЮKassa ↔ «Мой налог»** (включить в кабинете
+  «Чеки для самозанятых» → ЮKassa авто-регистрирует доход в ФНС + шлёт чек). Налог: «Мой налог»
+  считает 4% (с физлиц) + автоплатёж. ⚠️ финальный формат receipt подтвердить в кабинете после
+  одобрения (возможно `off`). Оферта лендинга: «кассовый чек 54-ФЗ» → «чек НПД 422-ФЗ».
+- [ ] **Деплой** (нужны ключи ЮKassa): миграция 024 + OWNER + `YOOKASSA_*` в `.env` + вебхук в кабинете.
+- [x] **Лендинг для модерации ЮKassa** (`landing/index.html` + `return.html` + README): оффер, тарифы,
+  оферта, политика конфиденциальности, контакты. Реквизиты заполнены (Крюков Е.В., ИНН 540861624727,
+  `e-krukov@ya.ru`). Для подключения магазина в поле «сайт» указать `https://dacha.studio1008.com/`.
+  - [x] **Выложен на VPS** (2026-06-06): `/var/www/dacha-landing/`, nginx `location = /` + `= /billing/return`
+    перед proxy_pass в `/etc/nginx/sites-available/dacha` (бэкап `.bak`). Проверено: `/`→200 html,
+    `/health`→ok, `/billing/return`→200. API не задет.
+- [ ] `POST /auth/subscription` (RuStore-синк) — депрекейтить после переключения Android (пока оставлен).
+
+**Android ✅ ГОТОВ (2026-06-05, `compileDebugKotlin` BUILD SUCCESSFUL)**:
+- [x] `SubscriptionManager` переписан без RuStore Billing: `refresh()` читает `/auth/me` (источник —
+  вебхук ЮKassa); `startPayment(plan)` → `BillingRepository.createPayment` → `confirmation_url`;
+  `cancelAutoRenew()`. `SubscriptionStatus` += `subscriptionUntil`/`autoRenew`/`plan`.
+- [x] `BillingRepository` (new), `DachaApi` += `createPayment`/`cancelAutoRenew`, `UserProfile` += биллинг-
+  поля + `CreatePaymentResponse`.
+- [x] `PaywallViewModel`/`PaywallScreen`: оплата открывает `confirmation_url` в Chrome Custom Tab
+  (`androidx.browser`), по `ON_RESUME` — поллинг `/auth/me` (8×1.5с). Убрана «Восстановить покупки».
+- [x] Настройки: дата окончания подписки + тоггл «Автопродление» (выключение → `cancel-autorenew`;
+  включить — новой оплатой).
+- [x] `App.kt` — убран `RuStoreBillingClientFactory.init` (Push не тронут); `build.gradle.kts`/
+  `libs.versions.toml` — RuStore Billing убран, добавлен `androidx.browser`; убран `RUSTORE_CONSOLE_APP_ID`.
+- [ ] **Проверка на устройстве** после деплоя бэкенда: оплата картой → возврат → доступ; отключение
+  автопродления; промокоды/триал по-прежнему работают.
+
+### 🟠 E5: реклама РСЯ для GP/Samsung (бесплатная модель без оплаты)
+
+**Причина**: для GP/Samsung оплата из РФ невозможна (см. блок про магазины). Монетизация —
+**Yandex Mobile Ads SDK (РСЯ)**, официально работает с самозанятыми (AdMob/Google — нет, новые
+РФ-аккаунты закрыты). Делаем после E4.
+
+**SDK** (изучено по докам, версия **8.0.0**, нативный Compose): зависимость
+`com.yandex.android:mobileads:8.0.0` (+ Compose-артефакт); `MobileAds.initialize(ctx){}` в `App`;
+баннер — `rememberBannerAdState(BannerSize.Inline(...))` + `Banner(state)`; интерстишл —
+`rememberInterstitialAdLoader()` → `loadAd` (Success/Failure) → `ad.show(activity)`. В v8 `adUnitId`
+идёт в `AdRequest.Builder(id)`. Демо-ID `demo-banner-yandex`/`demo-interstitial-yandex`; нужно согласие.
+
+**Флейворы** (`build.gradle.kts`): `rustore` / `gplay` / `samsung` + `BuildConfig`:
+`PAYMENTS_ENABLED` (rustore=true), `ADS_ENABLED` (gplay/samsung=true).
+- [ ] Интерфейс `AdController` + source sets: `src/rustore/` — no-op (SDK рекламы НЕ в зависимостях,
+  сборка чистая); `src/gplay/`+`src/samsung/` — реальная на Yandex SDK (`gplayImplementation`/
+  `samsungImplementation`).
+- [ ] Баннер снизу на списковых экранах (Сегодня/Посадки/Урожай/Журнал) + редкий интерстишл с
+  частотным кэпом (после N действий). Без rewarded.
+- [ ] **Бэкенд: снять жёсткий 402 для неплатёжных сторов** — `users.store` (клиент шлёт при
+  регистрации/логине), `hasAccess` → `true` для `gplay/samsung`; для `rustore` остаётся триал/
+  подписка/промо. Один гейт обслуживает обе модели.
+- [ ] Согласие на рекламу (`MobileAds.setUserConsent`) + ID объявлений из кабinета РСЯ в `BuildConfig`.
+
+**Матрица**: `rustore` — ЮKassa подписка, без рекламы, гейт 402 · `gplay`/`samsung` — бесплатно,
+реклама РСЯ, без гейта.
+
+### 🔴 Критично (прочее) — всё закрыто ✅
 
 ### 🟡 Важно — всё закрыто ✅
 

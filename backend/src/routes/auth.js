@@ -111,15 +111,20 @@ module.exports = async function (fastify) {
   // GET /auth/me
   fastify.get('/me', { onRequest: [fastify.authenticate] }, async (request) => {
     const result = await fastify.db.query(
-      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at, subscription_until, promo_until, email_verified FROM users WHERE id = $1',
+      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at, subscription_until, promo_until, email_verified, auto_renew, plan, payment_method_id FROM users WHERE id = $1',
       [request.user.userId]
     )
     const user = result.rows[0]
     if (!user) return user
+    // payment_method_id наружу не отдаём (внутренний токен карты) — только факт наличия карты.
+    const { payment_method_id, ...safe } = user
     return {
-      ...user,
+      ...safe,
       ...trialInfo(user.trial_started_at),
       subscribed: isSubscribed(user.subscription_until),
+      subscription_until: isSubscribed(user.subscription_until) ? user.subscription_until : null,
+      auto_renew: !!user.auto_renew,
+      has_saved_card: !!payment_method_id,
       promo_active: hasPromo(user.promo_until),
       promo_lifetime: isLifetimePromo(user.promo_until),
       promo_until: hasPromo(user.promo_until) ? user.promo_until : null

@@ -23,7 +23,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.Harvest
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.ui.theme.NunitoFamily
-import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -21,9 +21,6 @@ android {
 
         // RuStore Push — ID проекта из RuStore Консоль → Push-уведомления → Проекты
         buildConfigField("String", "RUSTORE_PUSH_PROJECT_ID", "\"HG8uxj8nCRFKvPWNRhubdefqYcYiAset\"")
-
-        // RuStore Billing — ID приложения из RuStore Консоль (числовой)
-        buildConfigField("String", "RUSTORE_CONSOLE_APP_ID", "\"TODO_REPLACE_WITH_REAL_APP_ID\"")
     }
 
     buildTypes {
@@ -119,8 +116,8 @@ dependencies {
     // RuStore Push SDK
     implementation(libs.rustore.push)
 
-    // RuStore Billing SDK
-    implementation(libs.rustore.billing)
+    // Chrome Custom Tabs — открытие страницы оплаты ЮKassa
+    implementation(libs.androidx.browser)
 
     // Testing
     testImplementation("junit:junit:4.13.2")

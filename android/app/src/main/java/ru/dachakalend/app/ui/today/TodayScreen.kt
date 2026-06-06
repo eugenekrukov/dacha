@@ -58,7 +58,6 @@ import ru.dachakalend.app.ui.onboarding.coachTargetUnion
 import ru.dachakalend.app.ui.theme.HeroGradientEnd
 import ru.dachakalend.app.ui.theme.HeroGradientStart
 import ru.dachakalend.app.ui.theme.NunitoFamily
-import ru.dachakalend.app.ui.theme.RussoOneFamily
 import ru.dachakalend.app.ui.theme.taskColor
 
 // ─── Форма диагонального среза hero (polygon-clip) ────────────────────────

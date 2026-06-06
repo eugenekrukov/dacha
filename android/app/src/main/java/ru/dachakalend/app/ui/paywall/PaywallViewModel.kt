@@ -1,9 +1,9 @@
 package ru.dachakalend.app.ui.paywall
 
-import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,12 +19,14 @@ data class PaywallUiState(
     val error: String? = null,
     val isRedeeming: Boolean = false,
     val redeemError: String? = null,
-    // Явное событие «доступ только что выдан» (покупка/восстановление/промокод) → навигация на главную.
+    // Явное событие «доступ только что выдан» (оплата/промокод) → навигация на главную.
     // НЕ выводим из ambient-статуса, иначе экран, открытый из настроек при активном доступе,
     // моментально закрывался бы.
     val accessGranted: Boolean = false,
-    // Текст тоста-подтверждения после успешного промокода (null для покупки/восстановления).
-    val redeemMessage: String? = null
+    // Текст тоста-подтверждения после успешного промокода (null для оплаты).
+    val redeemMessage: String? = null,
+    // Событие: открыть ссылку оплаты ЮKassa в Custom Tab (после открытия экран сбрасывает в null).
+    val paymentUrl: String? = null
 )
 
 @HiltViewModel
@@ -44,37 +46,40 @@ class PaywallViewModel @Inject constructor(
         viewModelScope.launch { subscriptionManager.refresh() }
     }
 
-    fun purchaseMonthly(activity: Activity) = runPurchase { subscriptionManager.purchaseMonthly(activity) }
-    fun purchaseYearly(activity: Activity)  = runPurchase { subscriptionManager.purchaseYearly(activity) }
-
-    private fun runPurchase(buy: suspend () -> Unit) {
+    /** Создаёт платёж и отдаёт UI ссылку для открытия в Custom Tab. */
+    fun purchase(plan: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isPurchasing = true, error = null)
-            try {
-                buy()
-                subscriptionManager.refresh()
-                // Навигируем только если покупка реально дала доступ
-                if (subscriptionManager.isAccessAllowed()) {
-                    _uiState.value = _uiState.value.copy(accessGranted = true)
-                }
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Ошибка при оформлении подписки")
-            } finally {
-                _uiState.value = _uiState.value.copy(isPurchasing = false)
+            when (val res = subscriptionManager.startPayment(plan)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isPurchasing = false, paymentUrl = res.data)
+                is Result.Error   -> _uiState.value = _uiState.value.copy(isPurchasing = false, error = res.message)
+                is Result.Loading -> Unit
             }
         }
     }
 
-    fun restorePurchases() {
+    /** Экран открыл Custom Tab — сбрасываем событие, чтобы не открыть повторно. */
+    fun onPaymentLaunched() {
+        _uiState.value = _uiState.value.copy(paymentUrl = null)
+    }
+
+    /**
+     * После возврата из Custom Tab опрашиваем сервер: вебхук ЮKassa мог уже выдать доступ.
+     * Несколько попыток с паузой — на случай задержки доставки вебхука.
+     */
+    fun checkAfterPayment() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isPurchasing = true, error = null)
-            subscriptionManager.refresh()
-            val restored = subscriptionManager.isAccessAllowed()
-            _uiState.value = _uiState.value.copy(
-                isPurchasing = false,
-                accessGranted = restored,
-                error = if (restored) null else "Активная подписка не найдена"
-            )
+            _uiState.value = _uiState.value.copy(isPurchasing = true)
+            repeat(8) {
+                subscriptionManager.refresh()
+                if (subscriptionManager.isAccessAllowed()) {
+                    _uiState.value = _uiState.value.copy(isPurchasing = false, accessGranted = true)
+                    return@launch
+                }
+                delay(1500)
+            }
+            // Не дождались — не показываем ошибку (оплата могла быть отменена); просто снимаем спиннер.
+            _uiState.value = _uiState.value.copy(isPurchasing = false)
         }
     }
 

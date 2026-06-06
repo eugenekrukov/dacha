@@ -10,7 +10,7 @@
 ## Стиль «Solar Dacha» (утверждён и применён)
 
 - **Палитра**: оранжевый `#FF7B00` (primary), кремовый `#FFF8EB` (background), белые карточки.
-- **Шрифты**: Nunito (Black/ExtraBold/Bold/SemiBold/Regular) для текста; Russo One — акценты.
+- **Шрифты**: Nunito (Black/ExtraBold/Bold/SemiBold/Regular) — единственный шрифт; заголовки — FontWeight.Black (900).
 - **Тон**: тёплый, дружелюбный, для дачников (в т.ч. аудитория 50+). Высокий контраст,
   крупные тапы, простые формулировки.
 

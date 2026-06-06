@@ -24,7 +24,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.ActivityDay
 import ru.dachakalend.app.data.model.AnalyticsSummary
 import ru.dachakalend.app.ui.theme.NunitoFamily
-import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -25,7 +25,6 @@ import ru.dachakalend.app.data.model.CropPest
 import ru.dachakalend.app.data.model.FertilizingEntry
 import ru.dachakalend.app.data.model.WateringStage
 import ru.dachakalend.app.ui.theme.NunitoFamily
-import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

@@ -17,11 +17,6 @@ val NunitoFamily = FontFamily(
     Font(R.font.nunito_black,     FontWeight.Black),
 )
 
-/** Russo One — для hero-заголовков. Характерный, солнечный. */
-val RussoOneFamily = FontFamily(
-    Font(R.font.russo_one_regular, FontWeight.Normal),
-)
-
 val DachaTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = NunitoFamily,

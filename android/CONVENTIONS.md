@@ -128,7 +128,9 @@ if (gardenId == -1) return Result.Error("Участок не выбран")
 | `AuthRepository` | `login(email, password)` | `Result<UserProfile>` |
 | `AuthRepository` | `register(name, email, password)` | `Result<UserProfile>` |
 | `AuthRepository` | `me()` | `Result<UserProfile>` (профиль + серверный триал/подписка + `emailVerified`) |
-| `AuthRepository` | `syncSubscription(active)` | `Unit` (best-effort, шлёт статус подписки на сервер) |
+| `AuthRepository` | `syncSubscription(active)` | `Unit` (⚠️ депрекейт — подписка теперь из вебхука ЮKassa, не вызывается) |
+| `BillingRepository` | `createPayment(plan)` | `Result<String>` (confirmation_url для Custom Tab; `plan`=monthly/yearly) |
+| `BillingRepository` | `cancelAutoRenew()` | `Result<Unit>` (отключение автопродления) |
 | `AuthRepository` | `verifyEmail(code)` | `Result<Unit>` (подтверждение email кодом) |
 | `AuthRepository` | `resendVerification()` | `Result<Unit>` (повторная отправка кода) |
 | `AuthRepository` | `forgotPassword(email)` | `Result<Unit>` (запрос кода сброса; сервер всегда успех) |
@@ -456,23 +458,37 @@ Modifier.coachTargetUnion(controller, "tasks")   // на SectionTitle И на к
 
 ---
 
-## 11. Монетизация — RuStore Billing
+## 11. Монетизация — ЮKassa (прямые платежи, рекуррент) · с 2026-06-05
 
-**Продукты** (создать в RuStore Консоль → Монетизация → Подписки):
-- `dacha_pro_monthly` — 299 ₽/мес
-- `dacha_pro_yearly` — 1990 ₽/год
+RuStore Billing **удалён** (RuStore не подключает монетизацию самозанятым). Оплата — прямые платежи
+картой через **ЮKassa**, бэкенд E4 (`routes/billing.js`, `services/yookassaService.js`).
 
-**`RUSTORE_CONSOLE_APP_ID`** — числовой ID из RuStore Консоль → Приложения (заменить `TODO_REPLACE_WITH_REAL_APP_ID` в `build.gradle.kts`).
+**Тарифы** (id передаются на бэкенд как `plan`): `monthly` — 299 ₽/мес, `yearly` — 1990 ₽/год.
 
-**Проверка доступа** — всегда через `SubscriptionManager.status` (StateFlow).
-Не обращаться к RuStore напрямую из ViewModel — только через `SubscriptionManager`.
+**Поток оплаты** (Custom Tab, без SDK):
+1. `SubscriptionManager.startPayment(plan)` → `BillingRepository.createPayment` → `POST /billing/create-payment`
+   → `confirmation_url`.
+2. `PaywallScreen` открывает URL в **Chrome Custom Tab** (`androidx.browser`).
+3. Оплата на стороне ЮKassa; **серверный вебхук** `payment.succeeded` продлевает `subscription_until`
+   и сохраняет карту (`auto_renew=true`).
+4. По `ON_RESUME` `PaywallViewModel.checkAfterPayment()` опрашивает `/auth/me` (8×1.5с) → `accessGranted`.
 
-**Триал** — 7 дней с первого запуска, хранится в `TokenStorage.getFirstLaunchDate()`.
-Дата не сбрасывается при выходе из аккаунта (намеренно).
+**Источник истины по доступу — сервер** (`/auth/me`): `SubscriptionManager.refresh()` читает
+`subscribed`/`subscription_until`/`auto_renew`/`plan` + триал/промо. Клиент НЕ обращается к платёжному
+провайдеру напрямую — только через `SubscriptionManager`/`BillingRepository`. Подписка приходит
+из вебхука (не синком клиента) — старый `AuthRepository.syncSubscription`/`POST /auth/subscription`
+оставлен на переходный период, но не вызывается.
 
-**Paywall** открывается:
-1. Автоматически при старте если `!subscriptionManager.isAccessAllowed()`
-2. Из Настроек кнопкой "Купить"
+**Автопродление**: рекуррент-списание делает cron `renewalJob` (бэкенд) по сохранённой карте.
+В Настройках — тоггл (выключить → `BillingRepository.cancelAutoRenew` → `POST /billing/cancel-autorenew`);
+включить обратно — только новой оплатой (карта привязывается при платеже).
+
+**Триал** — 7 дней с первого запуска (`TokenStorage`), не сбрасывается при выходе. Промокоды — без изменений.
+
+**Paywall** открывается: (1) автоматически при старте если `!subscriptionManager.isAccessAllowed()`;
+(2) из Настроек кнопкой «Купить» (скрыта при активной подписке).
+
+> **E5 (план)**: для GP/Samsung оплата невозможна → флейворы + реклама РСЯ. См. `summary.md` блок E5.
 
 ---
 

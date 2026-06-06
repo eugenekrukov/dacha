@@ -32,7 +32,23 @@ data class UserProfile(
     @Json(name = "promo_until") val promoUntil: String? = null,
     // Подтверждён ли email. login не отдаёт поле → дефолт true (не доставать баннером);
     // /auth/me и register отдают реальное значение (новый пользователь = false).
-    @Json(name = "email_verified") val emailVerified: Boolean = true
+    @Json(name = "email_verified") val emailVerified: Boolean = true,
+    // Подписка ЮKassa (только /auth/me). subscribed — активна сейчас; subscriptionUntil — ISO-дата
+    // окончания (null если нет); autoRenew — включено автопродление; plan — monthly/yearly;
+    // hasSavedCard — привязана ли карта для автосписания.
+    @Json(name = "subscribed") val subscribed: Boolean = false,
+    @Json(name = "subscription_until") val subscriptionUntil: String? = null,
+    @Json(name = "auto_renew") val autoRenew: Boolean = false,
+    @Json(name = "plan") val plan: String? = null,
+    @Json(name = "has_saved_card") val hasSavedCard: Boolean = false
+)
+
+// Ответ POST /billing/create-payment — ссылка на оплату ЮKassa (открывается в Custom Tab).
+@JsonClass(generateAdapter = true)
+data class CreatePaymentResponse(
+    @Json(name = "payment_id") val paymentId: String,
+    @Json(name = "confirmation_url") val confirmationUrl: String? = null,
+    val status: String = ""
 )
 
 @JsonClass(generateAdapter = true)

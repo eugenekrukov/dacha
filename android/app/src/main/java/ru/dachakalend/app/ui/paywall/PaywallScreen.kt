@@ -1,7 +1,8 @@
 package ru.dachakalend.app.ui.paywall
 
-import android.app.Activity
+import android.net.Uri
 import android.widget.Toast
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -42,17 +43,40 @@ fun PaywallScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val activity = context as Activity
     var selectedPlan by remember { mutableStateOf("yearly") }
     var promoCode by remember { mutableStateOf("") }
+    // Был ли запущен платёж — чтобы по возвращении из Custom Tab опросить сервер (вебхук).
+    var paymentStarted by remember { mutableStateOf(false) }
 
-    // Навигация — ТОЛЬКО по явному событию выдачи доступа (покупка/восстановление/промокод).
+    // Навигация — ТОЛЬКО по явному событию выдачи доступа (оплата/промокод).
     // Не по ambient-статусу: иначе экран, открытый из настроек при активном доступе, сразу закрывался бы.
     LaunchedEffect(uiState.accessGranted) {
         if (uiState.accessGranted) {
             uiState.redeemMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
             onAccessGranted()
         }
+    }
+
+    // Открываем ссылку оплаты ЮKassa в Chrome Custom Tab.
+    LaunchedEffect(uiState.paymentUrl) {
+        uiState.paymentUrl?.let { url ->
+            CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+            viewModel.onPaymentLaunched()
+            paymentStarted = true
+        }
+    }
+
+    // По возвращении в приложение (закрыли Custom Tab) — опрашиваем статус: вебхук мог выдать доступ.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME && paymentStarted) {
+                paymentStarted = false
+                viewModel.checkAfterPayment()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     uiState.error?.let { error ->
@@ -216,10 +240,7 @@ fun PaywallScreen(
 
             // Кнопка покупки
             Button(
-                onClick = {
-                    if (selectedPlan == "yearly") viewModel.purchaseYearly(activity)
-                    else viewModel.purchaseMonthly(activity)
-                },
+                onClick = { viewModel.purchase(selectedPlan) },
                 enabled = !uiState.isPurchasing && !uiState.status.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -244,19 +265,6 @@ fun PaywallScreen(
                         softWrap = false
                     )
                 }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Восстановить покупки
-            TextButton(onClick = { viewModel.restorePurchases() }) {
-                Text(
-                    "Восстановить покупки",
-                    fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    color = Color(0xFF888888)
-                )
             }
 
             Spacer(Modifier.height(20.dp))
@@ -360,7 +368,7 @@ fun PaywallScreen(
             Spacer(Modifier.height(24.dp))
 
             Text(
-                text = "Подписка автоматически продлевается. Отменить можно в любое время через RuStore.",
+                text = "Оплата картой через ЮKassa. Подписка продлевается автоматически — отключить автопродление можно в Настройках.",
                 fontFamily = NunitoFamily,
                 fontSize = 11.sp,
                 color = Color(0xFFAAAAAA),

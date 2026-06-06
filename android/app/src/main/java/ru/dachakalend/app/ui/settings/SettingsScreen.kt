@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.ui.theme.NunitoFamily
-import ru.dachakalend.app.ui.theme.RussoOneFamily
 
 /** ISO-дата ("2026-07-04T00:00:00.000Z") → "04.07.2026". null/ошибка → null. */
 fun formatPromoDate(iso: String?): String? {
@@ -223,7 +222,8 @@ fun SettingsScreen(
                         )
                         Text(
                             text = when {
-                                subStatus.isSubscribed     -> "Подписка активна"
+                                subStatus.isSubscribed     -> "Активна" +
+                                    (formatPromoDate(subStatus.subscriptionUntil)?.let { " до $it" } ?: "")
                                 subStatus.isPromoLifetime  -> "Доступ навсегда (промокод)"
                                 subStatus.isPromo          -> "Доступ по промокоду" +
                                     (formatPromoDate(subStatus.promoUntil)?.let { " до $it" } ?: "")
@@ -255,6 +255,41 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Автопродление — только при активной подписке. Выключить можно здесь; снова включить —
+            // через новую оплату (карта привязывается при платеже).
+            if (subStatus.isSubscribed) {
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                        Text(
+                            "Автопродление",
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = if (subStatus.autoRenew)
+                                "Подписка продлится автоматически" +
+                                    (formatPromoDate(subStatus.subscriptionUntil)?.let { " $it" } ?: "")
+                            else "Отключено — доступ до конца оплаченного периода",
+                            fontFamily = NunitoFamily,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = subStatus.autoRenew,
+                        enabled = subStatus.autoRenew,   // выключить можно; включить — новой оплатой
+                        onCheckedChange = { if (!it) viewModel.cancelAutoRenew() }
+                    )
                 }
             }
 
