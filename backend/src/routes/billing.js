@@ -92,16 +92,17 @@ module.exports = async function (fastify, opts) {
       const pm = object.payment_method
       const savedCardId = pm && pm.saved ? pm.id : null
 
-      // auto_renew=true: оплата с сохранением карты включает автопродление.
-      // payment_method_id обновляем только если карта реально сохранена (иначе не затираем прежнюю).
+      // Автопродление включаем только если карта реально сохранена (рекуррент-режим магазина).
+      // При разовой оплате (самозанятый) карта не сохраняется → auto_renew=false, продление вручную.
+      const autoRenew = savedCardId != null
       await db.query(
         `UPDATE users
          SET subscription_until = $1,
              plan = $2,
-             auto_renew = true,
-             payment_method_id = COALESCE($3, payment_method_id)
-         WHERE id = $4`,
-        [until, plan || 'monthly', savedCardId, userId]
+             auto_renew = $3,
+             payment_method_id = COALESCE($4, payment_method_id)
+         WHERE id = $5`,
+        [until, plan || 'monthly', autoRenew, savedCardId, userId]
       )
 
       const amount = object.amount && object.amount.value

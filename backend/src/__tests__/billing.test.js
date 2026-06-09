@@ -27,13 +27,13 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
         return { rows: [{ subscription_until: u.subscription_until || null }] }
       }
       if (sql.includes('UPDATE users') && sql.includes('SET subscription_until')) {
-        const [until, plan, savedCard, userId] = params
+        const [until, plan, autoRenew, savedCard, userId] = params
         const u = s.users[userId] || {}
         s.users[userId] = {
           ...u,
           subscription_until: until,
           plan,
-          auto_renew: true,
+          auto_renew: autoRenew,
           payment_method_id: savedCard != null ? savedCard : u.payment_method_id
         }
         return { rows: [] }
@@ -182,6 +182,7 @@ describe('POST /billing/webhook', () => {
     await supertest(app.server).post('/billing/webhook').send(wh)
     expect(isSubscribed(db.state.users[1].subscription_until)).toBe(true)
     expect(db.state.users[1].payment_method_id).toBeUndefined()
+    expect(db.state.users[1].auto_renew).toBe(false)   // нет карты → продление вручную
     await app.close()
   })
 })

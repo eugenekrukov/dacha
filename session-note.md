@@ -4,6 +4,32 @@
 
 ---
 
+## ЗАКРЫТИЕ СЕССИИ 2026-06-06 (E4 задеплоен в прод + лендинг + ЮKassa-аккаунт)
+
+**Деплой E4 завершён.** `main` HEAD `d5f8234` (feat(billing): ЮKassa + удаление Russo One, 44 файла).
+На VPS: `git fetch+reset --hard origin/main`, миграция `024_yookassa_billing.sql` +
+`ALTER TABLE payments OWNER TO dacha_user`, в `backend/.env` добавлены `YOOKASSA_SHOP_ID=1376599` +
+секретный ключ (перевыпущен — старый засветился в чате) + `YOOKASSA_RETURN_URL` + `YOOKASSA_RECEIPT_MODE=on`,
+`pm2 restart dacha-api`. health ok, `[renewal-job] Запущен (10:00)` в логах, ошибок нет.
+
+**Лендинг** `https://dacha.studio1008.com/` развёрнут (`/var/www/dacha-landing/`, nginx `location = /` +
+`= /billing/return`), переделан в стиле Solar Dacha (SVG-иллюстрации, анимации, Nunito Black — Russo One
+выпилен и из приложения тоже). Оферта: чек НПД (422-ФЗ), реквизиты Крюков Е.В. ИНН 540861624727.
+
+**ЮKassa-аккаунт самозанятого** подключён: метод приёма «На сайте» (API, не мобильный SDK),
+поле «реквизиты» = ссылка на сайт (ИНН на странице). Shop ID 1376599. Чеки/налоги: при подключённой
+интеграции «Мой налог» ЮKassa авто-регистрирует доход + чек НПД; `YOOKASSA_RECEIPT_MODE` переключает
+передачу receipt без правок кода.
+
+**Незакрыто по E4**: (1) вебхук в кабинете ЮKassa → `…/billing/webhook` (`payment.succeeded`/`canceled`);
+(2) смоук-тест `POST /billing/create-payment` (валидность ключей → confirmation_url); (3) пересборка APK
+с актуального `main` + боевой платёж с устройства (Custom Tab → оплата → доступ; тоггл автопродления).
+Тесты backend 202/202; Android `compileDebugKotlin` BUILD SUCCESSFUL.
+
+**Следующий эпик**: E5 (реклама РСЯ для GP/Samsung) — флейворы + Yandex Mobile Ads SDK.
+
+---
+
 ## ЗАКРЫТИЕ СЕССИИ 2026-06-05 (E4-Android: RuStore Billing → ЮKassa)
 
 **Что сделано** (Android E4, `compileDebugKotlin` BUILD SUCCESSFUL):

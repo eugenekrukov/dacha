@@ -258,8 +258,8 @@ fun SettingsScreen(
                 }
             }
 
-            // Автопродление — только при активной подписке. Выключить можно здесь; снова включить —
-            // через новую оплату (карта привязывается при платеже).
+            // При активной подписке: рекуррент (autoRenew) → тоггл автопродления; разовая оплата
+            // (самозанятый, рекуррент у магазина недоступен) → срок + кнопка «Продлить» вручную.
             if (subStatus.isSubscribed) {
                 Spacer(Modifier.height(8.dp))
                 Row(
@@ -269,7 +269,7 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
                         Text(
-                            "Автопродление",
+                            if (subStatus.autoRenew) "Автопродление" else "Срок подписки",
                             fontFamily = NunitoFamily,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 15.sp,
@@ -279,17 +279,28 @@ fun SettingsScreen(
                             text = if (subStatus.autoRenew)
                                 "Подписка продлится автоматически" +
                                     (formatPromoDate(subStatus.subscriptionUntil)?.let { " $it" } ?: "")
-                            else "Отключено — доступ до конца оплаченного периода",
+                            else "Действует до " + (formatPromoDate(subStatus.subscriptionUntil) ?: "—") +
+                                " · продлите повторной оплатой",
                             fontFamily = NunitoFamily,
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Switch(
-                        checked = subStatus.autoRenew,
-                        enabled = subStatus.autoRenew,   // выключить можно; включить — новой оплатой
-                        onCheckedChange = { if (!it) viewModel.cancelAutoRenew() }
-                    )
+                    if (subStatus.autoRenew) {
+                        Switch(
+                            checked = true,
+                            onCheckedChange = { if (!it) viewModel.cancelAutoRenew() }
+                        )
+                    } else {
+                        TextButton(onClick = { onOpenPaywall?.invoke() }) {
+                            Text(
+                                "Продлить",
+                                fontFamily = NunitoFamily,
+                                fontWeight = FontWeight.Black,
+                                color = androidx.compose.ui.graphics.Color(0xFFFF7B00)
+                            )
+                        }
+                    }
                 }
             }
 

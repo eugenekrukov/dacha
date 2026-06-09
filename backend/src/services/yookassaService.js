@@ -49,6 +49,13 @@ function receiptEnabled() {
   return (process.env.YOOKASSA_RECEIPT_MODE || 'on') !== 'off'
 }
 
+// Рекуррент (сохранение карты для автосписаний) требует включения «Автоплатежей» у магазина ЮKassa.
+// Для самозанятых обычно НЕдоступно (ЮKassa: "This store can't make recurring payments"). По умолчанию
+// off → разовая оплата, продление вручную. Включить, только если менеджер ЮMoney активировал автоплатежи.
+function recurringEnabled() {
+  return process.env.YOOKASSA_RECURRING === 'on'
+}
+
 function buildReceipt(email, planCfg) {
   if (!receiptEnabled()) return null
   return {
@@ -114,15 +121,17 @@ async function createPayment(user, plan) {
   const planCfg = getPlan(plan)
   if (!planCfg) throw new Error(`Неизвестный тариф: ${plan}`)
   const receipt = buildReceipt(user.email, planCfg)
-  const payment = await ykPost('/payments', {
+  const body = {
     amount: { value: planCfg.amount, currency: 'RUB' },
     capture: true,
     confirmation: { type: 'redirect', return_url: RETURN_URL() },
-    save_payment_method: true,
     description: planCfg.description,
     metadata: { user_id: String(user.id), plan },
     ...(receipt ? { receipt } : {})
-  })
+  }
+  // Сохраняем карту для автосписаний только если у магазина включён рекуррент (иначе ЮKassa отклонит).
+  if (recurringEnabled()) body.save_payment_method = true
+  const payment = await ykPost('/payments', body)
   return {
     id: payment.id,
     status: payment.status,

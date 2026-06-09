@@ -368,7 +368,7 @@ fun PaywallScreen(
             Spacer(Modifier.height(24.dp))
 
             Text(
-                text = "Оплата картой через ЮKassa. Подписка продлевается автоматически — отключить автопродление можно в Настройках.",
+                text = "Оплата банковской картой через ЮKassa. Доступ открывается на оплаченный период; продление — повторной оплатой.",
                 fontFamily = NunitoFamily,
                 fontSize = 11.sp,
                 color = Color(0xFFAAAAAA),
