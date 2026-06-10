@@ -4,6 +4,31 @@
 
 ---
 
+## E5 фазы 1–2 (2026-06-09): реклама РСЯ + флейворы (НЕ задеплоено)
+
+**Бэкенд (store-гейт, тесты 207/207):** миграция `025_user_store.sql` (`users.store`),
+`access.isAdSupportedStore` + `hasAccess` (`gplay`/`samsung` → доступ без 402; `rustore`/NULL →
+платный гейт), `requireAccess` читает `store`, `auth` register/login принимают `store` (enum).
+
+**Android (все 3 флейвора compile BUILD SUCCESSFUL):**
+- Флейворы `rustore`/`gplay`/`samsung` (`build.gradle.kts`) + `BuildConfig` `STORE`/`PAYMENTS_ENABLED`/
+  `ADS_ENABLED`/`BANNER_AD_UNIT`/`INTERSTITIAL_AD_UNIT`.
+- Реклама изолирована штатными флейвор-папками: `src/rustore/.../ads/Ads.kt` (no-op, без SDK),
+  `src/gplay` + `src/samsung/.../ads/Ads.kt` (Yandex `mobileads:7.12.0`, баннер через `AndroidView`+
+  `BannerAdView`). Кастомный `src/withAds` через `sourceSets.srcDirs` на AGP 9 НЕ подхватился →
+  `Ads.kt` продублирован (синхронизировать при правках). v8 Compose-API нестабилен → взят v7 View-API.
+- `Ads.init` в `App`; баннер РСЯ глобально над навбаром в `MainActivity` (только основные экраны,
+  no-op в rustore). Клиент шлёт `BuildConfig.STORE` при login/register (`AuthRepository`+модели).
+- Гейт по флейвору: Paywall не открывается при `!PAYMENTS_ENABLED`; секция «Подписка» в Настройках
+  скрыта в ad-сборках.
+
+**Незакрыто E5:** интерстишл (`Ads.onContentEvent` stub), согласие на рекламу
+(`MobileAds.setUserConsent`), боевые ID объявлений (сейчас демо; нужен аккаунт РСЯ), деплой бэкенда
+(миграция 025 + код store), пересборка/проверка ad-APK. Команда сборки флейвора:
+`:app:compileGplayDebugKotlin` (не `compileDebugKotlin` — с флейворами его больше нет).
+
+---
+
 ## ЗАКРЫТИЕ СЕССИИ 2026-06-06 (E4 задеплоен в прод + лендинг + ЮKassa-аккаунт)
 
 **Деплой E4 завершён.** `main` HEAD `d5f8234` (feat(billing): ЮKassa + удаление Russo One, 44 файла).

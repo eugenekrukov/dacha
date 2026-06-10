@@ -86,8 +86,9 @@
 - [x] **ЗАДЕПЛОЕНО в прод (2026-06-06)**: `main` влит (HEAD `d5f8234`), на VPS `fetch+reset`,
   миграция 024 + `ALTER TABLE payments OWNER TO dacha_user`, `YOOKASSA_*` в `backend/.env` (Shop ID
   1376599, ключ перевыпущен), `pm2 restart`. health ok, `[renewal-job] Запущен (10:00)` в логах.
-- [ ] **Вебхук в кабинете ЮKassa** → `https://dacha.studio1008.com/billing/webhook` (`payment.succeeded`,
-  `payment.canceled`). + боевой платёж с APK.
+- [x] **Вебхук настроен + сквозной боевой платёж проверен (2026-06-09)**: оплата 299 ₽ по
+  `confirmation_url` → вебхук `payment.succeeded` → `subscription_until` +30 дн, `plan=monthly`,
+  `auto_renew=f`, `payments.status=succeeded`. Цикл оплата→вебхук→доступ работает в проде.
 - ⚠️ **РЕКУРРЕНТ ЗАПРЕЩЁН для магазина самозанятого** (смоук-тест create-payment → ЮKassa: «This store
   can't make recurring payments»). Переключились на **разовую оплату + продление вручную**:
   `save_payment_method` спрятан за env `YOOKASSA_RECURRING` (default `off`); вебхук ставит `auto_renew`
@@ -130,20 +131,31 @@
 `rememberInterstitialAdLoader()` → `loadAd` (Success/Failure) → `ad.show(activity)`. В v8 `adUnitId`
 идёт в `AdRequest.Builder(id)`. Демо-ID `demo-banner-yandex`/`demo-interstitial-yandex`; нужно согласие.
 
-**Флейворы** (`build.gradle.kts`): `rustore` / `gplay` / `samsung` + `BuildConfig`:
-`PAYMENTS_ENABLED` (rustore=true), `ADS_ENABLED` (gplay/samsung=true).
-- [ ] Интерфейс `AdController` + source sets: `src/rustore/` — no-op (SDK рекламы НЕ в зависимостях,
-  сборка чистая); `src/gplay/`+`src/samsung/` — реальная на Yandex SDK (`gplayImplementation`/
-  `samsungImplementation`).
-- [ ] Баннер снизу на списковых экранах (Сегодня/Посадки/Урожай/Журнал) + редкий интерстишл с
-  частотным кэпом (после N действий). Без rewarded.
-- [ ] **Бэкенд: снять жёсткий 402 для неплатёжных сторов** — `users.store` (клиент шлёт при
-  регистрации/логине), `hasAccess` → `true` для `gplay/samsung`; для `rustore` остаётся триал/
-  подписка/промо. Один гейт обслуживает обе модели.
-- [ ] Согласие на рекламу (`MobileAds.setUserConsent`) + ID объявлений из кабinета РСЯ в `BuildConfig`.
+**SDK по факту**: использован **`com.yandex.android:mobileads:7.12.0`** (v8 Compose-API оказался
+неустойчив — взял стабильный v7, View-баннер через `AndroidView`+`BannerAdView`).
 
-**Матрица**: `rustore` — ЮKassa подписка, без рекламы, гейт 402 · `gplay`/`samsung` — бесплатно,
-реклама РСЯ, без гейта.
+**Прогресс (2026-06-09):**
+- [x] **Бэкенд: store-гейт** — миграция `025_user_store.sql` (`users.store`), `access.isAdSupportedStore`
+  + `hasAccess` (`gplay`/`samsung`→доступ без 402; `rustore`/NULL→платный гейт), `requireAccess` читает
+  `store`, register/login принимают `store`. Тесты **207/207**. ⏳ деплой (миграция 025 + код).
+- [x] **Флейворы** `rustore`/`gplay`/`samsung` + `BuildConfig` (`STORE`/`PAYMENTS_ENABLED`/`ADS_ENABLED`/
+  `BANNER_AD_UNIT`/`INTERSTITIAL_AD_UNIT`). Изоляция рекламы — **штатные флейвор-папки** `src/rustore`
+  (no-op `Ads`) и `src/gplay`+`src/samsung` (реальный `Ads` на Yandex; SDK только в этих флейворах).
+  Кастомный общий `src/withAds` не сработал на AGP 9 → код `Ads.kt` продублирован в gplay/samsung.
+- [x] **Баннер РСЯ** глобально над навбаром (`MainActivity`, только основные экраны; no-op в rustore).
+  `Ads.init` в `App`. Клиент шлёт `BuildConfig.STORE` при login/register.
+- [x] **Гейт UI по флейвору**: Paywall не открывается при `!PAYMENTS_ENABLED` (`MainActivity`); секция
+  «Подписка» в Настройках скрыта в ad-сборках. Все 3 флейвора `compile*DebugKotlin` BUILD SUCCESSFUL.
+- [x] **Интерстишл** с частотным кэпом — `Ads.onContentEvent(activity)` (gplay/samsung) показывает
+  интерстишл раз в 6 переключений вкладок (`InterstitialAdLoader`+`AdRequestConfiguration`); триггер в
+  `MainActivity` nav onClick (no-op в rustore). Все 3 флейвора BUILD SUCCESSFUL.
+- [x] **Согласие на рекламу** — `MobileAds.setUserConsent(true)` в `Ads.init` (политика на лендинге).
+- [x] **Боевые ID объявлений РСЯ** вписаны в `BuildConfig` (gplay+samsung): баннер `R-M-19420797-1`,
+  интерстишл `R-M-19420797-2` (демо-аналоги в комментарии build.gradle для теста на устройстве).
+- [ ] Деплой бэкенда (миграция 025 + код store) + пересборка/проверка ad-APK на устройстве.
+
+**Матрица**: `rustore` — ЮKassa разовая оплата, без рекламы, гейт 402 · `gplay`/`samsung` — бесплатно,
+баннер РСЯ, без гейта.
 
 ### 🔴 Критично (прочее) — всё закрыто ✅
 

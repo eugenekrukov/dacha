@@ -37,6 +37,36 @@ android {
         }
     }
 
+    // Флейворы по магазину (E5). rustore — платный гейт (ЮKassa), без рекламы; gplay/samsung —
+    // оплата из РФ невозможна → бесплатно с рекламой РСЯ (Yandex Mobile Ads). Реклама изолирована
+    // в source set src/withAds (только gplay+samsung), rustore-сборка без рекламного SDK.
+    flavorDimensions += "store"
+    productFlavors {
+        create("rustore") {
+            dimension = "store"
+            buildConfigField("String", "STORE", "\"rustore\"")
+            buildConfigField("boolean", "PAYMENTS_ENABLED", "true")
+            buildConfigField("boolean", "ADS_ENABLED", "false")
+        }
+        create("gplay") {
+            dimension = "store"
+            buildConfigField("String", "STORE", "\"gplay\"")
+            buildConfigField("boolean", "PAYMENTS_ENABLED", "false")
+            buildConfigField("boolean", "ADS_ENABLED", "true")
+            // Боевые ID объявлений РСЯ (кабинет Яндекс Рекламы). Демо-аналоги: demo-banner-yandex /
+            // demo-interstitial-yandex — вернуть временно, если на устройстве нужна тестовая реклама.
+            buildConfigField("String", "BANNER_AD_UNIT", "\"R-M-19420797-1\"")
+            buildConfigField("String", "INTERSTITIAL_AD_UNIT", "\"R-M-19420797-2\"")
+        }
+        create("samsung") {
+            dimension = "store"
+            buildConfigField("String", "STORE", "\"samsung\"")
+            buildConfigField("boolean", "PAYMENTS_ENABLED", "false")
+            buildConfigField("boolean", "ADS_ENABLED", "true")
+            buildConfigField("String", "BANNER_AD_UNIT", "\"demo-banner-yandex\"")
+            buildConfigField("String", "INTERSTITIAL_AD_UNIT", "\"demo-interstitial-yandex\"")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -118,6 +148,10 @@ dependencies {
 
     // Chrome Custom Tabs — открытие страницы оплаты ЮKassa
     implementation(libs.androidx.browser)
+
+    // Yandex Mobile Ads (РСЯ) — только рекламные флейворы (gplay/samsung), src/withAds
+    "gplayImplementation"(libs.yandex.mobileads)
+    "samsungImplementation"(libs.yandex.mobileads)
 
     // Testing
     testImplementation("junit:junit:4.13.2")

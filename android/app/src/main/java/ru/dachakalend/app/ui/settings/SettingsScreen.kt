@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.BuildConfig
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 /** ISO-дата ("2026-07-04T00:00:00.000Z") → "04.07.2026". null/ошибка → null. */
@@ -181,7 +182,8 @@ fun SettingsScreen(
                 Spacer(Modifier.height(8.dp))
             }
 
-            // ─── Блок подписки ────────────────────────────────────────────────────
+            // ─── Блок подписки — только в платных сборках (rustore); в gplay/samsung оплаты нет ───
+            if (BuildConfig.PAYMENTS_ENABLED) {
             Text(
                 text = "ПОДПИСКА",
                 fontFamily = NunitoFamily,
@@ -305,6 +307,7 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(16.dp))
+            } // конец блока подписки (PAYMENTS_ENABLED)
 
             Text(
                 text = "УВЕДОМЛЕНИЯ",

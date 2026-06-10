@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
+import ru.dachakalend.app.ads.Ads
 import ru.dachakalend.app.notification.NotificationHelper
 import ru.rustore.sdk.pushclient.RuStorePushClient
 import javax.inject.Inject
@@ -28,5 +29,8 @@ class App : Application(), Configuration.Provider {
             projectId = BuildConfig.RUSTORE_PUSH_PROJECT_ID
         )
         // Биллинг — прямые платежи ЮKassa (см. SubscriptionManager/BillingRepository), SDK не нужен.
+
+        // Реклама РСЯ — no-op в rustore-сборке, реальная инициализация в gplay/samsung (src/withAds).
+        Ads.init(this)
     }
 }

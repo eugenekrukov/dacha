@@ -1,5 +1,6 @@
 package ru.dachakalend.app.data.repository
 
+import ru.dachakalend.app.BuildConfig
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.LoginRequest
@@ -18,7 +19,7 @@ class AuthRepository @Inject constructor(
 
     suspend fun login(email: String, password: String): Result<UserProfile> {
         return try {
-            val response = api.login(LoginRequest(email, password))
+            val response = api.login(LoginRequest(email, password, BuildConfig.STORE))
             tokenStorage.saveToken(response.token)
             Result.Success(response.user)
         } catch (e: Exception) {
@@ -28,7 +29,7 @@ class AuthRepository @Inject constructor(
 
     suspend fun register(email: String, password: String): Result<UserProfile> {
         return try {
-            val response = api.register(RegisterRequest(email, password))
+            val response = api.register(RegisterRequest(email, password, BuildConfig.STORE))
             tokenStorage.saveToken(response.token)
             Result.Success(response.user)
         } catch (e: Exception) {

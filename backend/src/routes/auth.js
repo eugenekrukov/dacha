@@ -44,12 +44,13 @@ module.exports = async function (fastify) {
         properties: {
           email:    { type: 'string', format: 'email' },
           password: { type: 'string', minLength: 6 },
-          name:     { type: 'string' }   // опционально (имя больше не собирается клиентом)
+          name:     { type: 'string' },   // опционально (имя больше не собирается клиентом)
+          store:    { type: 'string', enum: ['rustore', 'gplay', 'samsung'] }  // магазин установки (E5)
         }
       }
     }
   }, async (request, reply) => {
-    const { email, password, name } = request.body
+    const { email, password, name, store } = request.body
     const db = fastify.db
 
     const existing = await db.query('SELECT id FROM users WHERE email = $1', [email])
@@ -59,8 +60,8 @@ module.exports = async function (fastify) {
 
     const passwordHash = await bcrypt.hash(password, 10)
     const result = await db.query(
-      'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, created_at, trial_started_at, email_verified',
-      [email, passwordHash, name ?? null]
+      'INSERT INTO users (email, password_hash, name, store) VALUES ($1, $2, $3, $4) RETURNING id, email, name, created_at, trial_started_at, email_verified',
+      [email, passwordHash, name ?? null, store ?? null]
     )
 
     const user = result.rows[0]
@@ -88,12 +89,13 @@ module.exports = async function (fastify) {
         required: ['email', 'password'],
         properties: {
           email:    { type: 'string', format: 'email' },
-          password: { type: 'string' }
+          password: { type: 'string' },
+          store:    { type: 'string', enum: ['rustore', 'gplay', 'samsung'] }  // магазин установки (E5)
         }
       }
     }
   }, async (request, reply) => {
-    const { email, password } = request.body
+    const { email, password, store } = request.body
     const db = fastify.db
 
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email])
@@ -101,6 +103,11 @@ module.exports = async function (fastify) {
 
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return reply.code(401).send({ error: 'Invalid email or password' })
+    }
+
+    // Клиент сообщает магазин установки при каждом входе — фиксируем/обновляем для модели монетизации.
+    if (store && store !== user.store) {
+      await db.query('UPDATE users SET store = $1 WHERE id = $2', [store, user.id])
     }
 
     const token = fastify.jwt.sign({ userId: user.id, email: user.email })

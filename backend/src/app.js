@@ -77,7 +77,7 @@ app.decorate('requireAccess', async function (request, reply) {
     return reply.send(err)
   }
   const res = await app.db.query(
-    'SELECT trial_started_at, subscription_until, promo_until FROM users WHERE id = $1',
+    'SELECT trial_started_at, subscription_until, promo_until, store FROM users WHERE id = $1',
     [request.user.userId]
   )
   if (!hasAccess(res.rows[0])) {

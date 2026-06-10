@@ -38,9 +38,21 @@ function isLifetimePromo(promoUntil) {
   return hasPromo(promoUntil) && new Date(promoUntil).getTime() >= LIFETIME_THRESHOLD
 }
 
-/** Есть ли доступ к платным действиям: активный триал ИЛИ подписка ИЛИ промо-доступ. */
+/**
+ * Магазины с рекламной моделью (GP/Samsung): оплата из РФ невозможна → доступ без 402-гейта,
+ * монетизация рекламой РСЯ. rustore/NULL — платный гейт (триал/подписка/промо).
+ */
+function isAdSupportedStore(store) {
+  return store === 'gplay' || store === 'samsung'
+}
+
+/**
+ * Есть ли доступ к платным действиям: рекламный магазин (всегда) ИЛИ активный триал ИЛИ
+ * подписка ИЛИ промо-доступ.
+ */
 function hasAccess(user) {
-  return trialInfo(user && user.trial_started_at).trial_active ||
+  return isAdSupportedStore(user && user.store) ||
+    trialInfo(user && user.trial_started_at).trial_active ||
     isSubscribed(user && user.subscription_until) ||
     hasPromo(user && user.promo_until)
 }
@@ -57,5 +69,6 @@ function extendSubscription(currentUntil, days) {
 
 module.exports = {
   TRIAL_DAYS, SUBSCRIPTION_WINDOW_DAYS, PROMO_MONTH_DAYS, LIFETIME_UNTIL,
-  trialInfo, isSubscribed, hasPromo, isLifetimePromo, hasAccess, extendSubscription
+  trialInfo, isSubscribed, hasPromo, isLifetimePromo, hasAccess, extendSubscription,
+  isAdSupportedStore
 }

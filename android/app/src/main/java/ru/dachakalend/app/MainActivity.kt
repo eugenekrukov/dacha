@@ -95,9 +95,10 @@ class MainActivity : ComponentActivity() {
                     tokenStorage.isLoggedIn() && tokenStorage.hasGarden() && !tokenStorage.isCoachDone()
                 }
 
-                // При старте проверяем доступ (триал или подписка)
+                // При старте проверяем доступ (триал или подписка). Только в платных сборках:
+                // в gplay/samsung оплата невозможна → монетизация рекламой, Paywall не показываем.
                 LaunchedEffect(Unit) {
-                    if (tokenStorage.isLoggedIn() && tokenStorage.hasGarden()) {
+                    if (BuildConfig.PAYMENTS_ENABLED && tokenStorage.isLoggedIn() && tokenStorage.hasGarden()) {
                         subscriptionManager.refresh()
                         if (!subscriptionManager.isAccessAllowed()) {
                             navController.navigate(Screen.Paywall.route) {
@@ -139,6 +140,9 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
+                            androidx.compose.foundation.layout.Column {
+                            // Рекламный баннер РСЯ над навбаром (no-op в rustore-сборке)
+                            ru.dachakalend.app.ads.Ads.Banner()
                             NavigationBar {
                                 bottomNavItems.forEach { item ->
                                     val showBadge = item.screen == Screen.Plantings && activePlantings > 0
@@ -155,6 +159,8 @@ class MainActivity : ComponentActivity() {
                                         modifier = navModifier,
                                         selected = currentRoute == item.screen.route,
                                         onClick = {
+                                            // Контентное событие для рекламы (интерстишл раз в N; no-op в rustore)
+                                            ru.dachakalend.app.ads.Ads.onContentEvent(this@MainActivity)
                                             navController.navigate(item.screen.route) {
                                                 popUpTo(Screen.Today.route) { saveState = true }
                                                 launchSingleTop = true
@@ -173,6 +179,7 @@ class MainActivity : ComponentActivity() {
                                         label = { Text(item.label) }
                                     )
                                 }
+                            }
                             }
                         }
                     }

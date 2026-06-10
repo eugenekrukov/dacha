@@ -2,7 +2,7 @@
 
 const supertest = require('supertest')
 const Fastify = require('fastify')
-const { hasAccess, isSubscribed, trialInfo, hasPromo, isLifetimePromo, LIFETIME_UNTIL } = require('../utils/access')
+const { hasAccess, isSubscribed, trialInfo, hasPromo, isLifetimePromo, LIFETIME_UNTIL, isAdSupportedStore } = require('../utils/access')
 
 const daysAgo = (n) => new Date(Date.now() - n * 86_400_000)
 const daysAhead = (n) => new Date(Date.now() + n * 86_400_000)
@@ -54,6 +54,25 @@ describe('access.hasAccess (логика гейта)', () => {
     expect(isLifetimePromo(daysAhead(30))).toBe(false)
     expect(isLifetimePromo(null)).toBe(false)
   })
+
+  it('isAdSupportedStore: gplay/samsung=true, rustore/null=false', () => {
+    expect(isAdSupportedStore('gplay')).toBe(true)
+    expect(isAdSupportedStore('samsung')).toBe(true)
+    expect(isAdSupportedStore('rustore')).toBe(false)
+    expect(isAdSupportedStore(null)).toBe(false)
+  })
+
+  it('магазин gplay → доступ есть даже без триала/подписки/промо (рекламная модель)', () => {
+    expect(hasAccess({ trial_started_at: daysAgo(10), subscription_until: null, store: 'gplay' })).toBe(true)
+  })
+
+  it('магазин samsung → доступ есть', () => {
+    expect(hasAccess({ trial_started_at: daysAgo(10), store: 'samsung' })).toBe(true)
+  })
+
+  it('магазин rustore с истёкшим триалом → доступа нет (платный гейт)', () => {
+    expect(hasAccess({ trial_started_at: daysAgo(10), subscription_until: null, store: 'rustore' })).toBe(false)
+  })
 })
 
 // Интеграция реального requireAccess (как в app.js) на тестовом роуте.
@@ -87,6 +106,14 @@ describe('requireAccess (интеграция, 402)', () => {
 
   it('активная подписка → 200', async () => {
     const app = await buildGated({ trial_started_at: daysAgo(10), subscription_until: daysAhead(3) })
+    const token = app.jwt.sign({ userId: 1, email: 't@t.com' })
+    const res = await supertest(app.server).post('/gated').set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(200)
+    await app.close()
+  })
+
+  it('магазин gplay с истёкшим триалом → 200 (рекламная модель, без 402)', async () => {
+    const app = await buildGated({ trial_started_at: daysAgo(10), subscription_until: null, store: 'gplay' })
     const token = app.jwt.sign({ userId: 1, email: 't@t.com' })
     const res = await supertest(app.server).post('/gated').set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(200)
