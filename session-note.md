@@ -1,6 +1,56 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-06-10
+**Дата последней сессии**: 2026-06-11
+
+## ЗАКРЫТИЕ СЕССИИ 2026-06-11 — старт следующей
+
+За сессию: **FCM выкачен в прод и проверен на устройстве**; починен побочный **500 на логине**;
+закрыта **дыра с возвратами ЮKassa**; доведена реклама; почищен git; настроено ограничение API-key.
+
+**Состояние:** `main` = `cebe7ec` (== origin). Бэкенд-тесты **213/213**. Одна ветка `main`
+(стейл-ветки удалены локально и на origin). Android — все флейворы compile/assemble BUILD SUCCESSFUL.
+
+**Что сделано:**
+1. **Пуши FCM → ПРОД, проверено сквозняком.** `feature/push-fcm` влита (`6a56788`). Бэкенд задеплоен:
+   `npm install` (firebase-admin), миграция **026** (`push_tokens.provider`), сервисный аккаунт Firebase
+   на VPS `/var/www/dacha-api/secrets/fcm-service-account.json` (`600`, project `calendacha`),
+   `FCM_SERVICE_ACCOUNT_PATH` в `.env`, `pm2 restart`. Smoke-тест: firebase-admin аутентифицируется в FCM
+   (dummy-токен отклонён). На Samsung A55 (gplay-сборка): зарегистрирован FCM-токен `provider=fcm` (142
+   симв.), отправлен тест-пуш через `sendViaFcm` → **доставлен**. Канал доставки FCM работает.
+2. **Фикс 500 на логине (E5).** Деплой E5-кода впервые активировал обращения к `users.store`, а миграция
+   **025** (`user_store`) не была применена → 500. Применил `025_user_store.sql` на VPS. Логин 200.
+   (E5-код был влит в `main` ещё `d0778e2`, но прод стоял на `3fcbb42` до этого деплоя.)
+3. **🔴 Дыра с возвратами ЮKassa — ЗАКРЫТА** (`cebe7ec`, тесты +3 → 213). Вебхук обрабатывал только
+   `payment.succeeded`/`canceled` — **`refund.succeeded` игнорировался**, поэтому после возврата денег
+   доступ оставался активным до конца периода (оплатил → вернул → бесплатно). Добавлено: ветка
+   `refund.succeeded` в `routes/billing.js` (верификация через `yk.getRefund`, поиск платежа по
+   `payment_id`, отзыв выданных дней `access.revokeSubscription`, `payments.status=refunded`,
+   `auto_renew=false`; идемпотентно), `yookassaService.getRefund`, `access.revokeSubscription`.
+   ⚠️ В кабинете ЮKassa **подписано событие `refund.succeeded`** (сделано пользователем). Миграции нет.
+   NB: ретроактивно НЕ правит старые возвраты (user 2 `e-krukov@ya.ru` оставлен с активной подпиской —
+   выбор пользователя, тестовый аккаунт `store=gplay`).
+4. **Реклама (`88368fe`).** Интерстишл реже: `INTERSTITIAL_EVERY` 6 → **10**. Добавлены лог-слушатели
+   загрузки (`tag=Ads`) в `Ads.kt` (gplay+samsung — синхронны). **Баннер диагностирован: код исправен**
+   (демо-ID `onAdLoaded`), боевой блок `R-M-19420797-1` отдаёт **`code=4` no-fill** — состояние кабинета
+   РСЯ, не баг; налив баннера ожидается после публикации приложения. Длину роликов РСЯ не регулирует.
+5. **Ограничение API-key (Google Cloud Console).** В Application restrictions ключа Firebase (`current_key`
+   из `google-services.json`) добавлены package `ru.dachakalend.app` + SHA-1: **debug**
+   `DA:B4:04:79:C3:7C:2F:FB:EE:D1:20:00:CF:BF:40:F8:29:AC:85:59` и **release** (`~/.android/dacha-release`,
+   PKCS12) `A4:2B:98:50:E4:1F:9A:CB:DE:75:37:C6:8…`. API restrictions оставлены «Don't restrict key»
+   (Application restrictions достаточно; `google-services.json` — клиентский конфиг, остаётся в git).
+6. **Гигиена git.** Удалены влитые стейл-ветки `feature/email-brevo|email-unisender|email-verification|
+   notif-permission|push-fcm` (локально и на origin). Осталась только `main`.
+
+**TO-DO следующей сессии (полный — см. `summary.md`):**
+- **Google Play (при публикации):** после создания приложения и первой загрузки AAB добавить **третий
+  SHA-1** из Play Console → App integrity → **App signing key certificate** в ограничение API-key
+  (Google переподписывает APK → иначе FCM на Play-сборке не зарегистрируется).
+- **Сменить пароль** тест-аккаунта `e-krukov@ya.ru` (светился в чате) — через «Забыли пароль?».
+- **Баннер РСЯ** — дождаться налива боевого блока после публикации (код готов).
+- **E3 (давний долг):** Android unit-тесты не запускаются (баг тулчейна AGP 9) — проверка `compile*Kotlin`.
+- «Could» из ТЗ (сравнение урожая по сезонам, профиль участка, поля площадь/почва).
+
+---
 
 ## ЗАКРЫТИЕ СЕССИИ 2026-06-10 — старт следующей
 
