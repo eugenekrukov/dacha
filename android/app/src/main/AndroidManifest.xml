@@ -44,6 +44,18 @@
             android:name="ru.rustore.sdk.pushclient.default_notification_channel_id"
             android:value="dacha_reminders" />
 
+        <!-- FCM — сервис приёма уведомлений (gplay/samsung). В rustore не используется. -->
+        <service
+            android:name=".notification.DachaFcmService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="dacha_reminders" />
+
         <!-- FileProvider для экспорта CSV через Share sheet -->
         <provider
             android:name="androidx.core.content.FileProvider"

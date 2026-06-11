@@ -21,7 +21,9 @@ import ru.dachakalend.app.data.repository.RecommendationsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.data.repository.TodayRepository
 import ru.dachakalend.app.ui.plantings.attentionCount
+import ru.dachakalend.app.BuildConfig
 import ru.rustore.sdk.pushclient.RuStorePushClient
+import com.google.firebase.messaging.FirebaseMessaging
 import javax.inject.Inject
 
 data class TodayScreenData(
@@ -114,16 +116,31 @@ class TodayViewModel @Inject constructor(
     }
 
     private fun registerPushToken() {
-        try {
-            RuStorePushClient.getToken()
-                .addOnSuccessListener { token ->
-                    viewModelScope.launch {
-                        try { api.registerPushToken(mapOf("token" to token)) }
-                        catch (_: Exception) {}
+        // По флейвору: rustore → RuStore Push токен; gplay/samsung → FCM-токен. Провайдер уходит на сервер.
+        if (BuildConfig.STORE == "rustore") {
+            try {
+                RuStorePushClient.getToken()
+                    .addOnSuccessListener { token ->
+                        viewModelScope.launch {
+                            try { api.registerPushToken(mapOf("token" to token, "provider" to "rustore")) }
+                            catch (_: Exception) {}
+                        }
                     }
-                }
-        } catch (_: Exception) {
-            // RuStore SDK недоступен в unit-test окружении — игнорируем
+            } catch (_: Exception) {
+                // RuStore SDK недоступен в unit-test окружении — игнорируем
+            }
+        } else {
+            try {
+                FirebaseMessaging.getInstance().token
+                    .addOnSuccessListener { token ->
+                        viewModelScope.launch {
+                            try { api.registerPushToken(mapOf("token" to token, "provider" to "fcm")) }
+                            catch (_: Exception) {}
+                        }
+                    }
+            } catch (_: Exception) {
+                // Firebase недоступен в unit-test окружении — игнорируем
+            }
         }
     }
 

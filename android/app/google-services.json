@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "366293541890",
+    "project_id": "calendacha",
+    "storage_bucket": "calendacha.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:366293541890:android:31a452a4f6047d5b19b31b",
+        "android_client_info": {
+          "package_name": "ru.dachakalend.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_V2_SMvFItbzmIDiNx4T4duIv1047b3c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

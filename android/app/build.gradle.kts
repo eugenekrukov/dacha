@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -143,8 +144,9 @@ dependencies {
     implementation(libs.hilt.work)
     ksp(libs.hilt.work.compiler)
 
-    // RuStore Push SDK
+    // RuStore Push SDK (rustore-флейвор) + Firebase Cloud Messaging (gplay/samsung)
     implementation(libs.rustore.push)
+    implementation(libs.firebase.messaging)
 
     // Chrome Custom Tabs — открытие страницы оплаты ЮKassa
     implementation(libs.androidx.browser)

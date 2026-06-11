@@ -3,16 +3,18 @@
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
-  // POST /push-tokens — сохранить или обновить push-токен устройства
+  // POST /push-tokens — сохранить или обновить push-токен устройства.
+  // provider: 'fcm' (gplay/samsung) | 'rustore' (rustore-сборка). По умолчанию rustore.
   fastify.post('/', auth, async (request, reply) => {
     const { token, platform = 'android' } = request.body
+    const provider = request.body.provider === 'fcm' ? 'fcm' : 'rustore'
     if (!token) return reply.code(400).send({ error: 'token required' })
 
     await fastify.db.query(
-      `INSERT INTO push_tokens (user_id, token, platform, updated_at)
-       VALUES ($1, $2, $3, NOW())
-       ON CONFLICT (user_id, token) DO UPDATE SET updated_at = NOW()`,
-      [request.user.userId, token, platform]
+      `INSERT INTO push_tokens (user_id, token, platform, provider, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (user_id, token) DO UPDATE SET updated_at = NOW(), provider = EXCLUDED.provider`,
+      [request.user.userId, token, platform, provider]
     )
     return reply.code(204).send()
   })

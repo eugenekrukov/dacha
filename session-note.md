@@ -4,6 +4,37 @@
 
 ---
 
+## Пуши → FCM (2026-06-10): диагностика + бэкенд (Android в работе)
+
+**Диагноз:** пуши не приходили — в `backend/.env` не были заданы `RUSTORE_PUSH_*` (sendPush молча
+выходил). После добавления ключей RuStore API ответил `400 not a valid FCM registration token` —
+старые токены 32-символьные/протухшие, а RuStore-нативная доставка требует пройденной модерации +
+совпадения подписи (не выполнено в debug). Устройство теста — Samsung A55 (Google services + RuStore).
+
+**Решение (выбор пользователя): прямой FCM.** rustore → RuStore Push (как есть), gplay/samsung →
+FCM напрямую (Firebase на клиенте, FCM HTTP v1 на бэкенде). НЕ через RuStore-релей (в консоли RuStore
+FCM — отдельный проект-провайдер, лишняя завязка).
+
+**Бэкенд готов (тесты 210/210):** миграция `026_push_provider.sql` (`push_tokens.provider` default
+'rustore'), `services/fcmService.js` (firebase-admin, lazy require, off без `FCM_SERVICE_ACCOUNT_PATH`),
+`pushService.sendPush(token,…,provider)` маршрутизирует fcm→Firebase / иначе→vkpns,
+`getTokensForGarden` отдаёт `{token,provider}`, роут `/push-tokens` принимает `provider`. package.json
++= `firebase-admin` (нужен `npm install` на деплое). ⏳ НЕ задеплоено/закоммичено.
+
+**Android FCM готов** (`google-services.json` в `android/app/`, проект `calendacha`; rustore compile +
+gplay assembleDebug BUILD SUCCESSFUL): плагин `google-services` + `firebase-messaging:24.1.0`;
+`DachaFcmService` (FirebaseMessagingService, регистрирует provider='fcm', гейт по флейвору);
+`TodayViewModel.registerPushToken` ветвится (rustore→RuStore-токен/'rustore', gplay/samsung→FCM-токен/
+'fcm'); `App` инициализирует RuStore Push только в rustore; манифест += FCM-сервис. `push-tokens`
+шлёт `provider`. БЕЗ source-set — ветка по `BuildConfig.STORE`.
+
+**Осталось для работы пушей:** (1) деплой бэкенда — миграция 026 + `npm install` (firebase-admin) +
+сервисный аккаунт Firebase на VPS + `FCM_SERVICE_ACCOUNT_PATH` в `.env` + pm2 restart; (2) собрать
+gplay-APK, поставить на Samsung A55 → регистрируется FCM-токен → бэкенд шлёт через FCM → пуш доходит.
+NB: `google-services.json` закоммичен (клиентский конфиг, не серверный секрет).
+
+---
+
 ## E5 фазы 1–2 (2026-06-09): реклама РСЯ + флейворы (НЕ задеплоено)
 
 **Бэкенд (store-гейт, тесты 207/207):** миграция `025_user_store.sql` (`users.store`),

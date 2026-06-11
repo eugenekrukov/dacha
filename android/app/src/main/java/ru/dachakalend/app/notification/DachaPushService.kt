@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import ru.rustore.sdk.pushclient.messaging.exception.RuStorePushClientException
 import ru.rustore.sdk.pushclient.messaging.model.RemoteMessage
 import ru.rustore.sdk.pushclient.messaging.service.RuStoreMessagingService
+import ru.dachakalend.app.BuildConfig
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 
@@ -28,9 +29,10 @@ class DachaPushService : RuStoreMessagingService() {
         EntryPointAccessors.fromApplication(application, PushServiceEntryPoint::class.java)
 
     override fun onNewToken(token: String) {
+        if (BuildConfig.STORE != "rustore") return   // gplay/samsung используют FCM
         ep().tokenStorage().getToken() ?: return
         scope.launch {
-            try { ep().dachaApi().registerPushToken(mapOf("token" to token)) }
+            try { ep().dachaApi().registerPushToken(mapOf("token" to token, "provider" to "rustore")) }
             catch (_: Exception) {}
         }
     }

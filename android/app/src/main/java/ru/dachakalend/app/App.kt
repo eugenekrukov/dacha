@@ -23,11 +23,14 @@ class App : Application(), Configuration.Provider {
         super.onCreate()
         NotificationHelper.createChannel(this)
 
-        // Инициализация RuStore Push SDK
-        RuStorePushClient.init(
-            application = this,
-            projectId = BuildConfig.RUSTORE_PUSH_PROJECT_ID
-        )
+        // Пуши: rustore-сборка — через RuStore Push SDK; gplay/samsung — через FCM (Firebase
+        // авто-инициализируется плагином google-services, ручной init не нужен).
+        if (BuildConfig.STORE == "rustore") {
+            RuStorePushClient.init(
+                application = this,
+                projectId = BuildConfig.RUSTORE_PUSH_PROJECT_ID
+            )
+        }
         // Биллинг — прямые платежи ЮKassa (см. SubscriptionManager/BillingRepository), SDK не нужен.
 
         // Реклама РСЯ — no-op в rustore-сборке, реальная инициализация в gplay/samsung (src/withAds).
