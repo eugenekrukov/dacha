@@ -1,7 +1,7 @@
 'use strict'
 
 const yookassa = require('../services/yookassaService')
-const { extendSubscription } = require('../utils/access')
+const { extendSubscription, revokeSubscription } = require('../utils/access')
 
 // Прямые платежи ЮKassa. Заменяют синк RuStore-подписки (POST /auth/subscription).
 // create-payment → клиент открывает confirmation_url; webhook payment.succeeded продлевает
@@ -57,6 +57,50 @@ module.exports = async function (fastify, opts) {
     let object = body.object
     if (!object || !object.id) return reply.code(200).send({ ok: true })
 
+    const db = fastify.db
+
+    // --- Возврат средств: отзываем период, выданный исходным платежом ---
+    // refund.succeeded → object = объект ВОЗВРАТА (object.id — id возврата, object.payment_id —
+    // исходный платёж). НЕ перезапрашиваем как payment; верифицируем через getRefund.
+    // Без обработки клиент мог бы оплатить → вернуть деньги → пользоваться доступом бесплатно.
+    if (event === 'refund.succeeded') {
+      let refund = object
+      if (yk.isEnabled()) {
+        try {
+          refund = await yk.getRefund(object.id)
+        } catch (e) {
+          fastify.log.error(`[billing] webhook getRefund failed: ${e.message}`)
+          return reply.code(500).send({ error: 'verify_failed' })  // 500 → ЮKassa повторит
+        }
+      }
+      if (refund.status !== 'succeeded' || !refund.payment_id) {
+        return reply.code(200).send({ ok: true })
+      }
+
+      const payRes = await db.query(
+        'SELECT user_id, plan, status FROM payments WHERE yk_payment_id = $1', [refund.payment_id]
+      )
+      const pay = payRes.rows[0]
+      if (!pay) return reply.code(200).send({ ok: true })
+      if (pay.status === 'refunded') return reply.code(200).send({ ok: true })  // идемпотентность
+
+      // Полный возврат за период → вычитаем выданные дни. Частичные возвраты не про-рейтим
+      // (бизнес-модель — разовая оплата за период; возврат = отмена этого периода).
+      const planCfg = yk.getPlan(pay.plan) || yk.getPlan('monthly')
+      const userRes = await db.query('SELECT subscription_until FROM users WHERE id = $1', [pay.user_id])
+      const current = userRes.rows[0] && userRes.rows[0].subscription_until
+      const until = revokeSubscription(current, planCfg.days)
+
+      await db.query(
+        'UPDATE users SET subscription_until = $1, auto_renew = false WHERE id = $2',
+        [until, pay.user_id]
+      )
+      await db.query(
+        "UPDATE payments SET status = 'refunded' WHERE yk_payment_id = $1", [refund.payment_id]
+      )
+      return reply.code(200).send({ ok: true })
+    }
+
     // Доверяем не телу, а перезапрошенному из ЮKassa объекту (защита от подделки).
     if (yk.isEnabled()) {
       try {
@@ -67,7 +111,6 @@ module.exports = async function (fastify, opts) {
       }
     }
 
-    const db = fastify.db
     const status = object.status   // succeeded | canceled | pending | waiting_for_capture
     const userId = parseInt(object.metadata && object.metadata.user_id)
     const plan = object.metadata && object.metadata.plan

@@ -67,8 +67,18 @@ function extendSubscription(currentUntil, days) {
   return new Date(base.getTime() + days * 86_400_000)
 }
 
+/**
+ * Отзыв доступа при возврате средств: вычитаем выданные платежом дни из текущей даты окончания
+ * (обратная операция к extendSubscription). Если результат уходит в прошлое — доступ истекает
+ * (isSubscribed сравнит с now). null остаётся null (отзывать нечего).
+ */
+function revokeSubscription(currentUntil, days) {
+  if (!currentUntil) return null
+  return new Date(new Date(currentUntil).getTime() - days * 86_400_000)
+}
+
 module.exports = {
   TRIAL_DAYS, SUBSCRIPTION_WINDOW_DAYS, PROMO_MONTH_DAYS, LIFETIME_UNTIL,
   trialInfo, isSubscribed, hasPromo, isLifetimePromo, hasAccess, extendSubscription,
-  isAdSupportedStore
+  revokeSubscription, isAdSupportedStore
 }

@@ -164,7 +164,15 @@ async function getPayment(paymentId) {
   return ykGet(`/payments/${paymentId}`)
 }
 
+/**
+ * Авторитетное состояние возврата (для верификации refund-вебхука — доверяем API, не телу).
+ * Возвращает объект возврата ЮKassa, в т.ч. payment_id исходного платежа и status.
+ */
+async function getRefund(refundId) {
+  return ykGet(`/refunds/${refundId}`)
+}
+
 module.exports = {
   PLANS, isEnabled, getPlan, buildReceipt,
-  createPayment, chargeRecurring, getPayment
+  createPayment, chargeRecurring, getPayment, getRefund
 }

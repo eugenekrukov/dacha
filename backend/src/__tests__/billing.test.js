@@ -18,6 +18,10 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
         const p = s.payments[params[0]]
         return { rows: p ? [{ status: p.status }] : [] }
       }
+      if (sql.includes('SELECT user_id, plan, status FROM payments WHERE yk_payment_id')) {
+        const p = s.payments[params[0]]
+        return { rows: p ? [{ user_id: p.user_id, plan: p.plan, status: p.status }] : [] }
+      }
       if (sql.includes('SELECT id, email FROM users WHERE id')) {
         const u = s.users[params[0]]
         return { rows: u ? [{ id: params[0], email: u.email }] : [] }
@@ -25,6 +29,13 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
       if (sql.includes('SELECT subscription_until FROM users WHERE id')) {
         const u = s.users[params[0]] || {}
         return { rows: [{ subscription_until: u.subscription_until || null }] }
+      }
+      if (sql.includes('UPDATE users') && sql.includes('SET subscription_until') && sql.includes('auto_renew = false')) {
+        // Отзыв доступа при возврате: UPDATE users SET subscription_until=$1, auto_renew=false WHERE id=$2
+        const [until, userId] = params
+        const u = s.users[userId] || {}
+        s.users[userId] = { ...u, subscription_until: until, auto_renew: false }
+        return { rows: [] }
       }
       if (sql.includes('UPDATE users') && sql.includes('SET subscription_until')) {
         const [until, plan, autoRenew, savedCard, userId] = params
@@ -44,13 +55,19 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
         s.users[params[0]] = u
         return { rows: [{ auto_renew: false, subscription_until: u.subscription_until || null }] }
       }
+      if (sql.includes("UPDATE payments SET status = 'refunded'")) {
+        const p = s.payments[params[0]]
+        if (p) p.status = 'refunded'
+        return { rows: [] }
+      }
       if (sql.includes('INSERT INTO payments')) {
         const userId = params[0]
         const ykId = params[1]
         let status = 'pending'
         if (sql.includes("'succeeded'")) status = 'succeeded'
         else if (sql.includes("'canceled'")) status = 'canceled'
-        s.payments[ykId] = { user_id: userId, status, params }
+        // plan: для pending/succeeded-вставок он на индексе 3 (user_id, yk_id, amount, plan, ...).
+        s.payments[ykId] = { user_id: userId, status, plan: params[3], params }
         return { rows: [] }
       }
       throw new Error('Неожиданный SQL в моке: ' + sql)
@@ -67,6 +84,18 @@ function succeededWebhook(overrides = {}) {
       amount: { value: '299.00', currency: 'RUB' },
       metadata: { user_id: String(overrides.userId || 1), plan: overrides.plan || 'monthly' },
       payment_method: { id: 'pm_card_1', saved: true, type: 'bank_card' }
+    }
+  }
+}
+
+function refundWebhook(overrides = {}) {
+  return {
+    event: 'refund.succeeded',
+    object: {
+      id: overrides.id || 'ref_001',
+      status: 'succeeded',
+      payment_id: overrides.paymentId || 'pay_001',
+      amount: { value: '299.00', currency: 'RUB' }
     }
   }
 }
@@ -183,6 +212,42 @@ describe('POST /billing/webhook', () => {
     expect(isSubscribed(db.state.users[1].subscription_until)).toBe(true)
     expect(db.state.users[1].payment_method_id).toBeUndefined()
     expect(db.state.users[1].auto_renew).toBe(false)   // нет карты → продление вручную
+    await app.close()
+  })
+
+  it('refund.succeeded → отзывает выданный период, помечает платёж refunded, гасит автопродление', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const app = await buildApp(db)
+    // Оплата: +30 дней доступа.
+    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    expect(isSubscribed(db.state.users[1].subscription_until)).toBe(true)
+    // Возврат того же платежа: период должен отозваться.
+    const res = await supertest(app.server).post('/billing/webhook').send(refundWebhook())
+    expect(res.status).toBe(200)
+    expect(isSubscribed(db.state.users[1].subscription_until)).toBe(false)  // доступа больше нет
+    expect(db.state.users[1].auto_renew).toBe(false)
+    expect(db.state.payments['pay_001'].status).toBe('refunded')
+    await app.close()
+  })
+
+  it('refund: идемпотентность — повторный возврат не отзывает период дважды', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const app = await buildApp(db)
+    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    await supertest(app.server).post('/billing/webhook').send(refundWebhook())
+    const afterFirst = db.state.users[1].subscription_until
+    const res = await supertest(app.server).post('/billing/webhook').send(refundWebhook({ id: 'ref_002' }))
+    expect(res.status).toBe(200)
+    expect(db.state.users[1].subscription_until).toBe(afterFirst)  // не изменилось второй раз
+    await app.close()
+  })
+
+  it('refund для неизвестного платежа → 200 no-op', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const app = await buildApp(db)
+    const res = await supertest(app.server).post('/billing/webhook')
+      .send(refundWebhook({ id: 'ref_x', paymentId: 'pay_unknown' }))
+    expect(res.status).toBe(200)
     await app.close()
   })
 })
