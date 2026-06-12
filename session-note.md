@@ -1,6 +1,58 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-06-11
+**Дата последней сессии**: 2026-06-12
+
+## ЗАКРЫТИЕ СЕССИИ 2026-06-12 — редизайн лендинга + SEO/GEO + блок «Как начать» (задеплоено)
+
+За сессию: лендинг `dacha.studio1008.com` **редизайнен** (современные UI/UX-элементы), доведён
+по **SEO/GEO**, добавлен раздел **«Как начать»** (фикс непонятной CTA-воронки). Всё **задеплоено в прод**,
+закоммичено и влито в `main`. Тексты оферты/политики/Samsung — НЕ трогались (были корректны).
+
+**Состояние:** `main` = `bedd62b` (== origin). Прод живой. Бэкенд НЕ затрагивался.
+
+**Что сделано (только лендинг + nginx):**
+1. **Редизайн UI/UX** (`landing/index.html`, скилл `redesign-skill`, стек/шрифт Nunito сохранены):
+   прогресс-бар прокрутки, scrollspy (активный пункт меню), бегущая лента культур (marquee),
+   spotlight-карточки (свечение под курсором), анимированный градиент заголовка, glass-хедер с
+   внутренней кромкой, pressed-состояния кнопок, выравнивание тарифов по нижнему краю (flex-column),
+   пунктирный коннектор шагов, `tabular-nums`, `text-wrap: balance/pretty`. Фикс бага: `.fine`
+   ссылался на несуществующую `var(--brown)` → `var(--muted)`.
+2. **SEO/GEO** (скилл `searchfit-seo:on-page-seo`, on-page ~55→~90):
+   - `<title>` (50 симв., ключ в начале) + `description` (158 симв.) + **`<link rel=canonical>`**;
+   - **JSON-LD `@graph`**: `SoftwareApplication` (offers 299/1990/0 ₽) + `Person` (издатель Крюков Е.В.,
+     ИНН, email) + **`FAQPage`** (6 Q&A, синхронны видимому FAQ); `datePublished`/`dateModified`;
+   - **видимый FAQ-блок** (6 вопросов, `#faq`), пункт «Вопросы» в навигации;
+   - семантическая обёртка **`<main id="main">`** + skip-link;
+   - **`landing/robots.txt`** + **`landing/sitemap.xml`** (новые файлы);
+   - **OG-картинка** `landing/og.png` 1200×630 (сгенерирована Pillow в стиле Solar Dacha) +
+     `og:image`/`twitter:image`; favicon (🌻), theme-color, OG/Twitter-теги;
+   - контент-гэпы: ключи «когда сажать», «лунный календарь» в H2/eyebrow/тексте карточек.
+3. **Фикс CTA-воронки** (`#download` «Как начать»): кнопки «Попробовать»/«Начать бесплатно» вели на
+   `#pricing` — было непонятно, как пробовать. Добавлен раздел «Как начать» (3 шага: скачать →
+   регистрация → 7 дней бесплатно) + кнопки магазинов в состоянии **«Скоро»** (приложение ещё не
+   опубликовано — выбор пользователя). Hero/nav CTA и store-ссылки футера ведут на `#download`
+   (мёртвых `href="#"` больше нет).
+4. **nginx (VPS)**: раздавал из лендинг-папки только `/` и `/billing/return` → новые статики
+   (`/og.png`, `/robots.txt`, `/sitemap.xml`) проксировались на API = 404. Добавлены 3 exact-локации
+   `location = /<file> { root /var/www/dacha-landing; }` перед `location /`. Бэкап
+   `/etc/nginx/sites-available/dacha.bak.predeploy`, `nginx -t` OK, `systemctl reload`. API/SSL не задеты.
+5. **Деплой**: `scp` 4 файлов в `/var/www/dacha-landing/` (`index.html`, `og.png`, `robots.txt`,
+   `sitemap.xml`), `chown www-data`. Бэкапы `index.html.bak.*` на сервере. Проверено вживую:
+   `/`, `/og.png`, `/robots.txt`, `/sitemap.xml` → 200; `/health` → 200.
+6. **Git**: 3 коммита влиты в `main` (`7ec004e` редизайн+SEO, `ef1ca68` доки ASO прошлой сессии,
+   `bedd62b` фикс CTA). Запушено в origin. ⚠️ **Деплой лендинга — через `scp`, НЕ git** (на VPS
+   лендинг лежит в `/var/www/dacha-landing/`, не под git-зеркалом `dacha-api`).
+
+**TO-DO дальше:**
+- После публикации приложения — заменить кнопки магазинов «Скоро» (`#download` `.store-btn`
+  `aria-disabled`) и store-ссылки футера на реальные URL.
+- Остальной бэклог (FCM 3-й SHA-1, смена пароля тест-аккаунта, баннер РСЯ, E3, «Could» ТЗ) — без изменений.
+
+**SSH-нюанс:** деплой/ssh к VPS работает из **PowerShell** (Windows OpenSSH, alias `hetzner` с
+`IdentityFile C:\Users\e-kru\.ssh\hetzner`). Из Bash-инструмента POSIX-ssh этот ключ НЕ подхватывает
+(Windows-путь в ssh-config) → `Permission denied`. Для ssh/scp использовать PowerShell.
+
+---
 
 ## ЗАКРЫТИЕ СЕССИИ 2026-06-11 (продолжение) — ASO для GP/Samsung + лендинг (offer/privacy)
 
