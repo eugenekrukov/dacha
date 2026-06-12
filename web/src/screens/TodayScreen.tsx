@@ -58,10 +58,61 @@ export default function TodayScreen() {
         <p className="text-sm font-bold uppercase opacity-90">Сегодня</p>
         <h1 className="text-2xl font-black">{active?.name ?? 'Мой участок'}</h1>
         {active?.city && <p className="font-semibold opacity-90">{active.city}</p>}
+        {today?.weather && (
+          <div className="mt-3 flex items-center gap-3 border-t border-white/25 pt-3">
+            {today.weather.temp_c != null && (
+              <span className="text-3xl font-black">{Math.round(today.weather.temp_c)}°</span>
+            )}
+            <div className="flex flex-col text-sm font-semibold opacity-95">
+              {today.weather.condition_text && <span>{today.weather.condition_text}</span>}
+              <span>
+                {today.weather.temp_min != null && today.weather.temp_max != null
+                  ? `${Math.round(today.weather.temp_min)}…${Math.round(today.weather.temp_max)}°`
+                  : ''}
+                {today.weather.precip_prob_pct != null ? ` · 💧 ${today.weather.precip_prob_pct}%` : ''}
+              </span>
+            </div>
+            <div className="ml-auto flex flex-col items-end gap-1">
+              {today.weather.frost_risk && (
+                <span className="rounded-pill bg-white/25 px-2 py-0.5 text-xs font-bold">❄ заморозки</span>
+              )}
+              {today.weather.heat_risk && (
+                <span className="rounded-pill bg-white/25 px-2 py-0.5 text-xs font-bold">🔥 жара</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {loading && <p className="font-bold text-muted">Загрузка…</p>}
       {error && <div className="dacha-card p-4 font-semibold text-muted">{error}</div>}
+
+      {today?.forecast && today.forecast.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg font-black">Прогноз</h2>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {today.forecast.slice(0, 7).map((d, i) => (
+              <div
+                key={i}
+                className="dacha-card flex min-w-[68px] flex-col items-center gap-0.5 p-3 text-center"
+              >
+                <span className="text-xs font-bold uppercase text-muted">
+                  {new Date(d.date).toLocaleDateString('ru-RU', { weekday: 'short' })}
+                </span>
+                <span className="font-black">
+                  {d.max_temp_c != null ? `${Math.round(d.max_temp_c)}°` : '—'}
+                </span>
+                <span className="text-xs font-semibold text-muted">
+                  {d.min_temp_c != null ? `${Math.round(d.min_temp_c)}°` : ''}
+                </span>
+                {d.precip_prob_pct != null && d.precip_prob_pct > 0 && (
+                  <span className="text-xs font-semibold text-tertiary">💧{d.precip_prob_pct}%</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {today && (
         <section className="flex flex-col gap-2">

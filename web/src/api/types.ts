@@ -59,6 +59,11 @@ export interface Planting {
   quantity?: number
   planted_at?: string
   yield_per_plant_kg?: number | null
+  watering_freq_days?: number | null
+  harvest_days?: number | null
+  last_action_at?: string | null
+  last_action_type?: string | null
+  next_care_task?: NextCareTask | null
   overdue_care_task?: OverdueCareTask | null
 }
 
@@ -70,9 +75,34 @@ export interface TodayTask {
   product?: string | null
 }
 
+export interface WeatherInfo {
+  temp_c: number | null
+  temp_min: number | null
+  temp_max: number | null
+  humidity: number | null
+  condition: string | null
+  condition_text: string | null
+  frost_risk: boolean | null
+  heat_risk: boolean | null
+  precip_prob_pct: number | null
+  soil_temp_c: number | null
+}
+
+export interface ForecastDay {
+  date: string
+  min_temp_c: number | null
+  max_temp_c: number | null
+  precip_mm: number | null
+  precip_prob_pct: number | null
+  condition: string | null
+  condition_text: string | null
+}
+
 export interface TodayResponse {
   tasks: TodayTask[]
-  // прочие поля /today (погода/сводка) добавим по мере портирования экрана
+  weather: WeatherInfo | null
+  forecast: ForecastDay[]
+  garden_name?: string
   [key: string]: unknown
 }
 
@@ -82,6 +112,12 @@ export interface Recommendation {
   planting_id: number | null
   crop_name?: string | null
   message: string
+}
+
+export interface CareTask {
+  name: string
+  day_offset: number
+  repeat_days?: number | null
 }
 
 export interface Crop {
@@ -96,8 +132,14 @@ export interface Crop {
   frost_sensitive?: boolean
   yield_per_plant_kg?: number | null
   notes?: string | null
+  care_tasks?: CareTask[] | null
   good_neighbors?: string[] | null
   bad_neighbors?: string[] | null
+}
+
+export interface NextCareTask {
+  name: string
+  days_until: number
 }
 
 // Канон значений — android/CONVENTIONS.md §5a

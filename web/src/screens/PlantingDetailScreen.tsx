@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import { ACTION_TYPES, ACTION_LABELS, STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
-import type { ActionLog, ActionType, Planting } from '../api/types'
+import { buildSchedule, type SchedStatus } from '../api/schedule'
+import type { ActionLog, ActionType, Crop, Planting } from '../api/types'
 
 export default function PlantingDetailScreen() {
   const { id } = useParams()
@@ -10,6 +11,7 @@ export default function PlantingDetailScreen() {
   const navigate = useNavigate()
 
   const [planting, setPlanting] = useState<Planting | null>(null)
+  const [crop, setCrop] = useState<Crop | null>(null)
   const [actions, setActions] = useState<ActionLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -19,18 +21,33 @@ export default function PlantingDetailScreen() {
 
   const load = async () => {
     try {
-      const [p, a] = await Promise.all([
-        api.getPlanting(plantingId),
-        api.getActions(plantingId),
-      ])
+      const [p, a] = await Promise.all([api.getPlanting(plantingId), api.getActions(plantingId)])
       setPlanting(p)
       setActions(a)
+      // care_tasks/transplant_days для расписания приходят в /crops/:id (SELECT *)
+      const c = await api.getCrop(p.crop_id).catch(() => null)
+      setCrop(c)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить посадку')
     } finally {
       setLoading(false)
     }
   }
+
+  const schedule = useMemo(() => {
+    if (!planting?.planted_at || !crop) return []
+    return buildSchedule({
+      transplantDays: crop.transplant_days,
+      careTasks: crop.care_tasks,
+      harvestDays: crop.harvest_days,
+      wateringFreqDays: crop.watering_freq_days,
+      conditions: planting.conditions,
+      sowingMethod: planting.sowing_method,
+      planted: new Date(planting.planted_at),
+      actions,
+      today: new Date(),
+    })
+  }, [planting, crop, actions])
 
   useEffect(() => {
     load()
@@ -97,6 +114,18 @@ export default function PlantingDetailScreen() {
         )}
       </div>
 
+      {schedule.length > 0 && (
+        <section className="dacha-card flex flex-col gap-1.5 p-5">
+          <h2 className="text-lg font-black">Расписание работ</h2>
+          <p className="mb-1 text-xs font-semibold text-muted">
+            🟢 выполнено · 🔴 просрочено · ⚪ предстоит
+          </p>
+          {schedule.map((row, i) => (
+            <SchedRowView key={i} row={row} />
+          ))}
+        </section>
+      )}
+
       <section className="dacha-card flex flex-col gap-3 p-5">
         <h2 className="text-lg font-black">Записать действие</h2>
         <div className="flex flex-wrap gap-2">
@@ -144,6 +173,40 @@ export default function PlantingDetailScreen() {
       <button onClick={remove} className="mt-2 font-bold text-red-600">
         Удалить посадку
       </button>
+    </div>
+  )
+}
+
+const SCHED_MARKER: Record<SchedStatus, string> = {
+  done: '🟢 ',
+  missed: '🔴 ',
+  upcoming: '⚪ ',
+  neutral: '',
+}
+
+function SchedRowView({ row }: { row: import('../api/schedule').SchedRow }) {
+  const color =
+    row.status === 'missed'
+      ? 'text-red-600'
+      : row.status === 'upcoming'
+        ? 'text-[#3a2a1a]'
+        : 'text-muted'
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-black/5 py-1.5 last:border-0">
+      <div className="flex flex-col">
+        <span
+          className={`font-semibold ${color} ${row.status === 'done' ? 'line-through' : ''}`}
+        >
+          {SCHED_MARKER[row.status]}
+          {row.name}
+        </span>
+        {row.product && (
+          <span className="text-xs font-semibold text-tertiary">Препарат: {row.product}</span>
+        )}
+      </div>
+      <span className={`shrink-0 font-semibold ${color} ${row.status === 'missed' ? 'font-black' : ''}`}>
+        {row.dateStr}
+      </span>
     </div>
   )
 }

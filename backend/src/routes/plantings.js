@@ -38,7 +38,9 @@ module.exports = async function (fastify) {
     const result = await fastify.db.query(
       `SELECT p.*, c.name as crop_name, c.category, c.watering_freq_days, c.frost_sensitive,
               c.care_tasks, c.harvest_days, c.watering_freq_days as watering_freq_days, c.yield_per_plant_kg,
-              (SELECT MAX(a.logged_at) FROM action_logs a WHERE a.planting_id = p.id) AS last_action_at
+              (SELECT MAX(a.logged_at) FROM action_logs a WHERE a.planting_id = p.id) AS last_action_at,
+              (SELECT a.action_type FROM action_logs a WHERE a.planting_id = p.id
+               ORDER BY a.logged_at DESC LIMIT 1) AS last_action_type
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
        JOIN gardens g ON g.id = p.garden_id

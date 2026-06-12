@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
-import { STAGE_LABELS, formatDate } from '../api/labels'
+import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
 import type { Crop, Planting } from '../api/types'
 import AddPlantingForm from '../components/AddPlantingForm'
 
@@ -96,6 +96,22 @@ function PlantingCard({ p }: { p: Planting }) {
         Посажено {formatDate(p.planted_at)} · {p.quantity ?? 1} шт.
         {p.conditions === 'greenhouse' ? ' · теплица' : ''}
       </span>
+      {p.last_action_at && (
+        <span className="text-sm font-semibold text-muted">
+          Последнее: {p.last_action_type ? `${actionLabel(p.last_action_type)} · ` : ''}
+          {formatDate(p.last_action_at)}
+        </span>
+      )}
+      {p.next_care_task && (
+        <span className="text-sm font-semibold text-tertiary">
+          Далее: {p.next_care_task.name}
+          {p.next_care_task.days_until <= 0
+            ? ' · сегодня'
+            : p.next_care_task.days_until === 1
+              ? ' · завтра'
+              : ` · через ${p.next_care_task.days_until} дн.`}
+        </span>
+      )}
       {p.overdue_care_task && (
         <span className="text-sm font-bold text-red-600">
           ⚠ {p.overdue_care_task.name}
