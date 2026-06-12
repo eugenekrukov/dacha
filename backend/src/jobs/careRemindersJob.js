@@ -75,9 +75,12 @@ async function runCareReminders(db, push = pushService) {
         }
       }
 
-      // --- Подкормка ---
+      // --- Подкормка (только если есть запись расписания для текущей стадии) ---
+      // Зеркалит логику buildTasks: transplanted → growing, как на клиенте.
       const schedule = planting.fertilizing_schedule || []
-      if (schedule.length > 0) {
+      const fertStage = planting.stage === 'transplanted' ? 'growing' : planting.stage
+      const fertEntry = schedule.find(f => f.stage === fertStage)
+      if (fertEntry) {
         const lastFertilizedRow = await db.query(
           `SELECT logged_at FROM action_logs
            WHERE planting_id = $1 AND action_type = 'fertilizing'

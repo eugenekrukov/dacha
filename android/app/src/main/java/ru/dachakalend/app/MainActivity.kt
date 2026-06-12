@@ -71,13 +71,16 @@ class MainActivity : ComponentActivity() {
             else                       -> Screen.Today.route
         }
 
+        // EXTRA_PUSH_TYPE ставит DachaPushService (foreground); "type" — RuStore при тапе
+        // на системное уведомление (background/killed, notification+data payload).
         val pushType = intent.getStringExtra(NotificationHelper.EXTRA_PUSH_TYPE)
+            ?: intent.getStringExtra("type")
         val deepLinkRoute: String? = when (pushType) {
             TokenStorage.NOTIF_FROST,
             TokenStorage.NOTIF_HEAT      -> Screen.Today.route
             TokenStorage.NOTIF_WATERING,
             TokenStorage.NOTIF_FERTILIZE,
-            TokenStorage.NOTIF_TRANSPLANT -> Screen.Plantings.route
+            TokenStorage.NOTIF_TRANSPLANT -> Screen.Today.route
             else                          -> null
         }
 

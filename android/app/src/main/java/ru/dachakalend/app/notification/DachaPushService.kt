@@ -38,24 +38,25 @@ class DachaPushService : RuStoreMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        if (message.notification == null && message.data.isNotEmpty()) {
-            val title = message.data["title"] ?: return
-            val body = message.data["body"] ?: return
-            val pushType = message.data["type"] ?: ""
-            val gardenId = message.data["garden_id"] ?: ""
+        val data = message.data
+        if (data.isEmpty()) return
 
-            val tokenStorage = ep().tokenStorage()
-            if (!tokenStorage.isNotificationEnabled(pushType)) return
+        val title = data["title"] ?: message.notification?.title ?: return
+        val body = data["body"] ?: message.notification?.body ?: return
+        val pushType = data["type"] ?: ""
+        val gardenId = data["garden_id"] ?: ""
 
-            NotificationHelper.showWithDeepLink(
-                application,
-                message.messageId.hashCode(),
-                title,
-                body,
-                pushType,
-                gardenId
-            )
-        }
+        val tokenStorage = ep().tokenStorage()
+        if (!tokenStorage.isNotificationEnabled(pushType)) return
+
+        NotificationHelper.showWithDeepLink(
+            application,
+            message.messageId.hashCode(),
+            title,
+            body,
+            pushType,
+            gardenId
+        )
     }
 
     override fun onDeletedMessages() {}

@@ -26,7 +26,7 @@ async function sendViaRustore(token, title, body, data = {}) {
     message: {
       token,
       notification: { title, body },
-      data
+      data: { ...data, title, body }
     }
   }
 
