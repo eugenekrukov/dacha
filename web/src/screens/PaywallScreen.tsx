@@ -81,17 +81,20 @@ export default function PaywallScreen() {
 
       <div className="flex flex-col gap-3">
         {PLANS.map((p) => (
-          <div key={p.id} className="dacha-card flex items-center justify-between p-5">
-            <div>
-              <div className="text-lg font-black">{p.title}</div>
+          <div key={p.id} className="dacha-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
+            <div className="sm:flex-1">
+              <div className="text-lg font-black">
+                {p.title} · <span className="whitespace-nowrap">{p.price}</span>
+              </div>
               <div className="text-sm font-semibold text-muted">{p.note}</div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xl font-black">{p.price}</span>
-              <button className="dacha-btn h-11 px-5" disabled={busy !== null} onClick={() => buy(p.id)}>
-                {busy === p.id ? '…' : 'Оплатить'}
-              </button>
-            </div>
+            <button
+              className="dacha-btn h-11 px-5"
+              disabled={busy !== null}
+              onClick={() => buy(p.id)}
+            >
+              {busy === p.id ? '…' : 'Оплатить'}
+            </button>
           </div>
         ))}
       </div>

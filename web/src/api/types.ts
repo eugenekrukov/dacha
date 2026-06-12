@@ -67,10 +67,15 @@ export interface Planting {
   overdue_care_task?: OverdueCareTask | null
 }
 
+// Формат formatTasks (backend todayLogic.js): готовые title/description + детали.
 export interface TodayTask {
   type: string
+  priority?: number
+  title: string
+  description?: string
   planting_id: number | null
-  crop_name?: string
+  crop_name?: string | null
+  days_overdue?: number | null
   care_task_name?: string | null
   product?: string | null
 }

@@ -85,10 +85,10 @@ export default function PlantingsScreen() {
 
 function PlantingCard({ p }: { p: Planting }) {
   return (
-    <Link to={`/plantings/${p.id}`} className="dacha-card flex flex-col gap-1 p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-lg font-black">{p.crop_name ?? `Посадка #${p.id}`}</span>
-        <span className="dacha-chip bg-background text-xs text-tertiary">
+    <Link to={`/plantings/${p.id}`} className="dacha-card-link flex flex-col gap-1 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-lg font-black">{p.crop_name ?? `Посадка #${p.id}`}</span>
+        <span className="dacha-chip shrink-0 bg-background text-xs text-tertiary">
           {STAGE_LABELS[p.stage] ?? p.stage}
         </span>
       </div>

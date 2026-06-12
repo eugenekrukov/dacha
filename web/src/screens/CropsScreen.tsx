@@ -52,7 +52,7 @@ export default function CropsScreen() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {visible.map((c) => (
-          <Link key={c.id} to={`/crops/${c.id}`} className="dacha-card flex flex-col gap-1 p-4">
+          <Link key={c.id} to={`/crops/${c.id}`} className="dacha-card-link flex flex-col gap-1 p-4">
             <span className="font-black">{c.name}</span>
             {c.category && <span className="text-xs font-semibold text-muted">{c.category}</span>}
           </Link>

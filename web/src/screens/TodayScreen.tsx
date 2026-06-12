@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
-import type { Recommendation, TodayResponse } from '../api/types'
+import { careTaskActionType } from '../api/schedule'
+import type { Recommendation, TodayResponse, TodayTask } from '../api/types'
 
 // Отклонённые на сегодня советы — в localStorage по дню (как dismissed-рекомендации в Android).
 function dismissKey() {
@@ -118,13 +120,7 @@ export default function TodayScreen() {
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-black">Задачи дня</h2>
           {today.tasks?.length ? (
-            today.tasks.map((t, i) => (
-              <div key={i} className="dacha-card flex flex-col p-4">
-                <span className="font-bold">{t.care_task_name || t.type}</span>
-                {t.crop_name && <span className="text-sm font-semibold text-muted">{t.crop_name}</span>}
-                {t.product && <span className="text-sm text-tertiary">Препарат: {t.product}</span>}
-              </div>
-            ))
+            today.tasks.map((t, i) => <TaskCard key={i} t={t} />)
           ) : (
             <div className="dacha-card p-4 font-semibold text-muted">На сегодня задач нет 🎉</div>
           )}
@@ -154,5 +150,57 @@ export default function TodayScreen() {
         </section>
       )}
     </div>
+  )
+}
+
+const TYPE_ICON: Record<string, string> = {
+  watering_due: '💧',
+  transplant_due: '🌱',
+  fertilizing_due: '🌿',
+  harvest_due: '🌾',
+  frost_alert: '❄️',
+  reminder: '🔔',
+}
+const CARE_ICON: Record<string, string> = {
+  tying: '🪢',
+  pinching: '✂️',
+  hilling: '⛏️',
+  pruning: '🌿',
+  weeding: '🌾',
+  loosening: '🔨',
+  treatment: '🛡️',
+}
+function taskIcon(t: TodayTask): string {
+  if (t.type === 'care_task_due') {
+    const a = t.care_task_name ? careTaskActionType(t.care_task_name) : null
+    return (a && CARE_ICON[a]) || '🌿'
+  }
+  return TYPE_ICON[t.type] ?? '📋'
+}
+
+function TaskCard({ t }: { t: TodayTask }) {
+  const overdue = (t.days_overdue ?? 0) > 0
+  const body = (
+    <>
+      <span className="text-2xl leading-none">{taskIcon(t)}</span>
+      <div className="flex min-w-0 flex-col">
+        <span className="font-bold">{t.title}</span>
+        {t.description && <span className="text-sm font-semibold text-muted">{t.description}</span>}
+        {t.product && <span className="text-sm font-semibold text-tertiary">Препарат: {t.product}</span>}
+      </div>
+      {overdue && (
+        <span className="ml-auto shrink-0 self-start rounded-pill bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
+          🔴 {t.days_overdue} дн.
+        </span>
+      )}
+    </>
+  )
+  const cls = 'dacha-card flex items-center gap-3 p-4'
+  return t.planting_id ? (
+    <Link to={`/plantings/${t.planting_id}`} className={`${cls} transition hover:shadow-md active:scale-[0.99]`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
   )
 }
