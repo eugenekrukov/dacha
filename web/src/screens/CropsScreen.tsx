@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
+import { categoryLabel } from '../api/labels'
 import type { Crop } from '../api/types'
 
 export default function CropsScreen() {
@@ -44,7 +45,7 @@ export default function CropsScreen() {
               className={`dacha-chip ${category === c ? 'dacha-chip-active' : ''}`}
               onClick={() => setCategory(c)}
             >
-              {c}
+              {categoryLabel(c)}
             </button>
           ))}
         </div>
@@ -54,7 +55,9 @@ export default function CropsScreen() {
         {visible.map((c) => (
           <Link key={c.id} to={`/crops/${c.id}`} className="dacha-card-link flex flex-col gap-1 p-4">
             <span className="font-black">{c.name}</span>
-            {c.category && <span className="text-xs font-semibold text-muted">{c.category}</span>}
+            {c.category && (
+              <span className="text-xs font-semibold text-muted">{categoryLabel(c.category)}</span>
+            )}
           </Link>
         ))}
       </div>

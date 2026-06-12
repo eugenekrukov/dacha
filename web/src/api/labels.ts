@@ -33,6 +33,21 @@ export function actionLabel(type: string): string {
   return ALL_ACTION_LABELS[type] ?? type
 }
 
+// Категории культур (в БД на английском)
+export const CATEGORY_LABELS: Record<string, string> = {
+  vegetable: 'Овощи',
+  herb: 'Зелень',
+  berry: 'Ягоды',
+  flower: 'Цветы',
+  fruit: 'Фрукты',
+  green: 'Зелень',
+}
+
+export function categoryLabel(cat?: string | null): string {
+  if (!cat) return ''
+  return CATEGORY_LABELS[cat] ?? cat
+}
+
 // ISO/Date → DD.MM.YYYY
 export function formatDate(iso?: string | null): string {
   if (!iso) return ''

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
+import { categoryLabel } from '../api/labels'
 import type { Crop } from '../api/types'
 
 function Fact({ label, value }: { label: string; value: ReactNode }) {
@@ -39,7 +40,7 @@ export default function CropDetailScreen() {
 
       <div className="dacha-card flex flex-col gap-1 p-5">
         <h1 className="text-2xl font-black">{crop.name}</h1>
-        {crop.category && <span className="font-semibold text-muted">{crop.category}</span>}
+        {crop.category && <span className="font-semibold text-muted">{categoryLabel(crop.category)}</span>}
       </div>
 
       <section className="dacha-card p-5">
