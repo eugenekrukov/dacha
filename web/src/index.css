@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background font-sans text-[#3a2a1a] antialiased;
+  }
+}
+
+@layer components {
+  .dacha-card {
+    @apply rounded-card bg-white shadow-card;
+  }
+  .dacha-btn {
+    @apply h-[52px] rounded-btn bg-primary px-5 font-black text-white transition
+           active:scale-[0.99] disabled:opacity-50;
+  }
+  .dacha-input {
+    @apply h-[52px] w-full rounded-btn border border-black/10 bg-white px-4
+           font-semibold outline-none focus:border-primary;
+  }
+  .dacha-chip {
+    @apply rounded-pill border border-black/10 px-4 py-1.5 text-sm font-bold;
+  }
+  .dacha-chip-active {
+    @apply border-primary bg-primary text-white;
+  }
+}

@@ -1,0 +1,158 @@
+# План миграции: «Календарь дачника» → веб-версия на единой БД
+
+> Статус: **в работе** (старт 2026-06-12, ветка `feature/web-client`).
+> Документ — источник правды по вебу. Обновлять по мере выполнения фаз.
+
+## Принятые решения
+
+| Вопрос | Решение |
+|---|---|
+| Стек фронта | **React 18 + Vite + TypeScript + Tailwind CSS** (shadcn/ui — точечно) |
+| Android | **Остаётся** и работает на том же API без изменений |
+| Хранение токена | **Bearer в `localStorage`** (как сейчас в Android), интерсептор `Authorization` |
+| Домен | `dacha.studio1008.com` — лендинг на `/`, веб-приложение на **`/app/`** |
+| Лендинг | **Переделываем**: две точки входа — «Открыть веб-версию» (`/app/`) и «Скачать приложение» (сторы) |
+| Монетизация веба | **Платная** (как RuStore): подписка «Дачник Про» через ЮKassa, 7 дней триал. Включена в оферту. |
+| API | Тот же `dacha-api` (Fastify, порт 3002), роуты на корне (`/auth`, `/gardens`, …) |
+
+## Принцип
+
+Backend и PostgreSQL не меняются по сути — они изначально stateless REST + единая БД, Android лишь один из клиентов. Добавляем **второй клиент (веб-SPA)** на тот же API. Миграция инкрементальная: прод и Android не ломаются до самого конца.
+
+База уже единая — один Postgres обслуживает всех пользователей.
+
+---
+
+## Архитектура развёртывания (целевая)
+
+```
+dacha.studio1008.com  (nginx, HTTPS)
+├─ /                     → лендинг (статика, /var/www/dacha-landing)   [переделать]
+├─ /app/                 → веб-SPA (статика, /var/www/dacha-web)        [новое]
+├─ /billing/return       → return.html (после оплаты ЮKassa)            [есть]
+├─ /auth /gardens /crops /plantings /actions /today /weather
+│  /recommendations /reminders /harvests /promo /billing
+│  /push-tokens /analytics /geocode /health   → proxy_pass 127.0.0.1:3002 (dacha-api)
+```
+
+SPA — `BrowserRouter` с `basename="/app"`. На nginx для `/app/` нужен `try_files ... /app/index.html` (SPA-fallback).
+
+> **Дев-нюанс**: SPA-маршруты (`/plantings`, `/today`, `/crops`) совпадают с именами API-роутов.
+> Чтобы прямой переход/перезагрузка в деве не уходила на бэкенд, в деве API ходит через префикс
+> `/api` (Vite proxy с rewrite на прод). В проде API на корне, а SPA под `/app/` — конфликта нет,
+> префикс пустой (`api/client.ts`: `BASE = import.meta.env.DEV ? '/api' : ''`).
+
+---
+
+## Фазы
+
+### Фаза 1 — Подготовка бэкенда (обратносовместимо с Android)
+- [x] **`store='web'` в enum** `register`/`login` (`backend/src/routes/auth.js`) — иначе веб-клиент
+      (шлёт `store:'web'`) получает 400 при регистрации. Аддитивно, Android не затронут. `hasAccess`
+      уже трактует `web` как платный гейт (триал→подписка ЮKassa), правок не требует. ⏳ **нужен передеплой**:
+      до него регистрация веб-юзеров на проде падает (login работает — `store` при входе не шлётся).
+- [ ] `CORS_ORIGIN` в проде не обязателен (SPA и API на одном домене → same-origin). Оставить как есть.
+- [ ] `YOOKASSA_RETURN_URL` указывает на `https://dacha.studio1008.com/billing/return` (есть).
+- [ ] nginx: добавить `location /app/` (статика + SPA-fallback) перед proxy_pass. Бэкап конфига.
+- [ ] Проверить, что `/auth/me`, `/today`, `/geocode/suggest` отдают всё нужное вебу (Android уже потребляет — да).
+- Код бэкенда не меняется. Деплой безопасен для Android.
+
+### Фаза 2 — Каркас веб-клиента
+- [x] Скаффолд `web/` (Vite + React + TS + Tailwind), `base: '/app/'`.
+- [x] Дизайн-токены Solar Dacha в Tailwind/CSS (Nunito 400–900, `#FF7B00`/`#FFF8EB`/`#2E7D32`, radius 22).
+- [x] API-клиент (`fetch`-обёртка): base URL, Bearer-интерсептор, обработка 401/402/403, типы ответов.
+- [x] Auth-контекст + защищённые маршруты, layout с верхним нав-баром (вместо BottomBar).
+- [x] Экран входа/регистрации (проверка сквозной работы с боевым API).
+
+### Фаза 3 — Экраны (основной объём)
+Порядок по ценности. Логики мало — почти всё считает сервер.
+
+- [x] 1. Auth: вход / регистрация (verify-email — экран + баннер в Настройках; «забыли пароль» — TODO) — `/auth/*`
+- [x] 2. Создание/выбор участка (автодополнение города, онбординг-гейт) — `/gardens`, `/geocode/suggest`
+- [x] 3. **Сегодня** (hero + задачи дня + советы дня с dismiss в localStorage) — `/today`, `/recommendations`
+- [x] 4. Посадки (список + добавление) + карточка посадки (инфо/запись действия/история) — `/plantings`, `/actions`
+- [ ] 5. Календарь — `/today` + клиентская сборка событий (перенести `buildEvents`) — **не сделан** (вторичный)
+- [x] 6. Информация о посадке (инфо/ожидаемый урожай/запись действия/история) — `/plantings/:id`, `/actions`
+- [x] 7. Справочник культур (список + фильтр по категориям + карточка) — `/crops`, `/crops/:id`
+- [x] 8. Рекомендации (dismiss на сегодня в `localStorage`) — секцией на «Сегодня» — `/recommendations`
+- [x] 9. Журнал действий + CSV-экспорт (download через blob) — `/actions`, `/actions/export`
+- [x] 10. Урожай / аналитика (статы + запись сбора + история) — `/harvests`, `/analytics/summary`
+- [x] 11. Paywall (redirect на `confirmation_url` + промокод) — `/billing/create-payment`, `/promo/redeem`
+- [x] 12. Настройки (статус доступа, автопродление, выход, ссылки) — `/auth/me`, `/billing/cancel-autorenew`
+- [x] 13. Подтверждение email (экран + баннер в Настройках) — `/auth/verify-email`, `/auth/resend-verification`
+
+> **Осталось по Фазе 3 (вторичное)**: экран Календаря (п.5); экран сброса пароля (двухшаговый,
+> бэкенд `forgot-password`/`reset-password` готов); snooze задач (сейчас только dismiss советов).
+> **Не проверены против прода** (чтобы не плодить данные на тест-аккаунте) write-пути:
+> создание посадки/сбора, запись действия, create-payment (редирект в ЮKassa), redeem-промо, verify-email.
+> Код зеркалит рабочий Android-флоу; read-пути и навигация проверены сквозняком.
+
+> Модели данных переносятся почти 1:1 из Android `Models.kt`, сверяясь с роутами `backend/src/routes/`.
+> Канон enum-значений (`action_type`, `stage`, `conditions`, `sowing_method`) — см. `android/CONVENTIONS.md §5a`.
+
+### Фаза 4 — Платформенная адаптация
+- [x] Биллинг: `confirmation_url` → `window.location` редирект (PaywallScreen). `/billing/return` (return.html)
+      обновлён — кнопка «Вернуться в веб-версию» → `/app/`; статус подтягивается по `/auth/me` при возврате.
+- [ ] Геолокация: **отложено** — у бэкенда нет reverse-geocode (только `/geocode/suggest` по тексту);
+      `createGarden` принимает `lat/lon`, но без города/зоны. Нужен reverse-endpoint для «📍 моё местоположение».
+- [ ] Уведомления: **на старте без пушей** (веб-почта Brevo уже есть для verify/reset). Позже — Web Push
+      (SW + VAPID), мини-эпик на бэкенде (`push_tokens.provider='webpush'` по аналогии с FCM).
+- [x] Реклама: веб-версия **без рекламы** (решение — платная модель ЮKassa).
+
+### Фаза 5 — Лендинг + деплой
+- [x] Переделать `landing/index.html`: nav-CTA + hero-CTA «Открыть веб-версию» (`/app/`), секция «Как начать»
+      ведёт с веб-версии, блок «Скачать приложение» (RuStore/Google Play/Samsung — «Скоро»), ссылка в футере.
+- [x] **РЕШЕНО: веб-версия платная** (как RuStore) — подписка «Дачник Про» через ЮKassa, 7 дней триал.
+      Следствия закрыты в документации:
+      - Оферта `#legal` обновлена: область действия = веб-версия + RuStore (GP/Samsung — бесплатно с рекламой).
+        Согласованы тарифный блок, FAQ, политика конфиденциальности и JSON-LD (нет «только RuStore»).
+      - `store='web'` → платный гейт `hasAccess` (триал→подписка), как RuStore. Клиент шлёт `store:'web'`.
+      - **Paywall в вебе нужен** (показывать при истёкшем доступе) — остаётся в очереди Фазы 3.
+- [ ] Сборка `web/` → `/var/www/dacha-web`, nginx `location /app/`, HTTPS (тот же сертификат).
+- [ ] Прод-смоук: регистрация → участок → посадка → задачи дня → оплата ЮKassa.
+- [ ] Android — без изменений, проверить что API-контракт не задет.
+
+---
+
+## Оценка и риски
+
+- **Срок** (один разработчик): MVP веб-версии ≈ **3–5 недель**; фронт — почти весь объём.
+- **Упрощается** vs Android: нет флейворов, store-гейта, SHA-1, модерации сторов, бага тулчейна AGP,
+  «оплата невозможна в GP». Дистрибуция веба = ссылка.
+- **Риск 1** — паритет UX (свайпы, онбординг, coach-marks): на вебе делается иначе, заложить время.
+- **Риск 2** — Web Push слабее нативного (нет на старых iOS Safari, требует HTTPS+SW). Если напоминания
+  критичны для веба — основной канал сделать email.
+- **Риск 3** — Bearer в `localStorage` уязвим к XSS. Митигация: строгий CSP на `/app/`, später переход на
+  httpOnly-cookie (бэкенд готов принять — отдельная задача).
+
+---
+
+## Структура репозитория (новое)
+
+```
+web/                      # веб-клиент (Vite + React + TS)
+├─ index.html
+├─ package.json
+├─ vite.config.ts         # base: '/app/'
+├─ tailwind.config.ts
+├─ tsconfig.json
+└─ src/
+   ├─ main.tsx            # BrowserRouter basename="/app"
+   ├─ App.tsx             # роутинг + защищённые маршруты
+   ├─ api/                # клиент + типы (зеркало DachaApi)
+   ├─ auth/               # AuthContext, токен-стор
+   ├─ components/         # общие UI (Card, Button, Chip — Solar Dacha)
+   ├─ screens/            # экраны (Today, Plantings, …)
+   └─ theme/              # токены/глобальные стили
+```
+
+## Команды (dev)
+
+```powershell
+cd "C:\Projects\Dacha\Календарь дачника\web"
+npm install
+npm run dev        # Vite dev-сервер, прокси /api → dacha.studio1008.com (см. vite.config.ts)
+npm run build      # прод-сборка в web/dist → деплой в /var/www/dacha-web
+```
+</content>
+</invoke>

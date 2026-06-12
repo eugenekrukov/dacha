@@ -45,7 +45,7 @@ module.exports = async function (fastify) {
           email:    { type: 'string', format: 'email' },
           password: { type: 'string', minLength: 6 },
           name:     { type: 'string' },   // опционально (имя больше не собирается клиентом)
-          store:    { type: 'string', enum: ['rustore', 'gplay', 'samsung'] }  // магазин установки (E5)
+          store:    { type: 'string', enum: ['rustore', 'gplay', 'samsung', 'web'] }  // магазин установки (E5); web — браузерная версия
         }
       }
     }
@@ -90,7 +90,7 @@ module.exports = async function (fastify) {
         properties: {
           email:    { type: 'string', format: 'email' },
           password: { type: 'string' },
-          store:    { type: 'string', enum: ['rustore', 'gplay', 'samsung'] }  // магазин установки (E5)
+          store:    { type: 'string', enum: ['rustore', 'gplay', 'samsung', 'web'] }  // магазин установки (E5); web — браузерная версия
         }
       }
     }
