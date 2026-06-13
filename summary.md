@@ -49,7 +49,7 @@ FAQ, canonical, robots/sitemap, OG-картинка; on-page ~55→~90) + **бл
      `MobileAds.setUserConsent(true)` хардкод) — отдельная Android-задача, см.
      `docs/aso-gplay-samsung.md` → «Открытый вопрос — согласие на рекламу».
 
-**Бэкенд-тесты:** 213/213. **Android:** все флейворы `compile`/`assemble*Debug` BUILD SUCCESSFUL.
+**Бэкенд-тесты:** 218/218. **Android:** все флейворы `compile`/`assemble*Debug` BUILD SUCCESSFUL.
 
 **Закрыто 2026-06-12:** ✅ Редизайн лендинга (современный UI/UX) · ✅ SEO/GEO (title/description/canonical,
 JSON-LD SoftwareApplication+Person+FAQPage, видимый FAQ, `<main>`, robots.txt+sitemap.xml, OG-картинка

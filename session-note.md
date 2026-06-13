@@ -21,11 +21,13 @@
 маршрут зарегистрирован в `helpers/buildApp.js`). На проде вручную удалена зависшая строка
 `push_tokens.id=155` (`user_id=2`, тот же токен).
 
-**⚠️ Найдена попутно (НЕ исправлено)**: `careRemindersJob.test.js` — тест «подкормка: есть расписание
-и >14 дней без подкормки» падает (pre-existing, не связано с этим фиксом): фикстура
-`fertilizing_schedule: [{ day: 14 }]` не содержит поля `stage`, которое ищет
-`schedule.find(f => f.stage === fertStage)` в `careRemindersJob.js` — `fertEntry` всегда `undefined`.
-213/213 в `summary.md` устарело; реально 217/218 (1 падает).
+**Фикс 2** (`4f1e7aa`, влит в `main`, push-only — production-код не менялся): тест
+`careRemindersJob.test.js` «подкормка: есть расписание и >14 дней без подкормки» падал (pre-existing,
+не связано с фиксом выше): фикстура `fertilizing_schedule: [{ day: 14 }]` не содержит поля `stage`,
+которое ищет `schedule.find(f => f.stage === fertStage)` в `careRemindersJob.js`/`todayLogic.js` —
+`fertEntry` всегда был `undefined`. Реальные данные `crops.fertilizing_schedule` (миграция 006) всегда
+содержат `stage` (например `{"stage":"growing", ...}`) — производственный код корректен, фикстуру
+поправили на `{ stage: 'growing' }`. Теперь **218/218**. 213/213 в `summary.md` устарело.
 
 **Не исправлено (вторично)**: на клиенте `SettingsViewModel.logout()` не вызывает
 `DachaApi.deletePushToken()` (метод объявлен, но мёртвый код) — серверный фикс выше закрывает баг
