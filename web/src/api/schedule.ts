@@ -23,6 +23,15 @@ export function careTaskActionType(name: string): string | null {
   return null
 }
 
+// Авто-заметка для care-задачи: только для «Обработки» — уточнение «от чего»
+// (напр. «Обработка от капустной мухи» → «от капустной мухи»). Зеркало android treatmentNote.
+export function treatmentNote(careTaskName?: string | null): string | undefined {
+  if (!careTaskName) return undefined
+  if (careTaskActionType(careTaskName) !== 'treatment') return undefined
+  const rest = careTaskName.replace(/^обработка\s*/i, '').trim()
+  return rest || undefined
+}
+
 export type SchedStatus = 'done' | 'missed' | 'upcoming' | 'neutral'
 
 export interface SchedRow {

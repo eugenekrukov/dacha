@@ -1,9 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
-import { careTaskActionType } from '../api/schedule'
+import { careTaskActionType, treatmentNote } from '../api/schedule'
+import ActionLogSheet from '../components/ActionLogSheet'
 import type { Recommendation, TodayResponse, TodayTask } from '../api/types'
+
+// Какое действие предвыбрать при записи из задачи дня
+function preselectFor(t: TodayTask): { type: string | null; note?: string } {
+  switch (t.type) {
+    case 'watering_due':
+      return { type: 'watering' }
+    case 'fertilizing_due':
+      return { type: 'fertilizing' }
+    case 'transplant_due':
+      return { type: 'transplanting' }
+    case 'care_task_due':
+      return {
+        type: (t.care_task_name ? careTaskActionType(t.care_task_name) : null) ?? 'other',
+        note: t.care_task_name ? treatmentNote(t.care_task_name) : undefined,
+      }
+    default:
+      return { type: null }
+  }
+}
 
 // Отклонённые на сегодня советы — в localStorage по дню (как dismissed-рекомендации в Android).
 function dismissKey() {
@@ -27,23 +47,23 @@ export default function TodayScreen() {
   const [dismissed, setDismissed] = useState<Set<string>>(loadDismissed)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [logTask, setLogTask] = useState<TodayTask | null>(null)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (gardenId === -1) return
-    let cancelled = false
     setLoading(true)
     Promise.all([api.getToday(gardenId), api.getRecommendations(gardenId).catch(() => [])])
       .then(([t, r]) => {
-        if (cancelled) return
         setToday(t)
         setRecs(r)
       })
-      .catch((err) => !cancelled && setError(err instanceof ApiError ? err.message : 'Ошибка загрузки'))
-      .finally(() => !cancelled && setLoading(false))
-    return () => {
-      cancelled = true
-    }
+      .catch((err) => setError(err instanceof ApiError ? err.message : 'Ошибка загрузки'))
+      .finally(() => setLoading(false))
   }, [gardenId])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   const dismiss = (r: Recommendation) => {
     const next = new Set(dismissed)
@@ -120,7 +140,7 @@ export default function TodayScreen() {
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-black">Задачи дня</h2>
           {today.tasks?.length ? (
-            today.tasks.map((t, i) => <TaskCard key={i} t={t} />)
+            today.tasks.map((t, i) => <TaskCard key={i} t={t} onLog={setLogTask} />)
           ) : (
             <div className="dacha-card p-4 font-semibold text-muted">На сегодня задач нет 🎉</div>
           )}
@@ -148,6 +168,20 @@ export default function TodayScreen() {
             </div>
           ))}
         </section>
+      )}
+
+      {logTask && logTask.planting_id != null && (
+        <ActionLogSheet
+          plantingId={logTask.planting_id}
+          cropName={logTask.crop_name}
+          preselectedType={preselectFor(logTask).type}
+          initialNote={preselectFor(logTask).note}
+          onClose={() => setLogTask(null)}
+          onLogged={() => {
+            setLogTask(null)
+            load()
+          }}
+        />
       )}
     </div>
   )
@@ -178,8 +212,9 @@ function taskIcon(t: TodayTask): string {
   return TYPE_ICON[t.type] ?? '📋'
 }
 
-function TaskCard({ t }: { t: TodayTask }) {
+function TaskCard({ t, onLog }: { t: TodayTask; onLog: (t: TodayTask) => void }) {
   const overdue = (t.days_overdue ?? 0) > 0
+  const clickable = t.planting_id != null
   const body = (
     <>
       <span className="text-2xl leading-none">{taskIcon(t)}</span>
@@ -187,6 +222,15 @@ function TaskCard({ t }: { t: TodayTask }) {
         <span className="font-bold">{t.title}</span>
         {t.description && <span className="text-sm font-semibold text-muted">{t.description}</span>}
         {t.product && <span className="text-sm font-semibold text-tertiary">Препарат: {t.product}</span>}
+        {clickable && (
+          <Link
+            to={`/plantings/${t.planting_id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="mt-1 w-fit text-sm font-bold text-primary"
+          >
+            Подробнее →
+          </Link>
+        )}
       </div>
       {overdue && (
         <span className="ml-auto shrink-0 self-start rounded-pill bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
@@ -195,12 +239,19 @@ function TaskCard({ t }: { t: TodayTask }) {
       )}
     </>
   )
-  const cls = 'dacha-card flex items-center gap-3 p-4'
-  return t.planting_id ? (
-    <Link to={`/plantings/${t.planting_id}`} className={`${cls} transition hover:shadow-md active:scale-[0.99]`}>
+  const cls = 'flex items-start gap-3 p-4'
+  if (!clickable) return <div className={`dacha-card ${cls}`}>{body}</div>
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onLog(t)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onLog(t)
+      }}
+      className={`dacha-card-link cursor-pointer ${cls}`}
+    >
       {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
+    </div>
   )
 }

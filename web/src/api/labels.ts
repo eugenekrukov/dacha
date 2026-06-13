@@ -18,6 +18,22 @@ export const ACTION_LABELS: Record<ActionType, string> = {
 
 export const ACTION_TYPES: ActionType[] = ['watering', 'fertilizing', 'treatment', 'other']
 
+// Полный каталог действий для записи (зеркало android ACTION_TYPES + actionIcon).
+export const ACTION_CATALOG: { type: string; label: string; icon: string }[] = [
+  { type: 'watering', label: 'Полив', icon: '💧' },
+  { type: 'fertilizing', label: 'Подкормка', icon: '🌿' },
+  { type: 'treatment', label: 'Обработка', icon: '🛡️' },
+  { type: 'pricking_out', label: 'Пикировка', icon: '🌱' },
+  { type: 'transplanting', label: 'Высадка', icon: '🪴' },
+  { type: 'tying', label: 'Подвязка', icon: '🪢' },
+  { type: 'pinching', label: 'Пасынкование', icon: '✂️' },
+  { type: 'hilling', label: 'Окучивание', icon: '⛏️' },
+  { type: 'pruning', label: 'Обрезка', icon: '🌿' },
+  { type: 'weeding', label: 'Прополка', icon: '🌾' },
+  { type: 'loosening', label: 'Рыхление', icon: '🔨' },
+  { type: 'other', label: 'Другое', icon: '📋' },
+]
+
 // Полная карта для отображения (включая care-действия из backend для журнала/истории).
 const ALL_ACTION_LABELS: Record<string, string> = {
   ...ACTION_LABELS,

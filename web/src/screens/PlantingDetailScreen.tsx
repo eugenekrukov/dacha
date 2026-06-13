@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
-import { ACTION_TYPES, ACTION_LABELS, STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
+import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
 import { buildSchedule, type SchedStatus } from '../api/schedule'
-import type { ActionLog, ActionType, Crop, Planting } from '../api/types'
+import ActionLogSheet from '../components/ActionLogSheet'
+import type { ActionLog, Crop, Planting } from '../api/types'
 
 export default function PlantingDetailScreen() {
   const { id } = useParams()
@@ -15,9 +16,7 @@ export default function PlantingDetailScreen() {
   const [actions, setActions] = useState<ActionLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [logType, setLogType] = useState<ActionType>('watering')
-  const [logNote, setLogNote] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [logging, setLogging] = useState(false)
 
   const load = async () => {
     try {
@@ -53,26 +52,6 @@ export default function PlantingDetailScreen() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plantingId])
-
-  const log = async () => {
-    setBusy(true)
-    setError(null)
-    try {
-      await api.logAction(plantingId, logType, logNote.trim() || undefined)
-      setLogNote('')
-      await load()
-    } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.status === 402
-            ? 'Нужна подписка или активный пробный период'
-            : err.message
-          : 'Не удалось записать действие'
-      setError(msg)
-    } finally {
-      setBusy(false)
-    }
-  }
 
   const remove = async () => {
     if (!confirm('Удалить посадку?')) return
@@ -114,6 +93,12 @@ export default function PlantingDetailScreen() {
         )}
       </div>
 
+      <button className="dacha-btn" onClick={() => setLogging(true)}>
+        ✏️ Записать действие
+      </button>
+
+      {error && <p className="text-sm font-bold text-red-600">{error}</p>}
+
       {schedule.length > 0 && (
         <section className="dacha-card flex flex-col gap-1.5 p-5">
           <h2 className="text-lg font-black">Расписание работ</h2>
@@ -125,31 +110,6 @@ export default function PlantingDetailScreen() {
           ))}
         </section>
       )}
-
-      <section className="dacha-card flex flex-col gap-3 p-5">
-        <h2 className="text-lg font-black">Записать действие</h2>
-        <div className="flex flex-wrap gap-2">
-          {ACTION_TYPES.map((t) => (
-            <button
-              key={t}
-              className={`dacha-chip ${logType === t ? 'dacha-chip-active' : ''}`}
-              onClick={() => setLogType(t)}
-            >
-              {ACTION_LABELS[t]}
-            </button>
-          ))}
-        </div>
-        <input
-          className="dacha-input"
-          placeholder="Заметка (необязательно)"
-          value={logNote}
-          onChange={(e) => setLogNote(e.target.value)}
-        />
-        {error && <p className="text-sm font-bold text-red-600">{error}</p>}
-        <button className="dacha-btn" disabled={busy} onClick={log}>
-          {busy ? '…' : 'Записать'}
-        </button>
-      </section>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-lg font-black">История действий</h2>
@@ -173,6 +133,18 @@ export default function PlantingDetailScreen() {
       <button onClick={remove} className="mt-2 font-bold text-red-600">
         Удалить посадку
       </button>
+
+      {logging && (
+        <ActionLogSheet
+          plantingId={plantingId}
+          cropName={planting.crop_name}
+          onClose={() => setLogging(false)}
+          onLogged={() => {
+            setLogging(false)
+            load()
+          }}
+        />
+      )}
     </div>
   )
 }
