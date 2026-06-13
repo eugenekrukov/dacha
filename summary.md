@@ -3,9 +3,12 @@
 ## Текущий статус
 
 - **MVP**: ✅ 100% завершён (5 спринтов + пост-MVP доработки)
-- **Стек**: Node.js 20 + Fastify 4 + PostgreSQL | Android (Kotlin + Compose + Hilt)
+- **Стек**: Node.js 20 + Fastify 4 + PostgreSQL | Android (Kotlin + Compose + Hilt) | **Веб (React+Vite+TS+Tailwind)**
 - **Бэкенд**: `https://dacha.studio1008.com/` · порт 3002 · pm2: `dacha-api`
 - **Android**: package `ru.dachakalend.app` · minSdk 26 · targetSdk 34
+- **Веб-версия**: ✅ задеплоена `https://dacha.studio1008.com/app/` (папка `web/`, статика `/var/www/dacha-web`,
+  nginx `location /app/`). Та же БД/API. Монетизация — платная (как RuStore). План — `docs/web-migration-plan.md`,
+  деплой — `docs/DEPLOY.md`.
 - **ТЗ**: `docs/ТЗ.pdf`
 
 ---
