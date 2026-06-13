@@ -1,39 +1,41 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
-// Основные пункты (в шапке и в нижнем навбаре на мобиле)
 const PRIMARY = [
   { to: '/today', label: 'Сегодня' },
   { to: '/plantings', label: 'Посадки' },
-  { to: '/crops', label: 'Культуры' },
 ]
-// Вторичные — в выпадающем «Ещё» (на мобиле доступны со страницы Настроек)
-const MORE = [
-  { to: '/journal', label: 'Журнал' },
-  { to: '/harvests', label: 'Урожай' },
+// Раздел «Информация» — выпадающее меню
+const INFO = [
+  { to: '/crops', label: 'Справочник культур' },
+  { to: '/journal', label: 'Журнал действий' },
+  { to: '/harvests', label: 'Аналитика' },
 ]
 const SETTINGS = { to: '/settings', label: 'Настройки' }
 
-function MoreMenu() {
+function InfoMenu({ dropUp = false }: { dropUp?: boolean }) {
   const [open, setOpen] = useState(false)
   const loc = useLocation()
-  const navigate = useNavigate()
-  const { logout } = useAuth()
-  const active = MORE.some((m) => loc.pathname.startsWith(m.to))
+  const active = INFO.some((i) => loc.pathname.startsWith(i.to))
+
+  const trigger = dropUp
+    ? `text-sm font-bold ${active ? 'text-primary' : 'text-muted'}`
+    : `dacha-chip ${active ? 'dacha-chip-active' : ''}`
+
   return (
     <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`dacha-chip ${active ? 'dacha-chip-active' : ''}`}
-      >
-        Ещё ▾
+      <button onClick={() => setOpen((o) => !o)} className={trigger}>
+        Информация{dropUp ? ' ▴' : ' ▾'}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-20 mt-1 flex min-w-[150px] flex-col gap-1 rounded-card border border-black/10 bg-white p-2 shadow-card">
-            {MORE.map((m) => (
+          <div
+            className={`absolute z-20 flex min-w-[190px] flex-col gap-1 rounded-card border border-black/10 bg-white p-2 shadow-card ${
+              dropUp ? 'bottom-full left-1/2 mb-2 -translate-x-1/2' : 'right-0 mt-1'
+            }`}
+          >
+            {INFO.map((m) => (
               <NavLink
                 key={m.to}
                 to={m.to}
@@ -47,17 +49,6 @@ function MoreMenu() {
                 {m.label}
               </NavLink>
             ))}
-            <div className="my-1 border-t border-black/5" />
-            <button
-              onClick={() => {
-                setOpen(false)
-                logout()
-                navigate('/login', { replace: true })
-              }}
-              className="rounded-btn px-3 py-2 text-left font-bold text-red-600 transition hover:bg-background"
-            >
-              Выйти
-            </button>
           </div>
         </>
       )}
@@ -82,13 +73,13 @@ export default function Layout() {
               {n.label}
             </NavLink>
           ))}
+          <InfoMenu />
           <NavLink
             to={SETTINGS.to}
             className={({ isActive }) => `dacha-chip ${isActive ? 'dacha-chip-active' : ''}`}
           >
             {SETTINGS.label}
           </NavLink>
-          <MoreMenu />
         </nav>
       </header>
 
@@ -97,8 +88,8 @@ export default function Layout() {
       </main>
 
       {/* нижний нав на узких экранах */}
-      <nav className="fixed inset-x-0 bottom-0 z-10 flex justify-around border-t border-black/5 bg-white px-2 py-2 sm:hidden">
-        {[...PRIMARY, SETTINGS].map((n) => (
+      <nav className="fixed inset-x-0 bottom-0 z-10 flex items-center justify-around border-t border-black/5 bg-white px-2 py-2 sm:hidden">
+        {PRIMARY.map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
@@ -107,6 +98,13 @@ export default function Layout() {
             {n.label}
           </NavLink>
         ))}
+        <InfoMenu dropUp />
+        <NavLink
+          to={SETTINGS.to}
+          className={({ isActive }) => `text-sm font-bold ${isActive ? 'text-primary' : 'text-muted'}`}
+        >
+          {SETTINGS.label}
+        </NavLink>
       </nav>
     </div>
   )

@@ -68,12 +68,6 @@ export default function SettingsScreen() {
         )}
       </section>
 
-      <section className="dacha-card flex flex-col gap-2 p-5">
-        <h2 className="font-black">Данные</h2>
-        <Link to="/journal" className="font-bold text-primary">Журнал действий →</Link>
-        <Link to="/harvests" className="font-bold text-primary">Урожай и аналитика →</Link>
-      </section>
-
       <button
         className="dacha-chip py-3 font-bold text-red-600"
         onClick={() => {
