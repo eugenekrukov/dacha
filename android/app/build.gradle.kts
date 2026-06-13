@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,6 +7,15 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
 }
+
+// Релизная подпись из android/keystore.properties (не в репозитории). Если файла нет или он
+// с плейсхолдерами — release собирается без signingConfig (для CI/чужой машины не падаем).
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+}
+val hasReleaseSigning = keystorePropsFile.exists() &&
+    keystoreProps.getProperty("storePassword")?.startsWith("ЗАМЕНИ") == false
 
 android {
     namespace = "ru.dachakalend.app"
@@ -24,6 +35,17 @@ android {
         buildConfigField("String", "RUSTORE_PUSH_PROJECT_ID", "\"HG8uxj8nCRFKvPWNRhubdefqYcYiAset\"")
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isDebuggable = true
@@ -35,12 +57,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Подпись из keystore.properties; если ключа нет — release остаётся неподписанным.
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
 
-    // Флейворы по магазину (E5). rustore — платный гейт (ЮKassa), без рекламы; gplay/samsung —
-    // оплата из РФ невозможна → бесплатно с рекламой РСЯ (Yandex Mobile Ads). Реклама изолирована
-    // в source set src/withAds (только gplay+samsung), rustore-сборка без рекламного SDK.
+    // Флейворы по магазину. rustore + gplay — платный гейт (ЮKassa), без рекламы (Google с 02.08.2022
+    // не требует Play Billing для оплаты из РФ → in-app ЮKassa легальна). samsung — бесплатно с рекламой
+    // РСЯ (Yandex Mobile Ads). Рекламный SDK только в samsung; rustore+gplay используют no-op Ads.
     flavorDimensions += "store"
     productFlavors {
         create("rustore") {
@@ -52,12 +76,10 @@ android {
         create("gplay") {
             dimension = "store"
             buildConfigField("String", "STORE", "\"gplay\"")
-            buildConfigField("boolean", "PAYMENTS_ENABLED", "false")
-            buildConfigField("boolean", "ADS_ENABLED", "true")
-            // Боевые ID объявлений РСЯ (кабинет Яндекс Рекламы). Демо-аналоги: demo-banner-yandex /
-            // demo-interstitial-yandex — вернуть временно, если на устройстве нужна тестовая реклама.
-            buildConfigField("String", "BANNER_AD_UNIT", "\"R-M-19420797-1\"")
-            buildConfigField("String", "INTERSTITIAL_AD_UNIT", "\"R-M-19420797-2\"")
+            // С 2026-06-13 gplay — платная подписка (ЮKassa), без рекламы. Google не требует Google
+            // Play Billing для оплаты из РФ (support 11950272, с 02.08.2022) → in-app ЮKassa легальна.
+            buildConfigField("boolean", "PAYMENTS_ENABLED", "true")
+            buildConfigField("boolean", "ADS_ENABLED", "false")
         }
         create("samsung") {
             dimension = "store"
@@ -151,8 +173,7 @@ dependencies {
     // Chrome Custom Tabs — открытие страницы оплаты ЮKassa
     implementation(libs.androidx.browser)
 
-    // Yandex Mobile Ads (РСЯ) — только рекламные флейворы (gplay/samsung), src/withAds
-    "gplayImplementation"(libs.yandex.mobileads)
+    // Yandex Mobile Ads (РСЯ) — только рекламный флейвор samsung. gplay с 2026-06-13 платный, без рекламы.
     "samsungImplementation"(libs.yandex.mobileads)
 
     // Testing

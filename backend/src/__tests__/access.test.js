@@ -55,15 +55,15 @@ describe('access.hasAccess (логика гейта)', () => {
     expect(isLifetimePromo(null)).toBe(false)
   })
 
-  it('isAdSupportedStore: gplay/samsung=true, rustore/null=false', () => {
-    expect(isAdSupportedStore('gplay')).toBe(true)
+  it('isAdSupportedStore: только samsung=true; gplay/rustore/null=false', () => {
     expect(isAdSupportedStore('samsung')).toBe(true)
+    expect(isAdSupportedStore('gplay')).toBe(false)
     expect(isAdSupportedStore('rustore')).toBe(false)
     expect(isAdSupportedStore(null)).toBe(false)
   })
 
-  it('магазин gplay → доступ есть даже без триала/подписки/промо (рекламная модель)', () => {
-    expect(hasAccess({ trial_started_at: daysAgo(10), subscription_until: null, store: 'gplay' })).toBe(true)
+  it('магазин gplay с истёкшим триалом без подписки → доступа нет (платный гейт с 2026-06-13)', () => {
+    expect(hasAccess({ trial_started_at: daysAgo(10), subscription_until: null, store: 'gplay' })).toBe(false)
   })
 
   it('магазин samsung → доступ есть', () => {
@@ -112,11 +112,11 @@ describe('requireAccess (интеграция, 402)', () => {
     await app.close()
   })
 
-  it('магазин gplay с истёкшим триалом → 200 (рекламная модель, без 402)', async () => {
+  it('магазин gplay с истёкшим триалом → 402 (платный гейт с 2026-06-13)', async () => {
     const app = await buildGated({ trial_started_at: daysAgo(10), subscription_until: null, store: 'gplay' })
     const token = app.jwt.sign({ userId: 1, email: 't@t.com' })
     const res = await supertest(app.server).post('/gated').set('Authorization', `Bearer ${token}`)
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(402)
     await app.close()
   })
 

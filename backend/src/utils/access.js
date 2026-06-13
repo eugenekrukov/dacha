@@ -39,11 +39,12 @@ function isLifetimePromo(promoUntil) {
 }
 
 /**
- * Магазины с рекламной моделью (GP/Samsung): оплата из РФ невозможна → доступ без 402-гейта,
- * монетизация рекламой РСЯ. rustore/NULL — платный гейт (триал/подписка/промо).
+ * Магазины с рекламной моделью: доступ без 402-гейта, монетизация рекламой РСЯ. С 2026-06-13 это
+ * только Samsung. gplay переведён на платную подписку (ЮKassa легальна для оплаты из РФ — Google не
+ * требует Play Billing с 02.08.2022) → gplay теперь под платным гейтом, как rustore/NULL.
  */
 function isAdSupportedStore(store) {
-  return store === 'gplay' || store === 'samsung'
+  return store === 'samsung'
 }
 
 /**

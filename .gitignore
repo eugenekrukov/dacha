@@ -12,6 +12,10 @@ android/.externalNativeBuild/
 android/.cxx/
 android/*.keystore
 !android/debug.keystore
+android/*.jks
+android/keystore.properties
+android/app/*.aab
+android/app/*.apk
 
 # =====================
 # Node.js / Backend
