@@ -10,6 +10,14 @@ module.exports = async function (fastify) {
     const provider = request.body.provider === 'fcm' ? 'fcm' : 'rustore'
     if (!token) return reply.code(400).send({ error: 'token required' })
 
+    // Токен привязан к физическому устройству: если он уже зарегистрирован за другим
+    // пользователем (смена аккаунта на этом устройстве), убираем старую привязку —
+    // иначе care-job будет слать пуши по чужому участку на это устройство.
+    await fastify.db.query(
+      'DELETE FROM push_tokens WHERE token = $1 AND user_id != $2',
+      [token, request.user.userId]
+    )
+
     await fastify.db.query(
       `INSERT INTO push_tokens (user_id, token, platform, provider, updated_at)
        VALUES ($1, $2, $3, $4, NOW())
