@@ -79,7 +79,7 @@ describe('careRemindersJob — сводный дайджест', () => {
 
   it('подкормка: есть расписание и >14 дней без подкормки → дайджест подкормки', async () => {
     const db = makeDb({
-      plantings: [planting({ fertilizing_schedule: [{ day: 14 }], crop_name: 'Перец' })],
+      plantings: [planting({ fertilizing_schedule: [{ stage: 'growing' }], crop_name: 'Перец' })],
     })
 
     await runCareReminders(db, push)
