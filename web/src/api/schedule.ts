@@ -1,4 +1,4 @@
-import type { ActionLog, CareTask } from './types'
+import type { ActionLog, CareTask, Crop, Planting, TodayTask } from './types'
 
 // Рекомендованный препарат для care-задач-обработок (зеркало CARE_TASK_PRODUCT в backend todayLogic.js).
 export const CARE_TASK_PRODUCT: Record<string, string> = {
@@ -154,4 +154,135 @@ export function buildSchedule(opts: {
   }
 
   return rows.sort((a, b) => a.date.getTime() - b.date.getTime())
+}
+
+// ─── Календарь: сборка событий (порт android CalendarViewModel.buildEvents) ───
+// Reminders и snooze в вебе пока не поддерживаются → не учитываются.
+
+export type CalendarEventType =
+  | 'reminder' | 'harvest' | 'sowing' | 'watering' | 'care'
+  | 'watering_due' | 'fertilizing_due' | 'transplant_due' | 'harvest_due' | 'frost_alert' | string
+
+export interface CalendarEvent {
+  date: string // ISO yyyy-mm-dd (локальная дата)
+  title: string
+  type: CalendarEventType
+}
+
+const isoKey = (d: Date): string => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// Парсит первые 10 символов ISO ('2026-06-14') в локальную дату на полночь.
+function parseDateOnly(iso?: string | null): Date | null {
+  if (!iso) return null
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (!m) return null
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+}
+
+// Сезонный сброс отсчёта для многолетников — зеркало backend effectivePlantedAt (utils/todayLogic.js).
+function effectivePlanted(planted: Date, isPerennial: boolean, today: Date): Date {
+  if (!isPerennial) return planted
+  if (today.getTime() - planted.getTime() < 365 * DAY) return planted
+  const anniv = new Date(planted)
+  anniv.setFullYear(today.getFullYear())
+  if (anniv.getTime() - today.getTime() > 31 * DAY) anniv.setFullYear(today.getFullYear() - 1)
+  return anniv
+}
+
+function wateringInterval(freqDays: number, conditions?: string | null): number {
+  const base = freqDays || 3
+  return conditions === 'greenhouse' ? Math.max(1, Math.round(base * 0.8)) : base
+}
+
+/**
+ * Строит карту «дата (ISO) → события» на горизонт 60 дней.
+ * Источники: задачи дня (/today), посадки (+ care_tasks культуры). Завершённые посадки пропускаются.
+ */
+export function buildCalendarEvents(opts: {
+  plantings: Planting[]
+  crops: Crop[]
+  todayTasks: TodayTask[]
+  today: Date
+}): Record<string, CalendarEvent[]> {
+  const today = midnight(opts.today)
+  const horizon = addDays(today, 60)
+  const result: Record<string, CalendarEvent[]> = {}
+  const push = (date: Date, title: string, type: CalendarEventType) => {
+    const key = isoKey(date)
+    ;(result[key] ??= []).push({ date: key, title, type })
+  }
+  const inWindow = (d: Date) => d.getTime() >= today.getTime() && d.getTime() <= horizon.getTime()
+
+  const cropsById = new Map(opts.crops.map((c) => [c.id, c]))
+  const doneIds = new Set(opts.plantings.filter((p) => p.stage === 'done').map((p) => p.id))
+
+  // Задачи из /today — на сегодняшнюю дату
+  for (const t of opts.todayTasks) {
+    if (t.planting_id != null && doneIds.has(t.planting_id)) continue
+    const crop = t.crop_name ?? ''
+    const label =
+      t.type === 'watering_due' ? `💧 Полив: ${crop}`
+      : t.type === 'fertilizing_due' ? `🌿 Подкормка: ${crop}`
+      : t.type === 'transplant_due' ? `🌱 Пересадка: ${crop}`
+      : t.type === 'harvest_due' ? `🌾 Урожай: ${crop}`
+      : t.type === 'frost_alert' ? '❄️ Угроза заморозков'
+      : t.title
+    push(today, label, t.type)
+  }
+
+  // Посадки (кроме завершённых)
+  for (const p of opts.plantings) {
+    if (p.stage === 'done') continue
+    const cropName = p.crop_name ?? 'культура'
+    const crop = cropsById.get(p.crop_id)
+    const realSown = parseDateOnly(p.planted_at)
+    if (!realSown) continue
+    const isPerennial = crop?.is_perennial === true
+    const sown = effectivePlanted(realSown, isPerennial, today)
+
+    // Дата посева (реальная) — попадёт в окно только для свежих посадок
+    if (inWindow(realSown)) push(realSown, `Посев: ${cropName}`, 'sowing')
+
+    // Ожидаемый урожай = посев + harvest_days
+    const harvestDays = crop?.harvest_days ?? p.harvest_days ?? null
+    if (harvestDays != null) {
+      const d = addDays(sown, harvestDays)
+      if (inWindow(d)) push(d, `🌾 Урожай: ${cropName}`, 'harvest')
+    }
+
+    // Полив — от последнего действия или от посева
+    const wBase = parseDateOnly(p.last_action_at) ?? sown
+    const freq = wateringInterval(p.watering_freq_days ?? 3, p.conditions)
+    let nextW = addDays(wBase, freq)
+    while (nextW.getTime() <= horizon.getTime()) {
+      if (nextW.getTime() >= today.getTime()) push(nextW, `💧 Полив: ${cropName}`, 'watering')
+      nextW = addDays(nextW, freq)
+    }
+
+    // Пересадка/пикировка
+    if (crop?.transplant_days != null) {
+      const d = addDays(sown, crop.transplant_days)
+      if (inWindow(d)) push(d, `🌿 Пересадка: ${cropName}`, 'care')
+    }
+
+    // care_tasks — разворачиваем до горизонта
+    const limit = crop?.harvest_days ?? 180
+    for (const task of crop?.care_tasks ?? []) {
+      let offset = task.day_offset
+      while (offset <= limit) {
+        const d = addDays(sown, offset)
+        if (inWindow(d)) push(d, `${task.name}: ${cropName}`, 'care')
+        if (task.repeat_days == null) break
+        offset += task.repeat_days
+        if (d.getTime() > horizon.getTime()) break
+      }
+    }
+  }
+
+  return result
 }

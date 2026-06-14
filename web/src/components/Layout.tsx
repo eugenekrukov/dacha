@@ -7,6 +7,7 @@ const PRIMARY = [
 ]
 // Раздел «Информация» — выпадающее меню
 const INFO = [
+  { to: '/calendar', label: 'Календарь' },
   { to: '/crops', label: 'Справочник культур' },
   { to: '/journal', label: 'Журнал действий' },
   { to: '/harvests', label: 'Аналитика' },
