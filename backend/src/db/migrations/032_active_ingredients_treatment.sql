@@ -1,0 +1,48 @@
+-- Migration 032: действующие вещества к брендовым препаратам в treatment (для поиска аналогов).
+-- Целевая строка — константа → идемпотентно.
+
+UPDATE guide_entries SET treatment = 'Командор (имидаклоприд), Актара (тиаметоксам), Конфидор (имидаклоприд); биометод — Битоксибациллин (Bacillus thuringiensis); ручной сбор.' WHERE slug = 'colorado-beetle' AND treatment = 'Командор, Актара, Конфидор; биометод — Битоксибациллин; ручной сбор.';
+UPDATE guide_entries SET treatment = 'Ридомил Голд (мефеноксам + манкоцеб), Превикур Энерджи (пропамокарб + фосэтил), бордоская смесь 1%; больные растения удалять.' WHERE slug = 'phytophthora' AND treatment = 'Ридомил Голд, Превикур Энерджи, бордоская смесь 1%; больные растения удалять.';
+UPDATE guide_entries SET treatment = 'ХОМ (хлорокись меди)' WHERE slug = 'askohitoz' AND treatment = 'ХОМ';
+UPDATE guide_entries SET treatment = 'Актара (тиаметоксам)' WHERE slug = 'bahchevaya-tlya' AND treatment = 'Актара';
+UPDATE guide_entries SET treatment = 'Актара (тиаметоксам), Конфидор (имидаклоприд), жёлтые клеевые ловушки' WHERE slug = 'belokrylka' AND treatment = 'Актара, Конфидор, жёлтые клеевые ловушки';
+UPDATE guide_entries SET treatment = 'Профилактика Превикур (пропамокарб)ом' WHERE slug = 'vertitsilleznoe-uvyadanie' AND treatment = 'Профилактика Превикуром';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил) до цветения' WHERE slug = 'gorohovaya-plodozhorka' AND treatment = 'Актеллик до цветения';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил), мыльный раствор' WHERE slug = 'gorohovaya-tlya' AND treatment = 'Актеллик, мыльный раствор';
+UPDATE guide_entries SET treatment = 'ХОМ (хлорокись меди), бордоская смесь' WHERE slug = 'didimella-purpurovaya-pyatnistost' AND treatment = 'ХОМ, бордоская смесь';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил), Карбофос (малатион) до цветения' WHERE slug = 'dolgonosik-zemlyanichnyy' AND treatment = 'Актеллик, Карбофос до цветения';
+UPDATE guide_entries SET treatment = 'Карбофос (малатион), Фитоверм (аверсектин)' WHERE slug = 'zemlyanichnyy-klesch' AND treatment = 'Карбофос, Фитоверм';
+UPDATE guide_entries SET treatment = 'Лепидоцид (Bacillus thuringiensis), Битоксибациллин (Bacillus thuringiensis), Децис (дельтаметрин)' WHERE slug = 'kapustnaya-belyanka' AND treatment = 'Лепидоцид, Битоксибациллин, Децис';
+UPDATE guide_entries SET treatment = 'Базудин (диазинон)' WHERE slug = 'kapustnaya-muha' AND treatment = 'Базудин';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил), Биотлин (имидаклоприд)' WHERE slug = 'kapustnaya-tlya' AND treatment = 'Актеллик, Биотлин';
+UPDATE guide_entries SET treatment = 'ХОМ (хлорокись меди), Полихом (хлорокись меди), Квадрис (азоксистробин), бордоская смесь' WHERE slug = 'kladosporioz-buraya-pyatnistost' AND treatment = 'ХОМ, Полихом, Квадрис, бордоская смесь';
+UPDATE guide_entries SET treatment = 'Превикур Энерджи (пропамокарб + фосэтил), Триходерма вериде (Trichoderma) (биопрепарат)' WHERE slug = 'kornevaya-gnil' AND treatment = 'Превикур Энерджи, Триходерма вериде (биопрепарат)';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил), Карбофос (малатион); опыление золой' WHERE slug = 'krestotsvetnaya-bloshka' AND treatment = 'Актеллик, Карбофос; опыление золой';
+UPDATE guide_entries SET treatment = 'Лепидоцид (Bacillus thuringiensis) до цветения' WHERE slug = 'kryzhovnikovaya-ognevka' AND treatment = 'Лепидоцид до цветения';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил), Битоксибациллин (Bacillus thuringiensis)' WHERE slug = 'kryzhovnikovaya-pyadenitsa' AND treatment = 'Актеллик, Битоксибациллин';
+UPDATE guide_entries SET treatment = 'Лепидоцид (Bacillus thuringiensis)' WHERE slug = 'kukuruznyy-motylek' AND treatment = 'Лепидоцид';
+UPDATE guide_entries SET treatment = 'Базудин (диазинон)' WHERE slug = 'lukovaya-muha' AND treatment = 'Базудин';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил) при первых признаках' WHERE slug = 'lukovyy-skrytnohobotnik' AND treatment = 'Актеллик при первых признаках';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил) до цветения' WHERE slug = 'malinno-zemlyanichnyy-dolgonosik' AND treatment = 'Актеллик до цветения';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил), Карбофос (малатион) до цветения' WHERE slug = 'malinnyy-zhuk' AND treatment = 'Актеллик, Карбофос до цветения';
+UPDATE guide_entries SET treatment = 'Актара (тиаметоксам), Актеллик (пиримифос-метил)' WHERE slug = 'morkovnaya-listobloshka' AND treatment = 'Актара, Актеллик';
+UPDATE guide_entries SET treatment = 'Защитные укрытия (агроволокно), Базудин (диазинон) в почву' WHERE slug = 'morkovnaya-muha' AND treatment = 'Защитные укрытия (агроволокно), Базудин в почву';
+UPDATE guide_entries SET treatment = 'Топаз (пенконазол), Квадрис (азоксистробин), коллоидная сера, раствор соды с мылом.' WHERE slug = 'powdery-mildew' AND treatment = 'Топаз, Квадрис, коллоидная сера, раствор соды с мылом.';
+UPDATE guide_entries SET treatment = 'Топаз (пенконазол), Скор (дифеноконазол), раствор кальцинированной соды' WHERE slug = 'muchnistaya-rosa-amerikanskaya-sferoteka' AND treatment = 'Топаз, Скор, раствор кальцинированной соды';
+UPDATE guide_entries SET treatment = 'Фитоверм (аверсектин), Акарин (аверсектин), Клещевит (аверсектин); повышение влажности.' WHERE slug = 'spider-mite' AND treatment = 'Фитоверм, Акарин, Клещевит; повышение влажности.';
+UPDATE guide_entries SET treatment = 'Ридомил Голд (мефеноксам + манкоцеб), Ордан (цимоксанил + хлорокись меди)' WHERE slug = 'peronosporoz-lozhnaya-muchnistaya-rosa' AND treatment = 'Ридомил Голд, Ордан';
+UPDATE guide_entries SET treatment = 'Вырезать поражённые ветви, Акарин (аверсектин)' WHERE slug = 'pochkovyy-klesch' AND treatment = 'Вырезать поражённые ветви, Акарин';
+UPDATE guide_entries SET treatment = 'Базудин (диазинон) в лунку, Провотокс (диазинон)' WHERE slug = 'provolochnik' AND treatment = 'Базудин в лунку, Провотокс';
+UPDATE guide_entries SET treatment = 'Актара (тиаметоксам)' WHERE slug = 'sveklovichnaya-listovaya-miniruyuschaya-muha' AND treatment = 'Актара';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил), Биотлин (имидаклоприд)' WHERE slug = 'sveklovichnaya-tlya' AND treatment = 'Актеллик, Биотлин';
+UPDATE guide_entries SET treatment = 'ХОМ (хлорокись меди)' WHERE slug = 'septorioz' AND treatment = 'ХОМ';
+UPDATE guide_entries SET treatment = 'Свитч (ципродинил + флудиоксонил), Трихоцин (Trichoderma); удаление поражённых частей.' WHERE slug = 'gray-mold' AND treatment = 'Свитч, Трихоцин; удаление поражённых частей.';
+UPDATE guide_entries SET treatment = 'Удалить повреждённые листья, Фитолавин (фитобактериомицин)' WHERE slug = 'slizistyy-bakterioz' AND treatment = 'Удалить повреждённые листья, Фитолавин';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил), Конфидор (имидаклоприд), мыльный раствор' WHERE slug = 'tlya-persikovaya' AND treatment = 'Актеллик, Конфидор, мыльный раствор';
+UPDATE guide_entries SET treatment = 'ХОМ (хлорокись меди), бордоская смесь, Фитолавин (фитобактериомицин)' WHERE slug = 'uglovataya-pyatnistost-bakterioz' AND treatment = 'ХОМ, бордоская смесь, Фитолавин';
+UPDATE guide_entries SET treatment = 'ХОМ (хлорокись меди), Скор (дифеноконазол)' WHERE slug = 'fomopsis-suhaya-gnil' AND treatment = 'ХОМ, Скор';
+UPDATE guide_entries SET treatment = 'Превикур (пропамокарб)' WHERE slug = 'fuzarioz' AND treatment = 'Превикур';
+UPDATE guide_entries SET treatment = 'Превикур (пропамокарб)' WHERE slug = 'fuzarioz-gnil-dontsa' AND treatment = 'Превикур';
+UPDATE guide_entries SET treatment = 'Бордоская смесь, ХОМ (хлорокись меди)' WHERE slug = 'tserkosporoz' AND treatment = 'Бордоская смесь, ХОМ';
+UPDATE guide_entries SET treatment = 'Фитолавин (фитобактериомицин), Превикур (пропамокарб)' WHERE slug = 'chernaya-nozhka' AND treatment = 'Фитолавин, Превикур';
+UPDATE guide_entries SET treatment = 'Актеллик (пиримифос-метил)' WHERE slug = 'schavelevyy-listoed' AND treatment = 'Актеллик';
