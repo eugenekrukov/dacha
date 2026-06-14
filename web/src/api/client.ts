@@ -10,6 +10,9 @@ import type {
   Crop,
   Garden,
   GeocodeSuggestion,
+  GuideEntry,
+  GuideEntryDetail,
+  GuideKind,
   Harvest,
   Planting,
   PlantingStage,
@@ -96,6 +99,17 @@ export const api = {
   // --- crops ---
   getCrops: () => request<Crop[]>('/crops', { auth: false }),
   getCrop: (id: number) => request<Crop>(`/crops/${id}`, { auth: false }),
+
+  // --- guide (справочник проблем) ---
+  getGuide: (params?: { kind?: GuideKind; crop_id?: number; q?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.kind) qs.set('kind', params.kind)
+    if (params?.crop_id) qs.set('crop_id', String(params.crop_id))
+    if (params?.q) qs.set('q', params.q)
+    const s = qs.toString()
+    return request<GuideEntry[]>(`/guide${s ? `?${s}` : ''}`, { auth: false })
+  },
+  getGuideEntry: (slug: string) => request<GuideEntryDetail>(`/guide/${slug}`, { auth: false }),
 
   // --- plantings ---
   getPlantings: (gardenId: number) => request<Planting[]>(`/plantings?garden_id=${gardenId}`),

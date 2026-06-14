@@ -260,6 +260,38 @@ export interface AnalyticsSummary {
   onboarding: { garden: boolean; planting: boolean; action: boolean; harvest: boolean }
 }
 
+// Справочник проблем растений (дефициты/болезни/вредители) — зеркало backend routes/guide.js.
+export type GuideKind = 'deficiency' | 'disease' | 'pest'
+
+export interface GuideEntry {
+  id: number
+  slug: string
+  name: string
+  kind: GuideKind
+  element?: string | null
+  category?: string | null
+  danger?: number | null
+  symptoms?: string | null
+  season?: string | null
+  image_url?: string | null
+}
+
+export interface GuideCropLink {
+  crop_id: number
+  crop_name: string
+  signs?: string | null
+  image_url?: string | null
+}
+
+export interface GuideEntryDetail extends GuideEntry {
+  description?: string | null
+  conditions?: string | null
+  treatment?: string | null
+  prevention?: string | null
+  image_credit?: string | null
+  crops?: GuideCropLink[]
+}
+
 export type BillingPlan = 'monthly' | 'yearly'
 
 export interface CreatePaymentResponse {

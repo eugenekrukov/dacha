@@ -41,11 +41,25 @@ async function buildApp(mockDb) {
     }
   })
 
+  // Admin guard — зеркало app.js: пускает только request.user.email === ADMIN_EMAIL.
+  fastify.decorate('requireAdmin', async function (request, reply) {
+    try {
+      await request.jwtVerify()
+    } catch (err) {
+      return reply.send(err)
+    }
+    const adminEmail = process.env.ADMIN_EMAIL
+    if (!adminEmail || request.user.email !== adminEmail) {
+      return reply.code(403).send({ error: 'Forbidden: admin only' })
+    }
+  })
+
   // Регистрируем роуты
   fastify.register(require('../../routes/auth'),      { prefix: '/auth' })
   fastify.register(require('../../routes/promo'),     { prefix: '/promo' })
   fastify.register(require('../../routes/billing'),   { prefix: '/billing' })
   fastify.register(require('../../routes/gardens'),   { prefix: '/gardens' })
+  fastify.register(require('../../routes/guide'),      { prefix: '/guide' })
   fastify.register(require('../../routes/today'),     { prefix: '/today' })
   fastify.register(require('../../routes/actions'),   { prefix: '/actions' })
   fastify.register(require('../../routes/plantings'), { prefix: '/plantings' })

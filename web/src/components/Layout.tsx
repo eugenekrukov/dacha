@@ -9,6 +9,7 @@ const PRIMARY = [
 const INFO = [
   { to: '/calendar', label: 'Календарь' },
   { to: '/crops', label: 'Справочник культур' },
+  { to: '/guide', label: 'Болезни и дефициты' },
   { to: '/journal', label: 'Журнал действий' },
   { to: '/harvests', label: 'Аналитика' },
 ]

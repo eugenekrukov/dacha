@@ -1,4 +1,4 @@
-import type { ActionType, PlantingStage } from './types'
+import type { ActionType, GuideKind, PlantingStage } from './types'
 
 export const STAGE_LABELS: Record<PlantingStage, string> = {
   sowing: 'Посев',
@@ -72,6 +72,19 @@ export const CATEGORY_LABELS: Record<string, string> = {
 export function categoryLabel(cat?: string | null): string {
   if (!cat) return ''
   return CATEGORY_LABELS[cat] ?? cat
+}
+
+// Справочник проблем растений
+export const GUIDE_KIND_LABELS: Record<GuideKind, string> = {
+  deficiency: 'Дефицит',
+  disease: 'Болезнь',
+  pest: 'Вредитель',
+}
+
+export const GUIDE_KIND_ICONS: Record<GuideKind, string> = {
+  deficiency: '🍂',
+  disease: '🦠',
+  pest: '🐛',
 }
 
 // ISO/Date → DD.MM.YYYY

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import { categoryLabel } from '../api/labels'
 import type { Crop, CropDisease, CropPest, FertilizingEntry, WateringDetails, WateringStage } from '../api/types'
@@ -182,6 +182,12 @@ export default function CropDetailScreen() {
               </ExpandableCard>
             ))}
           </div>
+          <Link
+            to={`/guide?crop_id=${crop.id}`}
+            className="mt-3 inline-block font-bold text-primary"
+          >
+            Все проблемы этой культуры в справочнике →
+          </Link>
         </section>
       )}
 
