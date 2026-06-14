@@ -30,7 +30,7 @@ module.exports = async function (fastify) {
       `SELECT p.id, p.planted_at, p.stage, p.quantity, p.conditions, p.sowing_method,
               c.name as crop_name, c.category,
               c.watering_freq_days, c.transplant_days,
-              c.harvest_days, c.frost_sensitive, c.care_tasks, c.fertilizing_schedule
+              c.harvest_days, c.frost_sensitive, c.care_tasks, c.fertilizing_schedule, c.is_perennial
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
        WHERE p.garden_id=$1 AND p.stage NOT IN ('done')
@@ -79,7 +79,7 @@ module.exports = async function (fastify) {
         `SELECT planting_id, array_agg(action_type) as action_types
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','transplanting','fertilizing')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking','transplanting','fertilizing')
            AND logged_at >= CURRENT_DATE
          GROUP BY planting_id`,
         [ids]
@@ -97,7 +97,7 @@ module.exports = async function (fastify) {
         `SELECT DISTINCT ON (planting_id, action_type) planting_id, action_type, logged_at
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking')
          ORDER BY planting_id, action_type, logged_at DESC`,
         [ids]
       )

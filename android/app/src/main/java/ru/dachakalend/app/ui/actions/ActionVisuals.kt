@@ -19,6 +19,7 @@ fun actionIcon(type: String): ImageVector = when (type) {
     "fertilizing"                   -> Icons.Default.Eco
     "treatment"                     -> Icons.Default.HealthAndSafety
     "transplanting", "pricking_out" -> Icons.Default.Grass
-    "pinching", "pruning"           -> Icons.Default.ContentCut
+    "pinching", "pruning", "thinning", "deflowering", "runner_removal", "bolt_removal" -> Icons.Default.ContentCut
+    "staking"                       -> Icons.Default.Grass
     else                            -> Icons.Default.Spa
 }

@@ -20,6 +20,11 @@ export function careTaskActionType(name: string): string | null {
   if (n.includes('прополк')) return 'weeding'
   if (n.includes('рыхлен')) return 'loosening'
   if (n.includes('обработк') || n.includes('опрыск')) return 'treatment'
+  if (n.includes('прореж') || n.includes('нормиров')) return 'thinning'
+  if (n.includes('усов') || n.includes('усы')) return 'runner_removal'
+  if (n.includes('стрел')) return 'bolt_removal'
+  if (n.includes('цветонос') || n.includes('увядш') || n.includes('завяз')) return 'deflowering'
+  if (n.includes('опор')) return 'staking'
   return null
 }
 

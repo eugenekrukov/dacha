@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks, getOverdueCareTask, careTaskActionType, wateringIntervalDays } = require('../../utils/todayLogic')
+const { buildTasks, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt } = require('../../utils/todayLogic')
 
 // ─── Фабрики тестовых данных ─────────────────────────────────────────────────
 
@@ -483,14 +483,96 @@ describe('careTaskActionType', () => {
     ['Рыхление', 'loosening'],
     ['Обработка от капустной мухи', 'treatment'],
     ['Обработка от фитофторы', 'treatment'],
+    ['Прореживание (первое)', 'thinning'],
+    ['Нормировка побегов', 'thinning'],
+    ['Удаление усов', 'runner_removal'],
+    ['Удаление стрелок', 'bolt_removal'],
+    ['Удаление цветоносов', 'deflowering'],
+    ['Удаление увядших цветков', 'deflowering'],
+    ['Удаление лишних завязей', 'deflowering'],
+    ['Установка опоры', 'staking'],
   ])('%s → %s', (name, expected) => {
     expect(careTaskActionType(name)).toBe(expected)
   })
 
+  it('«Обрезка для кустистости» не путается с удалением усов', () => {
+    expect(careTaskActionType('Обрезка для кустистости')).toBe('pruning')
+  })
+
   it('незамапленные имена → null', () => {
-    expect(careTaskActionType('Прореживание (первое)')).toBeNull()
     expect(careTaskActionType('Прекратить полив')).toBeNull()
-    expect(careTaskActionType('Удаление стрелок')).toBeNull()
     expect(careTaskActionType(null)).toBeNull()
+  })
+})
+
+// ─── Окно давности (OVERDUE_WINDOW_DAYS) ──────────────────────────────────────
+
+describe('окно давности просрочки', () => {
+  it('care-задача, просроченная больше окна, НЕ показывается', () => {
+    // day_offset=5, посадке 40 дней → просрочка 35 дн. (> 21) → скрыта
+    const p = makePlanting({
+      planted_at: daysAgo(40, TODAY), watering_freq_days: null, transplant_days: null,
+      harvest_days: 200, frost_sensitive: false, care_tasks: [{ name: 'Прополка', day_offset: 5 }],
+    })
+    const tasks = buildTasks([p], null, {}, {}, [], TODAY)
+    expect(tasks.some(t => t.type === 'care_task_due')).toBe(false)
+  })
+
+  it('care-задача в пределах окна показывается', () => {
+    // day_offset=5, посадке 20 дней → просрочка 15 дн. (<= 21)
+    const p = makePlanting({
+      planted_at: daysAgo(20, TODAY), watering_freq_days: null, transplant_days: null,
+      harvest_days: 200, frost_sensitive: false, care_tasks: [{ name: 'Прополка', day_offset: 5 }],
+    })
+    const tasks = buildTasks([p], null, {}, {}, [], TODAY)
+    expect(tasks.some(t => t.type === 'care_task_due')).toBe(true)
+  })
+
+  it('transplant_due, просроченная больше окна, НЕ показывается', () => {
+    const tasks = buildTasks(
+      [makePlanting({ stage: 'sowing', sowing_method: 'seedling', transplant_days: 7, planted_at: daysAgo(60, TODAY) })],
+      makeWeather(), {}, {}, [], TODAY
+    )
+    expect(tasks.some(t => t.type === 'transplant_due')).toBe(false)
+  })
+
+  it('getOverdueCareTask: задача старше окна → null', () => {
+    const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 5 }], new Date(daysAgo(40, TODAY)), TODAY, 200)
+    expect(r).toBeNull()
+  })
+})
+
+// ─── Сезонный сброс для многолетников (effectivePlantedAt) ─────────────────────
+
+describe('effectivePlantedAt', () => {
+  it('однолетник → возвращает реальную дату посадки', () => {
+    const p = new Date(daysAgo(400, TODAY))
+    expect(effectivePlantedAt(p, false, TODAY).getTime()).toBe(p.getTime())
+  })
+
+  it('многолетник моложе года → реальная дата', () => {
+    const p = new Date(daysAgo(100, TODAY))
+    expect(effectivePlantedAt(p, true, TODAY).getTime()).toBe(p.getTime())
+  })
+
+  it('многолетник старше года → годовщина в текущем сезоне (в пределах года)', () => {
+    const eff = effectivePlantedAt(new Date(daysAgo(400, TODAY)), true, TODAY)
+    const days = Math.floor((TODAY - eff) / 86400000)
+    expect(days).toBeGreaterThanOrEqual(0)
+    expect(days).toBeLessThanOrEqual(365)
+  })
+
+  it('многолетник с прошлогодней датой показывает уход текущего сезона, без лавины', () => {
+    // Клубника посажена ~400 дней назад; «Прополка» day_offset=14 должна быть в окне текущего сезона
+    const p = makePlanting({
+      id: 1, crop_name: 'Клубника', is_perennial: true, stage: 'growing',
+      planted_at: daysAgo(400, TODAY), watering_freq_days: null, transplant_days: null,
+      harvest_days: 200, frost_sensitive: false,
+      care_tasks: [{ name: 'Удаление усов', day_offset: 30, repeat_days: 21 }],
+    })
+    const tasks = buildTasks([p], null, {}, {}, [], TODAY)
+    // Не должно быть гигантской просрочки (>365); присутствие задачи зависит от фазы сезона
+    const care = tasks.filter(t => t.type === 'care_task_due')
+    care.forEach(t => expect(t.days_overdue).toBeLessThanOrEqual(21))
   })
 })

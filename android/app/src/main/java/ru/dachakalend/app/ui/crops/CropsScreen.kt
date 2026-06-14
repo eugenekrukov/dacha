@@ -149,14 +149,53 @@ fun CropsScreen(
                     )
                 }
             }
-            else -> LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(state.filteredCrops, key = { it.id }) { crop ->
-                    CropCard(crop = crop, onClick = { onCropClick(crop) })
+            else -> {
+                val annuals = state.filteredCrops.filter { it.isPerennial != true }
+                val perennials = state.filteredCrops.filter { it.isPerennial == true }
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (annuals.isNotEmpty() && perennials.isNotEmpty()) {
+                        item(key = "h_annual") { SectionHeader("Однолетние") }
+                    }
+                    items(annuals, key = { it.id }) { crop ->
+                        CropCard(crop = crop, onClick = { onCropClick(crop) })
+                    }
+                    if (perennials.isNotEmpty()) {
+                        item(key = "h_perennial") { SectionHeader("Многолетние", "не нужно сажать каждый год") }
+                    }
+                    items(perennials, key = { it.id }) { crop ->
+                        CropCard(crop = crop, onClick = { onCropClick(crop) })
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String, subtitle: String? = null) {
+    Row(
+        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            title,
+            fontFamily = NunitoFamily,
+            fontWeight = FontWeight.Black,
+            fontSize = 18.sp,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        if (subtitle != null) {
+            Text(
+                subtitle,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -205,6 +244,15 @@ private fun CropCard(crop: Crop, onClick: () -> Unit) {
                         fontFamily = NunitoFamily,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (crop.isPerennial == true) {
+                    Text(
+                        "🌿 Многолетник",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
             }

@@ -125,10 +125,60 @@ export interface CareTask {
   repeat_days?: number | null
 }
 
+// Болезни/вредители/подкормки/полив — зеркало backend crops schema (миграция 005) и android Models.kt.
+export interface CropDisease {
+  name: string
+  symptoms?: string | null
+  conditions?: string | null
+  treatment?: string | null
+  prevention?: string | null
+}
+
+export interface CropPest {
+  name: string
+  signs?: string | null
+  treatment?: string | null
+  prevention?: string | null
+}
+
+export interface FertilizingEntry {
+  stage?: string | null
+  timing?: string | null
+  fertilizer_type?: string | null
+  product_example?: string | null
+  dose?: string | null
+  method?: string | null
+  notes?: string | null
+}
+
+export interface WateringStage {
+  freq_days?: number | null
+  amount_l_m2?: number | null
+  notes?: string | null
+}
+
+export interface WateringDetails {
+  seedling?: WateringStage | null
+  sprouted?: WateringStage | null
+  growing?: WateringStage | null
+  flowering?: WateringStage | null
+  fruiting?: WateringStage | null
+  harvesting?: WateringStage | null
+  notes?: string | null
+}
+
+export interface ClimateZoneWindow {
+  sow_start?: number | null
+  sow_end?: number | null
+  transplant_start?: number | null
+  transplant_end?: number | null
+}
+
 export interface Crop {
   id: number
   name: string
   category?: string | null
+  is_perennial?: boolean
   sowing_start_day?: number | null
   sowing_end_day?: number | null
   transplant_days?: number | null
@@ -140,6 +190,12 @@ export interface Crop {
   care_tasks?: CareTask[] | null
   good_neighbors?: string[] | null
   bad_neighbors?: string[] | null
+  good_predecessors?: string[] | null
+  diseases?: CropDisease[] | null
+  pests?: CropPest[] | null
+  watering_details?: WateringDetails | null
+  fertilizing_schedule?: FertilizingEntry[] | null
+  climate_zones?: Record<string, ClimateZoneWindow> | null
 }
 
 export interface NextCareTask {

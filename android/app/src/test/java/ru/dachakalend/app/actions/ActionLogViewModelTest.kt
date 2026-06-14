@@ -21,6 +21,8 @@ import ru.dachakalend.app.data.repository.ActionsRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.ui.actions.ActionLogViewModel
+import org.junit.Assert.assertEquals
+import ru.dachakalend.app.ui.actions.careTaskActionType
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ActionLogViewModelTest {
@@ -102,5 +104,19 @@ class ActionLogViewModelTest {
         assertNull(viewModel.uiState.value.error)
         assertFalse(viewModel.uiState.value.isLoading)
         assertFalse(viewModel.uiState.value.success)
+    }
+
+    @Test
+    fun `careTaskActionType maps new care tasks to closeable action types`() {
+        assertEquals("thinning", careTaskActionType("Прореживание (первое)"))
+        assertEquals("thinning", careTaskActionType("Нормировка побегов"))
+        assertEquals("runner_removal", careTaskActionType("Удаление усов"))
+        assertEquals("bolt_removal", careTaskActionType("Удаление стрелок"))
+        assertEquals("deflowering", careTaskActionType("Удаление цветоносов"))
+        assertEquals("deflowering", careTaskActionType("Удаление увядших цветков"))
+        assertEquals("staking", careTaskActionType("Установка опоры"))
+        // не должно путаться с обрезкой/прищипкой
+        assertEquals("pruning", careTaskActionType("Обрезка для кустистости"))
+        assertEquals("other", careTaskActionType("Прекратить полив"))
     }
 }

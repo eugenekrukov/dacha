@@ -34,6 +34,11 @@ private val ACTION_LABELS = mapOf(
     "pruning"       to "Обрезка",
     "weeding"       to "Прополка",
     "loosening"     to "Рыхление",
+    "thinning"      to "Прореживание",
+    "runner_removal" to "Удаление усов",
+    "bolt_removal"  to "Удаление стрелок",
+    "deflowering"   to "Удаление цветков",
+    "staking"       to "Установка опоры",
     "other"         to "Другое"
 )
 

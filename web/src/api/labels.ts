@@ -31,6 +31,11 @@ export const ACTION_CATALOG: { type: string; label: string; icon: string }[] = [
   { type: 'pruning', label: 'Обрезка', icon: '🌿' },
   { type: 'weeding', label: 'Прополка', icon: '🌾' },
   { type: 'loosening', label: 'Рыхление', icon: '🔨' },
+  { type: 'thinning', label: 'Прореживание', icon: '✂️' },
+  { type: 'runner_removal', label: 'Удаление усов', icon: '🌿' },
+  { type: 'bolt_removal', label: 'Удаление стрелок', icon: '🧄' },
+  { type: 'deflowering', label: 'Удаление цветков', icon: '🌸' },
+  { type: 'staking', label: 'Установка опоры', icon: '🪵' },
   { type: 'other', label: 'Другое', icon: '📋' },
 ]
 
@@ -43,6 +48,11 @@ const ALL_ACTION_LABELS: Record<string, string> = {
   pruning: 'Обрезка',
   weeding: 'Прополка',
   loosening: 'Рыхление',
+  thinning: 'Прореживание',
+  runner_removal: 'Удаление усов',
+  bolt_removal: 'Удаление стрелок',
+  deflowering: 'Удаление цветков',
+  staking: 'Установка опоры',
 }
 
 export function actionLabel(type: string): string {
