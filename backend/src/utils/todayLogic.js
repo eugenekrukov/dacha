@@ -2,7 +2,12 @@
 
 // Care-action_type'ы, которыми Android закрывает care-задачи. Этот же список —
 // в SQL-фильтрах today.js / plantings.js (lastCareActionMap, careActionsToday).
-const CARE_ACTION_TYPES = ['tying', 'pinching', 'hilling', 'pruning', 'weeding', 'loosening', 'treatment']
+const CARE_ACTION_TYPES = ['tying', 'pinching', 'hilling', 'pruning', 'weeding', 'loosening', 'treatment',
+  'thinning', 'runner_removal', 'bolt_removal', 'deflowering', 'staking']
+
+// Окно давности: care-задачи и пересадку, просроченные больше этого срока, не показываем —
+// иначе посадка с датой год назад выдаёт «лавину» давно пропущенных задач (см. effectivePlantedAt).
+const OVERDUE_WINDOW_DAYS = 21
 
 // Сопоставление имени care_task (из БД) → action_type (что пишет Android).
 // По КЛЮЧЕВОМУ СЛОВУ, а не дословно: имена в БД описательные («Первое окучивание»,
@@ -32,7 +37,29 @@ function careTaskActionType(name) {
   if (n.includes('прополк'))                           return 'weeding'
   if (n.includes('рыхлен'))                            return 'loosening'
   if (n.includes('обработк') || n.includes('опрыск'))  return 'treatment'
+  if (n.includes('прореж') || n.includes('нормиров'))  return 'thinning'
+  if (n.includes('усов') || n.includes('усы'))         return 'runner_removal'
+  if (n.includes('стрел'))                             return 'bolt_removal'
+  if (n.includes('цветонос') || n.includes('увядш') || n.includes('завяз')) return 'deflowering'
+  if (n.includes('опор'))                              return 'staking'
   return null
+}
+
+// Эффективная дата отсчёта графика ухода. Для многолетников (is_perennial) график считается
+// от начала ТЕКУЩЕГО сезона, а не от давней даты посадки: если посадке больше ~330 дней,
+// прибавляем целые годы, пока дата не попадёт в последние 12 месяцев. Так клубника, заведённая
+// год назад, получает задачи этого сезона, а не «лавину» пропущенных за прошлые годы.
+function effectivePlantedAt(plantedAt, isPerennial, today) {
+  if (!isPerennial) return plantedAt
+  const p = new Date(plantedAt)
+  // Посадка моложе года — отсчёт от реальной даты.
+  if (today - p < 365 * 86400000) return p
+  // Иначе — годовщина посадки (тот же месяц/день) в текущем сезоне.
+  const anniv = new Date(p)
+  anniv.setFullYear(today.getFullYear())
+  // Если годовщина этого года ещё далеко впереди — берём прошлогоднюю (последнюю наступившую).
+  if (anniv - today > 31 * 86400000) anniv.setFullYear(today.getFullYear() - 1)
+  return anniv
 }
 
 // Интервал полива с учётом условий. Теплица → поливать ЧАЩЕ: без дождя и ветрового испарения
@@ -92,10 +119,11 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays) {
  *
  * @returns {{ name: string, days_overdue: number } | null}
  */
-function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDone = {}, todayActions = []) {
+function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDone = {}, todayActions = [], isPerennial = false) {
   if (!careTasks || careTasks.length === 0) return null
   const limit = harvestDays || 180
-  const daysSincePlanting = Math.floor((today - plantedAt) / 86400000)
+  const eff = effectivePlantedAt(plantedAt, isPerennial, today)
+  const daysSincePlanting = Math.floor((today - eff) / 86400000)
   let best = null
 
   for (const task of careTasks) {
@@ -109,14 +137,16 @@ function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDo
     }
     if (dueOffset === null) continue // ещё не наступила
 
+    const daysOverdue = daysSincePlanting - dueOffset
+    if (daysOverdue > OVERDUE_WINDOW_DAYS) continue // слишком старое — не показываем
+
     const mappedAction = careTaskActionType(task.name)
-    const dueDate = new Date(plantedAt.getTime() + dueOffset * 86400000)
+    const dueDate = new Date(eff.getTime() + dueOffset * 86400000)
     const lastDone = mappedAction ? lastCareDone[mappedAction] : null
     const doneSinceDue = lastDone && new Date(lastDone) >= dueDate
     const doneToday = mappedAction && todayActions.includes(mappedAction)
     if (doneSinceDue || doneToday) continue
 
-    const daysOverdue = daysSincePlanting - dueOffset
     if (!best || daysOverdue > best.days_overdue) {
       best = { name: task.name, days_overdue: daysOverdue, product: CARE_TASK_PRODUCT[task.name] || null }
     }
@@ -142,7 +172,8 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
   const careAccum = [] // care-задачи копим отдельно — потом группируем однотипные
 
   for (const p of plantings) {
-    const plantedAt = new Date(p.planted_at)
+    // Для многолетников отсчёт ухода — от текущего сезона (см. effectivePlantedAt).
+    const plantedAt = effectivePlantedAt(new Date(p.planted_at), p.is_perennial, today)
     const daysSincePlanting = Math.floor((today - plantedAt) / 86400000)
 
     // 🚨 Угроза заморозков (теплица защищает — для greenhouse алерт не показываем)
@@ -163,6 +194,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       p.transplant_days &&
       p.sowing_method !== 'direct' &&
       daysSincePlanting >= p.transplant_days &&
+      daysSincePlanting - p.transplant_days <= OVERDUE_WINDOW_DAYS &&
       p.stage === 'sowing' &&
       !todayActions.includes('transplanting')
     ) {
@@ -193,6 +225,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
         offset += task.repeat_days
       }
       if (dueOffset === null) continue // ещё не наступила
+      if (daysSincePlanting - dueOffset > OVERDUE_WINDOW_DAYS) continue // слишком старое
 
       const key = `${p.id}:${task.name}`
       if (addedCareNames.has(key)) continue
@@ -368,4 +401,4 @@ function formatTasks(tasks) {
   })
 }
 
-module.exports = { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, wateringIntervalDays, CARE_ACTION_TYPES }
+module.exports = { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt, CARE_ACTION_TYPES, OVERDUE_WINDOW_DAYS }

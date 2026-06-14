@@ -1,6 +1,6 @@
 'use strict'
 
-const { getNextCareTask, getOverdueCareTask } = require('../utils/todayLogic')
+const { getNextCareTask, getOverdueCareTask, effectivePlantedAt } = require('../utils/todayLogic')
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
@@ -37,7 +37,7 @@ module.exports = async function (fastify) {
     const { garden_id } = request.query
     const result = await fastify.db.query(
       `SELECT p.*, c.name as crop_name, c.category, c.watering_freq_days, c.frost_sensitive,
-              c.care_tasks, c.harvest_days, c.watering_freq_days as watering_freq_days, c.yield_per_plant_kg,
+              c.care_tasks, c.harvest_days, c.watering_freq_days as watering_freq_days, c.yield_per_plant_kg, c.is_perennial,
               (SELECT MAX(a.logged_at) FROM action_logs a WHERE a.planting_id = p.id) AS last_action_at,
               (SELECT a.action_type FROM action_logs a WHERE a.planting_id = p.id
                ORDER BY a.logged_at DESC LIMIT 1) AS last_action_type
@@ -59,7 +59,7 @@ module.exports = async function (fastify) {
         `SELECT DISTINCT ON (planting_id, action_type) planting_id, action_type, logged_at
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking')
          ORDER BY planting_id, action_type, logged_at DESC`,
         [ids]
       )
@@ -71,7 +71,7 @@ module.exports = async function (fastify) {
         `SELECT planting_id, array_agg(action_type) AS action_types
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking')
            AND logged_at >= CURRENT_DATE
          GROUP BY planting_id`,
         [ids]
@@ -84,13 +84,14 @@ module.exports = async function (fastify) {
     // Вычисляем next_care_task (будущие) и overdue_care_task (просроченные/сегодня) для каждой посадки
     const now = new Date()
     const rows = result.rows.map(p => {
-      const plantedAt = new Date(p.planted_at)
+      // Многолетникам график ухода считаем от текущего сезона (см. effectivePlantedAt).
+      const plantedAt = effectivePlantedAt(new Date(p.planted_at), p.is_perennial, now)
       const daysSincePlanting = Math.floor((now - plantedAt) / 86400000)
       const nextCareTask = getNextCareTask(p.care_tasks, daysSincePlanting, p.harvest_days)
       // Завершённым посадкам уход не нужен
       const overdueCareTask = p.stage === 'done'
         ? null
-        : getOverdueCareTask(p.care_tasks, plantedAt, now, p.harvest_days, lastCareMap[p.id] || {}, todayCareMap[p.id] || [])
+        : getOverdueCareTask(p.care_tasks, new Date(p.planted_at), now, p.harvest_days, lastCareMap[p.id] || {}, todayCareMap[p.id] || [], p.is_perennial)
       // Не передаём care_tasks клиенту — это внутренние данные
       const { care_tasks, ...rest } = p
       return { ...rest, next_care_task: nextCareTask, overdue_care_task: overdueCareTask }
@@ -102,7 +103,7 @@ module.exports = async function (fastify) {
   // GET /plantings/:id
   fastify.get('/:id', auth, async (request, reply) => {
     const result = await fastify.db.query(
-      `SELECT p.*, c.name as crop_name, c.category, c.watering_freq_days, c.harvest_days, c.frost_sensitive, c.yield_per_plant_kg
+      `SELECT p.*, c.name as crop_name, c.category, c.watering_freq_days, c.harvest_days, c.frost_sensitive, c.yield_per_plant_kg, c.is_perennial
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
        JOIN gardens g ON g.id = p.garden_id

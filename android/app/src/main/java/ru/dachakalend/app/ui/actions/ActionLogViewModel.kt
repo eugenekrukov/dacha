@@ -31,6 +31,11 @@ val ACTION_TYPES = listOf(
     "pruning"       to "Обрезка",
     "weeding"       to "Прополка",
     "loosening"     to "Рыхление",
+    "thinning"      to "Прореживание",
+    "runner_removal" to "Удаление усов",
+    "bolt_removal"  to "Удаление стрелок",
+    "deflowering"   to "Удаление цветков",
+    "staking"       to "Установка опоры",
     "other"         to "Другое"
 )
 
@@ -48,6 +53,11 @@ fun careTaskActionType(careTaskName: String?): String {
         n.contains("прополк")                       -> "weeding"
         n.contains("рыхлен")                        -> "loosening"
         n.contains("обработк") || n.contains("опрыск") -> "treatment"
+        n.contains("прореж") || n.contains("нормиров") -> "thinning"
+        n.contains("усов") || n.contains("усы")      -> "runner_removal"
+        n.contains("стрел")                          -> "bolt_removal"
+        n.contains("цветонос") || n.contains("увядш") || n.contains("завяз") -> "deflowering"
+        n.contains("опор")                           -> "staking"
         else                                         -> "other"
     }
 }
