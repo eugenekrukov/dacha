@@ -8,20 +8,26 @@ module.exports = async function (fastify) {
 
   const ALLOWED_KINDS = new Set(['deficiency', 'disease', 'pest'])
 
-  // GET /guide?kind=&crop_id=&q= — список (публичный)
+  // GET /guide?kind=&crop_id=&q= — список (публичный).
+  // Возвращает полные поля (description/conditions/treatment/prevention) — чтобы вкладки
+  // «Болезни»/«Вредители» в карточке культуры и посадки показывали то же, что и Справочник.
+  // При crop_id — JOIN на crop_guide_entries даёт per-crop признаки (signs) и фильтрует по культуре.
   fastify.get('/', async (request, reply) => {
     const { kind, crop_id, q } = request.query
     const where = []
     const params = []
+    let joinSigns = ''
+    let signsCol = 'NULL AS signs'
 
+    if (crop_id) {
+      params.push(parseInt(crop_id, 10))
+      joinSigns = `JOIN crop_guide_entries cg ON cg.entry_id = e.id AND cg.crop_id = $${params.length}`
+      signsCol = 'cg.signs'
+    }
     if (kind) {
       if (!ALLOWED_KINDS.has(kind)) return reply.code(400).send({ error: 'Invalid kind' })
       params.push(kind)
       where.push(`e.kind = $${params.length}`)
-    }
-    if (crop_id) {
-      params.push(parseInt(crop_id, 10))
-      where.push(`EXISTS (SELECT 1 FROM crop_guide_entries cg WHERE cg.entry_id = e.id AND cg.crop_id = $${params.length})`)
     }
     if (q) {
       params.push(`%${q}%`)
@@ -29,10 +35,12 @@ module.exports = async function (fastify) {
     }
 
     const sql = `SELECT e.id, e.slug, e.name, e.kind, e.element, e.category, e.danger,
-                        e.symptoms, e.season, e.image_url
+                        e.description, e.symptoms, e.conditions, e.treatment, e.prevention,
+                        e.season, e.image_url, ${signsCol}
                  FROM guide_entries e
+                 ${joinSigns}
                  ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-                 ORDER BY e.danger DESC NULLS LAST, e.name ASC`
+                 ORDER BY e.kind ASC, e.danger DESC NULLS LAST, e.name ASC`
     const result = await fastify.db.query(sql, params)
     return result.rows
   })

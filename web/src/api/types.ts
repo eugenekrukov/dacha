@@ -274,6 +274,13 @@ export interface GuideEntry {
   symptoms?: string | null
   season?: string | null
   image_url?: string | null
+  // Полные поля приходят из GET /guide (и /guide?crop_id=...). При фильтре по культуре —
+  // ещё и signs (признаки, специфичные для этой культуры).
+  description?: string | null
+  conditions?: string | null
+  treatment?: string | null
+  prevention?: string | null
+  signs?: string | null
 }
 
 export interface GuideCropLink {

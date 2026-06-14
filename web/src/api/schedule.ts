@@ -37,6 +37,35 @@ export function treatmentNote(careTaskName?: string | null): string | undefined 
   return rest || undefined
 }
 
+// ─── История действий: схлопывание подряд идущих однотипных записей ───
+// Журнал/история не должны быть «стеной» одинаковых поливов через день. Склеиваем
+// подряд идущие записи одного типа БЕЗ пользовательской заметки в одну строку со счётчиком
+// и диапазоном дат. Записи с заметкой остаются отдельными (заметка важна).
+export interface ActionGroup {
+  id: number
+  action_type: string
+  crop_name?: string | null
+  note?: string | null
+  count: number
+  firstAt: string // самая старая в серии
+  lastAt: string // самая свежая в серии
+}
+
+export function collapseActions(actions: ActionLog[]): ActionGroup[] {
+  const out: ActionGroup[] = []
+  for (const a of actions) {
+    const note = a.notes && !a.auto ? a.notes : null
+    const last = out[out.length - 1]
+    if (last && last.action_type === a.action_type && (last.crop_name ?? null) === (a.crop_name ?? null) && !note && !last.note) {
+      last.count++
+      last.firstAt = a.logged_at // список идёт от свежих к старым → старая дата уходит вниз
+    } else {
+      out.push({ id: a.id, action_type: a.action_type, crop_name: a.crop_name, note, count: 1, firstAt: a.logged_at, lastAt: a.logged_at })
+    }
+  }
+  return out
+}
+
 export type SchedStatus = 'done' | 'missed' | 'upcoming' | 'neutral'
 
 export interface SchedRow {
@@ -110,6 +139,10 @@ export function buildSchedule(opts: {
   }
 
   const limit = harvestDays ?? 120
+  // Повторяющиеся задачи НЕ разворачиваем в десятки строк «через день»: показываем одну —
+  // текущую актуальную (ближайшую будущую, либо просроченную невыполненную) + «каждые N дн.».
+  // Разовые задачи (пикировка, единичный уход) показываем как есть. Прошлые выполненные
+  // повторы не дублируем — они видны в «Истории действий».
   careTasks?.forEach((task) => {
     const occ: Date[] = []
     let offset = task.day_offset
@@ -118,32 +151,36 @@ export function buildSchedule(opts: {
       if (task.repeat_days == null) break
       offset += task.repeat_days
     }
-    occ.forEach((d, i) => {
-      rows.push({
-        name: task.name,
-        dateStr: fmt(d),
-        date: d,
-        status: statusOf(task.name, d, occ[i + 1] ?? null),
-        product: CARE_TASK_PRODUCT[task.name],
-      })
+    const product = CARE_TASK_PRODUCT[task.name]
+    if (task.repeat_days == null) {
+      const d = occ[0]
+      rows.push({ name: task.name, dateStr: fmt(d), date: d, status: statusOf(task.name, d, null), product })
+      return
+    }
+    // Повторяющаяся: индекс ближайшей будущей даты (или последней, если все в прошлом).
+    const idx = occ.findIndex((d) => d >= today)
+    const repIdx = idx >= 0 ? idx : occ.length - 1
+    const d = occ[repIdx]
+    rows.push({
+      name: `${task.name} (каждые ${task.repeat_days} дн.)`,
+      dateStr: fmt(d),
+      date: d,
+      status: statusOf(task.name, d, occ[repIdx + 1] ?? null),
+      product,
     })
   })
 
-  // Полив — предстоящие отметки каждые interval дней (теплица ×0.8). Только будущие.
+  // Полив — одна строка: ближайший будущий полив + «каждые N дн.» (теплица ×0.8).
   if (wateringFreqDays) {
     const interval =
       conditions === 'greenhouse' ? Math.max(1, Math.round(wateringFreqDays * 0.8)) : wateringFreqDays
     if (interval >= 1) {
       const wLimit = Math.min(harvestDays ?? 120, 120)
       let offset = interval
-      let shown = 0
-      while (offset <= wLimit && shown < 40) {
+      while (offset <= wLimit && addDays(planted, offset) < today) offset += interval
+      if (offset <= wLimit) {
         const d = addDays(planted, offset)
-        if (d >= today) {
-          rows.push({ name: '💧 Полив', dateStr: fmt(d), date: d, status: 'upcoming' })
-          shown++
-        }
-        offset += interval
+        rows.push({ name: `💧 Полив (каждые ${interval} дн.)`, dateStr: fmt(d), date: d, status: 'upcoming' })
       }
     }
   }

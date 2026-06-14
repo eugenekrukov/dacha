@@ -249,6 +249,10 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
         product: CARE_TASK_PRODUCT[task.name] || null,
         message: `${p.crop_name}: ${task.name} — ${when}`,
         days_overdue: diff < 0 ? -diff : 0,
+        // Будущая задача (показана с +3-дневным опережением): сколько дней до наступления.
+        // Нужен, чтобы «Сегодня» писал «через N дн.», а не «Сделайте сегодня» (согласовано
+        // с next_care_task на карточке посадки — иначе экраны расходятся).
+        days_until: diff > 0 ? diff : 0,
       })
     }
 
@@ -331,6 +335,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
         crops,
         message: `${name}: ${listCrops(crops)}`,
         days_overdue: Math.max(...group.map(g => g.days_overdue || 0)),
+        days_until: Math.min(...group.map(g => g.days_until || 0)),
       })
     }
   }
@@ -382,7 +387,9 @@ function formatTasks(tasks) {
     } else if (t.type === 'care_task_due') {
       description = t.days_overdue > 0
         ? `Просрочено на ${t.days_overdue} дн.`
-        : 'Сделайте сегодня'
+        : t.days_until > 0
+          ? `Через ${t.days_until} дн.`
+          : 'Сделайте сегодня'
     } else {
       description = t.crop_name ? `Культура: ${t.crop_name}` : ''
     }

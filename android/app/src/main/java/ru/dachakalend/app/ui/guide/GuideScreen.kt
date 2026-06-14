@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,8 +28,10 @@ import ru.dachakalend.app.ui.theme.NunitoFamily
 @Composable
 fun GuideScreen(
     cropId: Int = -1,
+    cropName: String? = null,
     onEntryClick: (String) -> Unit,
     onBack: (() -> Unit)? = null,
+    onClearCrop: () -> Unit = {},
     viewModel: GuideViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -61,6 +64,27 @@ fun GuideScreen(
                 fontWeight = FontWeight.Black,
                 fontSize = 26.sp,
                 color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
+        if (cropId > 0) {
+            FilterChip(
+                selected = true,
+                onClick = onClearCrop,
+                modifier = Modifier.padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(100.dp),
+                label = {
+                    Text(
+                        "Культура: ${cropName ?: "#$cropId"}",
+                        fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false
+                    )
+                },
+                trailingIcon = { Icon(Icons.Default.Close, contentDescription = "Сбросить фильтр", modifier = Modifier.size(16.dp)) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = Color.White,
+                    selectedTrailingIconColor = Color.White
+                )
             )
         }
 

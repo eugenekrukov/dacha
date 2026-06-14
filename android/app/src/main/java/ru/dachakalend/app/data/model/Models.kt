@@ -301,7 +301,13 @@ data class GuideEntry(
     val danger: Int? = null,               // 1..3
     val symptoms: String? = null,
     val season: String? = null,
-    @Json(name = "image_url") val imageUrl: String? = null
+    @Json(name = "image_url") val imageUrl: String? = null,
+    // Полные поля приходят из GET /guide; при фильтре по культуре — ещё и signs (признаки на культуре).
+    val description: String? = null,
+    val conditions: String? = null,
+    val treatment: String? = null,
+    val prevention: String? = null,
+    val signs: String? = null
 )
 
 // Культура, поражаемая проблемой, с культуро-специфичными признаками.

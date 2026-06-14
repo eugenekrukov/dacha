@@ -2,9 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
-import { buildSchedule, type SchedStatus } from '../api/schedule'
+import { buildSchedule, collapseActions, type SchedStatus } from '../api/schedule'
+import { CareSection, NeighborsSection } from '../components/CropCare'
+import ProblemList from '../components/ProblemList'
 import ActionLogSheet from '../components/ActionLogSheet'
-import type { ActionLog, Crop, Planting } from '../api/types'
+import type { ActionLog, Crop, GuideEntry, Planting } from '../api/types'
+
+type Tab = 'planting' | 'care' | 'disease' | 'pest' | 'neighbors'
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'planting', label: 'О посадке' },
+  { key: 'care', label: 'Уход' },
+  { key: 'disease', label: 'Болезни' },
+  { key: 'pest', label: 'Вредители' },
+  { key: 'neighbors', label: 'Соседи' },
+]
 
 export default function PlantingDetailScreen() {
   const { id } = useParams()
@@ -14,18 +25,20 @@ export default function PlantingDetailScreen() {
   const [planting, setPlanting] = useState<Planting | null>(null)
   const [crop, setCrop] = useState<Crop | null>(null)
   const [actions, setActions] = useState<ActionLog[]>([])
+  const [problems, setProblems] = useState<GuideEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [logging, setLogging] = useState(false)
+  const [tab, setTab] = useState<Tab>('planting')
 
   const load = async () => {
     try {
       const [p, a] = await Promise.all([api.getPlanting(plantingId), api.getActions(plantingId)])
       setPlanting(p)
       setActions(a)
-      // care_tasks/transplant_days для расписания приходят в /crops/:id (SELECT *)
       const c = await api.getCrop(p.crop_id).catch(() => null)
       setCrop(c)
+      api.getGuide({ crop_id: p.crop_id }).then(setProblems).catch(() => setProblems([]))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить посадку')
     } finally {
@@ -93,46 +106,74 @@ export default function PlantingDetailScreen() {
         )}
       </div>
 
-      <button className="dacha-btn" onClick={() => setLogging(true)}>
-        ✏️ Записать действие
-      </button>
+      <div className="flex flex-wrap gap-2">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            className={`dacha-chip ${tab === t.key ? 'dacha-chip-active' : ''}`}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {error && <p className="text-sm font-bold text-red-600">{error}</p>}
 
-      {schedule.length > 0 && (
-        <section className="dacha-card flex flex-col gap-1.5 p-5">
-          <h2 className="text-lg font-black">Расписание работ</h2>
-          <p className="mb-1 text-xs font-semibold text-muted">
-            🟢 выполнено · 🔴 просрочено · ⚪ предстоит
-          </p>
-          {schedule.map((row, i) => (
-            <SchedRowView key={i} row={row} />
-          ))}
-        </section>
+      {tab === 'planting' && (
+        <>
+          <button className="dacha-btn" onClick={() => setLogging(true)}>
+            ✏️ Записать действие
+          </button>
+
+          {schedule.length > 0 && (
+            <section className="dacha-card flex flex-col gap-1.5 p-5">
+              <h2 className="text-lg font-black">Расписание работ</h2>
+              <p className="mb-1 text-xs font-semibold text-muted">
+                🟢 выполнено · 🔴 просрочено · ⚪ предстоит
+              </p>
+              {schedule.map((row, i) => (
+                <SchedRowView key={i} row={row} />
+              ))}
+            </section>
+          )}
+
+          <section className="flex flex-col gap-2">
+            <h2 className="text-lg font-black">История действий</h2>
+            {actions.length === 0 ? (
+              <div className="dacha-card p-4 font-semibold text-muted">Действий пока нет</div>
+            ) : (
+              collapseActions(actions).map((g) => (
+                <div key={g.id} className="dacha-card flex items-center justify-between p-4">
+                  <div className="flex flex-col">
+                    <span className="font-bold">
+                      {actionLabel(g.action_type)}
+                      {g.count > 1 ? ` ×${g.count}` : ''}
+                    </span>
+                    {g.note && <span className="text-sm font-semibold text-muted">{g.note}</span>}
+                  </div>
+                  <span className="text-sm font-semibold text-muted">
+                    {g.count > 1 ? `${formatDate(g.firstAt)}–${formatDate(g.lastAt)}` : formatDate(g.lastAt)}
+                  </span>
+                </div>
+              ))
+            )}
+          </section>
+
+          <button onClick={remove} className="mt-2 font-bold text-red-600">
+            Удалить посадку
+          </button>
+        </>
       )}
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-black">История действий</h2>
-        {actions.length === 0 ? (
-          <div className="dacha-card p-4 font-semibold text-muted">Действий пока нет</div>
-        ) : (
-          actions.map((a) => (
-            <div key={a.id} className="dacha-card flex items-center justify-between p-4">
-              <div className="flex flex-col">
-                <span className="font-bold">{actionLabel(a.action_type)}</span>
-                {a.notes && !a.auto && (
-                  <span className="text-sm font-semibold text-muted">{a.notes}</span>
-                )}
-              </div>
-              <span className="text-sm font-semibold text-muted">{formatDate(a.logged_at)}</span>
-            </div>
-          ))
-        )}
-      </section>
-
-      <button onClick={remove} className="mt-2 font-bold text-red-600">
-        Удалить посадку
-      </button>
+      {tab === 'care' && (crop ? <CareSection crop={crop} /> : <p className="dacha-card p-4 font-semibold text-muted">Нет данных об уходе.</p>)}
+      {tab === 'disease' && (
+        <ProblemList entries={problems} kind="disease" cropId={planting.crop_id} cropName={planting.crop_name} emptyText="Болезни не отмечены." />
+      )}
+      {tab === 'pest' && (
+        <ProblemList entries={problems} kind="pest" cropId={planting.crop_id} cropName={planting.crop_name} emptyText="Вредители не отмечены." />
+      )}
+      {tab === 'neighbors' && (crop ? <NeighborsSection crop={crop} /> : <p className="dacha-card p-4 font-semibold text-muted">Нет данных.</p>)}
 
       {logging && (
         <ActionLogSheet
@@ -166,15 +207,11 @@ function SchedRowView({ row }: { row: import('../api/schedule').SchedRow }) {
   return (
     <div className="flex items-start justify-between gap-3 border-b border-black/5 py-1.5 last:border-0">
       <div className="flex flex-col">
-        <span
-          className={`font-semibold ${color} ${row.status === 'done' ? 'line-through' : ''}`}
-        >
+        <span className={`font-semibold ${color} ${row.status === 'done' ? 'line-through' : ''}`}>
           {SCHED_MARKER[row.status]}
           {row.name}
         </span>
-        {row.product && (
-          <span className="text-xs font-semibold text-tertiary">Препарат: {row.product}</span>
-        )}
+        {row.product && <span className="text-xs font-semibold text-tertiary">Препарат: {row.product}</span>}
       </div>
       <span className={`shrink-0 font-semibold ${color} ${row.status === 'missed' ? 'font-black' : ''}`}>
         {row.dateStr}

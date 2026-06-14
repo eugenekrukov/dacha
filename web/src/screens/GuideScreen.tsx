@@ -24,6 +24,7 @@ function DangerBadge({ danger }: { danger?: number | null }) {
 export default function GuideScreen() {
   const [params] = useSearchParams()
   const cropId = params.get('crop_id')
+  const cropName = params.get('crop')
   const [entries, setEntries] = useState<GuideEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,8 +60,12 @@ export default function GuideScreen() {
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-black">Справочник проблем</h1>
       {cropId && (
-        <Link to="/guide" className="-mt-2 text-sm font-bold text-primary">
-          ← Показать все культуры
+        <Link
+          to="/guide"
+          className="inline-flex w-fit items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary"
+        >
+          <span>Культура: {cropName || `#${cropId}`}</span>
+          <span className="text-base leading-none">✕</span>
         </Link>
       )}
       {error && <div className="dacha-card p-4 font-semibold text-muted">{error}</div>}

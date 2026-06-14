@@ -48,6 +48,7 @@ import ru.dachakalend.app.ui.analytics.AnalyticsScreen
 import ru.dachakalend.app.ui.harvest.HarvestScreen
 import ru.dachakalend.app.ui.guide.GuideScreen
 import ru.dachakalend.app.ui.guide.GuideDetailScreen
+import ru.dachakalend.app.ui.plantings.PlantingInfoScreen
 import ru.dachakalend.app.ui.info.InfoHubScreen
 import ru.dachakalend.app.ui.journal.JournalScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
@@ -377,7 +378,8 @@ class MainActivity : ComponentActivity() {
                             PlantingsScreen(
                                 onAddCrop = { navController.navigate(Screen.Crops.route) },
                                 onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) },
-                                onOpenHarvest = { navController.navigate(Screen.Harvest.route) }
+                                onOpenHarvest = { navController.navigate(Screen.Harvest.route) },
+                                onOpenPlantingInfo = { plantingId -> navController.navigate(Screen.PlantingInfo.route(plantingId)) }
                             )
                         }
                         composable(
@@ -389,7 +391,8 @@ class MainActivity : ComponentActivity() {
                             PlantingsScreen(
                                 onAddCrop = { navController.navigate(Screen.Crops.route) },
                                 onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) },
-                                onOpenHarvest = { navController.navigate(Screen.Harvest.route) }
+                                onOpenHarvest = { navController.navigate(Screen.Harvest.route) },
+                                onOpenPlantingInfo = { plantingId -> navController.navigate(Screen.PlantingInfo.route(plantingId)) }
                             )
                         }
                         composable(Screen.Harvest.route) {
@@ -415,15 +418,34 @@ class MainActivity : ComponentActivity() {
                         // Справочник проблем — отфильтрованный по культуре (из карточки культуры)
                         composable(
                             route = Screen.Guide.routeWithArgs,
-                            arguments = listOf(navArgument(Screen.Guide.ARG_CROP_ID) {
-                                type = NavType.IntType; defaultValue = -1
-                            })
+                            arguments = listOf(
+                                navArgument(Screen.Guide.ARG_CROP_ID) { type = NavType.IntType; defaultValue = -1 },
+                                navArgument(Screen.Guide.ARG_CROP) { type = NavType.StringType; defaultValue = "" }
+                            )
                         ) { backStackEntry ->
                             val cropId = backStackEntry.arguments?.getInt(Screen.Guide.ARG_CROP_ID) ?: -1
+                            val cropName = backStackEntry.arguments?.getString(Screen.Guide.ARG_CROP)?.takeIf { it.isNotBlank() }
                             GuideScreen(
                                 cropId = cropId,
+                                cropName = cropName,
                                 onBack = { navController.popBackStack() },
+                                onClearCrop = {
+                                    navController.navigate(Screen.Guide.route) {
+                                        popUpTo(Screen.Guide.routeWithArgs) { inclusive = true }
+                                    }
+                                },
                                 onEntryClick = { slug -> navController.navigate(Screen.GuideDetail.route(slug)) }
+                            )
+                        }
+                        composable(
+                            route = Screen.PlantingInfo.route,
+                            arguments = listOf(navArgument(Screen.PlantingInfo.ARG_PLANTING_ID) { type = NavType.IntType })
+                        ) { backStackEntry ->
+                            val pid = backStackEntry.arguments?.getInt(Screen.PlantingInfo.ARG_PLANTING_ID) ?: return@composable
+                            PlantingInfoScreen(
+                                plantingId = pid,
+                                onBack = { navController.popBackStack() },
+                                onOpenGuide = { cropId, cropName -> navController.navigate(Screen.Guide.withCrop(cropId, cropName)) }
                             )
                         }
                         composable(
@@ -494,7 +516,7 @@ class MainActivity : ComponentActivity() {
                                             popUpTo(Screen.Today.route)
                                         }
                                     }) else null,
-                                    onOpenGuide = { navController.navigate(Screen.Guide.withCrop(crop.id)) }
+                                    onOpenGuide = { navController.navigate(Screen.Guide.withCrop(crop.id, crop.name)) }
                                 )
                             }
                         }

@@ -16,6 +16,12 @@ class PlantingsRepository @Inject constructor(private val api: DachaApi) {
         Result.Error(e.message ?: "Ошибка загрузки посадок")
     }
 
+    suspend fun getPlanting(id: Int): Result<Planting> = try {
+        Result.Success(api.getPlanting(id))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Ошибка загрузки посадки")
+    }
+
     suspend fun createPlanting(request: CreatePlantingRequest): Result<Planting> = try {
         Result.Success(api.createPlanting(request))
     } catch (e: Exception) {

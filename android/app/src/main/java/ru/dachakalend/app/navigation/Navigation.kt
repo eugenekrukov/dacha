@@ -66,8 +66,16 @@ sealed class Screen(val route: String) {
     // Справочник проблем (дефициты/болезни/вредители)
     object Guide : Screen("guide") {
         const val ARG_CROP_ID = "cropId"
-        val routeWithArgs = "guide?$ARG_CROP_ID={$ARG_CROP_ID}"
-        fun withCrop(cropId: Int) = "guide?$ARG_CROP_ID=$cropId"
+        const val ARG_CROP = "crop"
+        val routeWithArgs = "guide?$ARG_CROP_ID={$ARG_CROP_ID}&$ARG_CROP={$ARG_CROP}"
+        fun withCrop(cropId: Int, cropName: String?) =
+            "guide?$ARG_CROP_ID=$cropId&$ARG_CROP=${android.net.Uri.encode(cropName ?: "")}"
+    }
+
+    // Информация о посадке (полноэкранная страница с вкладками)
+    object PlantingInfo : Screen("planting_info/{plantingId}") {
+        const val ARG_PLANTING_ID = "plantingId"
+        fun route(plantingId: Int) = "planting_info/$plantingId"
     }
     object GuideDetail : Screen("guide_detail/{slug}") {
         const val ARG_SLUG = "slug"
@@ -114,6 +122,7 @@ val screensWithoutBottomBar = setOf(
     Screen.Guide.route,
     Screen.Guide.routeWithArgs,
     Screen.GuideDetail.route,
+    Screen.PlantingInfo.route,
     Screen.Paywall.route,
     Screen.Analytics.route,
     Screen.Harvest.route

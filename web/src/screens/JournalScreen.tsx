@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import { actionLabel, formatDate } from '../api/labels'
+import { collapseActions } from '../api/schedule'
 import type { ActionLog } from '../api/types'
 
 export default function JournalScreen() {
@@ -52,20 +53,21 @@ export default function JournalScreen() {
       {actions.length === 0 && !error ? (
         <div className="dacha-card p-6 text-center font-semibold text-muted">Действий пока нет</div>
       ) : (
-        actions
-          .filter((a) => !a.auto)
-          .map((a) => (
-            <div key={a.id} className="dacha-card flex items-center justify-between p-4">
-              <div className="flex flex-col">
-                <span className="font-bold">
-                  {actionLabel(a.action_type)}
-                  {a.crop_name ? ` · ${a.crop_name}` : ''}
-                </span>
-                {a.notes && <span className="text-sm font-semibold text-muted">{a.notes}</span>}
-              </div>
-              <span className="text-sm font-semibold text-muted">{formatDate(a.logged_at)}</span>
+        collapseActions(actions.filter((a) => !a.auto)).map((g) => (
+          <div key={g.id} className="dacha-card flex items-center justify-between p-4">
+            <div className="flex flex-col">
+              <span className="font-bold">
+                {actionLabel(g.action_type)}
+                {g.crop_name ? ` · ${g.crop_name}` : ''}
+                {g.count > 1 ? ` ×${g.count}` : ''}
+              </span>
+              {g.note && <span className="text-sm font-semibold text-muted">{g.note}</span>}
             </div>
-          ))
+            <span className="text-sm font-semibold text-muted">
+              {g.count > 1 ? `${formatDate(g.firstAt)}–${formatDate(g.lastAt)}` : formatDate(g.lastAt)}
+            </span>
+          </div>
+        ))
       )}
     </div>
   )

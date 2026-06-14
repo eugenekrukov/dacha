@@ -65,6 +65,7 @@ fun PlantingsScreen(
     onCropDetail: (Int) -> Unit = {},
     onOpenCropDetail: (Int) -> Unit = onCropDetail,
     onOpenHarvest: () -> Unit = {},
+    onOpenPlantingInfo: (Int) -> Unit = {},
     viewModel: PlantingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -252,7 +253,7 @@ fun PlantingsScreen(
                         onEditInfo       = { viewModel.openEditSheet(planting) },
                         onDelete         = { viewModel.requestDelete(planting) },
                         onFinishSeason = { viewModel.requestFinishSeason(planting) },
-                        onInfo         = { viewModel.openInfoSheet(planting) }
+                        onInfo         = { onOpenPlantingInfo(planting.id) }
                     )
                 }
             }
@@ -297,17 +298,6 @@ fun PlantingsScreen(
             defaultSeedling = state.pendingCropTransplantDays != null,
             onConfirm = { date, qty, cond, method -> viewModel.confirmPlanting(cropId, date, qty, cond, method) },
             onDismiss = { viewModel.dismissSetupSheet() }
-        )
-    }
-
-    // Шторка информации о посадке
-    state.showInfoSheet?.let { planting ->
-        PlantingInfoBottomSheet(
-            planting     = planting,
-            onDismiss    = { viewModel.dismissInfoSheet() },
-            onCropDetail = { cropId ->
-                onOpenCropDetail(cropId)
-            }
         )
     }
 
