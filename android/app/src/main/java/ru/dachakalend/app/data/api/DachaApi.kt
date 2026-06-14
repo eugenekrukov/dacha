@@ -70,6 +70,17 @@ interface DachaApi {
     @GET("crops/{id}")
     suspend fun getCrop(@Path("id") id: Int): Crop
 
+    // Guide (справочник проблем: дефициты/болезни/вредители)
+    @GET("guide")
+    suspend fun getGuide(
+        @Query("kind") kind: String? = null,
+        @Query("crop_id") cropId: Int? = null,
+        @Query("q") q: String? = null
+    ): List<GuideEntry>
+
+    @GET("guide/{slug}")
+    suspend fun getGuideEntry(@Path("slug") slug: String): GuideEntryDetail
+
     // Plantings
     @GET("plantings")
     suspend fun getPlantings(@Query("garden_id") gardenId: Int? = null): List<Planting>

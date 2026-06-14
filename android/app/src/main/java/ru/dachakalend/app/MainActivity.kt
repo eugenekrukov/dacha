@@ -46,6 +46,8 @@ import ru.dachakalend.app.ui.garden.GardenEditScreen
 import ru.dachakalend.app.ui.garden.OnboardingCropsScreen
 import ru.dachakalend.app.ui.analytics.AnalyticsScreen
 import ru.dachakalend.app.ui.harvest.HarvestScreen
+import ru.dachakalend.app.ui.guide.GuideScreen
+import ru.dachakalend.app.ui.guide.GuideDetailScreen
 import ru.dachakalend.app.ui.info.InfoHubScreen
 import ru.dachakalend.app.ui.journal.JournalScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
@@ -399,7 +401,40 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Info.route) {
                             InfoHubScreen(
                                 onOpenCrops     = { navController.navigate(Screen.Crops.route) },
+                                onOpenGuide     = { navController.navigate(Screen.Guide.route) },
                                 onOpenAnalytics = { navController.navigate(Screen.Analytics.route) }
+                            )
+                        }
+                        // Справочник проблем — без фильтра (из «Информации»)
+                        composable(Screen.Guide.route) {
+                            GuideScreen(
+                                onBack = { navController.popBackStack() },
+                                onEntryClick = { slug -> navController.navigate(Screen.GuideDetail.route(slug)) }
+                            )
+                        }
+                        // Справочник проблем — отфильтрованный по культуре (из карточки культуры)
+                        composable(
+                            route = Screen.Guide.routeWithArgs,
+                            arguments = listOf(navArgument(Screen.Guide.ARG_CROP_ID) {
+                                type = NavType.IntType; defaultValue = -1
+                            })
+                        ) { backStackEntry ->
+                            val cropId = backStackEntry.arguments?.getInt(Screen.Guide.ARG_CROP_ID) ?: -1
+                            GuideScreen(
+                                cropId = cropId,
+                                onBack = { navController.popBackStack() },
+                                onEntryClick = { slug -> navController.navigate(Screen.GuideDetail.route(slug)) }
+                            )
+                        }
+                        composable(
+                            route = Screen.GuideDetail.route,
+                            arguments = listOf(navArgument(Screen.GuideDetail.ARG_SLUG) { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val slug = backStackEntry.arguments?.getString(Screen.GuideDetail.ARG_SLUG) ?: return@composable
+                            GuideDetailScreen(
+                                slug = slug,
+                                onBack = { navController.popBackStack() },
+                                onCropClick = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) }
                             )
                         }
                         composable(Screen.Analytics.route) {
@@ -458,7 +493,8 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate(Screen.Plantings.withNewCrop(selectedCrop.id)) {
                                             popUpTo(Screen.Today.route)
                                         }
-                                    }) else null
+                                    }) else null,
+                                    onOpenGuide = { navController.navigate(Screen.Guide.withCrop(crop.id)) }
                                 )
                             }
                         }

@@ -62,7 +62,8 @@ fun CropDetailScreen(
     crop: Crop,
     climateZone: String? = null,
     onBack: () -> Unit,
-    onPlant: ((Crop) -> Unit)? = null
+    onPlant: ((Crop) -> Unit)? = null,
+    onOpenGuide: (() -> Unit)? = null
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Уход", "Болезни", "Соседи")
@@ -128,7 +129,7 @@ fun CropDetailScreen(
 
             when (selectedTab) {
                 0 -> CareTab(crop, climateZone)
-                1 -> DiseasesTab(crop)
+                1 -> DiseasesTab(crop, onOpenGuide)
                 2 -> NeighborsTab(crop)
             }
         }
@@ -289,14 +290,9 @@ private fun FertilizingRow(entry: FertilizingEntry) {
 // ─── Tab: Болезни ────────────────────────────────────────────────────────────
 
 @Composable
-private fun DiseasesTab(crop: Crop) {
+private fun DiseasesTab(crop: Crop, onOpenGuide: (() -> Unit)? = null) {
     val diseases = crop.diseases.orEmpty()
     val pests = crop.pests.orEmpty()
-
-    if (diseases.isEmpty() && pests.isEmpty()) {
-        EmptyTabPlaceholder("Данные о болезнях и вредителях\nпока не добавлены")
-        return
-    }
 
     Column(
         modifier = Modifier
@@ -306,6 +302,16 @@ private fun DiseasesTab(crop: Crop) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        if (diseases.isEmpty() && pests.isEmpty()) {
+            Text(
+                "Данные о болезнях и вредителях пока не добавлены",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
+            )
+        }
         if (diseases.isNotEmpty()) {
             Text(
                 "Болезни",
@@ -328,6 +334,16 @@ private fun DiseasesTab(crop: Crop) {
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             pests.forEach { PestCard(it) }
+        }
+        if (onOpenGuide != null) {
+            TextButton(onClick = onOpenGuide, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "Все проблемы этой культуры в справочнике →",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

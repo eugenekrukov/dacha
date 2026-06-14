@@ -287,6 +287,53 @@ data class Crop(
     @Json(name = "care_tasks") val careTasks: List<CareTask>? = null
 )
 
+// --- Справочник проблем растений (GET /guide) ---
+
+// Элемент списка справочника. kind: "deficiency" | "disease" | "pest".
+@JsonClass(generateAdapter = true)
+data class GuideEntry(
+    val id: Int,
+    val slug: String,
+    val name: String,
+    val kind: String,
+    val element: String? = null,           // K/Ca/Mg/N/P/Fe/B — только для deficiency
+    val category: String? = null,
+    val danger: Int? = null,               // 1..3
+    val symptoms: String? = null,
+    val season: String? = null,
+    @Json(name = "image_url") val imageUrl: String? = null
+)
+
+// Культура, поражаемая проблемой, с культуро-специфичными признаками.
+@JsonClass(generateAdapter = true)
+data class GuideCropLink(
+    @Json(name = "crop_id") val cropId: Int,
+    @Json(name = "crop_name") val cropName: String,
+    val signs: String? = null,
+    @Json(name = "image_url") val imageUrl: String? = null
+)
+
+// Деталь записи (GET /guide/:slug) — все поля + поражаемые культуры.
+@JsonClass(generateAdapter = true)
+data class GuideEntryDetail(
+    val id: Int,
+    val slug: String,
+    val name: String,
+    val kind: String,
+    val element: String? = null,
+    val category: String? = null,
+    val danger: Int? = null,
+    val description: String? = null,
+    val symptoms: String? = null,
+    val conditions: String? = null,
+    val treatment: String? = null,
+    val prevention: String? = null,
+    val season: String? = null,
+    @Json(name = "image_url") val imageUrl: String? = null,
+    @Json(name = "image_credit") val imageCredit: String? = null,
+    val crops: List<GuideCropLink> = emptyList()
+)
+
 // --- Planting requests ---
 
 @JsonClass(generateAdapter = true)

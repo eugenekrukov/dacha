@@ -63,6 +63,17 @@ sealed class Screen(val route: String) {
     // Монетизация
     object Paywall : Screen("paywall")
 
+    // Справочник проблем (дефициты/болезни/вредители)
+    object Guide : Screen("guide") {
+        const val ARG_CROP_ID = "cropId"
+        val routeWithArgs = "guide?$ARG_CROP_ID={$ARG_CROP_ID}"
+        fun withCrop(cropId: Int) = "guide?$ARG_CROP_ID=$cropId"
+    }
+    object GuideDetail : Screen("guide_detail/{slug}") {
+        const val ARG_SLUG = "slug"
+        fun route(slug: String) = "guide_detail/$slug"
+    }
+
     // Sprint 3
     object Crops : Screen("crops")
     object CropDetail : Screen("crop_detail/{cropId}") {
@@ -100,6 +111,9 @@ val screensWithoutBottomBar = setOf(
     Screen.Journal.route,
     Screen.Crops.route,
     Screen.CropDetail.routeWithArgs,
+    Screen.Guide.route,
+    Screen.Guide.routeWithArgs,
+    Screen.GuideDetail.route,
     Screen.Paywall.route,
     Screen.Analytics.route,
     Screen.Harvest.route

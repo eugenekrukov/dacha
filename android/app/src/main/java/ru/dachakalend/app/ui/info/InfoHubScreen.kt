@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import ru.dachakalend.app.ui.theme.NunitoFamily
 @Composable
 fun InfoHubScreen(
     onOpenCrops: () -> Unit,
+    onOpenGuide: () -> Unit,
     onOpenAnalytics: () -> Unit
 ) {
     Column(
@@ -47,6 +49,12 @@ fun InfoHubScreen(
             title = "Справочник культур",
             subtitle = "Сроки, полив, болезни, соседство",
             onClick = onOpenCrops
+        )
+        InfoCard(
+            icon = Icons.Default.HealthAndSafety,
+            title = "Болезни и дефициты",
+            subtitle = "Дефициты микроэлементов, болезни, вредители",
+            onClick = onOpenGuide
         )
         InfoCard(
             icon = Icons.Default.Insights,
