@@ -12,11 +12,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import ru.dachakalend.app.data.model.GuideCropLink
 import ru.dachakalend.app.data.model.GuideEntryDetail
 import ru.dachakalend.app.ui.theme.NunitoFamily
@@ -85,6 +88,30 @@ private fun DetailContent(entry: GuideEntryDetail, modifier: Modifier, onCropCli
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Фото проблемы (если есть) + атрибуция лицензии
+        entry.imageUrl?.let { url ->
+            Column {
+                AsyncImage(
+                    model = url,
+                    contentDescription = entry.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                )
+                entry.imageCredit?.let { credit ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Фото: $credit",
+                        fontFamily = NunitoFamily,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
         // Бейджи: вид · элемент · сезон
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Badge("${guideKindIcon(entry.kind)} ${guideKindLabel(entry.kind)}",
