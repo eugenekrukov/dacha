@@ -118,7 +118,7 @@ module.exports = async function (fastify) {
   // GET /auth/me
   fastify.get('/me', { onRequest: [fastify.authenticate] }, async (request) => {
     const result = await fastify.db.query(
-      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at, subscription_until, promo_until, email_verified, auto_renew, plan, payment_method_id FROM users WHERE id = $1',
+      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at, subscription_until, promo_until, email_verified, auto_renew, plan, payment_method_id, pending_email FROM users WHERE id = $1',
       [request.user.userId]
     )
     const user = result.rows[0]
@@ -248,6 +248,115 @@ module.exports = async function (fastify) {
     await db.query('UPDATE email_codes SET used_at = NOW() WHERE id = $1', [codeId])
     // Раз пользователь получил код на почту — он ею владеет, заодно подтверждаем email.
     await db.query('UPDATE users SET password_hash = $1, email_verified = true WHERE id = $2', [passwordHash, userId])
+    return { ok: true }
+  })
+
+  // PATCH /auth/password — смена пароля залогиненным (нужно знать текущий).
+  fastify.patch('/password', {
+    onRequest: [fastify.authenticate],
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    schema: {
+      body: {
+        type: 'object',
+        required: ['current_password', 'new_password'],
+        properties: {
+          current_password: { type: 'string' },
+          new_password: { type: 'string', minLength: 6 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const db = fastify.db
+    const r = await db.query('SELECT password_hash FROM users WHERE id = $1', [request.user.userId])
+    const user = r.rows[0]
+    if (!user || !(await bcrypt.compare(request.body.current_password, user.password_hash))) {
+      return reply.code(401).send({ error: 'invalid_password' })
+    }
+    const hash = await bcrypt.hash(request.body.new_password, 10)
+    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, request.user.userId])
+    return { ok: true }
+  })
+
+  // POST /auth/change-email — шаг 1: проверка пароля, запись pending_email, код на новый адрес.
+  fastify.post('/change-email', {
+    onRequest: [fastify.authenticate],
+    config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+    schema: {
+      body: {
+        type: 'object',
+        required: ['new_email', 'password'],
+        properties: {
+          new_email: { type: 'string', format: 'email' },
+          password: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const db = fastify.db
+    const { new_email, password } = request.body
+    const r = await db.query('SELECT email, password_hash FROM users WHERE id = $1', [request.user.userId])
+    const user = r.rows[0]
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      return reply.code(401).send({ error: 'invalid_password' })
+    }
+    if (new_email.toLowerCase() === user.email.toLowerCase()) {
+      return reply.code(409).send({ error: 'email_taken' })
+    }
+    const taken = await db.query('SELECT id FROM users WHERE email = $1', [new_email])
+    if (taken.rows.length > 0) {
+      return reply.code(409).send({ error: 'email_taken' })
+    }
+    await db.query('UPDATE users SET pending_email = $1 WHERE id = $2', [new_email, request.user.userId])
+    try {
+      const code = await issueCode(db, request.user.userId, 'change_email')
+      sendVerificationCode(new_email, code).catch(e =>
+        fastify.log.warn(`[auth] change-email send: ${e.message}`))
+    } catch (e) {
+      fastify.log.warn(`[auth] change-email issueCode: ${e.message}`)
+    }
+    return { ok: true }
+  })
+
+  // POST /auth/confirm-email-change — шаг 2: код из письма на новый адрес → переключение email.
+  fastify.post('/confirm-email-change', {
+    onRequest: [fastify.authenticate],
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    schema: { body: { type: 'object', required: ['code'], properties: { code: { type: 'string' } } } }
+  }, async (request, reply) => {
+    const db = fastify.db
+    const userId = request.user.userId
+    const codeId = await findValidCode(db, userId, 'change_email', request.body.code)
+    if (codeId === null) return reply.code(400).send({ error: 'invalid_or_expired_code' })
+
+    const r = await db.query('SELECT pending_email FROM users WHERE id = $1', [userId])
+    const pending = r.rows[0]?.pending_email
+    if (!pending) return reply.code(400).send({ error: 'no_pending_email' })
+
+    const taken = await db.query('SELECT id FROM users WHERE email = $1 AND id <> $2', [pending, userId])
+    if (taken.rows.length > 0) return reply.code(409).send({ error: 'email_taken' })
+
+    await db.query('UPDATE email_codes SET used_at = NOW() WHERE id = $1', [codeId])
+    await db.query(
+      'UPDATE users SET email = pending_email, pending_email = NULL, email_verified = true WHERE id = $1',
+      [userId]
+    )
+    return { email: pending }
+  })
+
+  // DELETE /auth/me — удаление аккаунта. Каскад через FK; payments сохраняем (анонимизация).
+  fastify.delete('/me', {
+    onRequest: [fastify.authenticate],
+    schema: { body: { type: 'object', required: ['password'], properties: { password: { type: 'string' } } } }
+  }, async (request, reply) => {
+    const db = fastify.db
+    const userId = request.user.userId
+    const r = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId])
+    const user = r.rows[0]
+    if (!user || !(await bcrypt.compare(request.body.password, user.password_hash))) {
+      return reply.code(401).send({ error: 'invalid_password' })
+    }
+    await db.query('UPDATE payments SET user_id = NULL WHERE user_id = $1', [userId])
+    await db.query('DELETE FROM users WHERE id = $1', [userId])
     return { ok: true }
   })
 }

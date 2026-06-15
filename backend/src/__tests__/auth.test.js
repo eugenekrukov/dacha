@@ -324,3 +324,223 @@ describe('POST /auth/reset-password', () => {
     await app.close()
   })
 })
+
+describe('PATCH /auth/password', () => {
+  const bcrypt = require('bcrypt')
+
+  it('верный текущий пароль → 200 + ok', async () => {
+    const hash = await bcrypt.hash('oldpass', 10)
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT password_hash FROM users')) return { rows: [{ password_hash: hash }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .patch('/auth/password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ current_password: 'oldpass', new_password: 'newpass123' })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    await app.close()
+  })
+
+  it('неверный текущий пароль → 401', async () => {
+    const hash = await bcrypt.hash('oldpass', 10)
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT password_hash FROM users')) return { rows: [{ password_hash: hash }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .patch('/auth/password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ current_password: 'wrong', new_password: 'newpass123' })
+    expect(res.status).toBe(401)
+    await app.close()
+  })
+
+  it('новый пароль < 6 → 400', async () => {
+    const app = await buildApp(makeMockDb())
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .patch('/auth/password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ current_password: 'oldpass', new_password: '123' })
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+
+  it('без токена → 401', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server).patch('/auth/password').send({ current_password: 'a', new_password: 'bbbbbb' })
+    expect(res.status).toBe(401)
+    await app.close()
+  })
+})
+
+describe('POST /auth/change-email', () => {
+  const bcrypt = require('bcrypt')
+  let bcryptHash
+  beforeAll(async () => { bcryptHash = await bcrypt.hash('mypass', 10) })
+
+  function appWith(emailFree) {
+    return buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT email, password_hash FROM users'))
+          return { rows: [{ email: 'old@test.com', password_hash: bcryptHash }] }
+        if (sql.includes('SELECT id FROM users WHERE email'))
+          return { rows: emailFree ? [] : [{ id: 99 }] }
+        return { rows: [] }
+      },
+    }))
+  }
+
+  it('верный пароль + свободный email → 200 ok', async () => {
+    const app = await appWith(true)
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .post('/auth/change-email')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ new_email: 'new@test.com', password: 'mypass' })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    await app.close()
+  })
+
+  it('неверный пароль → 401', async () => {
+    const app = await appWith(true)
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .post('/auth/change-email')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ new_email: 'new@test.com', password: 'wrong' })
+    expect(res.status).toBe(401)
+    await app.close()
+  })
+
+  it('занятый email → 409', async () => {
+    const app = await appWith(false)
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .post('/auth/change-email')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ new_email: 'taken@test.com', password: 'mypass' })
+    expect(res.status).toBe(409)
+    await app.close()
+  })
+
+  it('невалидный email → 400', async () => {
+    const app = await appWith(true)
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .post('/auth/change-email')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ new_email: 'bad', password: 'mypass' })
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+})
+
+describe('POST /auth/confirm-email-change', () => {
+  it('валидный код + свободный pending → 200 + новый email', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('FROM email_codes')) return { rows: [{ id: 9 }] }
+        if (sql.includes('SELECT pending_email')) return { rows: [{ pending_email: 'new@test.com' }] }
+        if (sql.includes('SELECT id FROM users WHERE email')) return { rows: [] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .post('/auth/confirm-email-change')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ code: '123456' })
+    expect(res.status).toBe(200)
+    expect(res.body.email).toBe('new@test.com')
+    await app.close()
+  })
+
+  it('неверный код → 400', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .post('/auth/confirm-email-change')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ code: '000000' })
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+
+  it('pending занят между шагами → 409', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('FROM email_codes')) return { rows: [{ id: 9 }] }
+        if (sql.includes('SELECT pending_email')) return { rows: [{ pending_email: 'new@test.com' }] }
+        if (sql.includes('SELECT id FROM users WHERE email')) return { rows: [{ id: 77 }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .post('/auth/confirm-email-change')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ code: '123456' })
+    expect(res.status).toBe(409)
+    await app.close()
+  })
+})
+
+describe('DELETE /auth/me', () => {
+  const bcrypt = require('bcrypt')
+
+  it('верный пароль → 200, анонимизирует payments и удаляет users', async () => {
+    const hash = await bcrypt.hash('mypass', 10)
+    const calls = []
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        calls.push(sql)
+        if (sql.includes('SELECT password_hash FROM users')) return { rows: [{ password_hash: hash }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .delete('/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ password: 'mypass' })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    expect(calls.some(s => s.includes('UPDATE payments SET user_id = NULL'))).toBe(true)
+    expect(calls.some(s => s.includes('DELETE FROM users'))).toBe(true)
+    await app.close()
+  })
+
+  it('неверный пароль → 401', async () => {
+    const hash = await bcrypt.hash('mypass', 10)
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT password_hash FROM users')) return { rows: [{ password_hash: hash }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+    const res = await supertest(app.server)
+      .delete('/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ password: 'wrong' })
+    expect(res.status).toBe(401)
+    await app.close()
+  })
+
+  it('без токена → 401', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server).delete('/auth/me').send({ password: 'x' })
+    expect(res.status).toBe(401)
+    await app.close()
+  })
+})
