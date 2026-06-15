@@ -55,7 +55,20 @@ fun SettingsScreen(
     val emailVerified by viewModel.emailVerified.collectAsState()
     val email         by viewModel.email.collectAsState()
     val largeFont     by viewModel.largeFont.collectAsState()
+    val pendingEmail  by viewModel.pendingEmail.collectAsState()
+    val accountMessage by viewModel.accountMessage.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showPasswordDialog by remember { mutableStateOf(false) }
+    var showEmailDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    LaunchedEffect(accountMessage) {
+        accountMessage?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearAccountMessage()
+        }
+    }
 
     LaunchedEffect(loggedOut) {
         if (loggedOut) onLogout()
@@ -102,6 +115,89 @@ fun SettingsScreen(
                     Text("Отмена", fontFamily = NunitoFamily)
                 }
             }
+        )
+    }
+
+    if (showPasswordDialog) {
+        var current by remember { mutableStateOf("") }
+        var next by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showPasswordDialog = false },
+            title = { Text("Смена пароля", fontFamily = NunitoFamily, fontWeight = FontWeight.Black) },
+            text = {
+                Column {
+                    OutlinedTextField(current, { current = it }, label = { Text("Текущий пароль") },
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), singleLine = true)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(next, { next = it }, label = { Text("Новый пароль (мин. 6)") },
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), singleLine = true)
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = current.isNotBlank() && next.length >= 6,
+                    onClick = { viewModel.changePassword(current, next) { showPasswordDialog = false } }) {
+                    Text("Сменить", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showPasswordDialog = false }) { Text("Отмена", fontFamily = NunitoFamily) } }
+        )
+    }
+
+    if (showEmailDialog) {
+        var stepCode by remember { mutableStateOf(false) }
+        var newEmail by remember { mutableStateOf("") }
+        var pass by remember { mutableStateOf("") }
+        var code by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showEmailDialog = false },
+            title = { Text("Смена email", fontFamily = NunitoFamily, fontWeight = FontWeight.Black) },
+            text = {
+                if (!stepCode) Column {
+                    OutlinedTextField(newEmail, { newEmail = it }, label = { Text("Новый email") }, singleLine = true)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(pass, { pass = it }, label = { Text("Текущий пароль") },
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), singleLine = true)
+                } else Column {
+                    Text("Код отправлен на $newEmail", fontFamily = NunitoFamily, fontSize = 13.sp)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(code, { code = it }, label = { Text("Код из письма") }, singleLine = true)
+                }
+            },
+            confirmButton = {
+                if (!stepCode) TextButton(enabled = newEmail.isNotBlank() && pass.isNotBlank(),
+                    onClick = { viewModel.changeEmail(newEmail, pass) { stepCode = true } }) {
+                    Text("Отправить код", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                } else TextButton(enabled = code.isNotBlank(),
+                    onClick = { viewModel.confirmEmailChange(code) { showEmailDialog = false } }) {
+                    Text("Подтвердить", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showEmailDialog = false }) { Text("Отмена", fontFamily = NunitoFamily) } }
+        )
+    }
+
+    if (showDeleteDialog) {
+        var pass by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Удалить аккаунт?", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.error) },
+            text = {
+                Column {
+                    Text("Это действие необратимо. Будут удалены участки, посадки, журнал и история.",
+                        fontFamily = NunitoFamily)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(pass, { pass = it }, label = { Text("Пароль для подтверждения") },
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), singleLine = true)
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = pass.isNotBlank(),
+                    onClick = { viewModel.deleteAccount(pass) { showDeleteDialog = false } }) {
+                    Text("Удалить навсегда", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Отмена", fontFamily = NunitoFamily) } }
         )
     }
 
@@ -182,6 +278,28 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.height(8.dp))
             }
+
+            // ─── Блок «Аккаунт» ───────────────────────────────────────────────────
+            Text(
+                text = "АККАУНТ",
+                fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            email?.let {
+                Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+            }
+            pendingEmail?.let {
+                Text("Ожидает подтверждения: $it", fontFamily = NunitoFamily, fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 4.dp))
+            }
+            SettingsActionRow("Сменить пароль") { showPasswordDialog = true }
+            HorizontalDivider()
+            SettingsActionRow("Сменить email") { showEmailDialog = true }
+            HorizontalDivider()
+            SettingsActionRow("Удалить аккаунт", danger = true) { showDeleteDialog = true }
+            Spacer(Modifier.height(16.dp))
 
             // ─── Блок подписки — только в платных сборках (rustore); в gplay/samsung оплаты нет ───
             if (BuildConfig.PAYMENTS_ENABLED) {
@@ -400,6 +518,29 @@ fun SettingsScreen(
                 }
             }
 
+            Spacer(Modifier.height(16.dp))
+
+            // ─── Блок «О приложении» ──────────────────────────────────────────────
+            Text(
+                text = "О ПРИЛОЖЕНИИ",
+                fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            Text(
+                "Версия ${BuildConfig.VERSION_NAME}",
+                fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp)
+            )
+            val openUrl = { url: String ->
+                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+            }
+            SettingsActionRow("Пользовательское соглашение") { openUrl("https://dacha.studio1008.com/#legal") }
+            HorizontalDivider()
+            SettingsActionRow("Политика конфиденциальности") { openUrl("https://dacha.studio1008.com/#legal") }
+            HorizontalDivider()
+            SettingsActionRow("Поддержка: e-krukov@ya.ru") { openUrl("mailto:e-krukov@ya.ru") }
+
             Spacer(Modifier.height(24.dp))
 
             OutlinedButton(
@@ -447,6 +588,24 @@ private fun NotificationToggle(
             )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun SettingsActionRow(title: String, danger: Boolean = false, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = title, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+            color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground
+        )
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

@@ -37,6 +37,22 @@ interface DachaApi {
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body body: Map<String, String>)
 
+    // Смена пароля залогиненным (нужен текущий)
+    @PATCH("auth/password")
+    suspend fun changePassword(@Body body: Map<String, String>)
+
+    // Смена email — шаг 1: запрос кода на новый адрес
+    @POST("auth/change-email")
+    suspend fun changeEmail(@Body body: Map<String, String>)
+
+    // Смена email — шаг 2: подтверждение кода
+    @POST("auth/confirm-email-change")
+    suspend fun confirmEmailChange(@Body body: Map<String, String>)
+
+    // Удаление аккаунта
+    @HTTP(method = "DELETE", path = "auth/me", hasBody = true)
+    suspend fun deleteAccount(@Body body: Map<String, String>)
+
     // Погашение промокода — бесплатный доступ (lifetime / month)
     @POST("promo/redeem")
     suspend fun redeemPromo(@Body body: Map<String, String>): PromoRedeemResponse

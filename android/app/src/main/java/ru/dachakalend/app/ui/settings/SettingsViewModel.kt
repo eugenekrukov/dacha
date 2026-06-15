@@ -42,6 +42,15 @@ class SettingsViewModel @Inject constructor(
     private val _email = MutableStateFlow<String?>(null)
     val email: StateFlow<String?> = _email.asStateFlow()
 
+    // Ожидающий подтверждения email (подпись «ожидает подтверждения»)
+    private val _pendingEmail = MutableStateFlow<String?>(null)
+    val pendingEmail: StateFlow<String?> = _pendingEmail.asStateFlow()
+
+    // Одноразовое сообщение результата операций аккаунта (для Toast)
+    private val _accountMessage = MutableStateFlow<String?>(null)
+    val accountMessage: StateFlow<String?> = _accountMessage.asStateFlow()
+    fun clearAccountMessage() { _accountMessage.value = null }
+
     val subscriptionStatus: StateFlow<SubscriptionStatus> = subscriptionManager.status
 
     // Внешний вид: «Крупный шрифт» (доступность 40+)
@@ -59,6 +68,7 @@ class SettingsViewModel @Inject constructor(
                 is Result.Success -> {
                     _emailVerified.value = r.data.emailVerified
                     _email.value = r.data.email
+                    _pendingEmail.value = r.data.pendingEmail
                 }
                 else -> Unit  // оффлайн/ошибка — баннер просто не показываем
             }
@@ -97,6 +107,46 @@ class SettingsViewModel @Inject constructor(
     /** Отключает автопродление подписки (доступ доживает до конца оплаченного периода). */
     fun cancelAutoRenew() {
         viewModelScope.launch { subscriptionManager.cancelAutoRenew() }
+    }
+
+    fun changePassword(current: String, next: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            when (val r = authRepository.changePassword(current, next)) {
+                is Result.Success -> { _accountMessage.value = "Пароль изменён"; onSuccess() }
+                is Result.Error -> _accountMessage.value = r.message
+                else -> Unit
+            }
+        }
+    }
+
+    fun changeEmail(newEmail: String, password: String, onCodeSent: () -> Unit) {
+        viewModelScope.launch {
+            when (val r = authRepository.changeEmail(newEmail, password)) {
+                is Result.Success -> onCodeSent()
+                is Result.Error -> _accountMessage.value = r.message
+                else -> Unit
+            }
+        }
+    }
+
+    fun confirmEmailChange(code: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            when (val r = authRepository.confirmEmailChange(code)) {
+                is Result.Success -> { _accountMessage.value = "Email изменён"; loadProfile(); onSuccess() }
+                is Result.Error -> _accountMessage.value = r.message
+                else -> Unit
+            }
+        }
+    }
+
+    fun deleteAccount(password: String, onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            when (val r = authRepository.deleteAccount(password)) {
+                is Result.Success -> { tokenStorage.logout(); _loggedOut.value = true; onDeleted() }
+                is Result.Error -> _accountMessage.value = r.message
+                else -> Unit
+            }
+        }
     }
 
     fun logout() {

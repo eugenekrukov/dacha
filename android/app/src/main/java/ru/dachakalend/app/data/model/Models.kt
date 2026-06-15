@@ -41,7 +41,9 @@ data class UserProfile(
     @Json(name = "subscription_until") val subscriptionUntil: String? = null,
     @Json(name = "auto_renew") val autoRenew: Boolean = false,
     @Json(name = "plan") val plan: String? = null,
-    @Json(name = "has_saved_card") val hasSavedCard: Boolean = false
+    @Json(name = "has_saved_card") val hasSavedCard: Boolean = false,
+    // Ожидающий подтверждения новый email (verify-first смена email; только /auth/me).
+    @Json(name = "pending_email") val pendingEmail: String? = null
 )
 
 // Ответ POST /billing/create-payment — ссылка на оплату ЮKassa (открывается в Custom Tab).

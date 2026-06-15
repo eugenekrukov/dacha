@@ -114,6 +114,64 @@ class AuthRepository @Inject constructor(
         else -> "Не удалось проверить код"
     }
 
+    /** Смена пароля залогиненным пользователем (нужен текущий). */
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> {
+        return try {
+            api.changePassword(mapOf("current_password" to currentPassword, "new_password" to newPassword))
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(parsePasswordError(e))
+        }
+    }
+
+    /** Смена email — шаг 1: проверка пароля + код на новый адрес. */
+    suspend fun changeEmail(newEmail: String, password: String): Result<Unit> {
+        return try {
+            api.changeEmail(mapOf("new_email" to newEmail.trim(), "password" to password))
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(
+                when {
+                    e.message?.contains("401") == true -> "Неверный пароль"
+                    e.message?.contains("409") == true -> "Этот email уже занят"
+                    e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
+                    else -> "Не удалось отправить код"
+                }
+            )
+        }
+    }
+
+    /** Смена email — шаг 2: подтверждение кода. */
+    suspend fun confirmEmailChange(code: String): Result<Unit> {
+        return try {
+            api.confirmEmailChange(mapOf("code" to code.trim()))
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(
+                when {
+                    e.message?.contains("409") == true -> "Этот email уже занят"
+                    else -> "Неверный или просроченный код"
+                }
+            )
+        }
+    }
+
+    /** Удаляет аккаунт (требует пароль). После успеха вызывающий делает logout. */
+    suspend fun deleteAccount(password: String): Result<Unit> {
+        return try {
+            api.deleteAccount(mapOf("password" to password))
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(parsePasswordError(e))
+        }
+    }
+
+    private fun parsePasswordError(e: Exception): String = when {
+        e.message?.contains("401") == true -> "Неверный пароль"
+        e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
+        else -> "Не удалось выполнить операцию"
+    }
+
     fun logout() = tokenStorage.clearToken()
 
     private fun parseError(e: Exception): String = when {
