@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Droplet, Snowflake, Flame, Clock, CircleCheck, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
 import { careTaskActionType, treatmentNote } from '../api/schedule'
+import { taskIcon } from '../ui/icons'
 import ActionLogSheet from '../components/ActionLogSheet'
 import type { Recommendation, TodayResponse, TodayTask } from '../api/types'
 
@@ -87,19 +89,28 @@ export default function TodayScreen() {
             )}
             <div className="flex flex-col text-sm font-semibold opacity-95">
               {today.weather.condition_text && <span>{today.weather.condition_text}</span>}
-              <span>
+              <span className="flex items-center gap-1">
                 {today.weather.temp_min != null && today.weather.temp_max != null
                   ? `${Math.round(today.weather.temp_min)}…${Math.round(today.weather.temp_max)}°`
                   : ''}
-                {today.weather.precip_prob_pct != null ? ` · 💧 ${today.weather.precip_prob_pct}%` : ''}
+                {today.weather.precip_prob_pct != null && (
+                  <>
+                    {' · '}
+                    <Droplet size={15} aria-hidden /> {today.weather.precip_prob_pct}%
+                  </>
+                )}
               </span>
             </div>
             <div className="ml-auto flex flex-col items-end gap-1">
               {today.weather.frost_risk && (
-                <span className="rounded-pill bg-white/25 px-2 py-0.5 text-xs font-bold">❄ заморозки</span>
+                <span className="flex items-center gap-1 rounded-pill bg-white/25 px-2 py-0.5 text-xs font-bold">
+                  <Snowflake size={13} aria-hidden /> заморозки
+                </span>
               )}
               {today.weather.heat_risk && (
-                <span className="rounded-pill bg-white/25 px-2 py-0.5 text-xs font-bold">🔥 жара</span>
+                <span className="flex items-center gap-1 rounded-pill bg-white/25 px-2 py-0.5 text-xs font-bold">
+                  <Flame size={13} aria-hidden /> жара
+                </span>
               )}
             </div>
           </div>
@@ -128,7 +139,10 @@ export default function TodayScreen() {
                   {d.min_temp_c != null ? `${Math.round(d.min_temp_c)}°` : ''}
                 </span>
                 {d.precip_prob_pct != null && d.precip_prob_pct > 0 && (
-                  <span className="text-xs font-semibold text-tertiary">💧{d.precip_prob_pct}%</span>
+                  <span className="flex items-center gap-0.5 text-xs font-semibold text-tertiary">
+                    <Droplet size={12} aria-hidden />
+                    {d.precip_prob_pct}%
+                  </span>
                 )}
               </div>
             ))}
@@ -142,7 +156,9 @@ export default function TodayScreen() {
           {today.tasks?.length ? (
             today.tasks.map((t, i) => <TaskCard key={i} t={t} onLog={setLogTask} />)
           ) : (
-            <div className="dacha-card p-4 font-semibold text-muted">На сегодня задач нет 🎉</div>
+            <div className="dacha-card flex items-center gap-2 p-4 font-semibold text-muted">
+              <CircleCheck size={20} aria-hidden className="text-tertiary" /> На сегодня задач нет
+            </div>
           )}
         </section>
       )}
@@ -161,9 +177,9 @@ export default function TodayScreen() {
               <button
                 onClick={() => dismiss(r)}
                 aria-label="Скрыть совет"
-                className="shrink-0 text-lg font-black text-muted"
+                className="shrink-0 text-muted"
               >
-                ×
+                <X size={20} aria-hidden />
               </button>
             </div>
           ))}
@@ -187,37 +203,15 @@ export default function TodayScreen() {
   )
 }
 
-const TYPE_ICON: Record<string, string> = {
-  watering_due: '💧',
-  transplant_due: '🌱',
-  fertilizing_due: '🌿',
-  harvest_due: '🌾',
-  frost_alert: '❄️',
-  reminder: '🔔',
-}
-const CARE_ICON: Record<string, string> = {
-  tying: '🪢',
-  pinching: '✂️',
-  hilling: '⛏️',
-  pruning: '🌿',
-  weeding: '🌾',
-  loosening: '🔨',
-  treatment: '🛡️',
-}
-function taskIcon(t: TodayTask): string {
-  if (t.type === 'care_task_due') {
-    const a = t.care_task_name ? careTaskActionType(t.care_task_name) : null
-    return (a && CARE_ICON[a]) || '🌿'
-  }
-  return TYPE_ICON[t.type] ?? '📋'
-}
-
 function TaskCard({ t, onLog }: { t: TodayTask; onLog: (t: TodayTask) => void }) {
   const overdue = (t.days_overdue ?? 0) > 0
+  const critical = t.type === 'frost_alert' // только заморозки — действительно срочно (красный)
   const clickable = t.planting_id != null
+  const careType = t.type === 'care_task_due' && t.care_task_name ? careTaskActionType(t.care_task_name) : null
+  const Icon = taskIcon(t.type, careType)
   const body = (
     <>
-      <span className="text-2xl leading-none">{taskIcon(t)}</span>
+      <Icon size={26} className="shrink-0 text-primary" aria-hidden />
       <div className="flex min-w-0 flex-col">
         <span className="font-bold">{t.title}</span>
         {t.description && <span className="text-sm font-semibold text-muted">{t.description}</span>}
@@ -226,15 +220,19 @@ function TaskCard({ t, onLog }: { t: TodayTask; onLog: (t: TodayTask) => void })
           <Link
             to={`/plantings/${t.planting_id}`}
             onClick={(e) => e.stopPropagation()}
-            className="mt-1 w-fit text-sm font-bold text-primary"
+            className="text-link mt-1 w-fit text-sm"
           >
             Подробнее →
           </Link>
         )}
       </div>
       {overdue && (
-        <span className="ml-auto shrink-0 self-start rounded-pill bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
-          🔴 {t.days_overdue} дн.
+        <span
+          className={`ml-auto flex shrink-0 items-center gap-1 self-start rounded-pill px-2 py-0.5 text-xs font-bold ${
+            critical ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'
+          }`}
+        >
+          <Clock size={13} aria-hidden /> {t.days_overdue} дн.
         </span>
       )}
     </>

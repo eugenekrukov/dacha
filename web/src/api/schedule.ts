@@ -135,7 +135,7 @@ export function buildSchedule(opts: {
   // Пересадка/пикировка — только для рассадного способа
   if (sowingMethod !== 'direct' && transplantDays) {
     const d = addDays(planted, transplantDays)
-    rows.push({ name: '🌿 Пересадка/пикировка', dateStr: fmt(d), date: d, status: statusOf('Пересадка', d, null) })
+    rows.push({ name: 'Пересадка/пикировка', dateStr: fmt(d), date: d, status: statusOf('Пересадка', d, null) })
   }
 
   const limit = harvestDays ?? 120
@@ -180,14 +180,14 @@ export function buildSchedule(opts: {
       while (offset <= wLimit && addDays(planted, offset) < today) offset += interval
       if (offset <= wLimit) {
         const d = addDays(planted, offset)
-        rows.push({ name: `💧 Полив (каждые ${interval} дн.)`, dateStr: fmt(d), date: d, status: 'upcoming' })
+        rows.push({ name: `Полив (каждые ${interval} дн.)`, dateStr: fmt(d), date: d, status: 'upcoming' })
       }
     }
   }
 
   if (harvestDays) {
     const d = addDays(planted, harvestDays)
-    rows.push({ name: '🌾 Сбор урожая', dateStr: fmt(d), date: d, status: 'neutral' })
+    rows.push({ name: 'Сбор урожая', dateStr: fmt(d), date: d, status: 'neutral' })
   }
 
   return rows.sort((a, b) => a.date.getTime() - b.date.getTime())
@@ -263,11 +263,11 @@ export function buildCalendarEvents(opts: {
     if (t.planting_id != null && doneIds.has(t.planting_id)) continue
     const crop = t.crop_name ?? ''
     const label =
-      t.type === 'watering_due' ? `💧 Полив: ${crop}`
-      : t.type === 'fertilizing_due' ? `🌿 Подкормка: ${crop}`
-      : t.type === 'transplant_due' ? `🌱 Пересадка: ${crop}`
-      : t.type === 'harvest_due' ? `🌾 Урожай: ${crop}`
-      : t.type === 'frost_alert' ? '❄️ Угроза заморозков'
+      t.type === 'watering_due' ? `Полив: ${crop}`
+      : t.type === 'fertilizing_due' ? `Подкормка: ${crop}`
+      : t.type === 'transplant_due' ? `Пересадка: ${crop}`
+      : t.type === 'harvest_due' ? `Урожай: ${crop}`
+      : t.type === 'frost_alert' ? 'Угроза заморозков'
       : t.title
     push(today, label, t.type)
   }
@@ -289,7 +289,7 @@ export function buildCalendarEvents(opts: {
     const harvestDays = crop?.harvest_days ?? p.harvest_days ?? null
     if (harvestDays != null) {
       const d = addDays(sown, harvestDays)
-      if (inWindow(d)) push(d, `🌾 Урожай: ${cropName}`, 'harvest')
+      if (inWindow(d)) push(d, `Урожай: ${cropName}`, 'harvest')
     }
 
     // Полив — от последнего действия или от посева
@@ -297,14 +297,14 @@ export function buildCalendarEvents(opts: {
     const freq = wateringInterval(p.watering_freq_days ?? 3, p.conditions)
     let nextW = addDays(wBase, freq)
     while (nextW.getTime() <= horizon.getTime()) {
-      if (nextW.getTime() >= today.getTime()) push(nextW, `💧 Полив: ${cropName}`, 'watering')
+      if (nextW.getTime() >= today.getTime()) push(nextW, `Полив: ${cropName}`, 'watering')
       nextW = addDays(nextW, freq)
     }
 
     // Пересадка/пикировка
     if (crop?.transplant_days != null) {
       const d = addDays(sown, crop.transplant_days)
-      if (inWindow(d)) push(d, `🌿 Пересадка: ${cropName}`, 'care')
+      if (inWindow(d)) push(d, `Пересадка: ${cropName}`, 'care')
     }
 
     // care_tasks — разворачиваем до горизонта

@@ -88,7 +88,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            DachaCalendarTheme {
+            val largeFont by tokenStorage.largeFont.collectAsState()
+            DachaCalendarTheme(largeFont = largeFont) {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route

@@ -23,11 +23,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.R
 import ru.dachakalend.app.ui.settings.formatPromoDate
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
@@ -112,7 +115,11 @@ fun PaywallScreen(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🌻", fontSize = 44.sp)
+                Image(
+                    painter = painterResource(R.drawable.ic_sunflower_png),
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp)
+                )
             }
 
             Spacer(Modifier.height(20.dp))
@@ -180,12 +187,12 @@ fun PaywallScreen(
 
             // Фичи
             val features = listOf(
-                "📊 Аналитика урожая по сезонам",
-                "📋 Журнал всех действий",
-                "🌿 Рекомендации агронома",
-                "🔔 Умные уведомления о поливе",
-                "📤 Экспорт данных в CSV",
-                "🏡 До 3 участков"
+                "Аналитика урожая по сезонам",
+                "Журнал всех действий",
+                "Рекомендации агронома",
+                "Умные уведомления о поливе",
+                "Экспорт данных в CSV",
+                "До 3 участков"
             )
             features.forEach { feature ->
                 Row(
@@ -218,7 +225,7 @@ fun PaywallScreen(
                 title = "Ежегодная",
                 price = "1 990 ₽",
                 period = "в год",
-                badge = "Выгода 43%",
+                badge = "Выгода 45%",
                 monthlyEquiv = "≈ 166 ₽/мес",
                 isSelected = selectedPlan == "yearly",
                 onClick = { selectedPlan = "yearly" }

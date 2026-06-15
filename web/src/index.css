@@ -8,6 +8,15 @@
   #root {
     height: 100%;
   }
+  /* Базовый кегль крупнее дефолтных 16px — комфортнее для аудитории 40+.
+     Все размеры в rem (Tailwind) масштабируются от него. */
+  html {
+    font-size: 17px;
+  }
+  /* Режим «Крупный шрифт» (переключатель в Настройках) — +~18% ко всему. */
+  html[data-font='large'] {
+    font-size: 20px;
+  }
   body {
     @apply bg-background font-sans text-[#3a2a1a] antialiased;
   }
@@ -35,5 +44,11 @@
   /* Кликабельная карточка-ссылка: hover/press-эффект */
   .dacha-card-link {
     @apply rounded-card bg-white shadow-card transition hover:shadow-md active:scale-[0.99];
+  }
+  /* Текстовая ссылка — тёмно-оранжевый (контрастнее яркого primary как текст).
+     Цвет задаём литералом, а не утилитой text-link, чтобы не было циклической зависимости. */
+  .text-link {
+    @apply font-bold underline-offset-2 hover:underline;
+    color: #c2410c;
   }
 }

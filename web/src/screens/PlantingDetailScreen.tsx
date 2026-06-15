@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Pencil, ArrowLeft } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
 import { buildSchedule, collapseActions, type SchedStatus } from '../api/schedule'
@@ -86,8 +87,8 @@ export default function PlantingDetailScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <button onClick={() => navigate(-1)} className="text-left font-bold text-muted">
-        ← Назад
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-left font-bold text-muted">
+        <ArrowLeft size={18} aria-hidden /> Назад
       </button>
 
       <div className="dacha-card flex flex-col gap-1 p-5">
@@ -122,15 +123,17 @@ export default function PlantingDetailScreen() {
 
       {tab === 'planting' && (
         <>
-          <button className="dacha-btn" onClick={() => setLogging(true)}>
-            ✏️ Записать действие
+          <button className="dacha-btn flex items-center justify-center gap-2" onClick={() => setLogging(true)}>
+            <Pencil size={18} aria-hidden /> Записать действие
           </button>
 
           {schedule.length > 0 && (
             <section className="dacha-card flex flex-col gap-1.5 p-5">
               <h2 className="text-lg font-black">Расписание работ</h2>
-              <p className="mb-1 text-xs font-semibold text-muted">
-                🟢 выполнено · 🔴 просрочено · ⚪ предстоит
+              <p className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted">
+                <span className="flex items-center gap-1"><Dot status="done" /> выполнено</span>
+                <span className="flex items-center gap-1"><Dot status="missed" /> просрочено</span>
+                <span className="flex items-center gap-1"><Dot status="upcoming" /> предстоит</span>
               </p>
               {schedule.map((row, i) => (
                 <SchedRowView key={i} row={row} />
@@ -190,11 +193,17 @@ export default function PlantingDetailScreen() {
   )
 }
 
-const SCHED_MARKER: Record<SchedStatus, string> = {
-  done: '🟢 ',
-  missed: '🔴 ',
-  upcoming: '⚪ ',
-  neutral: '',
+const DOT_COLOR: Record<SchedStatus, string> = {
+  done: 'bg-tertiary',
+  missed: 'bg-red-500',
+  upcoming: 'bg-black/25',
+  neutral: 'bg-transparent',
+}
+
+// Цветная точка статуса вместо эмодзи 🟢🔴⚪
+function Dot({ status }: { status: SchedStatus }) {
+  if (status === 'neutral') return null
+  return <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${DOT_COLOR[status]}`} />
 }
 
 function SchedRowView({ row }: { row: import('../api/schedule').SchedRow }) {
@@ -207,8 +216,8 @@ function SchedRowView({ row }: { row: import('../api/schedule').SchedRow }) {
   return (
     <div className="flex items-start justify-between gap-3 border-b border-black/5 py-1.5 last:border-0">
       <div className="flex flex-col">
-        <span className={`font-semibold ${color} ${row.status === 'done' ? 'line-through' : ''}`}>
-          {SCHED_MARKER[row.status]}
+        <span className={`flex items-center gap-1.5 font-semibold ${color} ${row.status === 'done' ? 'line-through' : ''}`}>
+          <Dot status={row.status} />
           {row.name}
         </span>
         {row.product && <span className="text-xs font-semibold text-tertiary">Препарат: {row.product}</span>}

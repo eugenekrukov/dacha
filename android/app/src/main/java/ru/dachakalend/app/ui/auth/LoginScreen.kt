@@ -1,5 +1,6 @@
 ﻿package ru.dachakalend.app.ui.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,6 +23,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.R
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 @Composable
@@ -54,7 +57,11 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("🌱", fontSize = 56.sp)
+        Image(
+            painter = painterResource(R.drawable.ic_sunflower_png),
+            contentDescription = null,
+            modifier = Modifier.size(72.dp)
+        )
         Spacer(Modifier.height(8.dp))
         Text(
             "Календарь дачника",

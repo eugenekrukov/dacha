@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { MailWarning } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { formatDate } from '../api/labels'
+import { isLargeFont, setLargeFont } from '../ui/fontScale'
 
 export default function SettingsScreen() {
   const { user, logout, refresh } = useAuth()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [largeFont, setLarge] = useState(isLargeFont())
 
   const statusText = user?.subscribed
     ? `Подписка активна${user.subscription_until ? ` до ${formatDate(user.subscription_until)}` : ''}`
@@ -41,10 +44,42 @@ export default function SettingsScreen() {
         <h2 className="font-black">Аккаунт</h2>
         <p className="font-semibold text-muted">{user?.email}</p>
         {user && user.email_verified === false && (
-          <Link to="/verify-email" className="mt-1 font-bold text-primary">
-            ✉ Подтвердите email →
+          <Link to="/verify-email" className="text-link mt-1 inline-flex items-center gap-1.5">
+            <MailWarning size={18} aria-hidden /> Подтвердите email →
           </Link>
         )}
+      </section>
+
+      <section className="dacha-card flex flex-col gap-3 p-5">
+        <h2 className="font-black">Внешний вид</h2>
+        <label className="flex cursor-pointer items-center justify-between gap-3">
+          <span className="font-semibold">
+            Крупный шрифт
+            <span className="block text-sm font-semibold text-muted">
+              Увеличивает текст по всему приложению
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={largeFont}
+            aria-label="Крупный шрифт"
+            onClick={() => {
+              const next = !largeFont
+              setLarge(next)
+              setLargeFont(next)
+            }}
+            className={`relative h-7 w-12 shrink-0 rounded-pill transition ${
+              largeFont ? 'bg-primary' : 'bg-black/15'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${
+                largeFont ? 'left-[22px]' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </label>
       </section>
 
       <section className="dacha-card flex flex-col gap-3 p-5">
@@ -62,7 +97,7 @@ export default function SettingsScreen() {
           </button>
         )}
         {user?.subscribed && !user?.auto_renew && (
-          <Link to="/paywall" className="font-bold text-primary">
+          <Link to="/paywall" className="text-link">
             Продлить подписку →
           </Link>
         )}

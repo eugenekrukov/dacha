@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Sprout, Clock } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
 import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
@@ -50,8 +51,9 @@ export default function PlantingsScreen() {
       {error && <div className="dacha-card p-4 font-semibold text-muted">{error}</div>}
 
       {active.length === 0 && !error && (
-        <div className="dacha-card p-6 text-center font-semibold text-muted">
-          Пока нет активных посадок. Добавьте первую 🌱
+        <div className="dacha-card flex flex-col items-center gap-2 p-6 text-center font-semibold text-muted">
+          <Sprout size={32} aria-hidden className="text-tertiary" />
+          Пока нет активных посадок. Добавьте первую.
         </div>
       )}
 
@@ -113,9 +115,10 @@ function PlantingCard({ p }: { p: Planting }) {
         </span>
       )}
       {p.overdue_care_task && (
-        <span className="text-sm font-bold text-red-600">
-          ⚠ {p.overdue_care_task.name}
-          {p.overdue_care_task.days_overdue > 0 ? ` (просрочено ${p.overdue_care_task.days_overdue} дн.)` : ''}
+        <span className="flex items-center gap-1 text-sm font-bold text-amber-700">
+          <Clock size={14} aria-hidden className="shrink-0" />
+          Пора: {p.overdue_care_task.name}
+          {p.overdue_care_task.days_overdue > 0 ? ` (задержка ${p.overdue_care_task.days_overdue} дн.)` : ''}
         </span>
       )}
     </Link>

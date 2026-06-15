@@ -18,25 +18,25 @@ export const ACTION_LABELS: Record<ActionType, string> = {
 
 export const ACTION_TYPES: ActionType[] = ['watering', 'fertilizing', 'treatment', 'other']
 
-// Полный каталог действий для записи (зеркало android ACTION_TYPES + actionIcon).
-export const ACTION_CATALOG: { type: string; label: string; icon: string }[] = [
-  { type: 'watering', label: 'Полив', icon: '💧' },
-  { type: 'fertilizing', label: 'Подкормка', icon: '🌿' },
-  { type: 'treatment', label: 'Обработка', icon: '🛡️' },
-  { type: 'pricking_out', label: 'Пикировка', icon: '🌱' },
-  { type: 'transplanting', label: 'Высадка', icon: '🪴' },
-  { type: 'tying', label: 'Подвязка', icon: '🪢' },
-  { type: 'pinching', label: 'Пасынкование', icon: '✂️' },
-  { type: 'hilling', label: 'Окучивание', icon: '⛏️' },
-  { type: 'pruning', label: 'Обрезка', icon: '🌿' },
-  { type: 'weeding', label: 'Прополка', icon: '🌾' },
-  { type: 'loosening', label: 'Рыхление', icon: '🔨' },
-  { type: 'thinning', label: 'Прореживание', icon: '✂️' },
-  { type: 'runner_removal', label: 'Удаление усов', icon: '🌿' },
-  { type: 'bolt_removal', label: 'Удаление стрелок', icon: '🧄' },
-  { type: 'deflowering', label: 'Удаление цветков', icon: '🌸' },
-  { type: 'staking', label: 'Установка опоры', icon: '🪵' },
-  { type: 'other', label: 'Другое', icon: '📋' },
+// Полный каталог действий для записи (зеркало android ACTION_TYPES). Иконки — ui/icons.tsx actionIcon().
+export const ACTION_CATALOG: { type: string; label: string }[] = [
+  { type: 'watering', label: 'Полив' },
+  { type: 'fertilizing', label: 'Подкормка' },
+  { type: 'treatment', label: 'Обработка' },
+  { type: 'pricking_out', label: 'Пикировка' },
+  { type: 'transplanting', label: 'Высадка' },
+  { type: 'tying', label: 'Подвязка' },
+  { type: 'pinching', label: 'Пасынкование' },
+  { type: 'hilling', label: 'Окучивание' },
+  { type: 'pruning', label: 'Обрезка' },
+  { type: 'weeding', label: 'Прополка' },
+  { type: 'loosening', label: 'Рыхление' },
+  { type: 'thinning', label: 'Прореживание' },
+  { type: 'runner_removal', label: 'Удаление усов' },
+  { type: 'bolt_removal', label: 'Удаление стрелок' },
+  { type: 'deflowering', label: 'Удаление цветков' },
+  { type: 'staking', label: 'Установка опоры' },
+  { type: 'other', label: 'Другое' },
 ]
 
 // Полная карта для отображения (включая care-действия из backend для журнала/истории).
@@ -79,12 +79,6 @@ export const GUIDE_KIND_LABELS: Record<GuideKind, string> = {
   deficiency: 'Дефицит',
   disease: 'Болезнь',
   pest: 'Вредитель',
-}
-
-export const GUIDE_KIND_ICONS: Record<GuideKind, string> = {
-  deficiency: '🍂',
-  disease: '🦠',
-  pest: '🐛',
 }
 
 // ISO/Date → DD.MM.YYYY

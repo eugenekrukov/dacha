@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { ApiError } from '../api/client'
+import Sunflower from '../ui/Sunflower'
 
 export default function LoginScreen() {
   const { login, register } = useAuth()
@@ -9,6 +11,7 @@ export default function LoginScreen() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -36,7 +39,9 @@ export default function LoginScreen() {
   return (
     <div className="flex min-h-full items-center justify-center px-4">
       <div className="dacha-card w-full max-w-sm p-6">
-        <h1 className="mb-1 text-2xl font-black text-primary">🌻 Календарь дачника</h1>
+        <h1 className="mb-1 flex items-center gap-2 text-2xl font-black text-primary">
+          <Sunflower size={28} /> Календарь дачника
+        </h1>
         <p className="mb-6 font-semibold text-muted">
           {mode === 'login' ? 'Вход в веб-версию' : 'Регистрация'}
         </p>
@@ -51,16 +56,32 @@ export default function LoginScreen() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <input
-            className="dacha-input"
-            type="password"
-            placeholder="Пароль"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
+          <div className="relative">
+            <input
+              className="dacha-input pr-12"
+              type={showPass ? 'text' : 'password'}
+              placeholder="Пароль"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPass((s) => !s)}
+              aria-label={showPass ? 'Скрыть пароль' : 'Показать пароль'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted"
+            >
+              {showPass ? <EyeOff size={22} /> : <Eye size={22} />}
+            </button>
+          </div>
+
+          {mode === 'login' && (
+            <Link to="/reset-password" className="text-link self-end text-sm">
+              Забыли пароль?
+            </Link>
+          )}
 
           {error && <p className="text-sm font-bold text-red-600">{error}</p>}
 

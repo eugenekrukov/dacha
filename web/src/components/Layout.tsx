@@ -1,30 +1,45 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import {
+  Sun,
+  Sprout,
+  CalendarDays,
+  BookOpen,
+  MoreHorizontal,
+  NotebookPen,
+  BarChart3,
+  ShieldAlert,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react'
+import Sunflower from '../ui/Sunflower'
 
-const PRIMARY = [
-  { to: '/today', label: 'Сегодня' },
-  { to: '/plantings', label: 'Посадки' },
-]
-// Раздел «Информация» — выпадающее меню
-const INFO = [
-  { to: '/calendar', label: 'Календарь' },
-  { to: '/crops', label: 'Справочник культур' },
-  { to: '/guide', label: 'Болезни и дефициты' },
-  { to: '/journal', label: 'Журнал действий' },
-  { to: '/harvests', label: 'Аналитика' },
-]
-const SETTINGS = { to: '/settings', label: 'Настройки' }
+type Item = { to: string; label: string; icon: LucideIcon }
 
-// Классы ячейки нижнего нав-бара: активная — с фоном-«таблеткой», а не только цветом текста.
+// Частые разделы — на виду (верхний ряд / нижний бар).
+const PRIMARY: Item[] = [
+  { to: '/today', label: 'Сегодня', icon: Sun },
+  { to: '/plantings', label: 'Посадки', icon: Sprout },
+  { to: '/calendar', label: 'Календарь', icon: CalendarDays },
+  { to: '/crops', label: 'Справочник', icon: BookOpen },
+]
+// Редкие разделы — под «Ещё».
+const MORE: Item[] = [
+  { to: '/journal', label: 'Журнал действий', icon: NotebookPen },
+  { to: '/harvests', label: 'Аналитика', icon: BarChart3 },
+  { to: '/guide', label: 'Болезни и дефициты', icon: ShieldAlert },
+  { to: '/settings', label: 'Настройки', icon: Settings },
+]
+
 const bottomItem = (isActive: boolean) =>
-  `mx-0.5 my-2 flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-xl text-[13px] font-bold transition ${
+  `mx-0.5 my-1.5 flex flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl text-[11px] font-bold transition ${
     isActive ? 'bg-primary/10 text-primary' : 'text-muted'
   }`
 
-function InfoMenu({ dropUp = false }: { dropUp?: boolean }) {
+function MoreMenu({ dropUp = false }: { dropUp?: boolean }) {
   const [open, setOpen] = useState(false)
   const loc = useLocation()
-  const active = INFO.some((i) => loc.pathname.startsWith(i.to))
+  const active = MORE.some((i) => loc.pathname.startsWith(i.to))
 
   const menu = open && (
     <>
@@ -33,23 +48,26 @@ function InfoMenu({ dropUp = false }: { dropUp?: boolean }) {
         className={
           dropUp
             ? 'fixed inset-x-3 bottom-20 z-30 mx-auto flex max-w-xs flex-col gap-1 rounded-card border border-black/10 bg-white p-2 shadow-card'
-            : 'absolute right-0 z-30 mt-1 flex min-w-[190px] flex-col gap-1 rounded-card border border-black/10 bg-white p-2 shadow-card'
+            : 'absolute right-0 z-30 mt-1 flex min-w-[210px] flex-col gap-1 rounded-card border border-black/10 bg-white p-2 shadow-card'
         }
       >
-        {INFO.map((m) => (
-          <NavLink
-            key={m.to}
-            to={m.to}
-            onClick={() => setOpen(false)}
-            className={({ isActive }) =>
-              `rounded-btn px-3 py-2 font-bold transition hover:bg-background ${
-                isActive ? 'bg-primary/10 text-primary' : 'text-[#3a2a1a]'
-              }`
-            }
-          >
-            {m.label}
-          </NavLink>
-        ))}
+        {MORE.map((m) => {
+          const Icon = m.icon
+          return (
+            <NavLink
+              key={m.to}
+              to={m.to}
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-2 rounded-btn px-3 py-2 font-bold transition hover:bg-background ${
+                  isActive ? 'bg-primary/10 text-primary' : 'text-[#3a2a1a]'
+                }`
+              }
+            >
+              <Icon size={18} aria-hidden /> {m.label}
+            </NavLink>
+          )
+        })}
       </div>
     </>
   )
@@ -58,8 +76,8 @@ function InfoMenu({ dropUp = false }: { dropUp?: boolean }) {
     return (
       <>
         <button onClick={() => setOpen((o) => !o)} className={bottomItem(active)}>
-          <span>Информация</span>
-          <span className="text-[9px] leading-none">▲</span>
+          <MoreHorizontal size={20} aria-hidden />
+          <span>Ещё</span>
         </button>
         {menu}
       </>
@@ -68,8 +86,11 @@ function InfoMenu({ dropUp = false }: { dropUp?: boolean }) {
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} className={`dacha-chip ${active ? 'dacha-chip-active' : ''}`}>
-        Информация ▾
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`dacha-chip flex items-center gap-1.5 ${active ? 'dacha-chip-active' : ''}`}
+      >
+        <MoreHorizontal size={18} aria-hidden /> Ещё
       </button>
       {menu}
     </div>
@@ -78,30 +99,28 @@ function InfoMenu({ dropUp = false }: { dropUp?: boolean }) {
 
 export default function Layout() {
   return (
-    // h-dvh + внутренний скролл main: нижний нав — обычный flex-элемент внизу колонки,
-    // а не fixed → не отрывается от низа и не зависит от динамической адресной строки.
     <div className="mx-auto flex h-dvh max-w-3xl flex-col">
       <header className="flex shrink-0 items-center justify-between gap-3 bg-background px-4 py-3">
-        <span className="shrink-0 whitespace-nowrap text-lg font-black text-primary sm:text-xl">
-          🌻 Календарь дачника
+        <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-lg font-black text-primary sm:text-xl">
+          <Sunflower size={24} />
+          Календарь дачника
         </span>
         <nav className="hidden items-center gap-1 sm:flex">
-          {PRIMARY.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              className={({ isActive }) => `dacha-chip ${isActive ? 'dacha-chip-active' : ''}`}
-            >
-              {n.label}
-            </NavLink>
-          ))}
-          <InfoMenu />
-          <NavLink
-            to={SETTINGS.to}
-            className={({ isActive }) => `dacha-chip ${isActive ? 'dacha-chip-active' : ''}`}
-          >
-            {SETTINGS.label}
-          </NavLink>
+          {PRIMARY.map((n) => {
+            const Icon = n.icon
+            return (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                className={({ isActive }) =>
+                  `dacha-chip flex items-center gap-1.5 ${isActive ? 'dacha-chip-active' : ''}`
+                }
+              >
+                <Icon size={18} aria-hidden /> {n.label}
+              </NavLink>
+            )
+          })}
+          <MoreMenu />
         </nav>
       </header>
 
@@ -109,18 +128,17 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      {/* нижний нав на узких экранах: обычный flex-элемент внизу колонки (не fixed).
-          Тень-«козырёк» и граница отделяют бар от белых карточек контента. */}
       <nav className="flex h-16 shrink-0 items-stretch justify-around border-t border-black/15 bg-white px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_-4px_rgba(0,0,0,0.15)] sm:hidden">
-        {PRIMARY.map((n) => (
-          <NavLink key={n.to} to={n.to} className={({ isActive }) => bottomItem(isActive)}>
-            {n.label}
-          </NavLink>
-        ))}
-        <InfoMenu dropUp />
-        <NavLink to={SETTINGS.to} className={({ isActive }) => bottomItem(isActive)}>
-          {SETTINGS.label}
-        </NavLink>
+        {PRIMARY.map((n) => {
+          const Icon = n.icon
+          return (
+            <NavLink key={n.to} to={n.to} className={({ isActive }) => bottomItem(isActive)}>
+              <Icon size={20} aria-hidden />
+              <span>{n.label}</span>
+            </NavLink>
+          )
+        })}
+        <MoreMenu dropUp />
       </nav>
     </div>
   )

@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Check, Sparkles } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { formatDate } from '../api/labels'
 import type { BillingPlan } from '../api/types'
 
-const PLANS: { id: BillingPlan; title: string; price: string; note: string }[] = [
-  { id: 'yearly', title: 'Год', price: '1 990 ₽', note: '≈ 166 ₽ в месяц' },
+const PLANS: { id: BillingPlan; title: string; price: string; note: string; badge?: string }[] = [
+  { id: 'yearly', title: 'Год', price: '1 990 ₽', note: '≈ 166 ₽ в месяц', badge: 'Выгодно −45%' },
   { id: 'monthly', title: 'Месяц', price: '299 ₽', note: 'оплата ежемесячно' },
+]
+
+// Что входит в «Дачник Про» (доступ к записи/планированию; без подписки — только просмотр).
+const BENEFITS = [
+  'Неограниченные посадки и грядки',
+  'Запись ухода и журнал действий',
+  'Умные напоминания: полив, подкормка, заморозки',
+  'Учёт урожая и аналитика по сезонам',
+  'Полный справочник культур, болезней и вредителей',
 ]
 
 export default function PaywallScreen() {
@@ -44,7 +54,7 @@ export default function PaywallScreen() {
     try {
       await api.redeemPromo(promo.trim())
       await refresh()
-      setPromoMsg('Промокод активирован ✓')
+      setPromoMsg('Промокод активирован')
       setTimeout(() => navigate('/today', { replace: true }), 1200)
     } catch (err) {
       const code = err instanceof ApiError ? err.code : undefined
@@ -74,17 +84,40 @@ export default function PaywallScreen() {
         </div>
       )}
 
-      <p className="font-semibold text-muted">
-        Полный доступ ко всем функциям. Оплата картой через ЮKassa, доступ — на оплаченный период,
-        автосписаний нет.
+      {!hasAccess && (
+        <div className="dacha-card flex items-center gap-2 bg-tertiary/10 p-4 font-bold text-tertiary">
+          <Sparkles size={20} aria-hidden className="shrink-0" />
+          Первые 7 дней — бесплатно. Оплата позже, автосписаний нет.
+        </div>
+      )}
+
+      <section className="dacha-card flex flex-col gap-2 p-5">
+        <h2 className="font-black">Что входит</h2>
+        <ul className="flex flex-col gap-2">
+          {BENEFITS.map((b) => (
+            <li key={b} className="flex items-start gap-2 font-semibold">
+              <Check size={20} aria-hidden className="mt-0.5 shrink-0 text-tertiary" />
+              {b}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <p className="text-sm font-semibold text-muted">
+        Оплата картой через ЮKassa, доступ — на оплаченный период, автосписаний нет.
       </p>
 
       <div className="flex flex-col gap-3">
         {PLANS.map((p) => (
           <div key={p.id} className="dacha-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
             <div className="sm:flex-1">
-              <div className="text-lg font-black">
+              <div className="flex items-center gap-2 text-lg font-black">
                 {p.title} · <span className="whitespace-nowrap">{p.price}</span>
+                {p.badge && (
+                  <span className="rounded-pill bg-tertiary px-2 py-0.5 text-xs font-black text-white">
+                    {p.badge}
+                  </span>
+                )}
               </div>
               <div className="text-sm font-semibold text-muted">{p.note}</div>
             </div>

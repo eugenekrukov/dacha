@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { api, ApiError } from '../api/client'
-import { GUIDE_KIND_ICONS, GUIDE_KIND_LABELS } from '../api/labels'
+import { GUIDE_KIND_LABELS } from '../api/labels'
+import { guideKindIcon } from '../ui/icons'
 import type { GuideEntryDetail } from '../api/types'
 
 function Block({ label, value, highlight }: { label: string; value?: string | null; highlight?: boolean }) {
@@ -38,13 +40,17 @@ export default function GuideDetailScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <button onClick={() => navigate(-1)} className="text-left font-bold text-muted">
-        ← Назад
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-left font-bold text-muted">
+        <ArrowLeft size={18} aria-hidden /> Назад
       </button>
 
       <div className="dacha-card flex flex-col gap-2 p-5">
-        <h1 className="text-2xl font-black">
-          {GUIDE_KIND_ICONS[entry.kind]} {entry.name}
+        <h1 className="flex items-center gap-2 text-2xl font-black">
+          {(() => {
+            const Icon = guideKindIcon(entry.kind)
+            return <Icon size={24} aria-hidden />
+          })()}
+          {entry.name}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-muted">{GUIDE_KIND_LABELS[entry.kind]}</span>

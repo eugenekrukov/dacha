@@ -703,7 +703,7 @@ private fun PlantingSetupBottomSheet(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = Color.White
                     ),
-                    label = { Text("🌱 Грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                    label = { Text("Грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                 )
                 FilterChip(
                     selected = conditions == "greenhouse",
@@ -713,7 +713,7 @@ private fun PlantingSetupBottomSheet(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = Color.White
                     ),
-                    label = { Text("🏠 Теплица", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                    label = { Text("Теплица", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                 )
             }
 
@@ -863,7 +863,7 @@ private fun PlantingEditBottomSheet(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = Color.White
                     ),
-                    label = { Text("🌱 Грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                    label = { Text("Грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                 )
                 FilterChip(
                     selected = conditions == "greenhouse",
@@ -873,7 +873,7 @@ private fun PlantingEditBottomSheet(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = Color.White
                     ),
-                    label = { Text("🏠 Теплица", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                    label = { Text("Теплица", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                 )
             }
 

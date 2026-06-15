@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, Leaf } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { categoryLabel } from '../api/labels'
 import ProblemList from '../components/ProblemList'
@@ -38,8 +39,8 @@ export default function CropDetailScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <button onClick={() => navigate(-1)} className="text-left font-bold text-muted">
-        ← Назад
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-left font-bold text-muted">
+        <ArrowLeft size={18} aria-hidden /> Назад
       </button>
 
       <div className="dacha-card flex flex-col gap-2 p-5">
@@ -47,8 +48,8 @@ export default function CropDetailScreen() {
         <div className="flex flex-wrap items-center gap-2">
           {crop.category && <span className="font-semibold text-muted">{categoryLabel(crop.category)}</span>}
           {crop.is_perennial && (
-            <span className="rounded-full bg-tertiary/15 px-2.5 py-0.5 text-xs font-bold text-tertiary">
-              🌿 Многолетник
+            <span className="inline-flex items-center gap-1 rounded-full bg-tertiary/15 px-2.5 py-0.5 text-xs font-bold text-tertiary">
+              <Leaf size={13} aria-hidden /> Многолетник
             </span>
           )}
         </div>

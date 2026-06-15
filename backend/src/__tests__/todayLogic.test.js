@@ -17,8 +17,8 @@ describe('formatTasks — care_task_due label', () => {
     expect(t.description).toBe('Сделайте сегодня')
   })
 
-  it('просроченная задача → «Просрочено на N дн.»', () => {
+  it('просроченная задача → «Пора — задержка N дн.»', () => {
     const [t] = formatTasks([{ ...base, days_overdue: 3, days_until: 0 }])
-    expect(t.description).toBe('Просрочено на 3 дн.')
+    expect(t.description).toBe('Пора — задержка 3 дн.')
   })
 })

@@ -19,7 +19,10 @@ function ProblemCard({ e }: { e: GuideEntry }) {
       {open && (
         <div className="flex flex-col gap-2 px-4 pb-4">
           <Row label="Признаки на этой культуре" value={e.signs} highlight />
-          <Row label="Симптомы" value={e.symptoms} />
+          {/* «Симптомы» скрываем, если текст дублирует «Признаки на этой культуре». */}
+          {e.symptoms && e.symptoms.trim() !== (e.signs ?? '').trim() && (
+            <Row label="Симптомы" value={e.symptoms} />
+          )}
           <Row label={isDef ? 'Причина' : 'Условия'} value={e.conditions} />
           <Row label={isDef ? 'Коррекция' : 'Лечение'} value={e.treatment} accent />
           <Row label="Профилактика" value={e.prevention} />

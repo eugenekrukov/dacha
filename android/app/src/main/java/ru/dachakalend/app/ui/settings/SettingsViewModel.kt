@@ -44,6 +44,10 @@ class SettingsViewModel @Inject constructor(
 
     val subscriptionStatus: StateFlow<SubscriptionStatus> = subscriptionManager.status
 
+    // Внешний вид: «Крупный шрифт» (доступность 40+)
+    val largeFont: StateFlow<Boolean> = tokenStorage.largeFont
+    fun setLargeFont(enabled: Boolean) = tokenStorage.setLargeFont(enabled)
+
     init {
         viewModelScope.launch { subscriptionManager.refresh() }
         loadProfile()

@@ -113,11 +113,16 @@ fun ActionLogBottomSheet(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
+                        // Полная подпись с переносом: «Удаление усов/стрелок/цветков» больше не обрезаются.
                         Text(
                             label,
                             fontFamily = NunitoFamily,
                             fontWeight = FontWeight.Bold,
-                            softWrap = false
+                            fontSize = 13.sp,
+                            lineHeight = 15.sp,
+                            softWrap = true,
+                            maxLines = 2,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }

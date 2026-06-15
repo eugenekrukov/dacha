@@ -3,6 +3,7 @@ import { useAuth } from './auth/AuthContext'
 import { GardenProvider, useGardens } from './garden/GardenContext'
 import Layout from './components/Layout'
 import LoginScreen from './screens/LoginScreen'
+import PasswordResetScreen from './screens/PasswordResetScreen'
 import TodayScreen from './screens/TodayScreen'
 import CreateGardenScreen from './screens/CreateGardenScreen'
 import PlantingsScreen from './screens/PlantingsScreen'
@@ -37,6 +38,7 @@ export default function App() {
     return (
       <Routes>
         <Route path="/login" element={<LoginScreen />} />
+        <Route path="/reset-password" element={<PasswordResetScreen />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )

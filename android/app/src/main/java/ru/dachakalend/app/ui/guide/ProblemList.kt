@@ -70,7 +70,10 @@ private fun ProblemCard(e: GuideEntry) {
             if (expanded) {
                 Spacer(Modifier.height(8.dp))
                 Row(label = "Признаки на этой культуре", value = e.signs, color = MaterialTheme.colorScheme.primary)
-                Row(label = "Симптомы", value = e.symptoms)
+                // «Симптомы» скрываем, если дублируют «Признаки на этой культуре».
+                if (e.symptoms?.trim() != (e.signs?.trim() ?: "")) {
+                    Row(label = "Симптомы", value = e.symptoms)
+                }
                 Row(label = if (isDef) "Причина" else "Условия", value = e.conditions)
                 Row(label = if (isDef) "Коррекция" else "Лечение", value = e.treatment, color = MaterialTheme.colorScheme.tertiary)
                 Row(label = "Профилактика", value = e.prevention)

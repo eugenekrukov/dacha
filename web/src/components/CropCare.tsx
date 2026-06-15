@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { FlaskConical, RotateCw, Check, X } from 'lucide-react'
 import type { Crop, FertilizingEntry, WateringDetails, WateringStage } from '../api/types'
 
 function Fact({ label, value }: { label: string; value: ReactNode }) {
@@ -84,7 +85,10 @@ export function CareSection({ crop }: { crop: Crop }) {
                 </div>
                 {e.timing && <p className="text-sm font-semibold text-muted">{e.timing}</p>}
                 {e.product_example && (
-                  <p className="font-bold">🧪 {e.product_example}{e.dose ? ` — ${e.dose}` : ''}</p>
+                  <p className="flex items-center gap-1.5 font-bold">
+                    <FlaskConical size={16} aria-hidden className="shrink-0 text-tertiary" />
+                    {e.product_example}{e.dose ? ` — ${e.dose}` : ''}
+                  </p>
                 )}
                 {e.notes && <p className="text-sm font-semibold text-muted">{e.notes}</p>}
               </div>
@@ -112,17 +116,26 @@ export function NeighborsSection({ crop }: { crop: Crop }) {
       <h2 className="mb-2 text-lg font-black">Соседство</h2>
       {crop.good_neighbors?.length ? (
         <p className="mb-1 font-semibold">
-          <span className="text-tertiary">✓ Хорошие соседи:</span> {crop.good_neighbors.join(', ')}
+          <span className="inline-flex items-center gap-1 align-middle text-tertiary">
+            <Check size={16} aria-hidden /> Хорошие соседи:
+          </span>{' '}
+          {crop.good_neighbors.join(', ')}
         </p>
       ) : null}
       {crop.bad_neighbors?.length ? (
         <p className="mb-1 font-semibold">
-          <span className="text-red-600">✗ Плохие соседи:</span> {crop.bad_neighbors.join(', ')}
+          <span className="inline-flex items-center gap-1 align-middle text-red-600">
+            <X size={16} aria-hidden /> Плохие соседи:
+          </span>{' '}
+          {crop.bad_neighbors.join(', ')}
         </p>
       ) : null}
       {crop.good_predecessors?.length ? (
         <p className="font-semibold">
-          <span className="text-tertiary">🔄 Хорошие предшественники:</span> {crop.good_predecessors.join(', ')}
+          <span className="inline-flex items-center gap-1 align-middle text-tertiary">
+            <RotateCw size={16} aria-hidden /> Хорошие предшественники:
+          </span>{' '}
+          {crop.good_predecessors.join(', ')}
         </p>
       ) : null}
     </section>

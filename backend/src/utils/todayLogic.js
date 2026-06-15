@@ -370,23 +370,23 @@ function formatTasks(tasks) {
     let description
     if (t.type === 'watering_due') {
       description = t.days_overdue > 0
-        ? `Просрочено на ${t.days_overdue} дн.`
+        ? `Пора — задержка ${t.days_overdue} дн.`
         : 'Пора полить сегодня'
     } else if (t.type === 'transplant_due') {
       description = t.days_overdue > 0
-        ? `Просрочено на ${t.days_overdue} дн.`
+        ? `Пора — задержка ${t.days_overdue} дн.`
         : 'Пора высаживать'
     } else if (t.type === 'harvest_due') {
       description = 'Урожай готов к сбору'
     } else if (t.type === 'fertilizing_due') {
       description = t.product_example
         ? `${t.product_example}`
-        : t.days_overdue > 0 ? `Просрочено на ${t.days_overdue} дн.` : 'Сделайте сегодня'
+        : t.days_overdue > 0 ? `Пора — задержка ${t.days_overdue} дн.` : 'Сделайте сегодня'
     } else if (t.type === 'frost_alert') {
       description = 'Защитите растение от мороза'
     } else if (t.type === 'care_task_due') {
       description = t.days_overdue > 0
-        ? `Просрочено на ${t.days_overdue} дн.`
+        ? `Пора — задержка ${t.days_overdue} дн.`
         : t.days_until > 0
           ? `Через ${t.days_until} дн.`
           : 'Сделайте сегодня'

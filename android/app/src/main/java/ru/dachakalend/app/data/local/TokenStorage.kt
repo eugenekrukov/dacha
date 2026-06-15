@@ -25,7 +25,21 @@ class TokenStorage @Inject constructor(
     private val _pendingCount = MutableStateFlow(0)
     val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()
 
-    init { _pendingCount.value = prefs.getInt(KEY_ATTENTION_COUNT, 0) }
+    // Реактивный флаг «Крупный шрифт» (П1, доступность 40+). Применяется в DachaCalendarTheme
+    // через масштаб LocalDensity.fontScale. Тумблер — в Настройках.
+    private val _largeFont = MutableStateFlow(false)
+    val largeFont: StateFlow<Boolean> = _largeFont.asStateFlow()
+
+    init {
+        _pendingCount.value = prefs.getInt(KEY_ATTENTION_COUNT, 0)
+        _largeFont.value = prefs.getBoolean(KEY_LARGE_FONT, false)
+    }
+
+    fun isLargeFont(): Boolean = _largeFont.value
+    fun setLargeFont(enabled: Boolean) {
+        prefs.edit { putBoolean(KEY_LARGE_FONT, enabled) }
+        _largeFont.value = enabled
+    }
 
     /** Явно выставить счётчик бейджа (считается во ViewModel). Персистится между запусками. */
     fun saveAttentionCount(count: Int) {
@@ -267,9 +281,11 @@ class TokenStorage @Inject constructor(
 
     /** Полный выход — очищает все данные приложения (включая зашифрованный токен) */
     fun logout() {
+        val keepLargeFont = _largeFont.value   // настройка доступности переживает выход
         prefs.edit { clear() }
         if (tokenPrefs !== prefs) tokenPrefs.edit { clear() }
         _pendingCount.value = 0
+        if (keepLargeFont) prefs.edit { putBoolean(KEY_LARGE_FONT, true) }
     }
 
     companion object {
@@ -287,6 +303,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_INTRO_DONE      = "intro_done"
         private const val KEY_COACH_DONE      = "coach_done"
         private const val KEY_NOTIF_PERM_ASKED = "notif_permission_asked"
+        private const val KEY_LARGE_FONT       = "large_font"
         const val TRIAL_DAYS                  = 7L
 
         const val NOTIF_FROST      = "frost_alert"

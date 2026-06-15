@@ -88,6 +88,12 @@ export const api = {
   me: () => request<UserProfile>('/auth/me'),
   forgotPassword: (email: string) =>
     request<{ ok: boolean }>('/auth/forgot-password', { method: 'POST', body: { email }, auth: false }),
+  resetPassword: (email: string, code: string, password: string) =>
+    request<{ ok: boolean }>('/auth/reset-password', {
+      method: 'POST',
+      body: { email, code, password },
+      auth: false,
+    }),
 
   // --- gardens ---
   getGardens: () => request<Garden[]>('/gardens'),

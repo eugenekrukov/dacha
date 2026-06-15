@@ -3,7 +3,10 @@ package ru.dachakalend.app.ui.plantings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -25,12 +28,12 @@ import ru.dachakalend.app.ui.theme.NunitoFamily
 import java.time.LocalDate
 
 private val ACTION_LABELS = mapOf(
-    "watering" to "💧 Полив", "fertilizing" to "🌿 Подкормка", "treatment" to "🛡️ Обработка",
-    "pricking_out" to "🪴 Пикировка", "transplanting" to "🌱 Высадка", "tying" to "🪢 Подвязка",
-    "pinching" to "✂️ Пасынкование", "hilling" to "⛏️ Окучивание", "pruning" to "🌿 Обрезка",
-    "weeding" to "🌾 Прополка", "loosening" to "🔨 Рыхление", "thinning" to "✂️ Прореживание",
-    "runner_removal" to "🌿 Удаление усов", "bolt_removal" to "🧄 Удаление стрелок",
-    "deflowering" to "🌸 Удаление цветков", "staking" to "🪵 Установка опоры", "other" to "📋 Другое"
+    "watering" to "Полив", "fertilizing" to "Подкормка", "treatment" to "Обработка",
+    "pricking_out" to "Пикировка", "transplanting" to "Высадка", "tying" to "Подвязка",
+    "pinching" to "Пасынкование", "hilling" to "Окучивание", "pruning" to "Обрезка",
+    "weeding" to "Прополка", "loosening" to "Рыхление", "thinning" to "Прореживание",
+    "runner_removal" to "Удаление усов", "bolt_removal" to "Удаление стрелок",
+    "deflowering" to "Удаление цветков", "staking" to "Установка опоры", "other" to "Другое"
 )
 
 private fun formatShort(iso: String): String = try {
@@ -72,7 +75,7 @@ private fun buildSchedule(
     }
     if (sowingMethod != "direct") transplantDays?.let {
         val d = planted.plusDays(it.toLong())
-        rows += SchedRow("🌿 Пересадка/пикировка", fmtDate(d), d, statusOf("Пересадка", d, null))
+        rows += SchedRow("Пересадка/пикировка", fmtDate(d), d, statusOf("Пересадка", d, null))
     }
     val limit = harvestDays ?: 120
     careTasks?.forEach { task ->
@@ -97,11 +100,11 @@ private fun buildSchedule(
             while (offset <= wLimit && planted.plusDays(offset.toLong()).isBefore(today)) offset += interval
             if (offset <= wLimit) {
                 val d = planted.plusDays(offset.toLong())
-                rows += SchedRow("💧 Полив (каждые $interval дн.)", fmtDate(d), d, SchedStatus.UPCOMING)
+                rows += SchedRow("Полив (каждые $interval дн.)", fmtDate(d), d, SchedStatus.UPCOMING)
             }
         }
     }
-    harvestDays?.let { val d = planted.plusDays(it.toLong()); rows += SchedRow("🌾 Сбор урожая", fmtDate(d), d, SchedStatus.NEUTRAL) }
+    harvestDays?.let { val d = planted.plusDays(it.toLong()); rows += SchedRow("Сбор урожая", fmtDate(d), d, SchedStatus.NEUTRAL) }
     return rows.sortedBy { it.date }
 }
 
@@ -186,7 +189,7 @@ private fun AboutTab(state: PlantingInfoUiState, modifier: Modifier) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         InfoSection(title = "Посадка") {
             InfoRow2("Дата посадки", planting.sownAt?.let { formatShort(it) } ?: "—")
-            InfoRow2("Условия", if (planting.conditions == "greenhouse") "🏠 Теплица" else "🌱 Грунт")
+            InfoRow2("Условия", if (planting.conditions == "greenhouse") "Теплица" else "Грунт")
             InfoRow2("Количество растений", "${planting.quantity ?: 1} шт.")
             planting.yieldPerPlantKg?.let { perPlant ->
                 val expected = perPlant * (planting.quantity ?: 1)
@@ -205,8 +208,11 @@ private fun AboutTab(state: PlantingInfoUiState, modifier: Modifier) {
             )
             if (schedule.isNotEmpty()) {
                 InfoSection(title = "Расписание работ") {
-                    Text("🟢 выполнено · 🔴 просрочено · ⚪ предстоит", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SchedLegend(Color(0xFF2E7D32), "выполнено")
+                        SchedLegend(MaterialTheme.colorScheme.error, "просрочено")
+                        SchedLegend(Color(0x40000000), "предстоит")
+                    }
                     schedule.forEach { SchedRowView(it) }
                 }
             }
@@ -239,18 +245,30 @@ private fun InfoSection(title: String, content: @Composable ColumnScope.() -> Un
     }
 }
 
+// Цветная точка статуса вместо эмодзи 🟢🔴⚪
+@Composable
+private fun SchedLegend(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(color))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
 @Composable
 private fun SchedRowView(row: SchedRow) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val (color, marker, strike) = when (row.status) {
-        SchedStatus.DONE -> Triple(muted, "🟢 ", true)
-        SchedStatus.MISSED -> Triple(MaterialTheme.colorScheme.error, "🔴 ", false)
-        SchedStatus.UPCOMING -> Triple(MaterialTheme.colorScheme.onSurface, "⚪ ", false)
-        SchedStatus.NEUTRAL -> Triple(muted, "", false)
+    val (color, dotColor, strike) = when (row.status) {
+        SchedStatus.DONE -> Triple(muted, Color(0xFF2E7D32), true)
+        SchedStatus.MISSED -> Triple(MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.error, false)
+        SchedStatus.UPCOMING -> Triple(MaterialTheme.colorScheme.onSurface, Color(0x40000000), false)
+        SchedStatus.NEUTRAL -> Triple(muted, Color.Transparent, false)
     }
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("$marker${row.name}", style = MaterialTheme.typography.bodyMedium, color = color,
-            textDecoration = if (strike) TextDecoration.LineThrough else null, modifier = Modifier.weight(1f))
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(dotColor))
+            Text(row.name, style = MaterialTheme.typography.bodyMedium, color = color,
+                textDecoration = if (strike) TextDecoration.LineThrough else null)
+        }
         Text(row.dateStr, style = MaterialTheme.typography.bodyMedium, color = color,
             fontWeight = if (row.status == SchedStatus.MISSED) FontWeight.Bold else FontWeight.Normal)
     }

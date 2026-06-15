@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api, ApiError } from '../api/client'
 import { ACTION_CATALOG } from '../api/labels'
+import { actionIcon } from '../ui/icons'
 
 interface Props {
   plantingId: number
@@ -74,20 +75,23 @@ export default function ActionLogSheet({
         <p className="mb-3 font-bold text-muted">Что сделали?</p>
 
         <div className="grid grid-cols-2 gap-2">
-          {ACTION_CATALOG.map((a) => (
-            <button
-              key={a.type}
-              onClick={() => pick(a.type)}
-              className={`flex items-center gap-2 rounded-btn border px-3 py-2.5 text-left font-bold transition active:scale-95 ${
-                type === a.type
-                  ? 'border-primary bg-primary text-white'
-                  : 'border-black/10 bg-background'
-              }`}
-            >
-              <span className="text-lg leading-none">{a.icon}</span>
-              <span className="truncate">{a.label}</span>
-            </button>
-          ))}
+          {ACTION_CATALOG.map((a) => {
+            const Icon = actionIcon(a.type)
+            const selected = type === a.type
+            return (
+              <button
+                key={a.type}
+                onClick={() => pick(a.type)}
+                className={`flex items-center gap-2 rounded-btn border px-3 py-2.5 text-left font-bold transition active:scale-95 ${
+                  selected ? 'border-primary bg-primary text-white' : 'border-black/10 bg-background'
+                }`}
+              >
+                <Icon size={20} className="shrink-0" aria-hidden />
+                {/* Полная подпись без обрезки: «Удаление усов/стрелок/цветков» теперь различимы */}
+                <span className="leading-tight">{a.label}</span>
+              </button>
+            )
+          })}
         </div>
 
         <input

@@ -54,6 +54,7 @@ fun SettingsScreen(
     val subStatus     by viewModel.subscriptionStatus.collectAsState()
     val emailVerified by viewModel.emailVerified.collectAsState()
     val email         by viewModel.email.collectAsState()
+    val largeFont     by viewModel.largeFont.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(loggedOut) {
@@ -213,8 +214,8 @@ fun SettingsScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = when {
-                                subStatus.isSubscribed  -> "Дачник Про ✓"
-                                subStatus.isPromo       -> "Дачник Про ✓"
+                                subStatus.isSubscribed  -> "Дачник Про"
+                                subStatus.isPromo       -> "Дачник Про"
                                 subStatus.isTrialActive -> "Пробный период"
                                 else                    -> "Подписка истекла"
                             },
@@ -308,6 +309,23 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(16.dp))
             } // конец блока подписки (PAYMENTS_ENABLED)
+
+            Text(
+                text = "ВНЕШНИЙ ВИД",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            NotificationToggle(
+                "Крупный шрифт",
+                "Увеличивает текст по всему приложению",
+                largeFont,
+                viewModel::setLargeFont
+            )
+
+            Spacer(Modifier.height(16.dp))
 
             Text(
                 text = "УВЕДОМЛЕНИЯ",
