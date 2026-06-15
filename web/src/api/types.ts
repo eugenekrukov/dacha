@@ -22,6 +22,7 @@ export interface UserProfile {
   promo_lifetime?: boolean
   promo_until?: string | null
   store?: string | null
+  pending_email?: string | null
 }
 
 export interface Garden {

@@ -173,6 +173,16 @@ export const api = {
   resendVerification: () =>
     request<unknown>('/auth/resend-verification', { method: 'POST' }),
 
+  // --- account management (П4) ---
+  changePassword: (current_password: string, new_password: string) =>
+    request<{ ok: boolean }>('/auth/password', { method: 'PATCH', body: { current_password, new_password } }),
+  changeEmail: (new_email: string, password: string) =>
+    request<{ ok: boolean }>('/auth/change-email', { method: 'POST', body: { new_email, password } }),
+  confirmEmailChange: (code: string) =>
+    request<{ email: string }>('/auth/confirm-email-change', { method: 'POST', body: { code } }),
+  deleteAccount: (password: string) =>
+    request<{ ok: boolean }>('/auth/me', { method: 'DELETE', body: { password } }),
+
   // --- today / recommendations ---
   getToday: (gardenId: number) => request<TodayResponse>(`/today?garden_id=${gardenId}`),
   getRecommendations: (gardenId: number) =>

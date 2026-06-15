@@ -5,6 +5,11 @@ import { api, ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { formatDate } from '../api/labels'
 import { isLargeFont, setLargeFont } from '../ui/fontScale'
+import ChangePasswordModal from '../components/ChangePasswordModal'
+import ChangeEmailModal from '../components/ChangeEmailModal'
+import DeleteAccountModal from '../components/DeleteAccountModal'
+
+const APP_VERSION = '1.0.0' // синхронизировать с Android versionName при релизах
 
 export default function SettingsScreen() {
   const { user, logout, refresh } = useAuth()
@@ -12,6 +17,7 @@ export default function SettingsScreen() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [largeFont, setLarge] = useState(isLargeFont())
+  const [modal, setModal] = useState<null | 'password' | 'email' | 'delete'>(null)
 
   const statusText = user?.subscribed
     ? `Подписка активна${user.subscription_until ? ` до ${formatDate(user.subscription_until)}` : ''}`
@@ -43,11 +49,21 @@ export default function SettingsScreen() {
       <section className="dacha-card flex flex-col gap-1 p-5">
         <h2 className="font-black">Аккаунт</h2>
         <p className="font-semibold text-muted">{user?.email}</p>
+        {user?.pending_email && (
+          <p className="text-sm font-semibold text-tertiary">Ожидает подтверждения: {user.pending_email}</p>
+        )}
         {user && user.email_verified === false && (
           <Link to="/verify-email" className="text-link mt-1 inline-flex items-center gap-1.5">
             <MailWarning size={18} aria-hidden /> Подтвердите email →
           </Link>
         )}
+        <div className="mt-3 flex flex-col gap-2">
+          <button className="dacha-chip py-3" onClick={() => setModal('password')}>Сменить пароль</button>
+          <button className="dacha-chip py-3" onClick={() => setModal('email')}>Сменить email</button>
+          <button className="dacha-chip py-3 font-bold text-red-600" onClick={() => setModal('delete')}>
+            Удалить аккаунт
+          </button>
+        </div>
       </section>
 
       <section className="dacha-card flex flex-col gap-3 p-5">
@@ -103,6 +119,18 @@ export default function SettingsScreen() {
         )}
       </section>
 
+      <section className="dacha-card flex flex-col gap-2 p-5">
+        <h2 className="font-black">О приложении</h2>
+        <p className="font-semibold text-muted">Версия {APP_VERSION}</p>
+        <a className="text-link" href="https://dacha.studio1008.com/#legal" target="_blank" rel="noopener">
+          Пользовательское соглашение
+        </a>
+        <a className="text-link" href="https://dacha.studio1008.com/#legal" target="_blank" rel="noopener">
+          Политика конфиденциальности
+        </a>
+        <a className="text-link" href="mailto:e-krukov@ya.ru">Поддержка: e-krukov@ya.ru</a>
+      </section>
+
       <button
         className="dacha-chip py-3 font-bold text-red-600"
         onClick={() => {
@@ -112,6 +140,20 @@ export default function SettingsScreen() {
       >
         Выйти из аккаунта
       </button>
+
+      {modal === 'password' && <ChangePasswordModal onClose={() => setModal(null)} />}
+      {modal === 'email' && (
+        <ChangeEmailModal onClose={() => setModal(null)} onChanged={() => refresh()} />
+      )}
+      {modal === 'delete' && (
+        <DeleteAccountModal
+          onClose={() => setModal(null)}
+          onDeleted={() => {
+            logout()
+            navigate('/login', { replace: true })
+          }}
+        />
+      )}
     </div>
   )
 }
