@@ -128,7 +128,7 @@ export default function SettingsScreen() {
         <a className="text-link" href="https://dacha.studio1008.com/#legal" target="_blank" rel="noopener">
           Политика конфиденциальности
         </a>
-        <a className="text-link" href="mailto:e-krukov@ya.ru">Поддержка: e-krukov@ya.ru</a>
+        <a className="text-link" href="mailto:dacha@studio1008.com">Поддержка: dacha@studio1008.com</a>
       </section>
 
       <button

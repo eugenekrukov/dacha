@@ -539,7 +539,7 @@ fun SettingsScreen(
             HorizontalDivider()
             SettingsActionRow("Политика конфиденциальности") { openUrl("https://dacha.studio1008.com/#legal") }
             HorizontalDivider()
-            SettingsActionRow("Поддержка: e-krukov@ya.ru") { openUrl("mailto:e-krukov@ya.ru") }
+            SettingsActionRow("Поддержка: dacha@studio1008.com") { openUrl("mailto:dacha@studio1008.com") }
 
             Spacer(Modifier.height(24.dp))
 
