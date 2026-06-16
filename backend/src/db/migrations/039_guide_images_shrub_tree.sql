@@ -59,7 +59,7 @@ WHERE slug = 'parsha-yabloni-grushi';
 
 UPDATE guide_entries SET
   image_url    = 'https://dacha.studio1008.com/app/media/guide/monilioz.jpg',
-  image_credit = 'Shuhrataxmedov, CC BY-SA 3.0, Wikimedia Commons'
+  image_credit = 'Shuhrataxmedov, CC BY-SA 3.0, Wikimedia Commons (Monilinia_disease_of_apple_01.jpg)'
 WHERE slug = 'monilioz';
 
 UPDATE guide_entries SET
