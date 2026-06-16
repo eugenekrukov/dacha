@@ -64,6 +64,8 @@ export const CATEGORY_LABELS: Record<string, string> = {
   vegetable: 'Овощи',
   herb: 'Зелень',
   berry: 'Ягоды',
+  shrub: 'Кусты',
+  tree: 'Деревья',
   flower: 'Цветы',
   fruit: 'Фрукты',
   green: 'Зелень',

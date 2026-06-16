@@ -28,6 +28,8 @@ val CROP_CATEGORIES = listOf(
     "vegetable" to "Овощи",
     "herb" to "Зелень",
     "berry" to "Ягоды",
+    "shrub" to "Кусты",
+    "tree" to "Деревья",
     "flower" to "Цветы"
 )
 
