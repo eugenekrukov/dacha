@@ -19,14 +19,7 @@
 ### 0.2. Целевой API level
 - Сейчас новые приложения должны таргетить **минимум Android 15 (API 35)**.
 - С **31 августа 2026** — **Android 16 (API 36)**.
-- У нас сейчас `targetSdk = 34` (Android 14) → **новое приложение с этим API не примут**.
-
-**Действие перед сборкой** в [android/app/build.gradle.kts](../android/app/build.gradle.kts):
-```kotlin
-compileSdk = 35   // или 36
-targetSdk  = 35   // минимум; лучше 36 на будущее
-```
-После смены compileSdk пересобрать и прогнать тесты (могут всплыть deprecations).
+- ✅ **Уже выполнено**: `compileSdk`/`targetSdk = 36` (Android 16) в [android/app/build.gradle.kts](../android/app/build.gradle.kts) — требование к новым приложениям закрыто с запасом.
 
 ---
 
