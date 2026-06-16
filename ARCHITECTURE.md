@@ -4,8 +4,9 @@
 
 | Слой | Технологии |
 |------|-----------|
-| **Backend** | Node.js 20, Fastify 4, PostgreSQL, node-cron, node-fetch |
-| **Android** | Kotlin, Jetpack Compose, Hilt (DI), Retrofit + Moshi, WorkManager, RuStore Push SDK 6.0.0 |
+| **Backend** | Node.js 20, Fastify 4, PostgreSQL, node-cron, node-fetch; ЮKassa (биллинг), Brevo HTTP API (почта), firebase-admin (FCM), Anthropic Claude (не задействован в проде) |
+| **Web** | React 18 + Vite + TypeScript + Tailwind (папка `web/`), та же БД/API; прод `https://dacha.studio1008.com/app/` (статика `/var/www/dacha-web`, nginx `location /app/`) |
+| **Android** | Kotlin, Jetpack Compose, Hilt (DI), Retrofit + Moshi, WorkManager, Coil; флейворы `rustore`/`gplay`/`samsung`; пуши RuStore Push (rustore) / FCM (gplay/samsung); реклама Yandex Mobile Ads (samsung); minSdk 26, target/compileSdk 36 |
 | **Инфраструктура** | VPS (Hetzner 78.47.58.211), nginx reverse proxy, pm2, Let's Encrypt SSL |
 
 ---
@@ -22,7 +23,10 @@ backend/src/
 ├── plugins/
 │   └── db.js            — pg Pool (fastify.db)
 ├── routes/              — HTTP-обработчики
-│   ├── auth.js          — POST /auth/register, login, GET /auth/me
+│   ├── auth.js          — register/login/me, verify/reset email, П4 (password/change-email/confirm/DELETE me)
+│   ├── billing.js       — ЮKassa: create-payment, webhook, cancel-autorenew, return
+│   ├── promo.js         — POST /promo/redeem (промокоды)
+│   ├── guide.js         — справочник проблем растений (дефициты/болезни/вредители)
 │   ├── gardens.js       — CRUD участков + геокодирование Nominatim
 │   ├── crops.js         — справочник культур (admin-guard для записи)
 │   ├── plantings.js     — посадки: CRUD + PATCH /stage + PATCH /info
@@ -43,19 +47,34 @@ backend/src/
 ├── utils/
 │   ├── todayLogic.js       — чистые функции buildTasks / formatTasks
 │   └── regionCoords.js     — координаты регионов РФ + климатические зоны
+├── services/emailService.js — почта (Brevo HTTP API; SMTP режется Hetzner)
+├── services/yookassaService.js — ЮKassa (createPayment/getPayment/buildReceipt)
+├── jobs/renewalJob.js     — cron 10:00, продление подписок (no-op при разовой оплате)
 └── db/
-    └── migrations/          — SQL миграции 001–009
+    └── migrations/          — SQL миграции 001–036
 ```
 
 ### API эндпоинты
 ```
+# auth
 POST /auth/register       POST /auth/login         GET /auth/me
+POST /auth/subscription   (RuStore-синк, депрекейтится)
+POST /auth/verify-email   POST /auth/resend-verification
+POST /auth/forgot-password POST /auth/reset-password
+PATCH /auth/password      (смена пароля — П4)
+POST /auth/change-email   POST /auth/confirm-email-change   (смена email verify-first — П4)
+DELETE /auth/me           (удаление аккаунта: hard delete + анонимизация payments — П4)
+# billing / promo (ЮKassa)
+POST /billing/create-payment   POST /billing/webhook   POST /billing/cancel-autorenew   GET /billing/return
+POST /promo/redeem
+# домены
 POST /gardens             GET /gardens             GET /gardens/:id     PUT /gardens/:id
 GET /crops                GET /crops/:id           POST /crops          PUT /crops/:id
+GET /guide                GET /guide/:slug         POST/PUT /guide (requireAdmin)   # справочник проблем
 POST /plantings           GET /plantings           GET /plantings/:id
   PATCH /plantings/:id/stage    PATCH /plantings/:id/info    DELETE /plantings/:id
-POST /actions             GET /actions             GET /actions/export
-GET /weather?garden_id=
+POST /actions             GET /actions             GET /actions/export   DELETE /actions/:id
+GET /weather?garden_id=   GET /geocode/suggest?q=
 GET /recommendations?garden_id=
 GET /today?garden_id=
 POST /reminders           GET /reminders
@@ -88,14 +107,18 @@ GET /analytics/summary
 Дедупликация: `care_alert_log` — не более 1 пуша на посадку/тип/день.
 
 ### Деплой
+VPS — read-only зеркало `origin/main`, деплой через reset (не `git pull`). SSH только из PowerShell.
 ```bash
-# VPS: /var/www/dacha-api
-cd /var/www/dacha-api && git pull origin main
-cd backend && npm install
-pm2 reload dacha-api
+# Бэкенд: /var/www/dacha-api
+cd /var/www/dacha-api && git fetch origin && git reset --hard origin/main
+cd backend && npm install                       # если менялись зависимости
+pm2 restart dacha-api
 
-# Миграции
-sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/00X_name.sql
+# Миграции — точечно (полная цепочка падает на 009):
+sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/0XX_name.sql
+
+# Веб: cd /var/www/dacha-api/web && npm ci && npm run build
+#      && rm -rf /var/www/dacha-web/* && cp -r dist/* /var/www/dacha-web/
 ```
 
 ---
@@ -103,7 +126,7 @@ sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/00X_name.sql
 ## Android
 
 ### Package
-`ru.dachakalend.app` · minSdk 26 · targetSdk 34
+`ru.dachakalend.app` · minSdk 26 · target/compileSdk 36 (Android 16) · флейворы `rustore`/`gplay`/`samsung`
 
 ### Структура
 ```
@@ -164,9 +187,14 @@ android/app/src/main/java/ru/dachakalend/app/
 
 ### Enum-значения в БД
 ```
-action_type:    watering | fertilizing | treatment | other
-planting.stage: sowing | sprouted | growing | flowering | harvesting | done
+action_type:    watering | fertilizing | treatment | transplanted | other
+                + care-типы: thinning | runner_removal | bolt_removal | deflowering | staking
+                (action_logs.action_type — VARCHAR(30) без CHECK; маппинг careTaskActionType
+                 синхронен в backend todayLogic.js, web api/schedule.ts, Android ActionLogViewModel.kt)
+planting.stage: sowing | growing | flowering | harvesting | transplanted | done
+                (стадия sprouted удалена; sowing_method = seedling | direct)
 conditions:     soil | greenhouse
+store:          rustore | gplay | samsung | web   (users.store, модель монетизации)
 ```
 
 ### Паттерны кода
@@ -191,6 +219,19 @@ conditions:     soil | greenhouse
 | 007 | plantings: quantity INT, conditions VARCHAR(20) |
 | 008 | care_tasks (плановые задачи) |
 | 009 | care_alert_log (дедупликация пушей полива/подкормки) |
+| 010–022 | garden_type, GPS/город, sowing_method, care-тайминги, триал/доступ, промокоды, урожай/yield |
+| 023 | email_verification: `users.email_verified` + таблица `email_codes` (коды verify/reset/change_email) |
+| 024 | ЮKassa: `payments` + `users.payment_method_id/auto_renew/plan` |
+| 025 | `users.store` (модель монетизации по магазину) |
+| 026 | `push_tokens.provider` (rustore/fcm) |
+| 027 | `crops.is_perennial` (многолетники) |
+| 028–033 | справочник проблем: `guide_entries` + `crop_guide_entries`, seed/мердж синонимов, д.в. препаратов |
+| 034–035 | `guide_entries.image_url/image_credit` (фото справочника, 52/68) |
+| 036 | П4: `users.pending_email` + `payments.user_id` nullable, FK `ON DELETE SET NULL` |
+
+> ⚠️ Полная цепочка `npm run migrate` на проде НЕ идемпотентна (падает на 009 — `must be owner of
+> care_alert_log`). Новые миграции применять ТОЧЕЧНО как app-юзер (Node dotenv+pg) или
+> `sudo -u postgres psql -d dacha_db -f` для чистых ALTER/UPDATE.
 
 ### Ключевые таблицы
 - `crops.climate_zones` — JSONB, USDA зоны 3–6 (сроки посева по зоне)
@@ -219,6 +260,6 @@ conditions:     soil | greenhouse
 
 ## Известные ограничения
 
-- **Android unit tests**: `ClassNotFoundException` при запуске `./gradlew test` из-за кирилицы в пути проекта (`Календарь дачника`) + AGP 9 + Windows. Тесты компилируются корректно, но worker JVM не может загрузить классы из пути с кириллицей. Обходной путь: запускать тесты из Android Studio или переместить проект в путь без кириллицы.
+- **Android unit tests**: `ClassNotFoundException` при запуске `./gradlew test` — баг тулчейна (AGP 9 + built-in Kotlin не подключает `transformDebugUnitTestClassesWithAsm/dirs` в classpath воркера). Тест-код компилируется; рабочая проверка Android — `:app:compileGplayDebugKotlin`. Логику покрывает backend-сьют. Команда `compileDebugKotlin` без флейвора больше не существует — только `compile{Rustore,Gplay,Samsung}DebugKotlin`.
 - **Open-Meteo**: иногда недоступен с VPS (таймаут/502), данные погоды могут быть устаревшими.
 - **RuStore Push**: требует точного совпадения package name `ru.dachakalend.app` (без `.debug` суффикса).

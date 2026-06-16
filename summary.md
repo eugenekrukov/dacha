@@ -10,6 +10,27 @@
   nginx `location /app/`). Та же БД/API. Монетизация — платная (как RuStore). План — `docs/web-migration-plan.md`,
   деплой — `docs/DEPLOY.md`.
 - **ТЗ**: `docs/ТЗ.pdf`
+- **Бэклог этапа 2+**: `docs/ux-roadmap.md` (единый источник по отложенным задачам)
+- **Справочник проблем растений**: в проде на всех платформах (76 записей, 52/68 с фото). См. `docs/plant-guide-plan.md`.
+- **Бэкенд-тесты**: 264/264.
+
+---
+
+## Сделано за сессию 2026-06-15/16
+
+- **Справочник проблем — фото, волна 2** (commit `0b0ce90`, миграция 035, в проде): 43→52/68. +9 кадров
+  с Wikimedia Commons (поиск по латинским именам), визуальная проверка каждого. Остаток 16 — без годного
+  свободного кадра. Android рендерит динамически.
+- **П4-срез «Аккаунт и безопасность» (A+B+E)** (влит в `main`, backend+web в проде; Android в `main`):
+  брейнсторминг → спек → план → реализация (TDD) по superpowers-навыкам. Спек/план в
+  `docs/superpowers/{specs,plans}/2026-06-15-account-security-settings*`.
+  - `PATCH /auth/password`, смена email verify-first (`POST /auth/change-email` + `/confirm-email-change`,
+    `users.pending_email`), `DELETE /auth/me` (hard delete каскадом + анонимизация `payments`). Миграция 036.
+  - Web: модалки смены пароля/email + удаления + секция «О приложении». Android: секции АККАУНТ/О ПРИЛОЖЕНИИ
+    + 3 диалога. Подтверждение опасных действий — текущим паролем.
+  - Тесты 264/264 (+14). Прод-smoke: новые роуты под auth-гейтом (401, не 404).
+  - **Открыто (отдельные циклы)**: смена города (C, backend готов), управление участками + активный сад (D),
+    уведомления на web.
 
 ---
 
@@ -17,7 +38,7 @@
 
 ### ⏳ TO-DO следующей сессии (приоритет ↓) — обновлено 2026-06-12
 
-**Состояние git:** `main` = `bedd62b` (== origin). Одна ветка `main` (стейл-ветки удалены).
+**Состояние git:** `main` = `dffda62` (== origin, 2026-06-16). Одна ветка `main` (стейл-ветки удалены).
 За сессию 2026-06-12 закрыто: **редизайн лендинга** (современный UI/UX) + **SEO/GEO** (JSON-LD,
 FAQ, canonical, robots/sitemap, OG-картинка; on-page ~55→~90) + **блок «Как начать»** (`#download`,
 фикс CTA-воронки, кнопки магазинов «Скоро») — **задеплоено в прод** + nginx раздаёт статику.
@@ -410,7 +431,10 @@ JSON-LD SoftwareApplication+Person+FAQPage, видимый FAQ, `<main>`, robots
 POST /auth/register  POST /auth/login  GET /auth/me  POST /auth/subscription
 POST /auth/verify-email  POST /auth/resend-verification
 POST /auth/forgot-password  POST /auth/reset-password
+PATCH /auth/password  POST /auth/change-email  POST /auth/confirm-email-change  DELETE /auth/me
 POST /promo/redeem
+POST /billing/create-payment  POST /billing/webhook  POST /billing/cancel-autorenew
+GET /guide  GET /guide/:slug
 POST /gardens  GET /gardens  GET /gardens/:id  PUT /gardens/:id
 GET /crops  GET /crops/:id  POST /crops  PUT /crops/:id
 POST /plantings  GET /plantings  GET /plantings/:id
