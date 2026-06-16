@@ -88,6 +88,15 @@ header{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px) saturate(1.2)
   transition:transform .18s,box-shadow .18s}
 .nav-cta:hover{text-decoration:none;transform:translateY(-1px);box-shadow:0 10px 20px -10px rgba(58,38,21,.7)}
 .nav-cta:active{transform:translateY(0) scale(.97)}
+/* logged-in user chip */
+.nav-cta.user{background:var(--paper);color:var(--ink);border:1px solid var(--line);
+  padding:6px 14px 6px 6px;gap:9px;display:inline-flex;align-items:center}
+.nav-cta.user:hover{box-shadow:0 12px 22px -14px rgba(58,38,21,.55);border-color:#f0d6a8}
+.nav-cta .ava{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;
+  font-weight:900;font-size:13px;background:linear-gradient(180deg,var(--amber),var(--orange));flex:0 0 auto;
+  box-shadow:0 4px 10px -4px rgba(255,123,0,.7)}
+.nav-cta .uemail{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;font-size:13.5px}
+@media(max-width:480px){.nav-cta .uemail{max-width:96px}}
 @media(max-width:820px){.nav-links{display:none}}
 @media(max-width:480px){
   .brand{font-size:15px;gap:7px;white-space:nowrap}
@@ -196,7 +205,7 @@ section{position:relative;padding:74px 0}
 .plan.best{border-color:var(--orange);
   background:linear-gradient(180deg,#FFF6E9,#FFFFFF);
   box-shadow:0 30px 50px -28px rgba(255,123,0,.6)}
-.plan.best::before{content:"🌻 Выгоднее на 43%";position:absolute;top:-15px;left:50%;transform:translateX(-50%);
+.plan.best::before{content:"🌻 Выгоднее на 45%";position:absolute;top:-15px;left:50%;transform:translateX(-50%);
   background:var(--green);color:#fff;font-weight:900;font-size:13px;padding:6px 16px;border-radius:100px;white-space:nowrap;
   box-shadow:0 10px 18px -8px rgba(46,125,50,.7)}
 .plan h3{font-family:'Nunito';font-weight:900;font-size:17px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
@@ -307,12 +316,11 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       "inLanguage": "ru",
       "url": "https://dacha.studio1008.com/",
       "datePublished": "2026-06-06",
-      "dateModified": "2026-06-12",
+      "dateModified": "2026-06-16",
       "publisher": { "@id": "https://dacha.studio1008.com/#publisher" },
       "offers": [
         { "@type": "Offer", "name": "Дачник Про — месяц", "price": "299", "priceCurrency": "RUB" },
-        { "@type": "Offer", "name": "Дачник Про — год", "price": "1990", "priceCurrency": "RUB" },
-        { "@type": "Offer", "name": "Бесплатно (Google Play, Samsung Galaxy Store)", "price": "0", "priceCurrency": "RUB" }
+        { "@type": "Offer", "name": "Дачник Про — год", "price": "1990", "priceCurrency": "RUB" }
       ]
     },
     {
@@ -330,12 +338,12 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
         {
           "@type": "Question",
           "name": "Сколько стоит «Календарь дачника»?",
-          "acceptedAnswer": { "@type": "Answer", "text": "В веб-версии и в версии для RuStore — подписка «Дачник Про»: 299 ₽ в месяц или 1990 ₽ в год, первые 7 дней бесплатно. В версиях для Google Play и Samsung Galaxy Store приложение бесплатное и поддерживается показом рекламы." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Везде одинаково — в веб-версии, в Google Play и в RuStore: подписка «Дачник Про» 299 ₽ в месяц или 1990 ₽ в год, первые 7 дней бесплатно. Рекламы нет." }
         },
         {
           "@type": "Question",
-          "name": "Есть ли бесплатная версия?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Да. В веб-версии и в RuStore — 7 дней бесплатного доступа ко всем функциям, далее подписка. Версии для Google Play и Samsung Galaxy Store полностью бесплатны." }
+          "name": "Можно ли попробовать бесплатно?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Да. Первые 7 дней — полный доступ ко всем функциям бесплатно, карта для пробного периода не нужна. Это работает в веб-версии, Google Play и RuStore." }
         },
         {
           "@type": "Question",
@@ -400,7 +408,7 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       <a href="#legal">Документы</a>
       <a href="#contacts">Контакты</a>
     </nav>
-    <a class="nav-cta" href="/app/">Войти</a>
+    <a class="nav-cta" id="navCta" href="/app/">Войти</a>
   </div>
 </header>
 
@@ -566,9 +574,8 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
     <div class="stores" data-reveal>
       <span class="store-btn" aria-disabled="true">📲 RuStore<span class="soon">Скоро</span></span>
       <span class="store-btn" aria-disabled="true">▶️ Google Play<span class="soon">Скоро</span></span>
-      <span class="store-btn" aria-disabled="true">📦 Samsung<span class="soon">Скоро</span></span>
     </div>
-    <p class="start-hint" data-reveal>В версиях Google Play и Samsung Galaxy Store приложение будет бесплатным (с рекламой), в RuStore — 7 дней бесплатно, далее подписка «Дачник Про». Веб-версия доступна уже сейчас.</p>
+    <p class="start-hint" data-reveal>Условия везде одинаковые — в веб-версии, Google Play и RuStore: 7 дней бесплатно, далее подписка «Дачник Про». Без рекламы. Веб-версия доступна уже сейчас.</p>
   </div>
 </section>
 
@@ -581,10 +588,8 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       <p>Полный доступ ко всем функциям без ограничений.</p>
     </div>
     <div class="pay-note" data-reveal style="margin-bottom:26px">
-      📲 <b>Установили приложение из Google Play или Samsung Galaxy Store?</b> Эти версии полностью
-      бесплатны — все функции открыты сразу, без подписки и пробного периода. Вместо подписки в них
-      показывается ненавязчивая реклама. Тарифы «Дачник Про» ниже относятся к <b>веб-версии</b> и
-      версии <b>RuStore</b>.
+      🌻 <b>Единая подписка для всех версий</b> — веб-версии, Google Play и RuStore. Первые 7 дней
+      бесплатно, далее «Дачник Про». Никакой рекламы — только сад и урожай.
     </div>
     <div class="pricing">
       <div class="plan best" data-reveal data-d="1">
@@ -635,11 +640,11 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
     <div class="acc">
       <details data-reveal>
         <summary>Сколько стоит «Календарь дачника»? <span class="chev">▾</span></summary>
-        <div class="body"><p>В <b>веб-версии</b> и в версии для <b>RuStore</b> — подписка «Дачник Про»: 299 ₽ в месяц или 1990 ₽ в год, первые 7 дней бесплатно. В версиях для <b>Google Play</b> и <b>Samsung Galaxy Store</b> приложение бесплатное и поддерживается показом рекламы. Подробнее — в разделе <a href="#pricing">«Подписка»</a>.</p></div>
+        <div class="body"><p>Везде одинаково — в <b>веб-версии</b>, <b>Google Play</b> и <b>RuStore</b>: подписка «Дачник Про» 299 ₽ в месяц или 1990 ₽ в год, первые 7 дней бесплатно. Рекламы нет. Подробнее — в разделе <a href="#pricing">«Подписка»</a>.</p></div>
       </details>
       <details data-reveal>
-        <summary>Есть ли бесплатная версия? <span class="chev">▾</span></summary>
-        <div class="body"><p>Да. В веб-версии и в RuStore — 7 дней бесплатного доступа ко всем функциям, далее подписка. Версии для Google Play и Samsung Galaxy Store полностью бесплатны.</p></div>
+        <summary>Можно ли попробовать бесплатно? <span class="chev">▾</span></summary>
+        <div class="body"><p>Да. Первые 7 дней — полный доступ ко всем функциям бесплатно, карта для пробного периода не нужна. Это работает в веб-версии, Google Play и RuStore.</p></div>
       </details>
       <details data-reveal>
         <summary>Приложение подсказывает, когда сажать? <span class="chev">▾</span></summary>
@@ -675,11 +680,9 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
         <div class="body">
           <p><b>Область действия:</b> условия настоящей оферты распространяются на платную
           подписку «Дачник Про» в <b>веб-версии</b> «Календарь дачника»
-          (<a href="/app/">dacha.studio1008.com/app</a>) и в версии приложения из <b>RuStore</b>.
-          Версии приложения для <b>Google Play</b> и <b>Samsung Galaxy Store</b> распространяются
-          бесплатно, доступ ко всем функциям открыт без оплаты и подписки — настоящая оферта на них
-          не распространяется (об их монетизации показом рекламы — см. «Политика
-          конфиденциальности»).</p>
+          (<a href="/app/">dacha.studio1008.com/app</a>), а также в версиях приложения из
+          <b>Google Play</b> и <b>RuStore</b>. Условия и стоимость во всех версиях одинаковы;
+          реклама не показывается.</p>
           <p>Настоящий документ — официальное предложение (публичная оферта) самозанятого <b>Крюкова Евгения Владимировича</b> (далее — «Исполнитель») заключить договор оказания услуг. Оплата подписки означает полное и безоговорочное принятие условий оферты.</p>
           <h4>1. Предмет договора</h4>
           <p>Исполнитель предоставляет доступ к расширенным функциям приложения «Календарь дачника» (подписка «Дачник Про») на срок выбранного тарифа.</p>
@@ -713,21 +716,12 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
             <li>Геолокация участка (по выбору) — для прогноза погоды и рекомендаций.</li>
             <li>Push-токен устройства — для уведомлений.</li>
             <li>Данные о посадках, действиях и урожае, внесённые пользователем.</li>
-            <li>Веб-версия и версия RuStore: статус подписки и история платежей (без данных карты — их обрабатывает ЮKassa).</li>
-            <li>Версии Google Play и Samsung Galaxy Store: рекламный идентификатор устройства (Advertising ID) — для показа рекламы.</li>
+            <li>Статус подписки и история платежей (без данных карты — их обрабатывает ЮKassa).</li>
           </ul>
           <h4>Как используются</h4>
-          <p>Только для функций приложения, уведомлений и обработки платежей. Не передаются третьим лицам, кроме ЮKassa (приём оплаты) и сервисов отправки писем/уведомлений — в необходимом объёме.</p>
-          <h4>Платёжные данные (веб-версия и версия RuStore)</h4>
-          <p>Реквизиты карты вводятся на защищённой странице ЮKassa и в приложение не передаются. Хранится только токен для автопродления, выданный ЮKassa.</p>
-          <h4>Реклама (версии Google Play и Samsung Galaxy Store)</h4>
-          <p>В этих версиях приложение бесплатное и показывает рекламу через <b>Yandex Mobile Ads
-          SDK</b>. Для показа и оценки эффективности рекламы SDK может обрабатывать рекламный
-          идентификатор устройства (Advertising ID) и техническую информацию об устройстве; эти
-          данные передаются рекламной сети Яндекса в соответствии с
-          <a href="https://yandex.ru/legal/confidential/" target="_blank" rel="noopener">политикой
-          конфиденциальности Яндекса</a>. В веб-версии и версии RuStore реклама не показывается, эти
-          данные не обрабатываются.</p>
+          <p>Только для функций приложения, уведомлений и обработки платежей. Не передаются третьим лицам, кроме ЮKassa (приём оплаты) и сервисов отправки писем/уведомлений — в необходимом объёме. Реклама не показывается, рекламные идентификаторы не собираются.</p>
+          <h4>Платёжные данные</h4>
+          <p>Реквизиты карты вводятся на защищённой странице ЮKassa и в приложение не передаются — данные карты мы не храним.</p>
           <h4>Права пользователя</h4>
           <p>Можно в любой момент удалить аккаунт и данные, написав на e-mail из «Контактов».</p>
         </div>
@@ -757,10 +751,9 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       <a class="store" href="/app/" aria-label="Открыть веб-версию «Календарь дачника»">🌱 Веб-версия</a>
       <a class="store" href="#download" aria-label="Как скачать «Календарь дачника» в RuStore">📲 RuStore</a>
       <a class="store" href="#download" aria-label="Как скачать «Календарь дачника» в Google Play">▶️ Google Play</a>
-      <a class="store" href="#download" aria-label="Как скачать «Календарь дачника» в Samsung Galaxy Store">📦 Samsung Galaxy Store</a>
     </div>
     <div>© 2026 «Календарь дачника». Все права защищены.</div>
-    <div class="fine">Дата последнего обновления: 12.06.2026</div>
+    <div class="fine">Дата последнего обновления: 16.06.2026</div>
   </div>
 </footer>
 
@@ -850,6 +843,29 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       c.style.setProperty('--my',(e.clientY-r.top)+'px');
     });
   });
+})();
+
+// logged-in state: show user's email in nav instead of «Войти»
+// (landing и API на одном домене в проде; токен — зеркало web-клиента, ключ dacha_token)
+(function(){
+  const cta=document.getElementById('navCta');
+  if(!cta)return;
+  let token=null;
+  try{token=localStorage.getItem('dacha_token');}catch(e){return;}
+  if(!token)return;
+  fetch('/auth/me',{headers:{Authorization:'Bearer '+token}})
+    .then(r=>r.ok?r.json():null)
+    .then(u=>{
+      if(!u||!u.email)return;
+      const letter=u.email.trim().charAt(0).toUpperCase();
+      cta.classList.add('user');
+      cta.setAttribute('aria-label','Открыть кабинет: '+u.email);
+      cta.textContent='';
+      const ava=document.createElement('span');ava.className='ava';ava.textContent=letter;
+      const em=document.createElement('span');em.className='uemail';em.textContent=u.email;
+      cta.appendChild(ava);cta.appendChild(em);
+    })
+    .catch(()=>{});
 })();
 </script>
 </body>
