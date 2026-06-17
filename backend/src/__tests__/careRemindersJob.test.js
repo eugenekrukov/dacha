@@ -5,10 +5,11 @@ const { runCareReminders } = require('../jobs/careRemindersJob')
 // push внедряем параметром: проверяем, что джоб шлёт ОДИН сводный пуш на участок на тип.
 let push
 beforeEach(() => {
+  // Дайджест возвращает true = «доставлено» (условие пометки care_alert_log).
   push = {
-    sendWateringDigest: vi.fn(async () => {}),
-    sendFertilizingDigest: vi.fn(async () => {}),
-    sendTransplantDigest: vi.fn(async () => {}),
+    sendWateringDigest: vi.fn(async () => true),
+    sendFertilizingDigest: vi.fn(async () => true),
+    sendTransplantDigest: vi.fn(async () => true),
   }
 })
 
@@ -107,5 +108,15 @@ describe('careRemindersJob — сводный дайджест', () => {
     await runCareReminders(db, push)
 
     expect(push.sendTransplantDigest).not.toHaveBeenCalled()
+  })
+
+  it('доставка не удалась (мёртвый токен) → care_alert_log НЕ помечается (повторим завтра)', async () => {
+    const db = makeDb({ plantings: [planting({ planting_id: 1 })] })
+    push.sendWateringDigest.mockImplementation(async () => false)
+
+    await runCareReminders(db, push)
+
+    expect(push.sendWateringDigest).toHaveBeenCalledTimes(1)
+    expect(db.inserts).toHaveLength(0) // не помечено — пуш не дошёл
   })
 })

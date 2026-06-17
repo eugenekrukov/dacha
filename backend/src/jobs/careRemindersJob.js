@@ -132,10 +132,14 @@ async function runCareReminders(db, push = pushService) {
   }
 }
 
-// Шлёт сводный пуш по корзине (если непустая) и помечает каждую посадку как уведомлённую.
+// Шлёт сводный пуш по корзине (если непустая) и помечает каждую посадку как уведомлённую —
+// ТОЛЬКО при фактической доставке. Иначе (мёртвый токен / нет устройств) пуш не дошёл, и
+// помечать нельзя: повторим завтра, когда токен обновится. Раньше помечали безусловно, из-за
+// чего проваленные доставки выглядели как успешные и баг с протухшим токеном маскировался.
 async function sendDigestAndMark(db, gardenId, alertType, plantings, sendDigest) {
   if (plantings.length === 0) return
-  await sendDigest(db, gardenId, plantings.map(p => p.crop_name))
+  const delivered = await sendDigest(db, gardenId, plantings.map(p => p.crop_name))
+  if (!delivered) return
   for (const p of plantings) {
     await markAlertSent(db, p.planting_id, alertType)
   }

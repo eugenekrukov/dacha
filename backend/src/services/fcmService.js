@@ -42,10 +42,28 @@ function _reset() {
   tried = false
 }
 
-/** Отправляет пуш на FCM-токен. data приводится к строкам (требование FCM). Возвращает true/false. */
+// Только для тестов — подставить фейковый messaging (без firebase-admin/SA-файла).
+function _setMessaging(m) {
+  messaging = m
+  tried = true
+}
+
+// Коды ошибок FCM, означающие, что токен мёртв (устройство переустановлено / токен отозван) —
+// такой токен нужно удалить из push_tokens, иначе он копится и маскирует «нет доставки».
+const DEAD_TOKEN_CODES = new Set([
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-registration-token',
+  'messaging/invalid-argument',
+])
+
+/**
+ * Отправляет пуш на FCM-токен. data приводится к строкам (требование FCM).
+ * @returns {{ delivered: boolean, invalidToken: boolean }}
+ *   delivered — доставлено в FCM; invalidToken — токен мёртв, его следует удалить.
+ */
 async function sendViaFcm(token, title, body, data = {}) {
   const m = getMessaging()
-  if (!m) return false
+  if (!m) return { delivered: false, invalidToken: false }
 
   const stringData = {}
   for (const [k, v] of Object.entries(data)) stringData[k] = String(v)
@@ -57,11 +75,12 @@ async function sendViaFcm(token, title, body, data = {}) {
       data: stringData,
       android: { priority: 'high', notification: { channelId: 'dacha_reminders' } }
     })
-    return true
+    return { delivered: true, invalidToken: false }
   } catch (e) {
-    console.error('[fcm] ошибка отправки:', e.message)
-    return false
+    const code = e.errorInfo && e.errorInfo.code
+    console.error('[fcm] ошибка отправки:', code || e.message)
+    return { delivered: false, invalidToken: DEAD_TOKEN_CODES.has(code) }
   }
 }
 
-module.exports = { sendViaFcm, _reset }
+module.exports = { sendViaFcm, _reset, _setMessaging }

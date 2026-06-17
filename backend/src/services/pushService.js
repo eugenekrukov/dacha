@@ -6,6 +6,7 @@ const { sendViaFcm } = require('./fcmService')
 const RUSTORE_PUSH_API = 'https://vkpns.rustore.ru/v1/projects'
 
 // Маршрутизация по провайдеру токена: 'fcm' → Firebase напрямую; иначе RuStore Push (vkpns).
+// @returns {{ delivered: boolean, invalidToken: boolean }}
 async function sendPush(token, title, body, data = {}, provider = 'rustore') {
   if (provider === 'fcm') {
     return sendViaFcm(token, title, body, data)
@@ -13,13 +14,14 @@ async function sendPush(token, title, body, data = {}, provider = 'rustore') {
   return sendViaRustore(token, title, body, data)
 }
 
+// @returns {{ delivered: boolean, invalidToken: boolean }}
 async function sendViaRustore(token, title, body, data = {}) {
   const projectId = process.env.RUSTORE_PUSH_PROJECT_ID
   const serviceToken = process.env.RUSTORE_PUSH_SERVICE_TOKEN
 
   if (!projectId || !serviceToken) {
     console.warn('[push] RUSTORE_PUSH_PROJECT_ID или RUSTORE_PUSH_SERVICE_TOKEN не заданы')
-    return
+    return { delivered: false, invalidToken: false }
   }
 
   const payload = {
@@ -42,9 +44,13 @@ async function sendViaRustore(token, title, body, data = {}) {
     if (!res.ok) {
       const err = await res.text()
       console.error(`[push] Ошибка отправки (${res.status}): ${err}`)
+      // 404 NOT_FOUND у vkpns — токен мёртв (как у FCM), удаляем.
+      return { delivered: false, invalidToken: res.status === 404 }
     }
+    return { delivered: true, invalidToken: false }
   } catch (e) {
     console.error('[push] Сетевая ошибка:', e.message)
+    return { delivered: false, invalidToken: false }
   }
 }
 
@@ -60,16 +66,36 @@ async function getTokensForGarden(db, gardenId) {
   return result.rows
 }
 
+// Удаляет токен из push_tokens (один физический девайс = одна строка после фикса 2026-06-13).
+async function deletePushToken(db, token) {
+  await db.query('DELETE FROM push_tokens WHERE token = $1', [token])
+}
+
+/**
+ * Шлёт уведомление на все токены участка. Мёртвые токены (FCM/vkpns «не зарегистрирован»)
+ * удаляются из БД, чтобы не копились и не маскировали отсутствие доставки.
+ * @returns {boolean} delivered — доставлено ли хотя бы на одно устройство.
+ */
+async function sendToGarden(db, gardenId, title, body, data) {
+  const tokens = await getTokensForGarden(db, gardenId)
+  if (tokens.length === 0) return false
+  let deliveredAny = false
+  for (const t of tokens) {
+    const r = await sendPush(t.token, title, body, data, t.provider)
+    if (r && r.delivered) deliveredAny = true
+    if (r && r.invalidToken) {
+      await deletePushToken(db, t.token)
+      console.log(`[push] удалён мёртвый токен (provider=${t.provider}, участок ${gardenId})`)
+    }
+  }
+  return deliveredAny
+}
+
 async function sendFrostAlert(db, gardenId, tempC) {
   try {
-    const tokens = await getTokensForGarden(db, gardenId)
-    if (tokens.length === 0) return
-    const title = '⚠️ Угроза заморозков'
     const body = `Ожидается ${tempC}°C. Укройте теплолюбивые растения!`
-    for (const t of tokens) {
-      await sendPush(t.token, title, body, { type: 'frost_alert', garden_id: String(gardenId) }, t.provider)
-    }
-    console.log(`[push] frost_alert для участка ${gardenId} (${tokens.length} устройств)`)
+    const delivered = await sendToGarden(db, gardenId, '⚠️ Угроза заморозков', body, { type: 'frost_alert', garden_id: String(gardenId) })
+    if (delivered) console.log(`[push] frost_alert доставлен, участок ${gardenId}`)
   } catch (e) {
     console.error('[push] Ошибка sendFrostAlert:', e.message)
   }
@@ -77,14 +103,9 @@ async function sendFrostAlert(db, gardenId, tempC) {
 
 async function sendHeatAlert(db, gardenId, tempC) {
   try {
-    const tokens = await getTokensForGarden(db, gardenId)
-    if (tokens.length === 0) return
-    const title = '🌡️ Сильная жара'
     const body = `Ожидается ${tempC}°C. Полейте растения и притените теплицу!`
-    for (const t of tokens) {
-      await sendPush(t.token, title, body, { type: 'heat_alert', garden_id: String(gardenId) }, t.provider)
-    }
-    console.log(`[push] heat_alert для участка ${gardenId} (${tokens.length} устройств)`)
+    const delivered = await sendToGarden(db, gardenId, '🌡️ Сильная жара', body, { type: 'heat_alert', garden_id: String(gardenId) })
+    if (delivered) console.log(`[push] heat_alert доставлен, участок ${gardenId}`)
   } catch (e) {
     console.error('[push] Ошибка sendHeatAlert:', e.message)
   }
@@ -98,18 +119,17 @@ function listCrops(cropNames) {
 }
 
 // Один сводный пуш на участок вместо отдельного на каждую посадку (борьба со спамом).
+// @returns {boolean} delivered — доставлено ли хотя бы на одно устройство (для дедупа care_alert_log).
 async function sendCareDigest(db, gardenId, type, title, verb, cropNames) {
   try {
-    if (cropNames.length === 0) return
-    const tokens = await getTokensForGarden(db, gardenId)
-    if (tokens.length === 0) return
+    if (cropNames.length === 0) return false
     const body = `${verb}: ${listCrops(cropNames)}`
-    for (const t of tokens) {
-      await sendPush(t.token, title, body, { type, garden_id: String(gardenId) }, t.provider)
-    }
-    console.log(`[push] ${type} (дайджест): ${cropNames.length} посадок, участок ${gardenId}, ${tokens.length} устройств`)
+    const delivered = await sendToGarden(db, gardenId, title, body, { type, garden_id: String(gardenId) })
+    if (delivered) console.log(`[push] ${type} (дайджест): ${cropNames.length} посадок, участок ${gardenId}`)
+    return delivered
   } catch (e) {
     console.error(`[push] Ошибка sendCareDigest(${type}):`, e.message)
+    return false
   }
 }
 

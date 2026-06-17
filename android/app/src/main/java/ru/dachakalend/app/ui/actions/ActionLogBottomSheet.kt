@@ -15,10 +15,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.CropRef
@@ -86,8 +88,11 @@ private fun ActionLogSheetImpl(
     viewModel: ActionLogViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
-    // Оставшиеся посадки для записи (в групповом режиме пользователь может убрать лишние).
-    var targets by remember { mutableStateOf(initialTargets) }
+    // Исключённые из записи посадки (по id). Сами строки из разметки НЕ убираем — иначе высота
+    // листа уменьшается, и ModalBottomSheet в Material3 1.2.x спонтанно закрывается (re-anchor →
+    // onDismissRequest). Поэтому исключённую строку лишь зачёркиваем; высота листа постоянна.
+    var excluded by remember { mutableStateOf(emptySet<Int>()) }
+    val activeTargets = initialTargets.filter { it.id !in excluded }
     var selectedType by remember { mutableStateOf(preselectedType) }
     // Заметка авто-подставляется (препарат «Обработки» / удобрение) ТОЛЬКО когда выбран
     // изначально предложенный тип. Сменили действие на другое — авто-текст исчезает.
@@ -135,15 +140,20 @@ private fun ActionLogSheetImpl(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            // Групповой режим: список культур с крестиком удаления (минимум одна остаётся).
+            // Групповой режим: список культур. Крестик исключает культуру из записи (зачёркивает),
+            // повторный тап — возвращает. Минимум одна активная остаётся. Строки не удаляются из
+            // разметки (высота листа постоянна) — иначе лист спонтанно закрывается (Material3 1.2.x).
             if (grouped) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    targets.forEach { tg ->
+                    initialTargets.forEach { tg ->
+                        val isExcluded = tg.id in excluded
+                        // Исключить можно, только если останется ≥1 активная; вернуть — всегда.
+                        val canToggle = isExcluded || activeTargets.size > 1
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = .4f))
+                                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = if (isExcluded) .15f else .4f))
                                 .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -153,20 +163,28 @@ private fun ActionLogSheetImpl(
                                 fontFamily = NunitoFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onBackground,
+                                color = if (isExcluded) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f)
+                                        else MaterialTheme.colorScheme.onBackground,
+                                textDecoration = if (isExcluded) TextDecoration.LineThrough else null,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
                             IconButton(
-                                onClick = { if (targets.size > 1) targets = targets.filterNot { it.id == tg.id } },
-                                enabled = targets.size > 1,
+                                onClick = {
+                                    excluded = when {
+                                        isExcluded            -> excluded - tg.id
+                                        activeTargets.size > 1 -> excluded + tg.id
+                                        else                   -> excluded
+                                    }
+                                },
+                                enabled = canToggle,
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Убрать ${tg.name}",
-                                    tint = if (targets.size > 1) MaterialTheme.colorScheme.onSurfaceVariant
+                                    if (isExcluded) Icons.Default.Refresh else Icons.Default.Close,
+                                    contentDescription = if (isExcluded) "Вернуть ${tg.name}" else "Убрать ${tg.name}",
+                                    tint = if (canToggle) MaterialTheme.colorScheme.onSurfaceVariant
                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .3f),
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -256,7 +274,7 @@ private fun ActionLogSheetImpl(
             Button(
                 onClick = {
                     selectedType?.let { type ->
-                        val ids = targets.map { it.id }
+                        val ids = activeTargets.map { it.id }
                         if (type == "transplanting") {
                             viewModel.logTransplantingMulti(ids)
                         } else {
@@ -266,7 +284,7 @@ private fun ActionLogSheetImpl(
                         }
                     }
                 },
-                enabled = selectedType != null && targets.isNotEmpty() && !state.isLoading,
+                enabled = selectedType != null && activeTargets.isNotEmpty() && !state.isLoading,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
