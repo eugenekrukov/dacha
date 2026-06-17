@@ -200,16 +200,21 @@ private fun TodayContent(
 
     val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
 
+    val currentTasks  = tasks.filter { (it.daysUntil ?: 0) == 0 }
+    val upcomingTasks = tasks.filter { (it.daysUntil ?: 0) > 0 }
+
     // Compute stable LazyColumn indices for coach mark scroll targets
     val weatherVisible = weather != null || forecast.isNotEmpty()
-    val tasksVisible   = tasks.isNotEmpty()
     val recsVisible    = recommendations.isNotEmpty()
-    val coachScrollIdx = remember(weatherVisible, tasksVisible, tasks.size, recsVisible) {
+    val coachScrollIdx = remember(weatherVisible, currentTasks.size, upcomingTasks.size, recsVisible) {
         var i = 0
         buildMap {
             if (weatherVisible) { put("weather", i); i++ }
-            if (tasksVisible)   { put("tasks",   i); i += 1 + tasks.size }
-            else if (plantings.isEmpty()) i++   // empty card
+            if (currentTasks.isNotEmpty()) {
+                put("tasks", i)
+                i += 1 + currentTasks.size
+            } else if (plantings.isEmpty()) i++   // empty card
+            if (upcomingTasks.isNotEmpty()) i += 1 + upcomingTasks.size
             if (recsVisible) { put("recs", i) }
         }
     }
@@ -254,8 +259,8 @@ private fun TodayContent(
                 }
             }
 
-            // Задачи
-            if (tasks.isNotEmpty()) {
+            // Задачи на сегодня
+            if (currentTasks.isNotEmpty()) {
                 item {
                     SectionTitle(
                         icon     = Icons.Default.Spa,
@@ -263,7 +268,7 @@ private fun TodayContent(
                         modifier = Modifier.coachTargetUnion(coachMarkController, "tasks"),
                     )
                 }
-                items(tasks, key = { taskSnoozeKey(it) }) { task ->
+                items(currentTasks, key = { taskSnoozeKey(it) }) { task ->
                     val taskPlanting = task.plantingId?.let { id -> plantings.find { it.id == id } }
                     Box(Modifier.coachTargetUnion(coachMarkController, "tasks")) {
                         SwipeActionsBox(
@@ -276,8 +281,6 @@ private fun TodayContent(
                                 onClick = if (taskPlanting != null) {
                                     {
                                         selectedPlanting = taskPlanting
-                                        // Название действия в заметку не пишем. Для подкормки
-                                        // careTaskName = пример удобрения (полезно), для «Обработки» — «от чего».
                                         quickActionNotes = when (task.type) {
                                             "fertilizing_due" -> task.careTaskName
                                             "care_task_due"   -> task.product ?: treatmentNote(task.careTaskName)
@@ -305,7 +308,27 @@ private fun TodayContent(
                     )
                 }
             }
-            // Если посадки есть, но задач нет — ничего не показываем (нормальный день)
+            // Если посадки есть, но текущих задач нет — ничего не показываем (нормальный день)
+
+            // Скоро (care-задачи через 1–3 дня, только просмотр)
+            if (upcomingTasks.isNotEmpty()) {
+                item {
+                    SectionTitle(
+                        icon     = Icons.Default.CalendarMonth,
+                        title    = "Скоро",
+                        modifier = Modifier.padding(top = if (currentTasks.isNotEmpty()) 8.dp else 0.dp)
+                    )
+                }
+                items(upcomingTasks, key = { taskSnoozeKey(it) }) { task ->
+                    SwipeActionsBox(
+                        itemLabel = task.cropName ?: task.type,
+                        onSnooze  = { onSnoozeTask(task) },
+                        onDelete  = { onDeleteTask(task) }
+                    ) {
+                        SunnyTaskCard(task = task, onClick = null)
+                    }
+                }
+            }
 
             // Рекомендации
             if (recommendations.isNotEmpty()) {

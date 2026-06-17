@@ -84,7 +84,8 @@ data class TodayTask(
     @Json(name = "days_overdue") val daysOverdue: Int?,
     @Json(name = "care_task_name") val careTaskName: String? = null,
     // Рекомендованный препарат для care-задач-обработок (чем обрабатывать)
-    val product: String? = null
+    val product: String? = null,
+    @Json(name = "days_until") val daysUntil: Int? = null,
 )
 
 @JsonClass(generateAdapter = true)

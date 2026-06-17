@@ -404,6 +404,7 @@ function formatTasks(tasks) {
       days_overdue: t.days_overdue || null,
       care_task_name: t.care_task_name || t.product_example || null,
       product: t.product || null,
+      days_until: t.days_until || null,
     }
   })
 }

@@ -30,18 +30,88 @@
 
 ---
 
-## 2. Сборка релизного AAB
+## 2. Сборка релизов через Android Studio
 
-Google Play принимает **только AAB** (не APK).
+### Перед каждым билдом
+
+1. Открыть проект: **File → Open → `android/`** (именно папка `android/`, не корень репо)
+2. **File → Sync Project with Gradle Files** — дождаться завершения
+3. Проверить `versionCode` и `versionName` в `app/build.gradle.kts`:
+   - Текущие: `versionCode = 3`, `versionName = "1.0.1"`
+   - **Перед каждой новой загрузкой вверх по `versionCode`** (монотонно растёт, уменьшить нельзя)
+
+---
+
+### 2.1. Сборка APK для RuStore (3-й билд)
+
+RuStore принимает **APK** (не AAB).
+
+1. **Build → Generate Signed Bundle / APK…**
+2. Выбрать **APK** → **Next**
+3. Заполнить keystore:
+   - **Key store path:** `C:\Users\e-kru\.android\dacha-release`
+   - **Key store password:** (из `android/keystore.properties`)
+   - **Key alias:** `key0`
+   - **Key password:** (из `android/keystore.properties`)
+   - → **Next**
+4. Выбрать только флейвор **rustore** (снять отметку с gplay/samsung)
+5. Build Variants: **release**
+6. Signature Versions: ✅ **V1 (Jar Signature)** + ✅ **V2 (Full APK Signature)**
+7. **Finish**
+
+Артефакт:
+```
+android/app/rustore/release/app-rustore-release.apk
+```
+Android Studio покажет уведомление «APK(s) generated successfully» → **locate**.
+
+---
+
+### 2.2. Сборка AAB для Google Play (1-й билд)
+
+Google Play принимает **только AAB** (Android App Bundle).
+
+1. **Build → Generate Signed Bundle / APK…**
+2. Выбрать **Android App Bundle** → **Next**
+3. Keystore — те же данные, что и для RuStore (шаг 3 выше)
+4. Выбрать только флейвор **gplay** (снять отметку с остальных)
+5. Build Variants: **release**
+6. **Finish**
+
+Артефакт:
+```
+android/app/gplay/release/app-gplay-release.aab
+```
+
+---
+
+### 2.3. Альтернатива: CLI из папки `android/`
 
 ```powershell
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
-cd "C:\Projects\Dacha\Календарь дачника\android"
-.\gradlew.bat :app:bundleGplayRelease
-```
-Артефакт: `android/app/build/outputs/bundle/gplayRelease/app-gplay-release.aab`
+# APK для RuStore
+.\gradlew.bat assembleRustoreRelease
 
-**Перед каждой загрузкой повышай `versionCode`** (целое, монотонно растёт). Сейчас `versionCode = 2`. Для первого релиза в GP можно оставить 2 (это отдельный трек от RuStore), но дальше — только вверх.
+# AAB для Google Play
+.\gradlew.bat bundleGplayRelease
+```
+
+Если gradlew не видит Java:
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+```
+
+---
+
+### 2.4. Добавление SHA-1 в Firebase после первой загрузки в Google Play
+
+**Это нужно сделать один раз после первого успешного AAB-прогона в Play Console.**
+
+Google Play при первой загрузке AAB создаёт собственный **app signing key** и подписывает им APK при доставке пользователям. Этот ключ нужно добавить в Firebase, иначе Google Sign-In перестанет работать для пользователей из Google Play.
+
+1. Play Console → приложение → **App integrity → App signing**
+2. Скопировать **SHA-1** из раздела «App signing key certificate» (третий SHA-1 в проекте — после debug и release upload-key)
+3. [Firebase Console](https://console.firebase.google.com) → проект Dacha → **Project settings → Your apps → Android → ru.dachakalend.app**
+4. **Add fingerprint** → вставить SHA-1 → **Save**
 
 ---
 
