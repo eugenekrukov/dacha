@@ -86,6 +86,16 @@ data class TodayTask(
     // Рекомендованный препарат для care-задач-обработок (чем обрабатывать)
     val product: String? = null,
     @Json(name = "days_until") val daysUntil: Int? = null,
+    // Групповая care-задача (несколько культур): посадки для мульти-посадочного действия.
+    val crops: List<String>? = null,
+    @Json(name = "planting_ids") val plantingIds: List<Int>? = null,
+    @Json(name = "crop_names_with_ids") val cropNamesWithIds: List<CropRef>? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class CropRef(
+    val id: Int,
+    val name: String,
 )
 
 @JsonClass(generateAdapter = true)

@@ -1,11 +1,18 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { ACTION_CATALOG } from '../api/labels'
 import { actionIcon } from '../ui/icons'
+import type { CropRef } from '../api/types'
 
 interface Props {
-  plantingId: number
+  plantingId?: number
   cropName?: string | null
+  // Групповой режим: одно действие пишется во все перечисленные посадки.
+  // Заголовок показывает список культур с крестиком удаления (минимум одна остаётся).
+  plantings?: CropRef[]
+  // Заголовок листа в групповом режиме (например, имя care-задачи «Прополка»).
+  title?: string
   preselectedType?: string | null
   initialNote?: string
   onClose: () => void
@@ -15,11 +22,17 @@ interface Props {
 export default function ActionLogSheet({
   plantingId,
   cropName,
+  plantings,
+  title,
   preselectedType,
   initialNote,
   onClose,
   onLogged,
 }: Props) {
+  const grouped = !!(plantings && plantings.length)
+  const [targets, setTargets] = useState<CropRef[]>(
+    grouped ? plantings! : [{ id: plantingId!, name: cropName ?? `Посадка #${plantingId}` }],
+  )
   const [type, setType] = useState<string | null>(preselectedType ?? null)
   const [note, setNote] = useState(initialNote ?? '')
   // авто-заметка действует только для изначально предложенного типа; смена типа её убирает,
@@ -35,17 +48,25 @@ export default function ActionLogSheet({
     setAutoNote(auto)
   }
 
+  const removeTarget = (id: number) => {
+    setTargets((prev) => (prev.length > 1 ? prev.filter((t) => t.id !== id) : prev))
+  }
+
   const save = async () => {
-    if (!type) return
+    if (!type || targets.length === 0) return
     setBusy(true)
     setError(null)
     try {
-      if (type === 'transplanting') {
-        // «Высадка»: фиксируем действие + переводим стадию в transplanted
-        await api.logAction(plantingId, 'transplanting')
-        await api.updateStage(plantingId, 'transplanted')
-      } else {
-        await api.logAction(plantingId, type, note.trim() || undefined)
+      // Одно действие во все оставшиеся посадки (последовательно — чтобы первая ошибка
+      // доступа/сети всплыла явно, а не потерялась среди параллельных запросов).
+      for (const tg of targets) {
+        if (type === 'transplanting') {
+          // «Высадка»: фиксируем действие + переводим стадию в transplanted
+          await api.logAction(tg.id, 'transplanting')
+          await api.updateStage(tg.id, 'transplanted')
+        } else {
+          await api.logAction(tg.id, type, note.trim() || undefined)
+        }
       }
       onLogged(type)
       onClose()
@@ -71,7 +92,32 @@ export default function ActionLogSheet({
         className="dacha-card max-h-[92vh] w-full max-w-md overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-black">{cropName ?? `Посадка #${plantingId}`}</h2>
+        <h2 className="text-xl font-black">
+          {grouped ? (title ?? 'Действие') : (cropName ?? `Посадка #${plantingId}`)}
+        </h2>
+
+        {grouped && (
+          <ul className="mb-3 mt-2 flex flex-col gap-1.5">
+            {targets.map((tg) => (
+              <li
+                key={tg.id}
+                className="flex items-center justify-between gap-2 rounded-btn bg-background px-3 py-2 font-bold"
+              >
+                <span className="min-w-0 truncate">{tg.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeTarget(tg.id)}
+                  disabled={targets.length === 1}
+                  aria-label={`Убрать ${tg.name}`}
+                  className="shrink-0 text-muted disabled:opacity-30"
+                >
+                  <X size={18} aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <p className="mb-3 font-bold text-muted">Что сделали?</p>
 
         <div className="grid grid-cols-2 gap-2">

@@ -198,10 +198,12 @@ export default function TodayScreen() {
         </section>
       )}
 
-      {logTask && logTask.planting_id != null && (
+      {logTask && (logTask.planting_id != null || !!logTask.crop_names_with_ids?.length) && (
         <ActionLogSheet
-          plantingId={logTask.planting_id}
+          plantingId={logTask.planting_id ?? undefined}
           cropName={logTask.crop_name}
+          plantings={logTask.crop_names_with_ids ?? undefined}
+          title={logTask.crop_names_with_ids?.length ? (logTask.care_task_name ?? undefined) : undefined}
           preselectedType={preselectFor(logTask).type}
           initialNote={preselectFor(logTask).note}
           onClose={() => setLogTask(null)}
@@ -218,7 +220,8 @@ export default function TodayScreen() {
 function TaskCard({ t, onLog }: { t: TodayTask; onLog?: (t: TodayTask) => void }) {
   const overdue = (t.days_overdue ?? 0) > 0
   const critical = t.type === 'frost_alert' // только заморозки — действительно срочно (красный)
-  const clickable = t.planting_id != null && !!onLog
+  const grouped = (t.crop_names_with_ids?.length ?? 0) > 0
+  const clickable = (t.planting_id != null || grouped) && !!onLog
   const careType = t.type === 'care_task_due' && t.care_task_name ? careTaskActionType(t.care_task_name) : null
   const Icon = taskIcon(t.type, careType)
   const body = (
@@ -228,7 +231,7 @@ function TaskCard({ t, onLog }: { t: TodayTask; onLog?: (t: TodayTask) => void }
         <span className="font-bold">{t.title}</span>
         {t.description && <span className="text-sm font-semibold text-muted">{t.description}</span>}
         {t.product && <span className="text-sm font-semibold text-tertiary">Препарат: {t.product}</span>}
-        {clickable && (
+        {clickable && t.planting_id != null && (
           <Link
             to={`/plantings/${t.planting_id}`}
             onClick={(e) => e.stopPropagation()}

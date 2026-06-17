@@ -182,6 +182,8 @@ private fun TodayContent(
     var quickActionType  by remember { mutableStateOf<String?>(null) }
     var quickActionNotes by remember { mutableStateOf<String?>(null) }  // для care_task_due
     var selectedPlanting by remember { mutableStateOf<Planting?>(null) }
+    // Групповая care-задача → мульти-посадочное действие (без адресной посадки).
+    var multiTask by remember { mutableStateOf<TodayTask?>(null) }
     var recsExpanded by remember { mutableStateOf(false) }  // «Советы дня»: первые 3 + «показать ещё»
 
     if (selectedPlanting != null && quickActionType != null) {
@@ -193,6 +195,19 @@ private fun TodayContent(
                 selectedPlanting = null
                 quickActionType  = null
                 quickActionNotes = null
+                onRefresh()
+            }
+        )
+    }
+
+    multiTask?.let { task ->
+        ru.dachakalend.app.ui.actions.MultiActionLogBottomSheet(
+            title           = task.careTaskName ?: task.title,
+            targets         = task.cropNamesWithIds ?: emptyList(),
+            preselectedType = careTaskActionType(task.careTaskName),
+            initialNotes    = task.product ?: treatmentNote(task.careTaskName),
+            onDismiss       = {
+                multiTask = null
                 onRefresh()
             }
         )
@@ -270,6 +285,8 @@ private fun TodayContent(
                 }
                 items(currentTasks, key = { taskSnoozeKey(it) }) { task ->
                     val taskPlanting = task.plantingId?.let { id -> plantings.find { it.id == id } }
+                    // Групповая care-задача: адресной посадки нет, но есть список посадок для мульти-действия.
+                    val isGrouped = task.plantingId == null && !task.cropNamesWithIds.isNullOrEmpty()
                     Box(Modifier.coachTargetUnion(coachMarkController, "tasks")) {
                         SwipeActionsBox(
                             itemLabel = task.cropName ?: task.type,
@@ -278,23 +295,29 @@ private fun TodayContent(
                         ) {
                             SunnyTaskCard(
                                 task    = task,
-                                onClick = if (taskPlanting != null) {
-                                    {
-                                        selectedPlanting = taskPlanting
-                                        quickActionNotes = when (task.type) {
-                                            "fertilizing_due" -> task.careTaskName
-                                            "care_task_due"   -> task.product ?: treatmentNote(task.careTaskName)
-                                            else              -> null
-                                        }
-                                        quickActionType  = when (task.type) {
-                                            "watering_due"    -> "watering"
-                                            "fertilizing_due" -> "fertilizing"
-                                            "transplant_due"  -> "transplanting"
-                                            "care_task_due"   -> careTaskActionType(task.careTaskName)
-                                            else              -> "other"
+                                onClick = when {
+                                    taskPlanting != null -> {
+                                        {
+                                            selectedPlanting = taskPlanting
+                                            quickActionNotes = when (task.type) {
+                                                "fertilizing_due" -> task.careTaskName
+                                                "care_task_due"   -> task.product ?: treatmentNote(task.careTaskName)
+                                                else              -> null
+                                            }
+                                            quickActionType  = when (task.type) {
+                                                "watering_due"    -> "watering"
+                                                "fertilizing_due" -> "fertilizing"
+                                                "transplant_due"  -> "transplanting"
+                                                "care_task_due"   -> careTaskActionType(task.careTaskName)
+                                                else              -> "other"
+                                            }
                                         }
                                     }
-                                } else null
+                                    isGrouped -> {
+                                        { multiTask = task }
+                                    }
+                                    else -> null
+                                }
                             )
                         }
                     }

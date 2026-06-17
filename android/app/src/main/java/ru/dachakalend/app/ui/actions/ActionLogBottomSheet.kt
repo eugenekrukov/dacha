@@ -13,10 +13,19 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.data.model.CropRef
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
+/** Одиночная посадка: запись действия из карточки задачи / экрана посадки. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActionLogBottomSheet(
@@ -27,7 +36,58 @@ fun ActionLogBottomSheet(
     initialNotes: String? = null,
     viewModel: ActionLogViewModel = hiltViewModel()
 ) {
+    ActionLogSheetImpl(
+        title = planting.cropName ?: "Посадка #${planting.id}",
+        initialTargets = listOf(CropRef(planting.id, planting.cropName ?: "Посадка #${planting.id}")),
+        grouped = false,
+        onDismiss = onDismiss,
+        onActionLogged = onActionLogged,
+        preselectedType = preselectedType,
+        initialNotes = initialNotes,
+        viewModel = viewModel,
+    )
+}
+
+/** Групповая care-задача: одно действие пишется во все перечисленные посадки.
+ *  Заголовок — список культур с крестиком удаления (минимум одна остаётся). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MultiActionLogBottomSheet(
+    title: String,
+    targets: List<CropRef>,
+    onDismiss: () -> Unit,
+    onActionLogged: (loggedType: String) -> Unit = {},
+    preselectedType: String? = null,
+    initialNotes: String? = null,
+    viewModel: ActionLogViewModel = hiltViewModel()
+) {
+    ActionLogSheetImpl(
+        title = title,
+        initialTargets = targets,
+        grouped = true,
+        onDismiss = onDismiss,
+        onActionLogged = onActionLogged,
+        preselectedType = preselectedType,
+        initialNotes = initialNotes,
+        viewModel = viewModel,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ActionLogSheetImpl(
+    title: String,
+    initialTargets: List<CropRef>,
+    grouped: Boolean,
+    onDismiss: () -> Unit,
+    onActionLogged: (loggedType: String) -> Unit,
+    preselectedType: String?,
+    initialNotes: String?,
+    viewModel: ActionLogViewModel
+) {
     val state by viewModel.uiState.collectAsState()
+    // Оставшиеся посадки для записи (в групповом режиме пользователь может убрать лишние).
+    var targets by remember { mutableStateOf(initialTargets) }
     var selectedType by remember { mutableStateOf(preselectedType) }
     // Заметка авто-подставляется (препарат «Обработки» / удобрение) ТОЛЬКО когда выбран
     // изначально предложенный тип. Сменили действие на другое — авто-текст исчезает.
@@ -68,12 +128,54 @@ fun ActionLogBottomSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = planting.cropName ?: "Посадка #${planting.id}",
+                text = title,
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Black,
                 fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.onBackground
             )
+
+            // Групповой режим: список культур с крестиком удаления (минимум одна остаётся).
+            if (grouped) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    targets.forEach { tg ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = .4f))
+                                .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = tg.name,
+                                fontFamily = NunitoFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = { if (targets.size > 1) targets = targets.filterNot { it.id == tg.id } },
+                                enabled = targets.size > 1,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Убрать ${tg.name}",
+                                    tint = if (targets.size > 1) MaterialTheme.colorScheme.onSurfaceVariant
+                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .3f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             Text(
                 text = "Что сделали?",
                 fontFamily = NunitoFamily,
@@ -154,16 +256,17 @@ fun ActionLogBottomSheet(
             Button(
                 onClick = {
                     selectedType?.let { type ->
+                        val ids = targets.map { it.id }
                         if (type == "transplanting") {
-                            viewModel.logTransplanting(planting.id)
+                            viewModel.logTransplantingMulti(ids)
                         } else {
                             // Заметка теперь содержит осмысленное (препарат «Обработки» / удобрение
                             // или текст пользователя) — показываем её в журнале: auto = false.
-                            viewModel.logAction(planting.id, type, notes.ifBlank { null }, auto = false)
+                            viewModel.logActionMulti(ids, type, notes.ifBlank { null }, auto = false)
                         }
                     }
                 },
-                enabled = selectedType != null && !state.isLoading,
+                enabled = selectedType != null && targets.isNotEmpty() && !state.isLoading,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {

@@ -69,6 +69,11 @@ export interface Planting {
 }
 
 // Формат formatTasks (backend todayLogic.js): готовые title/description + детали.
+export interface CropRef {
+  id: number
+  name: string
+}
+
 export interface TodayTask {
   type: string
   priority?: number
@@ -80,6 +85,10 @@ export interface TodayTask {
   days_until?: number | null
   care_task_name?: string | null
   product?: string | null
+  // Групповая care-задача (несколько культур): для мульти-посадочного действия.
+  crops?: string[] | null
+  planting_ids?: number[] | null
+  crop_names_with_ids?: CropRef[] | null
 }
 
 export interface WeatherInfo {

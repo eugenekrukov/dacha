@@ -2,6 +2,40 @@
 
 **Дата последней сессии**: 2026-06-17
 
+## Сессия 2026-06-17 (2) — Групповые care-задачи: мульти-посадочное действие
+
+Реализована открытая задача прошлой сессии: сгруппированная care-задача на «Сегодня»
+(«Прополка: Капуста пекинская, Редис») стала кликабельной и открывает лист действия в
+мульти-посадочном режиме. Поведение по согласованному спеку: заголовок — список культур с
+крестиком удаления (минимум одна остаётся), одно действие пишется во все оставшиеся посадки.
+Все 3 платформы. **НЕ задеплоено.**
+
+**Backend** (`utils/todayLogic.js`, TDD): групповой `care_task_due` из `buildTasks` теперь несёт
+`planting_ids: number[]` и `crop_names_with_ids: {id,name}[]`; `formatTasks` пробрасывает оба поля
+(одиночные задачи → null). Новых эндпоинтов нет — клиент циклит существующий `POST /actions` по
+каждой посадке (сохраняется per-planting IDOR-проверка). Тесты: **266/266** (+2 в
+`__tests__/unit/todayLogic.test.js`). ⚠️ Раннер — **vitest** (`npm test`), не jest (jest-прогон
+ложно валит `careRemindersJob.test.js` на `vi is not defined`).
+
+**Web** (`api/types.ts`, `components/ActionLogSheet.tsx`, `screens/TodayScreen.tsx`): `TodayTask` +=
+`crops`/`planting_ids`/`crop_names_with_ids` + новый `CropRef`. `ActionLogSheet` принимает
+`plantings: CropRef[]` + `title` → групповой режим (удаляемый список, цикл записи по оставшимся
+последовательно). `TaskCard` делает групповую карточку кликабельной; «Подробнее →» только для
+одиночных. Проверено в превью (логин тест-аккаунтом, fetch-шим подставил новые поля т.к. прод
+ещё на старом ответе): карточка кликабельна → лист «Прополка» со списком Капуста/Редис, удаление
+до 1 с дизейблом крестика, предвыбор «Прополка». `tsc --noEmit` чисто.
+
+**Android** (`data/model/Models.kt`, `ui/actions/ActionLog{BottomSheet,ViewModel}.kt`,
+`ui/today/TodayScreen.kt`): `TodayTask` += поля + `data class CropRef`. `ActionLogBottomSheet`
+рефакторен — общий `ActionLogSheetImpl(title, initialTargets, grouped)`; новый публичный
+`MultiActionLogBottomSheet`. VM: `logActionMulti`/`logTransplantingMulti` (цикл по ids,
+первая ошибка прерывает). `TodayScreen`: групповая задача (`plantingId==null` +
+`cropNamesWithIds`) кликабельна → `multiTask` → мульти-лист. `:app:compileGplayDebugKotlin`
+**BUILD SUCCESSFUL** (только пред-существующие warning'и).
+
+**Осталось**: деплой backend (прод `/today` ещё без новых полей) + пересборка веба; Android
+AAB/APK публикует пользователь. Коммит — по запросу пользователя (ещё не коммичено).
+
 ## Сессия 2026-06-17 — Кусты/Деревья + сборка билдов + секция «Скоро»
 
 **1. Категории «Кусты» и «Деревья»** (миграции 037–039, задеплоены в прод в прошлой сессии,

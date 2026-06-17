@@ -111,4 +111,37 @@ class ActionLogViewModel @Inject constructor(
             }
         }
     }
+
+    /** Мульти-посадочное действие: одно действие пишется во все переданные посадки
+     *  (групповая care-задача «Прополка: Капуста, Редис»). Последовательно — первая
+     *  ошибка прерывает и показывается пользователю. Список из одной посадки эквивалентен logAction. */
+    fun logActionMulti(plantingIds: List<Int>, type: String, notes: String? = null, auto: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.value = ActionLogUiState(isLoading = true)
+            for (id in plantingIds) {
+                val result = actionsRepository.logAction(id, type, notes, auto)
+                if (result is Result.Error) {
+                    _uiState.value = ActionLogUiState(error = result.message)
+                    return@launch
+                }
+            }
+            _uiState.value = ActionLogUiState(success = true)
+        }
+    }
+
+    /** Мульти-посадочная «Высадка»: фиксирует действие и переводит каждую посадку в transplanted. */
+    fun logTransplantingMulti(plantingIds: List<Int>) {
+        viewModelScope.launch {
+            _uiState.value = ActionLogUiState(isLoading = true)
+            for (id in plantingIds) {
+                actionsRepository.logAction(id, "transplanting", null)
+                val result = plantingsRepository.updateStage(id, "transplanted")
+                if (result is Result.Error) {
+                    _uiState.value = ActionLogUiState(error = result.message)
+                    return@launch
+                }
+            }
+            _uiState.value = ActionLogUiState(success = true)
+        }
+    }
 }

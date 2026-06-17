@@ -333,6 +333,10 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
         care_task_name: name,
         product: CARE_TASK_PRODUCT[name] || null,
         crops,
+        // Для мульти-посадочного действия: id всех посадок группы и пары {id, name},
+        // чтобы клиент построил лист «снять/выполнить» по каждой культуре.
+        planting_ids: group.map(g => g.planting_id),
+        crop_names_with_ids: group.map(g => ({ id: g.planting_id, name: g.crop_name })),
         message: `${name}: ${listCrops(crops)}`,
         days_overdue: Math.max(...group.map(g => g.days_overdue || 0)),
         days_until: Math.min(...group.map(g => g.days_until || 0)),
@@ -405,6 +409,9 @@ function formatTasks(tasks) {
       care_task_name: t.care_task_name || t.product_example || null,
       product: t.product || null,
       days_until: t.days_until || null,
+      // Групповая care-задача: посадки для мульти-действия (одиночные → null).
+      planting_ids: t.planting_ids || null,
+      crop_names_with_ids: t.crop_names_with_ids || null,
     }
   })
 }
