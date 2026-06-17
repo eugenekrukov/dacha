@@ -150,18 +150,30 @@ export default function TodayScreen() {
         </section>
       )}
 
-      {today && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-black">Задачи дня</h2>
-          {today.tasks?.length ? (
-            today.tasks.map((t, i) => <TaskCard key={i} t={t} onLog={setLogTask} />)
-          ) : (
-            <div className="dacha-card flex items-center gap-2 p-4 font-semibold text-muted">
-              <CircleCheck size={20} aria-hidden className="text-tertiary" /> На сегодня задач нет
-            </div>
-          )}
-        </section>
-      )}
+      {today && (() => {
+        const currentTasks  = today.tasks?.filter(t => !t.days_until) ?? []
+        const upcomingTasks = today.tasks?.filter(t => (t.days_until ?? 0) > 0) ?? []
+        return (
+          <>
+            <section className="flex flex-col gap-2">
+              <h2 className="text-lg font-black">Задачи дня</h2>
+              {currentTasks.length ? (
+                currentTasks.map((t, i) => <TaskCard key={i} t={t} onLog={setLogTask} />)
+              ) : (
+                <div className="dacha-card flex items-center gap-2 p-4 font-semibold text-muted">
+                  <CircleCheck size={20} aria-hidden className="text-tertiary" /> На сегодня задач нет
+                </div>
+              )}
+            </section>
+            {upcomingTasks.length > 0 && (
+              <section className="flex flex-col gap-2">
+                <h2 className="text-lg font-black">Скоро</h2>
+                {upcomingTasks.map((t, i) => <TaskCard key={i} t={t} />)}
+              </section>
+            )}
+          </>
+        )
+      })()}
 
       {visibleRecs.length > 0 && (
         <section className="flex flex-col gap-2">
@@ -203,10 +215,10 @@ export default function TodayScreen() {
   )
 }
 
-function TaskCard({ t, onLog }: { t: TodayTask; onLog: (t: TodayTask) => void }) {
+function TaskCard({ t, onLog }: { t: TodayTask; onLog?: (t: TodayTask) => void }) {
   const overdue = (t.days_overdue ?? 0) > 0
   const critical = t.type === 'frost_alert' // только заморозки — действительно срочно (красный)
-  const clickable = t.planting_id != null
+  const clickable = t.planting_id != null && !!onLog
   const careType = t.type === 'care_task_due' && t.care_task_name ? careTaskActionType(t.care_task_name) : null
   const Icon = taskIcon(t.type, careType)
   const body = (

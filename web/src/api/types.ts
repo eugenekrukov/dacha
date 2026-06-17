@@ -77,6 +77,7 @@ export interface TodayTask {
   planting_id: number | null
   crop_name?: string | null
   days_overdue?: number | null
+  days_until?: number | null
   care_task_name?: string | null
   product?: string | null
 }
