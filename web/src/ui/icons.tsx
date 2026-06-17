@@ -7,7 +7,6 @@ import {
   Shovel,
   Scissors,
   Pickaxe,
-  Trash2,
   Flower2,
   Spline,
   ClipboardList,
@@ -18,6 +17,7 @@ import {
   Bug,
   Leaf,
   ShieldAlert,
+  Axe,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -32,7 +32,7 @@ const ACTION_ICONS: Record<string, LucideIcon> = {
   pinching: Scissors,
   hilling: Pickaxe,
   pruning: Scissors,
-  weeding: Trash2,
+  weeding: Axe,
   loosening: Shovel,
   thinning: Scissors,
   runner_removal: Scissors,
