@@ -131,7 +131,15 @@ describe('nalogService.addIncome / cancelIncome (с инъекцией fetch)', 
     }
     await nalog.cancelIncome(makeDb(), 'rcpt_abc', 'REFUND', fakeFetch)
     expect(calls[0].receiptUuid).toBe('rcpt_abc')
-    expect(calls[0].comment).toBe('REFUND')
+    expect(calls[0].comment).toBe('Возврат средств')
+  })
+
+  it('cancelIncome: неизвестная причина → ошибка, запрос не уходит', async () => {
+    process.env.NALOG_PROXY_URL = 'http://ru-proxy:3128'
+    let called = false
+    const fakeFetch = async () => { called = true; return { ok: true, status: 200, json: async () => ({}) } }
+    await expect(nalog.cancelIncome(makeDb(), 'rcpt_abc', 'BOGUS', fakeFetch)).rejects.toThrow(/причина/)
+    expect(called).toBe(false)
   })
 })
 

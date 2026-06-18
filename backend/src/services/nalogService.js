@@ -86,6 +86,8 @@ async function npdPost(path, body, token, fetchImpl = fetch) {
 }
 
 // Возвращает действующий access-токен; при force или истечении — рефрешит по refresh_token из БД.
+// Допущение: один инстанс (pm2). При нескольких воркерах одновременный рефреш может затереть
+// refresh_token друг друга — тогда нужен внешний лок/общий кэш токена.
 async function getAccessToken(db, fetchImpl = fetch, force = false) {
   if (!force && _accessToken && Date.now() < _accessExp - 60000) return _accessToken
   const row = (await db.query('SELECT refresh_token FROM nalog_auth WHERE id = 1')).rows[0]
@@ -123,13 +125,22 @@ async function addIncome(db, income, fetchImpl = fetch) {
   return data.approvedReceiptUuid
 }
 
+// Допустимые причины аннулирования. ФНС /cancel принимает только эти строки в поле comment.
+const CANCEL_COMMENTS = {
+  CANCEL: 'Чек сформирован ошибочно',
+  REFUND: 'Возврат средств'
+}
+
 // Аннулирует чек. reason: 'CANCEL' (ошибочный) | 'REFUND' (возврат).
 async function cancelIncome(db, receiptUuid, reason, fetchImpl = fetch) {
+  const comment = CANCEL_COMMENTS[reason]
+  if (!comment) throw new Error(`Неизвестная причина аннулирования: ${reason}`)
+  const now = toMoscowISO(new Date())
   const body = {
     receiptUuid,
-    comment: reason,
-    operationTime: toMoscowISO(new Date()),
-    requestTime: toMoscowISO(new Date()),
+    comment,
+    operationTime: now,
+    requestTime: now,
     partnerCode: null
   }
   return callWithAuth(db, fetchImpl, (token) => npdPost('/cancel', body, token, fetchImpl))
