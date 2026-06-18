@@ -24,6 +24,7 @@ function buildIncomeBody({ name, amount, quantity = 1, operationTime }) {
   const now = new Date()
   const op = operationTime instanceof Date ? operationTime : new Date(operationTime)
   return {
+    // НПД-чек физлицу: ФНС принимает CASH для самозанятого (оплата картой проходит через ЮKassa отдельно).
     paymentType: 'CASH',
     ignoreMaxTotalIncomeRestriction: false,
     client: { contactPhone: null, displayName: null, incomeType: 'FROM_INDIVIDUAL', inn: null },

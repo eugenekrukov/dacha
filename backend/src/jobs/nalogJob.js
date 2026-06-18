@@ -39,7 +39,7 @@ async function runNalogReceipts(db, nalog = nalogService, email = emailService) 
       `UPDATE payments SET npd_status = 'cancel_pending'
        WHERE npd_status = 'cancel_pending'
          AND id IN (SELECT id FROM payments WHERE npd_status = 'cancel_pending' ORDER BY created_at LIMIT $1)
-       RETURNING id, npd_receipt_uuid`,
+       RETURNING id, npd_receipt_uuid, npd_attempts`,
       [budget]
     )
     for (const row of cancelRes.rows) {
@@ -48,8 +48,28 @@ async function runNalogReceipts(db, nalog = nalogService, email = emailService) 
         await db.query("UPDATE payments SET npd_status = 'canceled' WHERE id = $1", [row.id])
         canceled++
       } catch (e) {
-        console.error(`[nalog-job] Отмена чека payment ${row.id} не удалась: ${e.message}`)
-        await db.query('UPDATE payments SET npd_last_error = $1 WHERE id = $2', [e.message, row.id])
+        const attempts = (row.npd_attempts || 0) + 1
+        if (attempts >= MAX_ATTEMPTS) {
+          await db.query(
+            "UPDATE payments SET npd_status = 'failed', npd_attempts = $1, npd_last_error = $2 WHERE id = $3",
+            [attempts, e.message, row.id]
+          )
+          failed++
+          console.error(`[nalog-job] Отмена чека payment ${row.id} помечена failed после ${attempts} попыток: ${e.message}`)
+          if (process.env.ADMIN_EMAIL && email.sendMail) {
+            await email.sendMail(
+              process.env.ADMIN_EMAIL,
+              `СБОЙ аннулирования чека НПД (payment ${row.id})`,
+              `Аннулирование чека для payment ${row.id} не удалось после ${attempts} попыток.\nОшибка: ${e.message}`
+            ).catch(() => {})
+          }
+        } else {
+          await db.query(
+            'UPDATE payments SET npd_attempts = $1, npd_last_error = $2 WHERE id = $3',
+            [attempts, e.message, row.id]
+          )
+          console.error(`[nalog-job] Отмена чека payment ${row.id} не удалась (попытка ${attempts}): ${e.message}`)
+        }
       }
     }
     budget -= cancelRes.rows.length
@@ -78,7 +98,7 @@ async function runNalogReceipts(db, nalog = nalogService, email = emailService) 
         // Узкое окно: если addIncome прошёл в ФНС, а этот UPDATE упал, строка останется pending и
         // на следующем прогоне доход зарегистрируется повторно (у ФНС нет ключа идемпотентности).
         await db.query(
-          `UPDATE payments SET npd_status = 'registered', npd_receipt_uuid = $1, npd_registered_at = NOW(), npd_last_error = NULL
+          `UPDATE payments SET npd_status = 'registered', npd_receipt_uuid = $1, npd_registered_at = NOW(), npd_attempts = 0, npd_last_error = NULL
            WHERE id = $2`,
           [uuid, row.id]
         )

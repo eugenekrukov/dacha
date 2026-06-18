@@ -84,4 +84,28 @@ describe('runNalogReceipts', () => {
     await runNalogReceipts(db, nalog, makeEmail())
     expect(db.updates.some(u => u.sql.includes("npd_status = 'failed'"))).toBe(true)
   })
+
+  it('ошибка отмены до лимита → инкремент attempts (остаётся cancel_pending)', async () => {
+    const db = makeDb({ cancel: [{ id: 51, npd_receipt_uuid: 'rcpt_51', npd_attempts: 0 }] })
+    const nalog = makeNalog({ cancel: async () => { throw new Error('временная ошибка') } })
+    await runNalogReceipts(db, nalog, makeEmail())
+    const errUpd = db.updates.find(u => u.sql.includes('npd_last_error') && !u.sql.includes("'failed'"))
+    expect(errUpd).toBeTruthy()
+    expect(errUpd.params.join(' ')).toContain('временная ошибка')
+  })
+
+  it('ошибка отмены после MAX_ATTEMPTS → npd_status failed', async () => {
+    const db = makeDb({ cancel: [{ id: 50, npd_receipt_uuid: 'rcpt_50', npd_attempts: MAX_ATTEMPTS - 1 }] })
+    const nalog = makeNalog({ cancel: async () => { throw new Error('отмена не прошла') } })
+    await runNalogReceipts(db, nalog, makeEmail())
+    expect(db.updates.some(u => u.sql.includes("npd_status = 'failed'"))).toBe(true)
+  })
+
+  it('pending без email → регистрирует, письмо не шлёт', async () => {
+    const db = makeDb({ pending: [{ id: 60, user_id: 1, email: null, amount: '299.00', plan: 'monthly', created_at: new Date(), npd_attempts: 0 }] })
+    const email = makeEmail()
+    await runNalogReceipts(db, makeNalog({ add: async () => 'rcpt_60' }), email)
+    expect(db.updates.some(u => u.sql.includes("npd_status = 'registered'"))).toBe(true)
+    expect(email.sent.length).toBe(0)
+  })
 })

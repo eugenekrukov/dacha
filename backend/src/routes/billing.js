@@ -80,7 +80,7 @@ module.exports = async function (fastify, opts) {
       }
 
       const payRes = await db.query(
-        'SELECT user_id, plan, status, npd_receipt_uuid FROM payments WHERE yk_payment_id = $1', [refund.payment_id]
+        'SELECT user_id, plan, status, npd_receipt_uuid, npd_status FROM payments WHERE yk_payment_id = $1', [refund.payment_id]
       )
       const pay = payRes.rows[0]
       if (!pay) return reply.code(200).send({ ok: true })
@@ -104,6 +104,13 @@ module.exports = async function (fastify, opts) {
       if (nalog.isEnabled() && pay.npd_receipt_uuid) {
         await db.query(
           "UPDATE payments SET npd_status = 'cancel_pending' WHERE yk_payment_id = $1",
+          [refund.payment_id]
+        )
+      } else if (nalog.isEnabled() && pay.npd_status === 'pending') {
+        // Возврат пришёл до регистрации чека — снимаем платёж с очереди, чтобы не пробить чек НПД
+        // на уже возвращённые деньги.
+        await db.query(
+          "UPDATE payments SET npd_status = NULL WHERE yk_payment_id = $1",
           [refund.payment_id]
         )
       }

@@ -20,7 +20,7 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
       }
       if (sql.includes('FROM payments WHERE yk_payment_id') && sql.includes('user_id') && sql.includes('npd_receipt_uuid')) {
         const p = s.payments[params[0]]
-        return { rows: p ? [{ user_id: p.user_id, plan: p.plan, status: p.status, npd_receipt_uuid: p.npd_receipt_uuid || null }] : [] }
+        return { rows: p ? [{ user_id: p.user_id, plan: p.plan, status: p.status, npd_receipt_uuid: p.npd_receipt_uuid || null, npd_status: p.npd_status || null }] : [] }
       }
       if (sql.includes('SELECT id, email FROM users WHERE id')) {
         const u = s.users[params[0]]
@@ -78,6 +78,11 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
       if (sql.includes("SET npd_status = 'cancel_pending'")) {
         const p = s.payments[params[0]]
         if (p) p.npd_status = 'cancel_pending'
+        return { rows: [] }
+      }
+      if (sql.includes('SET npd_status = NULL')) {
+        const p = s.payments[params[0]]
+        if (p) p.npd_status = null
         return { rows: [] }
       }
       throw new Error('Неожиданный SQL в моке: ' + sql)
@@ -293,6 +298,16 @@ describe('POST /billing/webhook — пометка чеков НПД', () => {
     db.state.payments['pay_001'].npd_receipt_uuid = 'rcpt_x' // имитируем уже выданный чек
     await supertest(app.server).post('/billing/webhook').send(refundWebhook())
     expect(db.state.payments['pay_001'].npd_status).toBe('cancel_pending')
+    await app.close()
+  })
+
+  it('refund.succeeded до регистрации чека (pending, без uuid) → npd_status снимается', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const app = await buildApp(db, { nalog: nalogEnabled })
+    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    expect(db.state.payments['pay_001'].npd_status).toBe('pending')
+    await supertest(app.server).post('/billing/webhook').send(refundWebhook())
+    expect(db.state.payments['pay_001'].npd_status).toBeNull()
     await app.close()
   })
 })
