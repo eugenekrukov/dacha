@@ -205,7 +205,7 @@ private fun TodayContent(
             title           = task.careTaskName ?: task.title,
             targets         = task.cropNamesWithIds ?: emptyList(),
             preselectedType = careTaskActionType(task.careTaskName),
-            initialNotes    = task.product ?: treatmentNote(task.careTaskName),
+            initialNotes    = treatmentNote(task.careTaskName, task.product),
             onDismiss       = {
                 multiTask = null
                 onRefresh()
@@ -300,8 +300,8 @@ private fun TodayContent(
                                         {
                                             selectedPlanting = taskPlanting
                                             quickActionNotes = when (task.type) {
-                                                "fertilizing_due" -> task.careTaskName
-                                                "care_task_due"   -> task.product ?: treatmentNote(task.careTaskName)
+                                                "fertilizing_due" -> task.careTaskName?.let { "Подкормка - $it" }
+                                                "care_task_due"   -> treatmentNote(task.careTaskName, task.product)
                                                 else              -> null
                                             }
                                             quickActionType  = when (task.type) {

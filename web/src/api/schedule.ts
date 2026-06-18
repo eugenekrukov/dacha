@@ -28,13 +28,16 @@ export function careTaskActionType(name: string): string | null {
   return null
 }
 
-// Авто-заметка для care-задачи: только для «Обработки» — уточнение «от чего»
-// (напр. «Обработка от капустной мухи» → «от капустной мухи»). Зеркало android treatmentNote.
-export function treatmentNote(careTaskName?: string | null): string | undefined {
+// Авто-заметка для care-задачи-обработки: «от чего - препарат»
+// (напр. «Обработка от капустной мухи» + «Базудин» → «от капустной мухи - Базудин»).
+// Если препарат не передан — берём рекомендованный из CARE_TASK_PRODUCT. Зеркало android treatmentNote.
+export function treatmentNote(careTaskName?: string | null, product?: string | null): string | undefined {
   if (!careTaskName) return undefined
   if (careTaskActionType(careTaskName) !== 'treatment') return undefined
-  const rest = careTaskName.replace(/^обработка\s*/i, '').trim()
-  return rest || undefined
+  const target = careTaskName.replace(/^обработка\s*/i, '').trim()
+  const prod = (product || CARE_TASK_PRODUCT[careTaskName] || '').trim()
+  if (target && prod) return `${target} - ${prod}`
+  return target || prod || undefined
 }
 
 // ─── История действий: схлопывание подряд идущих однотипных записей ───

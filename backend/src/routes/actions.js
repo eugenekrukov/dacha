@@ -33,19 +33,24 @@ module.exports = async function (fastify) {
     return reply.code(201).send(result.rows[0])
   })
 
-  // GET /actions?planting_id=&limit=
+  // GET /actions?planting_id=&garden_id=&limit=
   fastify.get('/', auth, async (request) => {
-    const { planting_id, limit = 100 } = request.query
+    const { planting_id, garden_id, limit = 100 } = request.query
+    const params = [request.user.userId]
+    const conds = []
+    if (planting_id) { params.push(planting_id); conds.push(`al.planting_id = $${params.length}`) }
+    if (garden_id)   { params.push(garden_id);   conds.push(`p.garden_id = $${params.length}`) }
+    params.push(limit)
     const result = await fastify.db.query(
       `SELECT al.*, c.name AS crop_name
        FROM action_logs al
        JOIN plantings p ON p.id = al.planting_id
        JOIN crops c     ON c.id = p.crop_id
        JOIN gardens g   ON g.id = p.garden_id
-       WHERE g.user_id = $1 ${planting_id ? 'AND al.planting_id = $2' : ''}
+       WHERE g.user_id = $1 ${conds.length ? 'AND ' + conds.join(' AND ') : ''}
        ORDER BY al.logged_at DESC
-       LIMIT $${planting_id ? 3 : 2}`,
-      planting_id ? [request.user.userId, planting_id, limit] : [request.user.userId, limit]
+       LIMIT $${params.length}`,
+      params
     )
     return result.rows
   })

@@ -99,6 +99,8 @@ export const api = {
   getGardens: () => request<Garden[]>('/gardens'),
   createGarden: (body: CreateGardenRequest) =>
     request<Garden>('/gardens', { method: 'POST', body: body as unknown as Record<string, unknown> }),
+  updateGarden: (id: number, body: CreateGardenRequest) =>
+    request<Garden>(`/gardens/${id}`, { method: 'PUT', body: body as unknown as Record<string, unknown> }),
   geocodeSuggest: (q: string) =>
     request<GeocodeSuggestion[]>(`/geocode/suggest?q=${encodeURIComponent(q)}`),
 
@@ -131,6 +133,8 @@ export const api = {
   getActions: (plantingId: number) =>
     request<ActionLog[]>(`/actions?planting_id=${plantingId}`),
   getAllActions: () => request<ActionLog[]>('/actions'),
+  getGardenActions: (gardenId: number) =>
+    request<ActionLog[]>(`/actions?garden_id=${gardenId}`),
   logAction: (plantingId: number, type: string, notes?: string) =>
     request<ActionLog>('/actions', {
       method: 'POST',

@@ -4,9 +4,25 @@ import { Droplet, Snowflake, Flame, Clock, CircleCheck, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
 import { careTaskActionType, treatmentNote } from '../api/schedule'
-import { taskIcon } from '../ui/icons'
+import { actionLabel } from '../api/labels'
+import { taskIcon, actionIcon } from '../ui/icons'
 import ActionLogSheet from '../components/ActionLogSheet'
-import type { Recommendation, TodayResponse, TodayTask } from '../api/types'
+import type { ActionLog, Recommendation, TodayResponse, TodayTask } from '../api/types'
+
+// Локальная дата (без времени) — для отбора действий, выполненных «сегодня».
+function isToday(iso: string): boolean {
+  const d = new Date(iso)
+  const n = new Date()
+  return (
+    d.getFullYear() === n.getFullYear() &&
+    d.getMonth() === n.getMonth() &&
+    d.getDate() === n.getDate()
+  )
+}
+function formatTime(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+}
 
 // Какое действие предвыбрать при записи из задачи дня
 function preselectFor(t: TodayTask): { type: string | null; note?: string } {
@@ -14,13 +30,14 @@ function preselectFor(t: TodayTask): { type: string | null; note?: string } {
     case 'watering_due':
       return { type: 'watering' }
     case 'fertilizing_due':
-      return { type: 'fertilizing' }
+      // care_task_name для подкормки = product_example (название удобрения) — backend formatTasks.
+      return { type: 'fertilizing', note: t.care_task_name ? `Подкормка - ${t.care_task_name}` : undefined }
     case 'transplant_due':
       return { type: 'transplanting' }
     case 'care_task_due':
       return {
         type: (t.care_task_name ? careTaskActionType(t.care_task_name) : null) ?? 'other',
-        note: t.care_task_name ? treatmentNote(t.care_task_name) : undefined,
+        note: t.care_task_name ? treatmentNote(t.care_task_name, t.product) : undefined,
       }
     default:
       return { type: null }
@@ -45,6 +62,7 @@ function recKey(r: Recommendation) {
 export default function TodayScreen() {
   const { active, gardenId } = useGardens()
   const [today, setToday] = useState<TodayResponse | null>(null)
+  const [doneToday, setDoneToday] = useState<ActionLog[]>([])
   const [recs, setRecs] = useState<Recommendation[]>([])
   const [dismissed, setDismissed] = useState<Set<string>>(loadDismissed)
   const [error, setError] = useState<string | null>(null)
@@ -54,10 +72,15 @@ export default function TodayScreen() {
   const load = useCallback(() => {
     if (gardenId === -1) return
     setLoading(true)
-    Promise.all([api.getToday(gardenId), api.getRecommendations(gardenId).catch(() => [])])
-      .then(([t, r]) => {
+    Promise.all([
+      api.getToday(gardenId),
+      api.getRecommendations(gardenId).catch(() => []),
+      api.getGardenActions(gardenId).catch(() => [] as ActionLog[]),
+    ])
+      .then(([t, r, actions]) => {
         setToday(t)
         setRecs(r)
+        setDoneToday(actions.filter((a) => isToday(a.logged_at)))
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Ошибка загрузки'))
       .finally(() => setLoading(false))
@@ -174,6 +197,32 @@ export default function TodayScreen() {
           </>
         )
       })()}
+
+      {doneToday.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="flex items-center gap-2 text-lg font-black">
+            <CircleCheck size={20} aria-hidden className="text-tertiary" /> Сделано сегодня
+          </h2>
+          {doneToday.map((a) => {
+            const Icon = actionIcon(a.action_type)
+            return (
+              <div key={a.id} className="dacha-card flex items-center gap-3 p-4">
+                <Icon size={22} className="shrink-0 text-tertiary" aria-hidden />
+                <div className="flex min-w-0 flex-col">
+                  <span className="font-bold">
+                    {actionLabel(a.action_type)}
+                    {a.crop_name ? ` · ${a.crop_name}` : ''}
+                  </span>
+                  {a.notes && <span className="text-sm font-semibold text-muted">{a.notes}</span>}
+                </div>
+                <span className="ml-auto shrink-0 text-sm font-semibold text-muted">
+                  {formatTime(a.logged_at)}
+                </span>
+              </div>
+            )
+          })}
+        </section>
+      )}
 
       {visibleRecs.length > 0 && (
         <section className="flex flex-col gap-2">

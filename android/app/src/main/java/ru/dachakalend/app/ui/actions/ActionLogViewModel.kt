@@ -63,15 +63,20 @@ fun careTaskActionType(careTaskName: String?): String {
 }
 
 /**
- * Заметка, которую осмысленно авто-подставить при логировании care-задачи.
+ * Заметка, которую осмысленно авто-подставить при логировании care-задачи-обработки.
  * Название действия (Прополка, Рыхление…) в заметку НЕ пишем — оно и так выбрано типом.
- * Только для «Обработки» подставляем «от чего» (например, «от капустной мухи»),
+ * Для «Обработки» подставляем «от чего - препарат» (например, «от капустной мухи - Базудин»),
  * т.к. это уточняет действие. Для остального — null (пустая заметка).
  */
-fun treatmentNote(careTaskName: String?): String? {
+fun treatmentNote(careTaskName: String?, product: String? = null): String? {
     if (careTaskName == null) return null
     if (careTaskActionType(careTaskName) != "treatment") return null
-    return careTaskName.replaceFirst(Regex("(?i)^обработка\\s*"), "").trim().ifBlank { null }
+    val target = careTaskName.replaceFirst(Regex("(?i)^обработка\\s*"), "").trim().ifBlank { null }
+    val prod = product?.trim()?.ifBlank { null }
+    return when {
+        target != null && prod != null -> "$target - $prod"
+        else                           -> target ?: prod
+    }
 }
 
 @HiltViewModel

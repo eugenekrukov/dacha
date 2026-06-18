@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { MailWarning } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { useGardens } from '../garden/GardenContext'
 import { formatDate } from '../api/labels'
 import { isLargeFont, setLargeFont } from '../ui/fontScale'
 import ChangePasswordModal from '../components/ChangePasswordModal'
@@ -13,6 +14,7 @@ const APP_VERSION = '1.0.0' // синхронизировать с Android versi
 
 export default function SettingsScreen() {
   const { user, logout, refresh } = useAuth()
+  const { active } = useGardens()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +67,17 @@ export default function SettingsScreen() {
           </button>
         </div>
       </section>
+
+      {active && (
+        <section className="dacha-card flex flex-col gap-1 p-5">
+          <h2 className="font-black">Участок</h2>
+          <p className="font-semibold">{active.name}</p>
+          {active.city && <p className="text-sm font-semibold text-muted">{active.city}</p>}
+          <Link to="/garden/edit" className="dacha-chip mt-3 py-3 text-center">
+            Редактировать участок
+          </Link>
+        </section>
+      )}
 
       <section className="dacha-card flex flex-col gap-3 p-5">
         <h2 className="font-black">Внешний вид</h2>

@@ -6,6 +6,7 @@ import LoginScreen from './screens/LoginScreen'
 import PasswordResetScreen from './screens/PasswordResetScreen'
 import TodayScreen from './screens/TodayScreen'
 import CreateGardenScreen from './screens/CreateGardenScreen'
+import EditGardenScreen from './screens/EditGardenScreen'
 import PlantingsScreen from './screens/PlantingsScreen'
 import PlantingDetailScreen from './screens/PlantingDetailScreen'
 import CropsScreen from './screens/CropsScreen'
@@ -51,6 +52,7 @@ export default function App() {
         <Route element={<GardenGate />}>
           <Route element={<Layout />}>
             <Route path="/today" element={<TodayScreen />} />
+            <Route path="/garden/edit" element={<EditGardenScreen />} />
             <Route path="/plantings" element={<PlantingsScreen />} />
             <Route path="/plantings/:id" element={<PlantingDetailScreen />} />
             <Route path="/calendar" element={<CalendarScreen />} />
