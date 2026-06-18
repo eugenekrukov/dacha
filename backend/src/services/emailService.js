@@ -183,9 +183,25 @@ async function sendPasswordResetCode(to, code) {
   )
 }
 
+async function sendReceiptLink(to, receiptUrl, description, amount) {
+  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto">
+    <h2 style="color:#FF7B00">${APP_NAME()}</h2>
+    <p>Спасибо за оплату! Сформирован чек на «${description}» на сумму ${amount} ₽.</p>
+    <p><a href="${receiptUrl}" style="color:#FF7B00">Открыть чек</a></p>
+    <p style="color:#888;font-size:13px">Чек сформирован в сервисе ФНС «Мой налог».</p>
+  </div>`
+  return sendMail(
+    to,
+    `Чек об оплате — ${APP_NAME()}`,
+    `Спасибо за оплату «${description}» на сумму ${amount} ₽.\nЧек: ${receiptUrl}`,
+    html
+  )
+}
+
 module.exports = {
   generateCode,
   sendMail,
+  sendReceiptLink,
   sendVerificationCode,
   sendPasswordResetCode,
   _resetTransport
