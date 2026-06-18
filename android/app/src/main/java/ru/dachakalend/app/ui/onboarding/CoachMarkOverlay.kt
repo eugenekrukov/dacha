@@ -14,6 +14,8 @@ import androidx.compose.ui.geometry.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
@@ -103,7 +105,14 @@ fun CoachMarkOverlay(
         label = "pulse"
     )
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            // Тап по затемнению (вне пузыря подсказки) — переход к следующему шагу/завершение.
+            // Гарантирует, что оверлей всегда можно закрыть, даже если подсказка не отрисовалась
+            // (цель ещё не измерена / вне экрана). Кнопки пузыря перехватывают тап раньше.
+            .pointerInput(Unit) { detectTapGestures { controller.next(onDone) } }
+    ) {
 
         // ── Dark scrim + spotlight cutout ──
         Canvas(
@@ -134,17 +143,16 @@ fun CoachMarkOverlay(
             }
         }
 
-        // ── Tooltip ──
-        if (spotlightRect != null) {
-            CoachTooltip(
-                step        = step,
-                stepIndex   = controller.currentStep,
-                totalSteps  = coachMarkSteps.size,
-                targetRect  = spotlightRect,
-                onNext      = { controller.next(onDone) },
-                onSkip      = { controller.dismiss(onDone) },
-            )
-        }
+        // ── Tooltip ── рисуем ВСЕГДА (даже без измеренного spotlight), чтобы кнопки
+        // «Далее/Готово/Пропустить» были доступны и оверлей нельзя было «заклинить».
+        CoachTooltip(
+            step        = step,
+            stepIndex   = controller.currentStep,
+            totalSteps  = coachMarkSteps.size,
+            targetRect  = spotlightRect,
+            onNext      = { controller.next(onDone) },
+            onSkip      = { controller.dismiss(onDone) },
+        )
     }
 }
 
@@ -153,147 +161,177 @@ private fun BoxScope.CoachTooltip(
     step: CoachStep,
     stepIndex: Int,
     totalSteps: Int,
-    targetRect: Rect,
+    targetRect: Rect?,
     onNext: () -> Unit,
     onSkip: () -> Unit,
 ) {
-    // Tooltip is always positioned above the spotlight, with arrow pointing down
-    val pad = 10f
-    val spotlightTop = targetRect.top - pad
-    val arrowSize = 10.dp
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            // Position the tooltip bottom edge 16dp above the spotlight top
-            .align(Alignment.TopStart)
-            .offset(y = 0.dp), // set via layout below
-    ) {
-        // We use a Column with wrapContentHeight anchored to the bottom
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                // Lay out from top; bottom is constrained by spotlightTop via padding
-                .padding(top = 50.dp), // placeholder; overridden by BoxWithConstraints below
-        ) {}
+    // Spotlight ещё не измерен (цель вне экрана/не скомпонована) — показываем подсказку
+    // по центру без стрелки, чтобы кнопки были доступны и оверлей нельзя было заклинить.
+    if (targetRect == null) {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            CoachBubble(step, stepIndex, totalSteps, onNext, onSkip)
+        }
+        return
     }
 
-    // Use BoxWithConstraints to get screen height and compute position
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val pad = 10f
+    val arrowSize = 10.dp
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val screenHeightPx = constraints.maxHeight.toFloat()
-        val tooltipBottomPx = spotlightTop - arrowSize.value * 3f
+        val arrowGapPx = with(density) { (arrowSize * 3).toPx() }
+        val minRoomAbovePx = with(density) { 170.dp.toPx() }
 
-        // Convert to dp for padding
-        val density = androidx.compose.ui.platform.LocalDensity.current
-        val tooltipBottomDp = with(density) { tooltipBottomPx.toDp() }
+        val spotlightTop    = targetRect.top - pad
+        val spotlightBottom = targetRect.bottom + pad
+        // Мало места над целью (цель у верхней кромки, напр. погода) → показываем ПОД ней.
+        val placeBelow = spotlightTop < minRoomAbovePx
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .align(Alignment.BottomCenter)
-                .padding(bottom = with(density) { (screenHeightPx - tooltipBottomPx).toDp() })
-        ) {
-            // Arrow
+        if (placeBelow) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .offset(y = arrowSize)
-                    .size(arrowSize * 2, arrowSize)
-                    .background(
-                        Color.White,
-                        // Triangle pointing down via clip
-                        GenericShape { size, _ ->
-                            moveTo(0f, 0f)
-                            lineTo(size.width, 0f)
-                            lineTo(size.width / 2, size.height)
-                            close()
-                        }
-                    )
-            )
-
-            // Bubble
-            Column(
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .align(Alignment.TopCenter)
+                    .padding(top = with(density) { (spotlightBottom + arrowGapPx).toDp() })
+            ) {
+                // Стрелка вверх (к цели)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = -arrowSize)
+                        .size(arrowSize * 2, arrowSize)
+                        .background(
+                            Color.White,
+                            GenericShape { size, _ ->
+                                moveTo(0f, size.height)
+                                lineTo(size.width, size.height)
+                                lineTo(size.width / 2, 0f)
+                                close()
+                            }
+                        )
+                )
+                CoachBubble(step, stepIndex, totalSteps, onNext, onSkip)
+            }
+        } else {
+            val tooltipBottomPx = spotlightTop - arrowGapPx
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                    .padding(horizontal = 20.dp)
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = with(density) { (screenHeightPx - tooltipBottomPx).toDp() })
             ) {
-                // Step indicator
-                Text(
-                    "Шаг ${stepIndex + 1} из $totalSteps",
-                    fontFamily  = NunitoFamily,
-                    fontWeight  = FontWeight.Bold,
-                    fontSize    = 11.sp,
-                    color       = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 0.5.sp,
+                // Стрелка вниз (к цели)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .offset(y = arrowSize)
+                        .size(arrowSize * 2, arrowSize)
+                        .background(
+                            Color.White,
+                            GenericShape { size, _ ->
+                                moveTo(0f, 0f)
+                                lineTo(size.width, 0f)
+                                lineTo(size.width / 2, size.height)
+                                close()
+                            }
+                        )
                 )
-                Text(
-                    step.title,
-                    fontFamily  = NunitoFamily,
-                    fontWeight  = FontWeight.Black,
-                    fontSize    = 16.sp,
-                    color       = Color(0xFF1A1A1A),
-                )
-                Text(
-                    step.description,
-                    fontFamily  = NunitoFamily,
-                    fontWeight  = FontWeight.SemiBold,
-                    fontSize    = 13.sp,
-                    color       = Color(0xFF666666),
-                    lineHeight  = 19.sp,
-                )
-                Spacer(Modifier.height(6.dp))
+                CoachBubble(step, stepIndex, totalSteps, onNext, onSkip)
+            }
+        }
+    }
+}
 
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+@Composable
+private fun CoachBubble(
+    step: CoachStep,
+    stepIndex: Int,
+    totalSteps: Int,
+    onNext: () -> Unit,
+    onSkip: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(20.dp))
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            "Шаг ${stepIndex + 1} из $totalSteps",
+            fontFamily  = NunitoFamily,
+            fontWeight  = FontWeight.Bold,
+            fontSize    = 11.sp,
+            color       = MaterialTheme.colorScheme.primary,
+            letterSpacing = 0.5.sp,
+        )
+        Text(
+            step.title,
+            fontFamily  = NunitoFamily,
+            fontWeight  = FontWeight.Black,
+            fontSize    = 16.sp,
+            color       = Color(0xFF1A1A1A),
+        )
+        Text(
+            step.description,
+            fontFamily  = NunitoFamily,
+            fontWeight  = FontWeight.SemiBold,
+            fontSize    = 13.sp,
+            color       = Color(0xFF666666),
+            lineHeight  = 19.sp,
+        )
+        Spacer(Modifier.height(6.dp))
+
+        Row(
+            modifier              = Modifier.fillMaxWidth(),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                repeat(totalSteps) { i ->
+                    Box(
+                        Modifier
+                            .height(6.dp)
+                            .width(if (i == stepIndex) 18.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (i == stepIndex) MaterialTheme.colorScheme.primary
+                                else Color(0xFFDDDDDD)
+                            )
+                    )
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onSkip, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                    Text(
+                        "Пропустить",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize   = 13.sp,
+                        color      = Color(0xFFBBBBBB),
+                    )
+                }
+                Button(
+                    onClick  = onNext,
+                    shape    = RoundedCornerShape(14.dp),
+                    colors   = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
                 ) {
-                    // Step dots
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        repeat(totalSteps) { i ->
-                            Box(
-                                Modifier
-                                    .height(6.dp)
-                                    .width(if (i == stepIndex) 18.dp else 6.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (i == stepIndex) MaterialTheme.colorScheme.primary
-                                        else Color(0xFFDDDDDD)
-                                    )
-                            )
-                        }
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = onSkip, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                            Text(
-                                "Пропустить",
-                                fontFamily = NunitoFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize   = 13.sp,
-                                color      = Color(0xFFBBBBBB),
-                            )
-                        }
-                        Button(
-                            onClick  = onNext,
-                            shape    = RoundedCornerShape(14.dp),
-                            colors   = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
-                        ) {
-                            Text(
-                                if (stepIndex == totalSteps - 1) "Готово ✓" else "Далее →",
-                                fontFamily = NunitoFamily,
-                                fontWeight = FontWeight.Black,
-                                fontSize   = 13.sp,
-                                softWrap   = false,
-                            )
-                        }
-                    }
+                    Text(
+                        if (stepIndex == totalSteps - 1) "Готово ✓" else "Далее →",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        fontSize   = 13.sp,
+                        softWrap   = false,
+                    )
                 }
             }
         }
