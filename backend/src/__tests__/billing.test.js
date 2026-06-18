@@ -18,9 +18,9 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
         const p = s.payments[params[0]]
         return { rows: p ? [{ status: p.status }] : [] }
       }
-      if (sql.includes('SELECT user_id, plan, status FROM payments WHERE yk_payment_id')) {
+      if (sql.includes('FROM payments WHERE yk_payment_id') && sql.includes('user_id') && sql.includes('npd_receipt_uuid')) {
         const p = s.payments[params[0]]
-        return { rows: p ? [{ user_id: p.user_id, plan: p.plan, status: p.status }] : [] }
+        return { rows: p ? [{ user_id: p.user_id, plan: p.plan, status: p.status, npd_receipt_uuid: p.npd_receipt_uuid || null }] : [] }
       }
       if (sql.includes('SELECT id, email FROM users WHERE id')) {
         const u = s.users[params[0]]
@@ -68,6 +68,16 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
         else if (sql.includes("'canceled'")) status = 'canceled'
         // plan: для pending/succeeded-вставок он на индексе 3 (user_id, yk_id, amount, plan, ...).
         s.payments[ykId] = { user_id: userId, status, plan: params[3], params }
+        return { rows: [] }
+      }
+      if (sql.includes("SET npd_status = 'pending'")) {
+        const p = s.payments[params[0]]
+        if (p) p.npd_status = 'pending'
+        return { rows: [] }
+      }
+      if (sql.includes("SET npd_status = 'cancel_pending'")) {
+        const p = s.payments[params[0]]
+        if (p) p.npd_status = 'cancel_pending'
         return { rows: [] }
       }
       throw new Error('Неожиданный SQL в моке: ' + sql)
@@ -248,6 +258,41 @@ describe('POST /billing/webhook', () => {
     const res = await supertest(app.server).post('/billing/webhook')
       .send(refundWebhook({ id: 'ref_x', paymentId: 'pay_unknown' }))
     expect(res.status).toBe(200)
+    await app.close()
+  })
+})
+
+const nalogEnabled = {
+  isEnabled: () => true,
+  addIncome: async () => 'rcpt_x',
+  cancelIncome: async () => ({}),
+  getReceiptUrl: () => 'https://x/print'
+}
+
+describe('POST /billing/webhook — пометка чеков НПД', () => {
+  it('payment.succeeded при включённом «Мой налог» → npd_status=pending', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const app = await buildApp(db, { nalog: nalogEnabled })
+    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    expect(db.state.payments['pay_001'].npd_status).toBe('pending')
+    await app.close()
+  })
+
+  it('«Мой налог» отключён → npd_status не выставляется', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const app = await buildApp(db) // без opts.nalog → дефолтный сервис, isEnabled()=false (нет env)
+    await supertest(app.server).post('/billing/webhook').send(succeededWebhook({ id: 'pay_no_npd' }))
+    expect(db.state.payments['pay_no_npd'].npd_status).toBeUndefined()
+    await app.close()
+  })
+
+  it('refund.succeeded с зарегистрированным чеком → npd_status=cancel_pending', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const app = await buildApp(db, { nalog: nalogEnabled })
+    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    db.state.payments['pay_001'].npd_receipt_uuid = 'rcpt_x' // имитируем уже выданный чек
+    await supertest(app.server).post('/billing/webhook').send(refundWebhook())
+    expect(db.state.payments['pay_001'].npd_status).toBe('cancel_pending')
     await app.close()
   })
 })

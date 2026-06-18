@@ -9,6 +9,8 @@ const { extendSubscription, revokeSubscription } = require('../utils/access')
 module.exports = async function (fastify, opts) {
   // Сервис инъектируется для тестируемости (по умолчанию — реальный).
   const yk = (opts && opts.yookassa) || yookassa
+  const nalogService = require('../services/nalogService')
+  const nalog = (opts && opts.nalog) || nalogService
 
   // POST /billing/create-payment {plan} — создаёт платёж, возвращает ссылку на оплату.
   fastify.post('/create-payment', {
@@ -78,7 +80,7 @@ module.exports = async function (fastify, opts) {
       }
 
       const payRes = await db.query(
-        'SELECT user_id, plan, status FROM payments WHERE yk_payment_id = $1', [refund.payment_id]
+        'SELECT user_id, plan, status, npd_receipt_uuid FROM payments WHERE yk_payment_id = $1', [refund.payment_id]
       )
       const pay = payRes.rows[0]
       if (!pay) return reply.code(200).send({ ok: true })
@@ -98,6 +100,13 @@ module.exports = async function (fastify, opts) {
       await db.query(
         "UPDATE payments SET status = 'refunded' WHERE yk_payment_id = $1", [refund.payment_id]
       )
+      // Если по платежу был выдан чек НПД — поставить его на аннулирование.
+      if (nalog.isEnabled() && pay.npd_receipt_uuid) {
+        await db.query(
+          "UPDATE payments SET npd_status = 'cancel_pending' WHERE yk_payment_id = $1",
+          [refund.payment_id]
+        )
+      }
       return reply.code(200).send({ ok: true })
     }
 
@@ -155,6 +164,13 @@ module.exports = async function (fastify, opts) {
          ON CONFLICT (yk_payment_id) DO UPDATE SET status = 'succeeded'`,
         [userId, object.id, amount, plan || 'monthly', isRecurring]
       )
+      // Поставить платёж в очередь на регистрацию чека НПД (если «Мой налог» подключён).
+      if (nalog.isEnabled()) {
+        await db.query(
+          "UPDATE payments SET npd_status = 'pending' WHERE yk_payment_id = $1 AND npd_status IS NULL",
+          [object.id]
+        )
+      }
       return reply.code(200).send({ ok: true })
     }
 
