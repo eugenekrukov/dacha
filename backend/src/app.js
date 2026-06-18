@@ -109,10 +109,12 @@ app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOStrin
 const { startWeatherJob } = require('./jobs/weatherJob')
 const { startCareRemindersJob } = require('./jobs/careRemindersJob')
 const { startRenewalJob } = require('./jobs/renewalJob')
+const { startNalogJob } = require('./jobs/nalogJob')
 app.addHook('onReady', async () => {
   startWeatherJob(app.db)
   startCareRemindersJob(app.db)
   startRenewalJob(app.db)
+  startNalogJob(app.db)
 })
 
 // Start
