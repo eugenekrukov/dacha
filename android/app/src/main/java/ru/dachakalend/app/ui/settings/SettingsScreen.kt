@@ -535,9 +535,11 @@ fun SettingsScreen(
             val openUrl = { url: String ->
                 context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
             }
-            SettingsActionRow("Пользовательское соглашение") { openUrl("https://dacha.studio1008.com/#legal") }
+            SettingsActionRow("Публичная оферта") { openUrl("https://dacha.studio1008.com/offer") }
             HorizontalDivider()
-            SettingsActionRow("Политика конфиденциальности") { openUrl("https://dacha.studio1008.com/#legal") }
+            SettingsActionRow("Политика конфиденциальности") { openUrl("https://dacha.studio1008.com/privacy") }
+            HorizontalDivider()
+            SettingsActionRow("Удаление аккаунта и данных") { openUrl("https://dacha.studio1008.com/account-deletion") }
             HorizontalDivider()
             SettingsActionRow("Поддержка: dacha@studio1008.com") { openUrl("mailto:dacha@studio1008.com") }
 

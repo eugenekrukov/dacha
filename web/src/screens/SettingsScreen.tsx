@@ -122,11 +122,14 @@ export default function SettingsScreen() {
       <section className="dacha-card flex flex-col gap-2 p-5">
         <h2 className="font-black">О приложении</h2>
         <p className="font-semibold text-muted">Версия {APP_VERSION}</p>
-        <a className="text-link" href="https://dacha.studio1008.com/#legal" target="_blank" rel="noopener">
-          Пользовательское соглашение
+        <a className="text-link" href="https://dacha.studio1008.com/offer" target="_blank" rel="noopener">
+          Публичная оферта
         </a>
-        <a className="text-link" href="https://dacha.studio1008.com/#legal" target="_blank" rel="noopener">
+        <a className="text-link" href="https://dacha.studio1008.com/privacy" target="_blank" rel="noopener">
           Политика конфиденциальности
+        </a>
+        <a className="text-link" href="https://dacha.studio1008.com/account-deletion" target="_blank" rel="noopener">
+          Удаление аккаунта и данных
         </a>
         <a className="text-link" href="mailto:dacha@studio1008.com">Поддержка: dacha@studio1008.com</a>
       </section>

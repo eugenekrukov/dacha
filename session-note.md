@@ -2,6 +2,50 @@
 
 **Дата последней сессии**: 2026-06-17
 
+## Сессия 2026-06-17 (4) — Подготовка к публикации в Google Play
+
+**1. Отдельные легал-страницы (задеплоены, прод).** Вынес из лендинг-секции `#legal` в самостоятельные
+URL (для Play Console и in-app ссылок): `https://dacha.studio1008.com/{privacy,offer,account-deletion}`.
+Файлы — `landing/{privacy,offer,account-deletion}.html` (стиль Solar Dacha, self-contained). На VPS:
+scp в `/var/www/dacha-landing/` + nginx exact-локации `= /offer`, `= /privacy`, `= /account-deletion`
+(бэкапы `dacha.bak.legal`/`dacha.bak.deletion`, `nginx -t` OK, reload). Все отдают 200.
+⚠️ Деплой лендинга — **напрямую scp** (не через git-зеркало), nginx-конфиг вне git.
+
+**2. Ссылки на политику/оферту/удаление — поправлены везде.** Web `SettingsScreen.tsx` и Android
+`SettingsScreen.kt`: «Пользовательское соглашение/#legal» → «Публичная оферта»/`/offer`,
+«Политика»/`/privacy`, + новая строка «Удаление аккаунта и данных»/`/account-deletion`. Лендинг
+`index.html`: в блоке политики ссылка на `/account-deletion`, в футере — Оферта · Политика · Удаление.
+`sitemap.xml` += `/offer`, `/privacy`, `/account-deletion`. Историю (`session-note`, планы) и
+schema-`@id` в JSON-LD не трогал. ⚠️ Web-ссылки задеплоятся при пересборке веба; Android — со сборкой.
+
+**3. ASO-карточка `aso-gplay-samsung.md`** переписана под текущую модель (платная подписка, БЕЗ
+рекламы; Samsung снят). Убраны Advertising ID/реклама из Data Safety, добавлена «История покупок».
+Название Play (лимит 30): **«Календарь дачника: сад, огород»** (30 симв.; вариант «…: сад и огород» = 31).
+Privacy URL → `/privacy`.
+
+**4. Data Safety** — выверен по факту (схема БД, `LocationHelper` читает GPS → precise location;
+зависимости — только FCM, без Crashlytics/Analytics). Собираем: Email, User IDs, История покупок,
+Approximate + Precise location, Other user-generated content, Device ID — всё «collected, not shared».
+Проверил экспорт пользователя из Play, нашёл и исправил over-declarations (лишние Analytics/
+Personalization, ephemeral, Messages, неверный способ входа).
+
+**5. Демо-пользователь для скриншотов/тестов** (`demo@dacha.ru` / `demo1234`, прод): участок
+Краснодар (garden 12), посадки подобраны так, что на «Сегодня» по одной задаче каждого типа
+(пересадка/уход/полив/подкормка/урожай + reminder); лишние care-задачи погашены логами «вчера».
+Триал растянут до **30 дней** (`trial_started_at = now()+23d`, т.к. `TRIAL_DAYS=7` — глобальная
+константа). frost_alert не воспроизвести (зависит от реальной погоды).
+
+**6. Скиллы статистики** (локальные, в gitignored `.claude/skills/`): `/statistic` (кол-во
+пользователей: всего/подтв./платных), `/statistic_user` (таблица: дата рег., email, подтв.,
+промокод, платный). SQL выверен на проде; запуск — SSH из PowerShell + SQL в psql через stdin/base64.
+
+**7. Feature graphic 1024×500** для Play — `docs/store-assets/feature-graphic.png` (+ генератор
+`gen_feature_graphic.py` на Pillow, стиль Solar Dacha: градиент, подсолнух, грядка, пчёлы, бабочки).
+
+**8. Уроки для будущих SSH-вызовов:** PowerShell `Invoke-RestMethod` ломает UTF-8 (кириллица →
+`?????`) — для данных с кириллицей слать через psql/base64, не IRM. SSH-команды с кавычками/пайпами —
+кодировать в base64 и `echo b64 | base64 -d | bash`; большие пейлоады (>32k) — через `scp`, не аргумент.
+
 ## Сессия 2026-06-17 (3) — Пуши не приходят: диагностика + гигиена + фикс листа
 
 **1. Почему не приходили пуши (несколько дней).** Cron `careRemindersJob` (09:00) исправно
