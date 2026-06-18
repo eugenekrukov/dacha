@@ -35,7 +35,11 @@ function makeNalog({ enabled = true, add, cancel } = {}) {
 
 function makeEmail() {
   const sent = []
-  return { sent, sendReceiptLink: async (...a) => { sent.push(a); return true } }
+  return {
+    sent,
+    sendReceiptLink: async (...a) => { sent.push(a); return true },
+    sendMail: async () => true
+  }
 }
 
 describe('runNalogReceipts', () => {
