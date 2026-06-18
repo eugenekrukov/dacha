@@ -13,7 +13,7 @@
 
 const Fastify = require('fastify')
 
-async function buildApp(mockDb) {
+async function buildApp(mockDb, billingOpts = {}) {
   const fastify = Fastify({ logger: false })
 
   // JWT
@@ -57,7 +57,7 @@ async function buildApp(mockDb) {
   // Регистрируем роуты
   fastify.register(require('../../routes/auth'),      { prefix: '/auth' })
   fastify.register(require('../../routes/promo'),     { prefix: '/promo' })
-  fastify.register(require('../../routes/billing'),   { prefix: '/billing' })
+  fastify.register(require('../../routes/billing'),   { prefix: '/billing', ...billingOpts })
   fastify.register(require('../../routes/gardens'),   { prefix: '/gardens' })
   fastify.register(require('../../routes/guide'),      { prefix: '/guide' })
   fastify.register(require('../../routes/today'),     { prefix: '/today' })
