@@ -101,3 +101,22 @@ ssh hetzner 'cp /var/www/dacha-api/landing/index.html /var/www/dacha-landing/ind
 
 - **2026-06-12** — первый деплой веб-версии: backend (`store='web'`, `last_action_type`, фикс пушей),
   SPA в `/app/`, nginx `location /app/`, лендинг с входом в веб-версию. Подробности — `docs/web-migration-plan.md`.
+
+## «Мой налог» (чеки НПД)
+
+Авторегистрация дохода в ФНС после прекращения сервиса ЮKassa «Чеки для самозанятых» (29.12.2025).
+
+Требования на сервере:
+- RU forward-прокси (ФНС режет не-РФ IP): задать `NALOG_PROXY_URL` в `.env`.
+- Точное время (NTP): `timedatectl set-ntp true` — ФНС отклоняет запросы при расхождении часов.
+- Миграция 040: `ssh hetzner 'sudo -u postgres psql -d dacha_db -f /var/www/dacha-api/backend/src/db/migrations/040_nalog_receipts.sql'`
+  затем `ssh hetzner 'sudo -u postgres psql -d dacha_db -c "ALTER TABLE nalog_auth OWNER TO dacha_user;"'`
+
+Одноразовая авторизация (телефон + SMS):
+```
+cd /var/www/dacha-api/backend && node scripts/nalog-auth.js
+```
+Сохранит refresh_token в `nalog_auth` и выведет `NALOG_DEVICE_ID` — добавить в `.env`, затем `pm2 restart dacha-api`.
+
+Если регистрация чеков начала падать (письма-алерты на ADMIN_EMAIL, `npd_status='failed'`):
+проверить доступность прокси и при необходимости переавторизоваться скриптом выше.
