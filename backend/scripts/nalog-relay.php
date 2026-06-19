@@ -8,12 +8,17 @@
 //                                Apache на shared-хостинге часто не отдаёт PHP). Fallback — Authorization.
 // Тело (raw JSON) форвардится в ФНС как есть; ответ ФНС возвращается дословно (HTTP-код + тело).
 //
-// Настройка: задай секрет в переменной окружения NALOG_RELAY_SECRET ЛИБО впиши в $RELAY_SECRET ниже.
+// Настройка секрета (по приоритету): переменная окружения NALOG_RELAY_SECRET → файл .relay-secret
+// рядом со скриптом → хардкод ниже. Файл .relay-secret НЕ в гите и НЕ перезаписывается при scp .php,
+// поэтому деплой релея не затирает секрет (раньше scp затирал захардкоженный секрет плейсхолдером).
+// Создать на хостинге: umask 077; printf '%s' '<секрет>' > .relay-secret
 // Тот же секрет пропиши в NALOG_RELAY_SECRET на сервере Dacha. Опционально ограничь по IP Hetzner.
 
 declare(strict_types=1);
 
-$RELAY_SECRET = getenv('NALOG_RELAY_SECRET') ?: '__ЗАМЕНИ_НА_ДЛИННЫЙ_СЛУЧАЙНЫЙ_СЕКРЕТ__';
+$RELAY_SECRET = getenv('NALOG_RELAY_SECRET')
+  ?: @trim((string) @file_get_contents(__DIR__ . '/.relay-secret'))
+  ?: '__ЗАМЕНИ_НА_ДЛИННЫЙ_СЛУЧАЙНЫЙ_СЕКРЕТ__';
 $ALLOWED_IP   = getenv('NALOG_RELAY_ALLOW_IP') ?: ''; // напр. 78.47.58.211; пусто = IP не проверять
 $API_BASE     = 'https://lknpd.nalog.ru/api/v1';
 $TIMEOUT      = 60;
