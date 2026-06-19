@@ -25,7 +25,7 @@ android {
         applicationId = "ru.dachakalend.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
+        versionCode = 5
         versionName = "1.0.2"
 
         // URL бэкенда — менять здесь при смене окружения
