@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  :root{
+    --green:#1f5135; --green2:#2e7d4f; --leaf:#5aa469;
+    --sun:#f3b73b; --sun-d:#e09a12;
+    --ink:#22312a; --muted:#5f6f66;
+    --cream:#faf8f1; --card:#ffffff; --line:#e7e2d4;
+  }
+  html,body{ font-family:"Segoe UI",-apple-system,Roboto,Arial,sans-serif; color:var(--ink); background:#fff; }
+  .page{ width:210mm; height:297mm; background:var(--cream); position:relative; overflow:hidden; display:flex; flex-direction:column; }
+
+  /* HEADER */
+  .hero{ background:linear-gradient(135deg,var(--green) 0%,var(--green2) 100%); color:#fff; padding:16mm 14mm 12mm; position:relative; }
+  .hero::after{ content:""; position:absolute; right:-30mm; top:-30mm; width:80mm; height:80mm; background:radial-gradient(circle,rgba(243,183,59,.28),transparent 65%); }
+  .brandrow{ display:flex; align-items:center; gap:5mm; position:relative; z-index:2; }
+  .logo{ width:18mm; height:18mm; border-radius:50%; background:var(--sun); display:flex; align-items:center; justify-content:center; font-size:32px; box-shadow:0 4px 14px rgba(0,0,0,.18); flex:none; }
+  .brand h1{ font-size:30px; letter-spacing:-.5px; line-height:1.05; }
+  .brand .sub{ font-size:13px; opacity:.92; margin-top:3px; font-weight:500; }
+  .lead{ position:relative; z-index:2; margin-top:9mm; font-size:15px; line-height:1.5; max-width:165mm; opacity:.97; }
+  .lead b{ color:var(--sun); font-weight:600; }
+
+  .body{ padding:9mm 14mm 0; flex:1; }
+  .sec-title{ display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1.4px; color:var(--green2); margin:0 0 5mm; }
+  .sec-title::before{ content:""; width:14px; height:3px; border-radius:2px; background:var(--sun); }
+  .block{ margin-bottom:8mm; }
+
+  /* FEATURES */
+  .feat{ display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:4mm 4mm 4.5mm; box-shadow:0 2px 6px rgba(31,81,53,.05); }
+  .card .ic{ font-size:22px; line-height:1; }
+  .card h3{ font-size:13.5px; margin:3mm 0 1.5mm; color:var(--green); }
+  .card p{ font-size:11px; line-height:1.42; color:var(--muted); }
+
+  /* ADVANTAGES */
+  .chips{ display:flex; flex-wrap:wrap; gap:3mm; }
+  .chip{ display:flex; align-items:center; gap:6px; background:#eef4ee; border:1px solid #d9e6db; color:var(--green); border-radius:30px; padding:2.5mm 4mm; font-size:11.5px; font-weight:600; }
+  .chip .d{ color:var(--sun-d); }
+
+  /* USE CASES */
+  .cases{ display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; }
+  .case{ position:relative; background:linear-gradient(180deg,#fff,#fcfbf6); border:1px solid var(--line); border-left:3px solid var(--sun); border-radius:8px; padding:4mm; }
+  .case .q{ font-size:11px; color:var(--leaf); font-weight:700; margin-bottom:2mm; }
+  .case p{ font-size:11px; line-height:1.45; color:var(--ink); }
+
+  /* CTA FOOTER */
+  .cta{ margin-top:auto; background:var(--green); color:#fff; padding:8mm 14mm; display:flex; align-items:center; justify-content:space-between; gap:8mm; }
+  .cta .t{ font-size:15px; font-weight:600; line-height:1.4; }
+  .cta .t span{ color:var(--sun); }
+  .btns{ display:flex; flex-direction:column; gap:3mm; flex:none; }
+  .btn{ display:flex; align-items:center; gap:8px; text-decoration:none; font-size:12.5px; font-weight:600; border-radius:8px; padding:3mm 6mm; white-space:nowrap; }
+  .btn-sun{ background:var(--sun); color:#3a2c06; }
+  .btn-line{ background:transparent; color:#fff; border:1.5px solid rgba(255,255,255,.55); }
+  .btn .ar{ margin-left:auto; opacity:.7; }
+  .soon{ font-size:10.5px; opacity:.7; color:#fff; text-align:center; margin-top:1mm; }
+  .url{ font-size:9px; opacity:.55; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div class="brandrow">
+      <div class="logo">🌻</div>
+      <div class="brand">
+        <h1>Календарь дачника</h1>
+        <div class="sub">Сад · огород · участок — всё под рукой</div>
+      </div>
+    </div>
+    <p class="lead">Личный помощник для дачи, который сам подсказывает, <b>что и когда сделать</b> на участке: посеять, полить, подкормить, обработать. Никаких разрозненных заметок и «забыл вовремя» — приложение ведёт ваш огород за вас.</p>
+  </div>
+
+  <div class="body">
+
+    <div class="block">
+      <div class="sec-title">Возможности</div>
+      <div class="feat">
+        <div class="card"><div class="ic">✅</div><h3>Задачи на сегодня</h3><p>Открыл утром — видишь, что пора сделать именно сегодня. Похожие дела сгруппированы.</p></div>
+        <div class="card"><div class="ic">🌱</div><h3>Посадки и грядки</h3><p>Ведите список культур по участкам — приложение само рассчитает сроки ухода.</p></div>
+        <div class="card"><div class="ic">📅</div><h3>Календарь работ</h3><p>Посев, полив, подкормка, прополка и обработка — всё расписано по датам.</p></div>
+        <div class="card"><div class="ic">📖</div><h3>Справочник растений</h3><p>Болезни и вредители с фото и советами по уходу — определить и вылечить.</p></div>
+        <div class="card"><div class="ic">🌦️</div><h3>Погода</h3><p>Прогноз для вашего города, чтобы планировать работы и не упустить заморозки.</p></div>
+        <div class="card"><div class="ic">🔔</div><h3>Напоминания и журнал</h3><p>Пуш-напоминания о делах и запись выполненного — история участка за сезон.</p></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="sec-title">Почему удобно</div>
+      <div class="chips">
+        <div class="chip"><span class="d">●</span> Всё в одном приложении</div>
+        <div class="chip"><span class="d">●</span> Персонально под ваш участок</div>
+        <div class="chip"><span class="d">●</span> Без рекламы</div>
+        <div class="chip"><span class="d">●</span> На телефоне и в браузере</div>
+        <div class="chip"><span class="d">●</span> Данные синхронизируются</div>
+        <div class="chip"><span class="d">●</span> Простой, понятный интерфейс</div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="sec-title">Как это в жизни</div>
+      <div class="cases">
+        <div class="case"><div class="q">Утро на даче</div><p>Заглянул в «Сегодня» — видишь: полить томаты, подкормить огурцы. Сделал — отметил.</p></div>
+        <div class="case"><div class="q">Посадил новое</div><p>Добавил культуру — приложение само ставит задачи по поливу и подкормке на весь сезон.</p></div>
+        <div class="case"><div class="q">Что-то не так с растением</div><p>Открыл справочник, нашёл по симптомам болезнь или вредителя и узнал, что делать.</p></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="cta">
+    <div class="t">Начните вести участок<br>уже <span>сегодня</span> — это бесплатно*</div>
+    <div class="btns">
+      <a class="btn btn-sun" href="https://www.rustore.ru/catalog/app/ru.dachakalend.app">▶ Скачать в RuStore <span class="ar">→</span></a>
+      <a class="btn btn-line" href="https://dacha.studio1008.com/app/">🌐 Открыть веб-версию <span class="ar">→</span></a>
+      <div class="soon">Google Play — скоро · * 7 дней бесплатно</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
