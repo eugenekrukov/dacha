@@ -4,7 +4,8 @@
 // Бэкенд Dacha шлёт сюда POST с заголовками:
 //   X-Relay-Secret: <секрет>   — защита от чужих запросов (см. NALOG_RELAY_SECRET на сервере Dacha)
 //   X-Relay-Path:   /income    — путь в API ФНС (база https://lknpd.nalog.ru/api/v1 — хардкодом)
-//   Authorization:  Bearer ... — проброс токена ФНС (если есть)
+//   X-Relay-Auth:   Bearer ... — токен ФНС (кастомный заголовок: стандартный Authorization
+//                                Apache на shared-хостинге часто не отдаёт PHP). Fallback — Authorization.
 // Тело (raw JSON) форвардится в ФНС как есть; ответ ФНС возвращается дословно (HTTP-код + тело).
 //
 // Настройка: задай секрет в переменной окружения NALOG_RELAY_SECRET ЛИБО впиши в $RELAY_SECRET ниже.
@@ -47,8 +48,12 @@ if ($path === '' || $path[0] !== '/' || strpos($path, '..') !== false || strpos(
 $body = file_get_contents('php://input');
 if ($body === false) $body = '';
 
-// Проброс Authorization (Apache иногда прячет его в REDIRECT_*).
-$auth = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+// Проброс токена ФНС. Бэкенд дублирует его в кастомный X-Relay-Auth, т.к. Apache на shared-хостинге
+// часто вырезает стандартный Authorization до PHP (без спец-правила .htaccess). Порядок: кастомный
+// заголовок → стандартный Authorization → REDIRECT_* (на случай rewrite-правила).
+$auth = $_SERVER['HTTP_X_RELAY_AUTH']
+     ?? ($_SERVER['HTTP_AUTHORIZATION']
+     ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? ''));
 
 $headers = ['Content-Type: application/json', 'Accept: application/json'];
 if ($auth !== '') $headers[] = 'Authorization: ' . $auth;

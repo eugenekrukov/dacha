@@ -185,6 +185,10 @@ describe('nalogService relay-режим (NALOG_RELAY_URL)', () => {
     expect(calls[0].headers['X-Relay-Secret']).toBe('s3cr3t')
     expect(calls[0].headers['X-Relay-Path']).toBe('/auth/token')
     expect(calls[1].headers['X-Relay-Path']).toBe('/income')
+    // /auth/token идёт без токена → нет X-Relay-Auth; /income несёт токен в кастомном
+    // заголовке (Apache на shared-хостинге вырезает стандартный Authorization).
+    expect(calls[0].headers['X-Relay-Auth']).toBeUndefined()
+    expect(calls[1].headers['X-Relay-Auth']).toBe('Bearer acc')
   })
 })
 

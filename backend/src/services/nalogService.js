@@ -71,6 +71,10 @@ function buildRequest(path, body, token) {
   if (process.env.NALOG_RELAY_URL) {
     headers['X-Relay-Secret'] = process.env.NALOG_RELAY_SECRET || ''
     headers['X-Relay-Path'] = path
+    // Apache на shared-хостинге часто вырезает заголовок Authorization до того, как его увидит PHP
+    // (без спец-правила в .htaccess) → дублируем токен в кастомный X-Relay-Auth, который доходит
+    // всегда; релей переотправит его в ФНС как Authorization. Без этого /income отдавал 401.
+    if (token) headers['X-Relay-Auth'] = `Bearer ${token}`
     return { url: process.env.NALOG_RELAY_URL, options: { method: 'POST', headers, body: JSON.stringify(body) } }
   }
   const options = { method: 'POST', headers, body: JSON.stringify(body) }
