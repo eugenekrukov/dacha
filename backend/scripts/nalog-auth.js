@@ -2,10 +2,11 @@
 
 // Одноразовая авторизация в «Мой налог» по номеру телефона + SMS.
 // Сохраняет refresh_token в таблицу nalog_auth (id=1) и печатает сгенерированный device id.
-// Запуск (из backend, с заполненным .env — нужен NALOG_PROXY_URL и доступ к БД):
+// Запуск (из backend, с заполненным .env — нужен RU-транспорт к ФНС и доступ к БД):
 //   node scripts/nalog-auth.js
 //
-// ВАЖНО: ходит к ФНС через RU-прокси (NALOG_PROXY_URL). Время на машине должно совпадать с реальным.
+// ВАЖНО: ходит к ФНС через RU: PHP-релей (NALOG_RELAY_URL + NALOG_RELAY_SECRET) ЛИБО forward-прокси
+// (NALOG_PROXY_URL). Время на машине должно совпадать с реальным.
 
 require('dotenv').config()
 const readline = require('readline')
@@ -21,18 +22,24 @@ function ask(q) {
   return new Promise((res) => rl.question(q, (a) => { rl.close(); res(a.trim()) }))
 }
 
-function agent() {
-  if (!process.env.NALOG_PROXY_URL) throw new Error('NALOG_PROXY_URL не задан')
-  return new HttpsProxyAgent(process.env.NALOG_PROXY_URL)
+// Выбор RU-транспорта: релей (приоритет) либо forward-прокси. Зеркалит nalogService.buildRequest.
+function buildReq(path, body) {
+  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+  if (process.env.NALOG_RELAY_URL) {
+    headers['X-Relay-Secret'] = process.env.NALOG_RELAY_SECRET || ''
+    headers['X-Relay-Path'] = path
+    return { url: process.env.NALOG_RELAY_URL, options: { method: 'POST', headers, body: JSON.stringify(body) } }
+  }
+  if (!process.env.NALOG_PROXY_URL) throw new Error('Задайте NALOG_RELAY_URL или NALOG_PROXY_URL')
+  return {
+    url: `${API}${path}`,
+    options: { method: 'POST', headers, body: JSON.stringify(body), agent: new HttpsProxyAgent(process.env.NALOG_PROXY_URL) }
+  }
 }
 
 async function post(path, body) {
-  const res = await fetch(`${API}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify(body),
-    agent: agent()
-  })
+  const { url, options } = buildReq(path, body)
+  const res = await fetch(url, options)
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(`${path}: HTTP ${res.status} ${JSON.stringify(data)}`)
   return data
