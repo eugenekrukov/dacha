@@ -1,6 +1,7 @@
 # Статус и бэклог: «Календарь дачника»
 
 > История сессий — `session-note.md` (+ `session-note-archive.md`).
+> Приоритизированный план доработок (техдолг/фиксы → фичи) — `docs/improvement-plan.md`.
 > Отложенные задачи этапа 2+ — `docs/ux-roadmap.md` (единый источник).
 > Конвенции кода — `android/CONVENTIONS.md`; деплой — `docs/DEPLOY.md`; инструкции — `CLAUDE.md`.
 
