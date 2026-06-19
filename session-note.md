@@ -23,8 +23,7 @@
 **2. Ротация `NALOG_RELAY_SECRET`** (старый засветился в чате → мёртв). Новый 64-hex синхронен в
 Hetzner `.env` и reg.ru `.relay-secret` (sha256-матч `f58978d0…`), `pm2 restart`. Бэкап `.env.bak.rotate.*`.
 
-**3. UX-правки Android** (ветка `fix/onboarding-and-garden-ux`, `:app:compileRustoreDebugKotlin` OK,
-НЕ влита в `main`, публикует пользователь):
+**3. UX-правки Android** (влито в `main`, `:app:compileRustoreDebugKotlin` OK; APK/AAB публикует пользователь):
 - Регистрация: кнопка «Назад» уводит на Login, если экран пришёл из intro (был единственным в
   бэкстеке → `popBackStack` возвращал false, ничего не делал).
 - Создание участка: крестик-очистка поля города (popup `ExposedDropdownMenu` в Material3 1.2.x
@@ -35,7 +34,8 @@ Hetzner `.env` и reg.ru `.relay-secret` (sha256-матч `f58978d0…`), `pm2 r
   флаг в `TokenStorage`, снимается по «Понятно».
 
 **4. Лендинг:** RuStore-кнопки ведут на `https://www.rustore.ru/catalog/app/ru.dachakalend.app`
-(`target=_blank`), Google Play остался «Скоро». В ветке `fix/onboarding-and-garden-ux` (деплой через `scp`).
+(`target=_blank`), Google Play остался «Скоро». Влито в `main`, **задеплоено** на VPS
+(`scp` → `/var/www/dacha-landing/index.html`, `chown www-data`), ссылка живёт в проде.
 
 ## Сессия 2026-06-19 — Авто-чеки НПД («Мой налог») + RU-релей + gplay-сборка
 
