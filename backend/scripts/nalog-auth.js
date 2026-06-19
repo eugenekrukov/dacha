@@ -49,12 +49,12 @@ async function main() {
   const deviceId = process.env.NALOG_DEVICE_ID || crypto.randomBytes(11).toString('hex').slice(0, 21)
   const phone = process.env.NALOG_PHONE || await ask('Телефон (79XXXXXXXXX): ')
 
-  const challenge = await post('/auth/challenge', { phone, requireTpToBeActive: true })
+  const challenge = await post('/auth/challenge/sms/start', { phone })
   console.log('SMS отправлено. challengeToken получен.')
   const code = await ask('Код из SMS: ')
 
   const deviceInfo = { appVersion: '1.0.0', sourceDeviceId: deviceId, sourceType: 'WEB', metaDetails: { userAgent: 'Mozilla/5.0' } }
-  const auth = await post('/auth/challenge/verify', {
+  const auth = await post('/auth/challenge/sms/verify', {
     phone,
     code,
     challengeToken: challenge.challengeToken,
