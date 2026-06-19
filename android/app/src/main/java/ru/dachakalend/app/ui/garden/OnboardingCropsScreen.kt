@@ -1,5 +1,6 @@
 ﻿package ru.dachakalend.app.ui.garden
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -71,28 +72,42 @@ fun OnboardingCropsScreen(
             ) {
                 items(state.crops) { crop ->
                     val selected = crop.id in state.selected
-                    FilterChip(
-                        selected = selected,
+                    // Свой чип вместо FilterChip: у Material3-FilterChip фиксированная высота в
+                    // одну строку — длинные названия («Капуста белокочанная») обрезались до «Капуста…».
+                    // Здесь текст переносится на 2 строки, а чип растёт по высоте.
+                    Surface(
                         onClick = { viewModel.toggleCrop(crop.id) },
-                        shape = RoundedCornerShape(100.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surface,
+                        contentColor = if (selected) Color.White
+                                       else MaterialTheme.colorScheme.onSurface,
+                        border = BorderStroke(
+                            1.dp,
+                            if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant
                         ),
-                        label = {
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                        ) {
                             Text(
                                 text = crop.name,
                                 fontFamily = NunitoFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
+                                lineHeight = 14.sp,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth(),
-                                softWrap = false,
-                                overflow = TextOverflow.Ellipsis
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth()
                             )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        }
+                    }
                 }
             }
         }

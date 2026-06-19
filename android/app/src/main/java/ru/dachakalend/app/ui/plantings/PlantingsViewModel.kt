@@ -33,7 +33,8 @@ data class PlantingsUiState(
     val confirmDeletePlanting: Planting? = null,
     val confirmFinishSeason: Planting? = null,
     val pendingTasks: Map<Int, TokenStorage.PendingTaskInfo> = emptyMap(),
-    val snoozedTaskKeys: Set<String> = emptySet()
+    val snoozedTaskKeys: Set<String> = emptySet(),
+    val datesNeedCheck: Boolean = false
 ) {
     val filteredPlantings: List<Planting>
         get() = when (stageFilter) {
@@ -87,7 +88,16 @@ class PlantingsViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(pendingCropId = newCropId)
             loadPendingCropDefault(newCropId)
         }
+        // Реактивно отражаем флаг «проверить даты посадки» (ставится после онбординга).
+        viewModelScope.launch {
+            tokenStorage.plantingDatesNeedCheck.collect { need ->
+                _uiState.value = _uiState.value.copy(datesNeedCheck = need)
+            }
+        }
     }
+
+    /** Пользователь закрыл баннер «проверьте даты посадки». */
+    fun dismissDatesNeedCheck() = tokenStorage.setPlantingDatesNeedCheck(false)
 
     /** Грузим transplant_days культуры → дефолт тоггла способа посадки (есть рассадный период → «через рассаду»). */
     private fun loadPendingCropDefault(cropId: Int) {

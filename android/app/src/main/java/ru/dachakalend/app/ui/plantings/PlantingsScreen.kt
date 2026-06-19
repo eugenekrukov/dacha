@@ -244,6 +244,11 @@ fun PlantingsScreen(
                         }
                     }
                 }
+                if (state.datesNeedCheck) {
+                    item(key = "dates_check_banner") {
+                        DateCheckBanner(onDismiss = { viewModel.dismissDatesNeedCheck() })
+                    }
+                }
                 items(state.filteredPlantings, key = { it.id }) { planting ->
                     PlantingCard(
                         planting         = planting,
@@ -368,6 +373,53 @@ fun PlantingsScreen(
             onConfirm = { date, qty, cond, method -> viewModel.saveEditedInfo(planting.id, date, qty, cond, method) },
             onDismiss = { viewModel.dismissEditSheet() }
         )
+    }
+}
+
+// ─── Баннер «проверьте даты посадки» (после онбординга) ──────────────────────
+
+@Composable
+private fun DateCheckBanner(onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "⚠️ Проверьте даты посадки",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Для культур из онбординга мы поставили сегодняшнюю дату. " +
+                    "Откройте посадку (⋮ → «Изменить») и укажите, когда вы посадили — " +
+                    "так прогноз и напоминания будут точнее.",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        "Понятно",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
     }
 }
 

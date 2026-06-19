@@ -40,7 +40,7 @@ class OnboardingCropsViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true)
             when (val result = cropsRepository.getCrops()) {
                 is Result.Success -> _uiState.value = _uiState.value.copy(
-                    crops = result.data.take(24),
+                    crops = result.data,
                     isLoading = false
                 )
                 is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false)
@@ -81,6 +81,9 @@ class OnboardingCropsViewModel @Inject constructor(
                 )
                 if (result is Result.Error) allOk = false
             }
+            // Даты выставлены = сегодня без явного выбора — попросим пользователя проверить их
+            // на экране «Посадки» (баннер-подсказка).
+            tokenStorage.setPlantingDatesNeedCheck(true)
             _uiState.value = _uiState.value.copy(isSaving = false, done = true)
         }
     }

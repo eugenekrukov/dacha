@@ -30,9 +30,21 @@ class TokenStorage @Inject constructor(
     private val _largeFont = MutableStateFlow(false)
     val largeFont: StateFlow<Boolean> = _largeFont.asStateFlow()
 
+    // Реактивный флаг «нужно проверить даты посадки». Ставится после онбординга, где культуры
+    // создаются с датой = сегодня без явного выбора. На экране «Посадки» по нему показывается
+    // баннер-подсказка; снимается, когда пользователь его закрывает.
+    private val _plantingDatesNeedCheck = MutableStateFlow(false)
+    val plantingDatesNeedCheck: StateFlow<Boolean> = _plantingDatesNeedCheck.asStateFlow()
+
     init {
         _pendingCount.value = prefs.getInt(KEY_ATTENTION_COUNT, 0)
         _largeFont.value = prefs.getBoolean(KEY_LARGE_FONT, false)
+        _plantingDatesNeedCheck.value = prefs.getBoolean(KEY_DATES_NEED_CHECK, false)
+    }
+
+    fun setPlantingDatesNeedCheck(value: Boolean) {
+        prefs.edit { putBoolean(KEY_DATES_NEED_CHECK, value) }
+        _plantingDatesNeedCheck.value = value
     }
 
     fun isLargeFont(): Boolean = _largeFont.value
@@ -304,6 +316,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_COACH_DONE      = "coach_done"
         private const val KEY_NOTIF_PERM_ASKED = "notif_permission_asked"
         private const val KEY_LARGE_FONT       = "large_font"
+        private const val KEY_DATES_NEED_CHECK = "planting_dates_need_check"
         const val TRIAL_DAYS                  = 7L
 
         const val NOTIF_FROST      = "frost_alert"

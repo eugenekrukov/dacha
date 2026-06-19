@@ -1,6 +1,8 @@
 package ru.dachakalend.app.ui.garden
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -52,6 +54,19 @@ fun CityInputField(
                 isError = isError,
                 singleLine = true,
                 enabled = enabled,
+                // Кнопка-крестик: гарантированная очистка поля одним тапом. Нужна потому,
+                // что при открытом списке подсказок popup ExposedDropdownMenu может
+                // перехватывать фокус, и обычное удаление с клавиатуры срабатывает не всегда.
+                trailingIcon = {
+                    if (value.isNotEmpty() && enabled) {
+                        IconButton(onClick = {
+                            onValueChange("")
+                            onCityQueryChanged("")
+                        }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Очистить")
+                        }
+                    }
+                },
                 modifier = Modifier
                     .menuAnchor()
                     .fillMaxWidth()

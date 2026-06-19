@@ -257,7 +257,16 @@ class MainActivity : ComponentActivity() {
                                         popUpTo(Screen.Login.route) { inclusive = true }
                                     }
                                 },
-                                onBack = { navController.popBackStack() }
+                                onBack = {
+                                    // Если на Register пришли из Intro (popUpTo Intro inclusive),
+                                    // то это единственный экран в стеке — popBackStack() вернёт false
+                                    // и ничего не произойдёт. Тогда уводим на Login.
+                                    if (!navController.popBackStack()) {
+                                        navController.navigate(Screen.Login.route) {
+                                            popUpTo(Screen.Register.route) { inclusive = true }
+                                        }
+                                    }
+                                }
                             )
                         }
                         composable(

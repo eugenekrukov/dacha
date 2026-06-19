@@ -53,6 +53,7 @@ fun CreateGardenScreen(
     var isGettingGps   by remember { mutableStateOf(false) }
     var gpsStatus      by remember { mutableStateOf<String?>(null) }
     var cityError      by remember { mutableStateOf(false) }
+    var nameError      by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         when (val s = uiState) {
@@ -130,9 +131,13 @@ fun CreateGardenScreen(
 
             OutlinedTextField(
                 value = gardenName,
-                onValueChange = { gardenName = it },
-                label = { Text("Название участка", fontFamily = NunitoFamily) },
+                onValueChange = { gardenName = it; nameError = false },
+                label = { Text("Название участка *", fontFamily = NunitoFamily) },
                 placeholder = { Text("Например: Дача в Подмосковье", fontFamily = NunitoFamily) },
+                isError = nameError,
+                supportingText = if (nameError) {
+                    { Text("Обязательное поле", color = MaterialTheme.colorScheme.error, fontFamily = NunitoFamily) }
+                } else null,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
@@ -240,9 +245,11 @@ fun CreateGardenScreen(
 
             Button(
                 onClick = {
-                    if (cityName.isBlank() && uiState !is GardenUiState.LocationFound) {
-                        cityError = true
-                    } else {
+                    val nameBlank = gardenName.isBlank()
+                    val cityBlank = cityName.isBlank() && uiState !is GardenUiState.LocationFound
+                    nameError = nameBlank
+                    cityError = cityBlank
+                    if (!nameBlank && !cityBlank) {
                         viewModel.createGarden(gardenName, selectedRegion.ifBlank { null }, cityName.ifBlank { null }, selectedType)
                     }
                 },
