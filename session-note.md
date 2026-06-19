@@ -1,6 +1,52 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-06-17
+**Дата последней сессии**: 2026-06-19
+
+## Сессия 2026-06-19 — Авто-чеки НПД («Мой налог») + RU-релей + gplay-сборка
+
+**1. Авто-регистрация чеков НПД через «Мой налог» (РЕАЛИЗОВАНО + ЗАДЕПЛОЕНО, в проде).**
+Сервис ЮKassa «Чеки для самозанятых» прекращён 29.12.2025 → доход в ФНС регистрируем сами через
+неофициальный API `lknpd.nalog.ru`. Спека `docs/superpowers/specs/2026-06-18-nalog-npd-receipts-design.md`,
+план `docs/superpowers/plans/2026-06-18-nalog-npd-receipts.md`.
+- **Поток:** webhook `/billing/webhook` помечает платёж `payments.npd_status='pending'` (ФНС синхронно
+  НЕ дёргает) → cron `nalogJob` (каждые 5 мин, бюджет ≤2 вызова/прогон под лимит ФНС 2 запроса/мин)
+  регистрирует доход (`addIncome`) → сохраняет `npd_receipt_uuid` + шлёт покупателю письмо со ссылкой
+  на чек (`emailService.sendReceiptLink`). Возврат (`refund.succeeded`) → `npd_status='cancel_pending'`
+  → `cancelIncome(REFUND)`. Ретраи 5 → `npd_status='failed'` + алерт на `ADMIN_EMAIL`.
+- **Код:** `backend/src/services/nalogService.js` (тонкий клиент, токен/refresh из `nalog_auth`,
+  401-retry, выбор транспорта релей/прокси), `backend/src/jobs/nalogJob.js`, правки `routes/billing.js`
+  и `services/emailService.js`, миграция `040_nalog_receipts.sql` (колонки `npd_*` в `payments` +
+  таблица `nalog_auth`), bootstrap `scripts/nalog-auth.js`, релей `scripts/nalog-relay.php`. Тесты **300**.
+- **RU-транспорт** (ФНС режет не-РФ IP, бэкенд на Hetzner/Германия): PHP-релей на reg.ru shared-хостинге,
+  URL `https://next-status.com/nalog-relay.php` (docroot `~/public_html/next-status.com/`, `ssh reg`,
+  PHP 7.2.34+curl). Бэкенд → релей (`X-Relay-Secret`+`X-Relay-Path`) → ФНС. Альтернатива — forward-прокси
+  на RU-VPS (`NALOG_PROXY_URL`); если заданы оба — приоритет у релея. ⚠️ reg.ru shared НЕ годится для
+  Squid/SSH-туннеля (нет root, TCP-форвардинг запрещён); технический хост `*.cp.regruhosting.ru` нельзя
+  для HTTPS (cert не покрывает) — нужен реальный домен (`next-status.com` → reg.ru 31.31.198.188, валидный cert).
+- **Прод (Hetzner) `.env`:** `NALOG_INN=540861624727`, `NALOG_RELAY_URL`, `NALOG_RELAY_SECRET` (64 hex),
+  `NALOG_DEVICE_ID=ba58714129d8dc4adec13`, `YOOKASSA_RECEIPT_MODE=off`. Миграция 040 применена,
+  `refresh_token` в `nalog_auth` (bootstrap по SMS прошёл). Реальные эндпоинты SMS-авторизации ФНС:
+  `/auth/challenge/sms/start` и `/auth/challenge/sms/verify` (НЕ `/auth/challenge` — был 404).
+- ⚠️ **ОТКРЫТО (продолжить в новой сессии):** end-to-end проверка реальным платежом НЕ проведена
+  (пользователь не захотел проводить реальную оплату). При тестовой оплате проверить
+  `payments.npd_status='registered'`+`npd_receipt_uuid`, логи `[nalog-job]`, письмо с чеком, доход в «Мой налог».
+  Релей-транспорт уже подтверждён (ФНС вернула 422 «Пустой refreshToken» на тест-запрос).
+
+**2. Уборка гита.** Все фич-ветки уже были влиты в `main` → удалены (7 локальных + 4 на origin),
+осталась только `main` (`origin/main` == локальный). Build-вывод флейворов (`android/app/*/release/`)
+добавлен в `.gitignore`, ошибочно затреканный `android/build/reports/problems-report.html` расстрекан;
+закоммичены store-ассеты (`docs/store-assets/`).
+
+**3. gplay AAB для тест-трека.** `versionCode 4→5` (versionName 1.0.2). Подписанный
+`android/app/build/outputs/bundle/gplayRelease/app-gplay-release.aab` (9.6 МБ, ключ `dacha-release`).
+Сборка: `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr` → `gradlew.bat -p android bundleGplayRelease`.
+Заливка в Play Console (закрытое тестирование) — пользователем. Деплой бэкенда не требовался (только доки).
+
+**4. Уроки (SSH/сборка с Windows).** PowerShell-пайп в `ssh … 'bash -s'` добавляет BOM на 1-ю строку
+(жертвуем строкой-пустышкой `true`) и CRLF (ломает `for`/подоболочки `(...)`) → перед пайпом заменять
+CRLF→LF. Прямой `ssh '… "двойные кавычки" …'` из PowerShell съедает внутренние кавычки → команды с
+кавычками/пайпами слать через `bash -s`. Gradle на Windows: задавать `JAVA_HOME` (JBR Android Studio).
+Чтение/запись боевого `.env`/БД по SSH — авто-страж требует явного разрешения пользователя.
 
 ## Сессия 2026-06-17 (4) — Подготовка к публикации в Google Play
 

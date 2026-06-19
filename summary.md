@@ -12,14 +12,18 @@
 - **Веб**: `https://dacha.studio1008.com/app/` (папка `web/`, статика `/var/www/dacha-web`, nginx `location /app/`). Та же БД/API.
 - **Android**: package `ru.dachakalend.app` · minSdk 26 · compileSdk/targetSdk **36** (Android 16) · флейворы `rustore`/`gplay`/`samsung` (сборка `:app:compileGplayDebugKotlin` и т.п.).
 - **Справочник проблем растений**: в проде на всех платформах (~68 записей, 52/68 с фото). См. `docs/plant-guide-plan.md`.
-- **Бэкенд-тесты**: 266/266 (`npm test` → vitest run; **НЕ** jest).
+- **Бэкенд-тесты**: 300/300 (`npm test` → vitest run; **НЕ** jest).
 
 ## Монетизация (ФИНАЛ 2026-06-16)
 
 Web + Google Play + RuStore — **все платная подписка «Дачник Про», 7 дней триал, БЕЗ рекламы.**
 Samsung снят с публикации. Оплата — **ЮKassa напрямую** (Shop ID 1376599), **разовые платежи**
 (рекуррент запрещён самозанятому → продление вручную); доступ продлевает вебхук `/billing/webhook`.
-Чек — НПД (422-ФЗ). Серверный гейт: `utils/access.js` `hasAccess` (триал/`subscription_until`/промо),
+Чек — НПД (422-ФЗ): **авто-регистрируется в «Мой налог»** через `lknpd.nalog.ru` (сервис ЮKassa «Чеки
+для самозанятых» прекращён 29.12.2025). Поток: webhook → `payments.npd_status` → cron `nalogJob` →
+`addIncome` через RU-релей (`nalog-relay.php` на reg.ru, `NALOG_RELAY_URL`) → письмо с чеком. Детали —
+`docs/DEPLOY.md` («Мой налог») и `session-note.md` (2026-06-19). ⚠️ `YOOKASSA_RECEIPT_MODE=off`.
+Серверный гейт: `utils/access.js` `hasAccess` (триал/`subscription_until`/промо),
 `requireAccess` → 402. Рекламной модели (Yandex Ads / РСЯ) больше нет — выпилена вместе с Samsung.
 ⚠️ Код samsung-флейвора в Android ещё не удалён (не срочно, флейвор просто не публикуется).
 
