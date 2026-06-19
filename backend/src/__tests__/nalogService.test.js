@@ -143,6 +143,51 @@ describe('nalogService.addIncome / cancelIncome (с инъекцией fetch)', 
   })
 })
 
+describe('nalogService relay-режим (NALOG_RELAY_URL)', () => {
+  afterEach(() => {
+    delete process.env.NALOG_RELAY_URL
+    delete process.env.NALOG_RELAY_SECRET
+    delete process.env.NALOG_INN
+    nalog._resetToken()
+  })
+
+  function makeDb(refreshToken = 'rt_1') {
+    return {
+      async query(sql) {
+        if (sql.includes('SELECT refresh_token FROM nalog_auth')) return { rows: [{ refresh_token: refreshToken }] }
+        return { rows: [] }
+      }
+    }
+  }
+
+  it('isEnabled: on при NALOG_INN + NALOG_RELAY_URL (без прокси)', () => {
+    process.env.NALOG_INN = '123456789012'
+    process.env.NALOG_RELAY_URL = 'https://site.ru/nalog-relay.php'
+    expect(nalog.isEnabled()).toBe(true)
+  })
+
+  it('addIncome через релей: POST на релей-URL, путь и секрет в заголовках', async () => {
+    process.env.NALOG_RELAY_URL = 'https://site.ru/nalog-relay.php'
+    process.env.NALOG_RELAY_SECRET = 's3cr3t'
+    const calls = []
+    const fakeFetch = async (url, opts) => {
+      calls.push({ url, headers: opts.headers, body: JSON.parse(opts.body) })
+      if (opts.headers['X-Relay-Path'] === '/auth/token') {
+        return { ok: true, status: 200, json: async () => ({ token: 'acc', tokenExpireIn: '2099-01-01T00:00:00Z' }) }
+      }
+      return { ok: true, status: 200, json: async () => ({ approvedReceiptUuid: 'rcpt_relay' }) }
+    }
+    const uuid = await nalog.addIncome(makeDb(), { name: 'X', amount: 299, quantity: 1, operationTime: new Date() }, fakeFetch)
+    expect(uuid).toBe('rcpt_relay')
+    // оба запроса идут на сам релей-URL, цель ФНС — в заголовке X-Relay-Path
+    expect(calls[0].url).toBe('https://site.ru/nalog-relay.php')
+    expect(calls[1].url).toBe('https://site.ru/nalog-relay.php')
+    expect(calls[0].headers['X-Relay-Secret']).toBe('s3cr3t')
+    expect(calls[0].headers['X-Relay-Path']).toBe('/auth/token')
+    expect(calls[1].headers['X-Relay-Path']).toBe('/income')
+  })
+})
+
 describe('nalogService.getReceiptUrl', () => {
   afterEach(() => { delete process.env.NALOG_INN })
   it('строит ссылку на печать чека по ИНН и uuid', () => {

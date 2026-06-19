@@ -5,9 +5,10 @@ const { HttpsProxyAgent } = require('https-proxy-agent')
 
 // Тонкий клиент к неофициальному API «Мой налог» (lknpd.nalog.ru/api/v1).
 // Регистрация дохода НПД (422-ФЗ) после прекращения сервиса ЮKassa «Чеки для самозанятых» (29.12.2025).
-// Включается заданием NALOG_INN + NALOG_PROXY_URL (+ refresh_token в таблице nalog_auth). Без них
-// isEnabled()=false → nalogJob пропускается (паттерн ЮKassa/почты/пушей).
-// ФНС режет не-РФ IP → все запросы идут через RU forward-прокси (NALOG_PROXY_URL).
+// Включается заданием NALOG_INN + (NALOG_RELAY_URL | NALOG_PROXY_URL) (+ refresh_token в nalog_auth).
+// Без них isEnabled()=false → nalogJob пропускается (паттерн ЮKassa/почты/пушей).
+// ФНС режет не-РФ IP (сервер в Германии) → запросы идут через RU: PHP-релей на RU-хостинге
+// (NALOG_RELAY_URL) ЛИБО forward-прокси HTTP CONNECT (NALOG_PROXY_URL).
 
 const API_BASE = () => process.env.NALOG_API || 'https://lknpd.nalog.ru/api/v1'
 
@@ -38,7 +39,7 @@ function buildIncomeBody({ name, amount, quantity = 1, operationTime }) {
 const TIMEOUT_MS = 60000 // ФНС: таймаут ответа ≥ 60с
 
 function isEnabled() {
-  return !!(process.env.NALOG_INN && process.env.NALOG_PROXY_URL)
+  return !!(process.env.NALOG_INN && (process.env.NALOG_RELAY_URL || process.env.NALOG_PROXY_URL))
 }
 
 function getReceiptUrl(receiptUuid) {
@@ -60,20 +61,30 @@ let _accessToken = null
 let _accessExp = 0
 function _resetToken() { _accessToken = null; _accessExp = 0 } // только для тестов
 
-// Низкоуровневый POST через RU-прокси с таймаутом. fetchImpl инъектируется в тестах.
+// Куда и как слать запрос — выбор транспорта (ФНС режет не-РФ IP):
+//   NALOG_RELAY_URL — PHP-релей на RU-хостинге: POST на сам релей, путь ФНС и секрет в заголовках.
+//   NALOG_PROXY_URL — RU forward-прокси: прямой POST к ФНС через HTTPS-CONNECT прокси-agent.
+// Приоритет у релея (если задан и то, и другое).
+function buildRequest(path, body, token) {
+  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  if (process.env.NALOG_RELAY_URL) {
+    headers['X-Relay-Secret'] = process.env.NALOG_RELAY_SECRET || ''
+    headers['X-Relay-Path'] = path
+    return { url: process.env.NALOG_RELAY_URL, options: { method: 'POST', headers, body: JSON.stringify(body) } }
+  }
+  const options = { method: 'POST', headers, body: JSON.stringify(body) }
+  if (process.env.NALOG_PROXY_URL) options.agent = new HttpsProxyAgent(process.env.NALOG_PROXY_URL)
+  return { url: `${API_BASE()}${path}`, options }
+}
+
+// Низкоуровневый POST к ФНС (через релей или прокси) с таймаутом. fetchImpl инъектируется в тестах.
 async function npdPost(path, body, token, fetchImpl = fetch) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   try {
-    const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
-    if (token) headers['Authorization'] = `Bearer ${token}`
-    const res = await fetchImpl(`${API_BASE()}${path}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      agent: new HttpsProxyAgent(process.env.NALOG_PROXY_URL),
-      signal: controller.signal
-    })
+    const { url, options } = buildRequest(path, body, token)
+    const res = await fetchImpl(url, { ...options, signal: controller.signal })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       const err = new Error(`Мой налог ${path}: HTTP ${res.status} ${data && data.message ? data.message : ''}`.trim())

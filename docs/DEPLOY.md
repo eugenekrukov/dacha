@@ -107,16 +107,35 @@ ssh hetzner 'cp /var/www/dacha-api/landing/index.html /var/www/dacha-landing/ind
 Авторегистрация дохода в ФНС после прекращения сервиса ЮKassa «Чеки для самозанятых» (29.12.2025).
 
 Требования на сервере:
-- RU forward-прокси (ФНС режет не-РФ IP): задать `NALOG_PROXY_URL` в `.env`.
+- RU-транспорт к ФНС (режет не-РФ IP) — один из двух (см. ниже): PHP-релей или forward-прокси.
 - Точное время (NTP): `timedatectl set-ntp true` — ФНС отклоняет запросы при расхождении часов.
 - Миграция 040: `ssh hetzner 'sudo -u postgres psql -d dacha_db -f /var/www/dacha-api/backend/src/db/migrations/040_nalog_receipts.sql'`
   затем `ssh hetzner 'sudo -u postgres psql -d dacha_db -c "ALTER TABLE nalog_auth OWNER TO dacha_user;"'`
 
-Одноразовая авторизация (телефон + SMS):
+### RU-транспорт, вариант 1 — PHP-релей (RU shared-хостинг, без VPS)
+1. Сгенерируй секрет: `openssl rand -hex 32`.
+2. Скопируй `backend/scripts/nalog-relay.php` в `public_html` российского хостинга. Задай в нём секрет —
+   через переменную окружения `NALOG_RELAY_SECRET` либо впиши в `$RELAY_SECRET`. По желанию ограничь
+   по IP: `NALOG_RELAY_ALLOW_IP=78.47.58.211`.
+3. Проверь с Hetzner (ожидаем ответ ФНС, не `relayError`):
+   ```
+   curl -s -X POST https://ТВОЙ-ДОМЕН/nalog-relay.php \
+     -H "X-Relay-Secret: СЕКРЕТ" -H "X-Relay-Path: /auth/token" \
+     -H "Content-Type: application/json" -d '{}'
+   ```
+4. На Hetzner в `.env`: `NALOG_RELAY_URL=https://ТВОЙ-ДОМЕН/nalog-relay.php` и `NALOG_RELAY_SECRET=СЕКРЕТ`.
+
+### RU-транспорт, вариант 2 — forward-прокси (RU VPS)
+Поднять Squid/3proxy на RU-VPS (ограничить доступ IP Hetzner `78.47.58.211` и доменом `lknpd.nalog.ru`),
+затем в `.env`: `NALOG_PROXY_URL=http://IP_VPS:3128`.
+
+> Если заданы оба транспорта — приоритет у релея (`NALOG_RELAY_URL`).
+
+Одноразовая авторизация (телефон + SMS) — ходит к ФНС через тот же транспорт:
 ```
 cd /var/www/dacha-api/backend && node scripts/nalog-auth.js
 ```
 Сохранит refresh_token в `nalog_auth` и выведет `NALOG_DEVICE_ID` — добавить в `.env`, затем `pm2 restart dacha-api`.
 
 Если регистрация чеков начала падать (письма-алерты на ADMIN_EMAIL, `npd_status='failed'`):
-проверить доступность прокси и при необходимости переавторизоваться скриптом выше.
+проверить доступность транспорта (релея/прокси) и при необходимости переавторизоваться скриптом выше.
