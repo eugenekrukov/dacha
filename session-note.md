@@ -4,7 +4,28 @@
 
 ## Сессия 2026-06-20 — Продуктовое исследование, UI-ревью, GTM + реализация Tier 1
 
-> ⚠️ ВСЁ НИЖЕ — в коде, но **НЕ задеплоено**. Деплой-шаги собраны в конце блока.
+> ✅ **ДЕПЛОЙ TIER 1 ВЫПОЛНЕН 2026-06-20** (см. блок «Деплой» ниже). Tier 1 был только в рабочем
+> дереве (не закоммичен) → коммит `b555cae` → push в `main` → выкатка на VPS. Остаётся: Android
+> (собирает/публикует пользователь) + домаркировать gplay-тестеров `is_test=true` (триаж списка).
+
+### Деплой Tier 1 — выполнено 2026-06-20
+- Backend: `git reset --hard origin/main` (VPS на `b555cae`); миграции **041/042/043** применены
+  через `sudo -u postgres psql -f` (041: +`is_test`, UPDATE 4 синт. + UPDATE 3 dev, индекс; 042:
+  `trial_emails`; 043: +`email_optout`). `trial_emails` → `ALTER OWNER TO dacha_user`. `pm2 restart`,
+  health ok. `npm install` НЕ нужен (зависимости не менялись), env НЕ задавал (`UNSUBSCRIBE_SECRET`
+  опц. → fallback `JWT_SECRET`, `PUBLIC_API_URL` → дефолт прод-хост).
+- Веб пересобран на VPS (`npm ci && build` → `/var/www/dacha-web`), `/app/` → 200.
+- Лендинг: `cp landing/{offer,privacy}.html → /var/www/dacha-landing/`, `/offer` `/privacy` → 200.
+- Смоук: `/unsubscribe` плохой токен → 400 «Ссылка недействительна»; валидный токен (через
+  `buildUrl` с dotenv) → 200 «Вы отписаны» + `email_optout=true` (флаг тест-юзера возвращён в false).
+- Состояние воронки после 041: **7 тест / 12 «реальных»**. Из 12 органика = `gladkova@astrum.nov.ru`,
+  `viserspun@ya.ru`; остальные (вкл. `SevastianKru@gmail.com` — похоже личный) — **ждут триажа на
+  `is_test=true`**. Список 12 в чате сессии.
+- ⚠️ Гоча PowerShell→ssh: `psql -c "..."` с двойными кавычками ломается (см. сбой `ALTER OWNER`) →
+  SQL слать через stdin (`'SQL' | ssh hetzner 'sudo -u postgres psql -d dacha_db'`).
+
+> ⚠️ Историческая пометка: всё НИЖЕ описано как «в коде, не задеплоено» — на момент написания. Теперь
+> задеплоено (см. блок «Деплой» выше).
 
 **Аналитика/стратегия (новые доки):**
 - `docs/product-research-2026.md` — исследование (рамка + конкурентная разведка + бэклог F/U).
