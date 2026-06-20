@@ -18,9 +18,12 @@
 - Лендинг: `cp landing/{offer,privacy}.html → /var/www/dacha-landing/`, `/offer` `/privacy` → 200.
 - Смоук: `/unsubscribe` плохой токен → 400 «Ссылка недействительна»; валидный токен (через
   `buildUrl` с dotenv) → 200 «Вы отписаны» + `email_optout=true` (флаг тест-юзера возвращён в false).
-- Состояние воронки после 041: **7 тест / 12 «реальных»**. Из 12 органика = `gladkova@astrum.nov.ru`,
-  `viserspun@ya.ru`; остальные (вкл. `SevastianKru@gmail.com` — похоже личный) — **ждут триажа на
-  `is_test=true`**. Список 12 в чате сессии.
+- Воронка после триажа: **17 тест / 2 реальных**. Помечены 6 из списка тестеров + ещё 4 (id 5,7,13,14 —
+  знакомые/RuStore-тестеры, по уточнению владельца). Реальная органика = ровно `viserspun@ya.ru` (8) и
+  `gladkova@astrum.nov.ru` (19). 10 тестеров из списка ещё не регистрировались.
+  ⚠️ При регистрации они попадут в «реальные» → перед маркетингом повторить
+  `UPDATE users SET is_test=true WHERE lower(email) IN (...)` по полному списку
+  (см. memory `reference_dacha_testers`).
 - ⚠️ Гоча PowerShell→ssh: `psql -c "..."` с двойными кавычками ломается (см. сбой `ALTER OWNER`) →
   SQL слать через stdin (`'SQL' | ssh hetzner 'sudo -u postgres psql -d dacha_db'`).
 
