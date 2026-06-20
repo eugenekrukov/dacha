@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.billing.SubscriptionManager
 import ru.dachakalend.app.billing.SubscriptionStatus
+import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 
@@ -26,12 +27,16 @@ data class PaywallUiState(
     // Текст тоста-подтверждения после успешного промокода (null для оплаты).
     val redeemMessage: String? = null,
     // Событие: открыть ссылку оплаты ЮKassa в Custom Tab (после открытия экран сбрасывает в null).
-    val paymentUrl: String? = null
+    val paymentUrl: String? = null,
+    // U7 ценностный блок: что пользователь уже сделал за триал (0/0 → блок не показываем).
+    val plantingsCount: Int = 0,
+    val actionsCount: Int = 0
 )
 
 @HiltViewModel
 class PaywallViewModel @Inject constructor(
-    private val subscriptionManager: SubscriptionManager
+    private val subscriptionManager: SubscriptionManager,
+    private val api: DachaApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PaywallUiState())
@@ -44,6 +49,16 @@ class PaywallViewModel @Inject constructor(
             }
         }
         viewModelScope.launch { subscriptionManager.refresh() }
+        // Прогресс для ценностного блока (best-effort; ошибка/оффлайн — просто не показываем).
+        viewModelScope.launch {
+            try {
+                val a = api.getAnalyticsSummary()
+                _uiState.value = _uiState.value.copy(
+                    plantingsCount = a.plantingsCount,
+                    actionsCount = a.totalActions
+                )
+            } catch (_: Exception) { }
+        }
     }
 
     /** Создаёт платёж и отдаёт UI ссылку для открытия в Custom Tab. */

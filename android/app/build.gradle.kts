@@ -176,6 +176,9 @@ dependencies {
     // Yandex Mobile Ads (РСЯ) — только рекламный флейвор samsung. gplay с 2026-06-13 платный, без рекламы.
     "samsungImplementation"(libs.yandex.mobileads)
 
+    // RuStore Reviews SDK — только rustore-флейвор (нативный запрос оценки). gplay/samsung — no-op AppReview.
+    "rustoreImplementation"(libs.rustore.review)
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")

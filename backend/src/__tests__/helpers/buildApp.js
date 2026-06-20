@@ -67,6 +67,7 @@ async function buildApp(mockDb, billingOpts = {}) {
   fastify.register(require('../../routes/analytics'), { prefix: '/analytics' })
   fastify.register(require('../../routes/reminders'), { prefix: '/reminders' })
   fastify.register(require('../../routes/push-tokens'), { prefix: '/push-tokens' })
+  fastify.register(require('../../routes/unsubscribe'), { prefix: '/unsubscribe' })
 
   await fastify.ready()
   return fastify

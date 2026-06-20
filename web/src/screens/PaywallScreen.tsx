@@ -1,10 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, Sparkles } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { formatDate } from '../api/labels'
 import type { BillingPlan } from '../api/types'
+
+// Склонение существительных по числу (1 посадка / 2 посадки / 5 посадок).
+function plural(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return `${n} ${one}`
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return `${n} ${few}`
+  return `${n} ${many}`
+}
 
 const PLANS: { id: BillingPlan; title: string; price: string; note: string; badge?: string }[] = [
   { id: 'yearly', title: 'Год', price: '1 990 ₽', note: '≈ 166 ₽ в месяц', badge: 'Выгодно −45%' },
@@ -27,6 +36,15 @@ export default function PaywallScreen() {
   const [error, setError] = useState<string | null>(null)
   const [promo, setPromo] = useState('')
   const [promoMsg, setPromoMsg] = useState<string | null>(null)
+  // U7: ценностный блок — показываем, что пользователь уже сделал за триал.
+  const [progress, setProgress] = useState<{ plantings: number; actions: number } | null>(null)
+
+  useEffect(() => {
+    api
+      .getAnalytics()
+      .then((a) => setProgress({ plantings: a.plantings_count ?? 0, actions: a.total_actions ?? 0 }))
+      .catch(() => {})
+  }, [])
 
   const buy = async (plan: BillingPlan) => {
     setBusy(plan)
@@ -88,6 +106,15 @@ export default function PaywallScreen() {
         <div className="dacha-card flex items-center gap-2 bg-tertiary/10 p-4 font-bold text-tertiary">
           <Sparkles size={20} aria-hidden className="shrink-0" />
           Первые 7 дней — бесплатно. Оплата позже, автосписаний нет.
+        </div>
+      )}
+
+      {/* U7: ценностный блок — не теряйте набранный сезон */}
+      {progress && (progress.plantings > 0 || progress.actions > 0) && (
+        <div className="dacha-card bg-primary/10 p-4 font-semibold">
+          Вы уже добавили {plural(progress.plantings, 'посадку', 'посадки', 'посадок')} и записали{' '}
+          {plural(progress.actions, 'действие', 'действия', 'действий')}.
+          {' '}С «Дачник Про» весь ваш сезон останется с вами — не теряйте набранный темп.
         </div>
       )}
 

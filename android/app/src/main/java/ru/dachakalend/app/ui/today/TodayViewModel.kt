@@ -121,6 +121,7 @@ class TodayViewModel @Inject constructor(
             try {
                 RuStorePushClient.getToken()
                     .addOnSuccessListener { token ->
+                        tokenStorage.savePushToken(token)
                         viewModelScope.launch {
                             try { api.registerPushToken(mapOf("token" to token, "provider" to "rustore")) }
                             catch (_: Exception) {}
@@ -133,6 +134,7 @@ class TodayViewModel @Inject constructor(
             try {
                 FirebaseMessaging.getInstance().token
                     .addOnSuccessListener { token ->
+                        tokenStorage.savePushToken(token)
                         viewModelScope.launch {
                             try { api.registerPushToken(mapOf("token" to token, "provider" to "fcm")) }
                             catch (_: Exception) {}

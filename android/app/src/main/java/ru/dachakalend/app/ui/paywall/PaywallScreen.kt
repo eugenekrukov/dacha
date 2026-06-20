@@ -144,6 +144,30 @@ fun PaywallScreen(
                 lineHeight = 22.sp
             )
 
+            // U7 ценностный блок — что пользователь уже сделал за триал (не теряйте сезон).
+            if (uiState.plantingsCount > 0 || uiState.actionsCount > 0) {
+                Spacer(Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(OrangeLight)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "Вы уже добавили ${plural(uiState.plantingsCount, "посадку", "посадки", "посадок")} " +
+                            "и записали ${plural(uiState.actionsCount, "действие", "действия", "действий")}. " +
+                            "С «Дачник Про» весь ваш сезон останется с вами.",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = Color(0xFF2D1500),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+
             // Бейдж активного промо (приоритетнее триала)
             if (uiState.status.isPromo) {
                 Spacer(Modifier.height(16.dp))
@@ -474,4 +498,16 @@ private fun PlanCard(
             }
         }
     }
+}
+
+/** Русское склонение по числу: 1 посадку / 2 посадки / 5 посадок. */
+private fun plural(n: Int, one: String, few: String, many: String): String {
+    val m10 = n % 10
+    val m100 = n % 100
+    val word = when {
+        m10 == 1 && m100 != 11 -> one
+        m10 in 2..4 && (m100 < 10 || m100 >= 20) -> few
+        else -> many
+    }
+    return "$n $word"
 }

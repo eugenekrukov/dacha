@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.billing.SubscriptionManager
 import ru.dachakalend.app.billing.SubscriptionStatus
+import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.repository.AuthRepository
 import ru.dachakalend.app.data.repository.Result
@@ -26,7 +27,8 @@ data class NotificationSettings(
 class SettingsViewModel @Inject constructor(
     private val tokenStorage: TokenStorage,
     private val subscriptionManager: SubscriptionManager,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val api: DachaApi
 ) : ViewModel() {
 
     private val _settings = MutableStateFlow(loadSettings())
@@ -150,7 +152,15 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun logout() {
-        tokenStorage.logout()
-        _loggedOut.value = true
+        // Отвязываем push-токен на сервере ДО очистки auth-токена (DELETE требует авторизации),
+        // иначе на устройстве останется мёртвая привязка и care-job будет слать чужие пуши.
+        val pushToken = tokenStorage.getPushToken()
+        viewModelScope.launch {
+            if (!pushToken.isNullOrBlank()) {
+                runCatching { api.deletePushToken(mapOf("token" to pushToken)) }
+            }
+            tokenStorage.logout()
+            _loggedOut.value = true
+        }
     }
 }

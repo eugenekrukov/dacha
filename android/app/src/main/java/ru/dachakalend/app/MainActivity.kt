@@ -33,6 +33,7 @@ import ru.dachakalend.app.ui.onboarding.CoachMarkOverlay
 import ru.dachakalend.app.ui.onboarding.TutorialIntroScreen
 import ru.dachakalend.app.ui.paywall.PaywallScreen
 import ru.dachakalend.app.notification.NotificationHelper
+import ru.dachakalend.app.review.AppReview
 import ru.dachakalend.app.ui.auth.LoginScreen
 import ru.dachakalend.app.ui.auth.RegisterScreen
 import ru.dachakalend.app.ui.auth.VerifyEmailScreen
@@ -131,6 +132,14 @@ class MainActivity : ComponentActivity() {
                             != PackageManager.PERMISSION_GRANTED
                     ) {
                         notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+
+                // Запрос оценки в RuStore на 6-й день использования. Один раз, когда пользователь
+                // уже освоился (залогинен + есть участок). В gplay/samsung AppReview — no-op.
+                LaunchedEffect(Unit) {
+                    if (tokenStorage.isLoggedIn() && tokenStorage.hasGarden() && tokenStorage.isReviewDue()) {
+                        AppReview.request(this@MainActivity) { tokenStorage.setReviewRequested() }
                     }
                 }
 

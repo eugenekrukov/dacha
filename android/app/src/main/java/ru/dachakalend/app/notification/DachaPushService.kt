@@ -30,6 +30,7 @@ class DachaPushService : RuStoreMessagingService() {
 
     override fun onNewToken(token: String) {
         if (BuildConfig.STORE != "rustore") return   // gplay/samsung используют FCM
+        ep().tokenStorage().savePushToken(token)     // запомнить для отвязки при logout
         ep().tokenStorage().getToken() ?: return
         scope.launch {
             try { ep().dachaApi().registerPushToken(mapOf("token" to token, "provider" to "rustore")) }

@@ -23,6 +23,7 @@ class DachaFcmService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         if (BuildConfig.STORE == "rustore") return   // в rustore доставка через RuStore Push
+        ep().tokenStorage().savePushToken(token)     // запомнить для отвязки при logout
         ep().tokenStorage().getToken() ?: return
         scope.launch {
             try { ep().dachaApi().registerPushToken(mapOf("token" to token, "provider" to "fcm")) }

@@ -100,6 +100,12 @@ class TokenStorage @Inject constructor(
     fun saveClimateZone(zone: String?) = prefs.edit { putString(KEY_CLIMATE_ZONE, zone) }
     fun getClimateZone(): String? = prefs.getString(KEY_CLIMATE_ZONE, null)
 
+    // Последний зарегистрированный push-токен — храним локально, чтобы при выходе из аккаунта
+    // отвязать его на сервере (DELETE /push-tokens) до очистки auth-токена. Иначе мёртвая
+    // привязка останется и care-job будет слать пуши на это устройство по чужому участку.
+    fun savePushToken(token: String) = prefs.edit { putString(KEY_PUSH_TOKEN, token) }
+    fun getPushToken(): String? = prefs.getString(KEY_PUSH_TOKEN, null)
+
     fun saveActivePlantingsCount(count: Int) = prefs.edit { putInt(KEY_PLANTINGS_COUNT, count) }
     fun getActivePlantingsCount(): Int = prefs.getInt(KEY_PLANTINGS_COUNT, 0)
 
@@ -280,6 +286,20 @@ class TokenStorage @Inject constructor(
         return maxOf(0, (TRIAL_DAYS - daysSince).toInt())
     }
 
+    // ─── Запрос оценки в RuStore (на 6-й день после первого запуска) ──────────────
+    // Показываем нативную форму оценки один раз, на REVIEW_AFTER_DAYS-й день использования —
+    // пользователь уже распробовал приложение, но ещё в активной фазе (до конца триала).
+    // Дату первого запуска переиспользуем из триала (KEY_FIRST_LAUNCH).
+
+    fun isReviewDue(): Boolean {
+        if (prefs.getBoolean(KEY_REVIEW_REQUESTED, false)) return false
+        val daysSince = (System.currentTimeMillis() - getFirstLaunchDate()) / 86_400_000L
+        return daysSince >= REVIEW_AFTER_DAYS
+    }
+
+    /** Помечаем, что форму оценки уже показывали — больше не предлагаем (RuStore сам решает, рисовать ли её). */
+    fun setReviewRequested() = prefs.edit { putBoolean(KEY_REVIEW_REQUESTED, true) }
+
     fun isIntroDone(): Boolean = prefs.getBoolean(KEY_INTRO_DONE, false)
     fun setIntroDone()         = prefs.edit { putBoolean(KEY_INTRO_DONE, true) }
 
@@ -304,6 +324,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_TOKEN           = "auth_token"
         private const val KEY_GARDEN_ID       = "garden_id"
         private const val KEY_CLIMATE_ZONE    = "climate_zone"
+        private const val KEY_PUSH_TOKEN      = "push_token"
         private const val KEY_PLANTINGS_COUNT = "active_plantings_count"
         private const val KEY_PENDING_TASKS   = "pending_tasks"
         private const val KEY_ATTENTION_COUNT = "attention_count"
@@ -312,12 +333,14 @@ class TokenStorage @Inject constructor(
         private const val KEY_SNOOZED_TASKS   = "snoozed_tasks"
         private const val KEY_DELETED_TASKS   = "deleted_tasks"
         private const val KEY_FIRST_LAUNCH    = "first_launch_date"
+        private const val KEY_REVIEW_REQUESTED = "review_requested"
         private const val KEY_INTRO_DONE      = "intro_done"
         private const val KEY_COACH_DONE      = "coach_done"
         private const val KEY_NOTIF_PERM_ASKED = "notif_permission_asked"
         private const val KEY_LARGE_FONT       = "large_font"
         private const val KEY_DATES_NEED_CHECK = "planting_dates_need_check"
         const val TRIAL_DAYS                  = 7L
+        const val REVIEW_AFTER_DAYS           = 6L
 
         const val NOTIF_FROST      = "frost_alert"
         const val NOTIF_HEAT       = "heat_alert"

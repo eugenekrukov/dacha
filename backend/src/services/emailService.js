@@ -198,11 +198,156 @@ async function sendReceiptLink(to, receiptUrl, description, amount) {
   )
 }
 
+// ─── Жизненный цикл триала (письма по дню) ───────────────────────────────────
+
+const APP_URL = () => process.env.APP_URL || 'https://dacha.studio1008.com/app/'
+
+/** Брендированная обёртка письма с кнопкой-CTA. */
+function lifecycleHtml(heading, bodyHtml, ctaLabel, ctaUrl) {
+  return `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#2D1500">
+    <h2 style="color:#FF7B00;margin:0 0 12px">${APP_NAME()}</h2>
+    <h3 style="margin:0 0 12px">${heading}</h3>
+    <div style="font-size:15px;line-height:1.5">${bodyHtml}</div>
+    <p style="margin:24px 0">
+      <a href="${ctaUrl}" style="background:#FF7B00;color:#fff;text-decoration:none;
+         padding:12px 22px;border-radius:12px;font-weight:bold;display:inline-block">${ctaLabel}</a>
+    </p>
+    <p style="color:#888;font-size:12px">Вы получаете это письмо, потому что зарегистрировались в «${APP_NAME()}».</p>
+  </div>`
+}
+
+/**
+ * Контент письма по дню триала. stats = { plantings, actions } (для дней 5/6).
+ * Возвращает { subject, text, html } либо null, если для дня письма нет.
+ */
+// Обращение в начале письма. С именем: «Иван, рады…» (первое слово строчное);
+// без имени (клиент имя не собирает → почти всегда): «Рады…» (с заглавной).
+// `sentence` ВСЕГДА передаём с заглавной буквы.
+function greet(name, sentence) {
+  if (!name) return sentence
+  return `${name}, ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}`
+}
+
+function trialEmailContent(day, name, stats = {}, opts = {}) {
+  const url = APP_URL()
+  const cta = 'Открыть приложение'
+  const hasGarden = !!opts.hasGarden
+  switch (day) {
+    case 1:
+      // Ветвление по участку: новичку — «создайте участок», уже заведшему — «загляните сегодня».
+      return hasGarden
+        ? {
+            subject: `Рады, что вы начали 🌱`,
+            text: `${greet(name, 'Вы уже завели участок — отлично!')} Заглядывайте каждый день: приложение подскажет, что сделать сегодня, и напомнит о поливе и подкормке.`,
+            html: lifecycleHtml(
+              'Ваш участок уже с вами 🌱',
+              `<p>${greet(name, 'Вы уже завели участок — отлично!')}</p>
+               <p>Заглядывайте каждый день: «${APP_NAME()}» подскажет, что сделать сегодня,
+               и напомнит о поливе, подкормке и сроках — с учётом погоды и вашего региона.</p>`,
+              cta, url
+            )
+          }
+        : {
+            subject: `Добро пожаловать в ${APP_NAME()} 🌱`,
+            text: `${greet(name, 'Рады видеть вас!')} Создайте участок и добавьте первую культуру — и приложение будет само подсказывать, что делать на грядках именно сегодня.`,
+            html: lifecycleHtml(
+              'С чего начать 🌱',
+              `<p>${greet(name, 'Рады видеть вас!')}</p>
+               <p>Добавьте свой участок и первую культуру — и «${APP_NAME()}» будет сам подсказывать,
+               что делать сегодня: полив, подкормку, сроки посадки, с учётом погоды и вашего региона.</p>`,
+              'Создать участок', url
+            )
+          }
+    case 3:
+      return {
+        subject: 'Справочник проблем растений — под рукой',
+        text: `${greet(name, 'Пожелтел лист или появились пятна?')} В приложении есть справочник болезней, вредителей и дефицитов с фото и подсказками по лечению.`,
+        html: lifecycleHtml(
+          'Что-то не так с растением? 🔎',
+          `<p>${greet(name, 'Пожелтел лист, пятна или вредитель?')}</p>
+           <p>В «${APP_NAME()}» есть справочник болезней, вредителей и дефицитов микроэлементов —
+           с фото, симптомами и понятными подсказками, что делать.</p>`,
+          'Открыть справочник', url
+        )
+      }
+    case 5:
+      // Если активности нет (0 посадок) — не показываем «0/0», а зовём начать сезон.
+      return (stats.plantings || 0) > 0
+        ? {
+            subject: 'Ваш сезон в цифрах 🌿',
+            text: `${greet(name, 'За время в приложении вы уже добавили посадок:')} ${stats.plantings || 0}, записали действий: ${stats.actions || 0}. Так держать!`,
+            html: lifecycleHtml(
+              'Ваш сезон в цифрах 🌿',
+              `<p>${greet(name, 'Вот что вы уже сделали в приложении:')}</p>
+               <ul style="font-size:16px">
+                 <li>Посадок добавлено: <b>${stats.plantings || 0}</b></li>
+                 <li>Действий записано: <b>${stats.actions || 0}</b></li>
+               </ul>
+               <p>Весь ваш сезон — в одном месте. Не теряйте набранный темп.</p>`,
+              cta, url
+            )
+          }
+        : {
+            subject: 'Начните свой сезон 🌿',
+            text: `${greet(name, 'Ваш участок ещё пустой.')} Добавьте первую культуру — и приложение начнёт вести ваш сезон: подскажет сроки, полив и подкормку.`,
+            html: lifecycleHtml(
+              'Начните свой сезон 🌿',
+              `<p>${greet(name, hasGarden ? 'Ваш участок ещё пустой.' : 'Вы ещё не начали вести участок.')}</p>
+               <p>Добавьте первую культуру — и «${APP_NAME()}» начнёт вести ваш сезон:
+               подскажет сроки посадки, напомнит о поливе и подкормке.</p>`,
+              hasGarden ? 'Добавить культуру' : 'Создать участок', url
+            )
+          }
+    case 6:
+      return {
+        subject: 'Пробный период заканчивается завтра',
+        text: `${greet(name, 'Завтра заканчивается бесплатный период.')} Чтобы не потерять напоминания, календарь работ и историю посадок — оформите «Дачник Про».`,
+        html: lifecycleHtml(
+          'Пробный период заканчивается завтра ⏳',
+          `<p>${greet(name, 'Завтра заканчивается бесплатный период.')}</p>
+           <p>Оформите подписку «Дачник Про», чтобы сохранить напоминания о поливе и подкормке,
+           календарь работ, дневник урожая и историю посадок — без рекламы.</p>`,
+          'Оформить «Дачник Про»', url
+        )
+      }
+    case 8:
+      return {
+        subject: 'Возвращайтесь на грядки 🌻',
+        text: `${greet(name, 'Ваши посадки скучают!')} Оформите «Дачник Про» и продолжите вести сезон с напоминаниями и календарём работ.`,
+        html: lifecycleHtml(
+          'Ваши грядки скучают 🌻',
+          `<p>${greet(name, 'Пробный период закончился, но ваш сезон ещё в разгаре.')}</p>
+           <p>Оформите «Дачник Про» — и снова получайте напоминания вовремя, ведите календарь работ
+           и дневник урожая.</p>`,
+          'Вернуться к посадкам', url
+        )
+      }
+    default:
+      return null
+  }
+}
+
+/** Отправляет письмо жизненного цикла триала за день `day`. Возвращает true при успехе. */
+async function sendTrialEmail(to, name, day, stats, opts = {}) {
+  const c = trialEmailContent(day, name, stats, opts)
+  if (!c) return false
+  let { text, html } = c
+  // Ссылка отписки (one-click) — обязательна для информационных писем. Инжектим в футер.
+  if (opts.unsubscribeUrl) {
+    const link = `<p style="color:#888;font-size:12px"><a href="${opts.unsubscribeUrl}" style="color:#888">Отписаться от информационных писем</a></p>`
+    html = html.replace(/<\/div>\s*$/, `${link}\n  </div>`)
+    text = `${text}\n\nОтписаться от информационных писем: ${opts.unsubscribeUrl}`
+  }
+  return sendMail(to, c.subject, text, html)
+}
+
 module.exports = {
   generateCode,
   sendMail,
   sendReceiptLink,
   sendVerificationCode,
   sendPasswordResetCode,
+  trialEmailContent,
+  sendTrialEmail,
   _resetTransport
 }

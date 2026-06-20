@@ -267,6 +267,7 @@ export interface AnalyticsSummary {
   streak: number
   total_actions: number
   total_harvests: number
+  plantings_count: number
   activity_by_day: { date: string; count: number }[]
   onboarding: { garden: boolean; planting: boolean; action: boolean; harvest: boolean }
 }

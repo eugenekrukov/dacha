@@ -57,7 +57,10 @@ module.exports = async function (fastify) {
          (SELECT COUNT(*) FROM harvests h
           JOIN plantings p ON p.id = h.planting_id
           JOIN gardens g   ON g.id = p.garden_id
-          WHERE g.user_id = $1)::int AS total_harvests`,
+          WHERE g.user_id = $1)::int AS total_harvests,
+         (SELECT COUNT(*) FROM plantings p
+          JOIN gardens g ON g.id = p.garden_id
+          WHERE g.user_id = $1)::int AS plantings_count`,
       [userId]
     )
 
@@ -79,13 +82,14 @@ module.exports = async function (fastify) {
       [userId]
     )
 
-    const { total_actions, total_harvests } = totalsRes.rows[0]
+    const { total_actions, total_harvests, plantings_count } = totalsRes.rows[0]
     const onb = onbRes.rows[0]
 
     return {
       streak,
       total_actions,
       total_harvests,
+      plantings_count,
       activity_by_day: activityRes.rows.map(r => ({
         date: r.day.toISOString().slice(0, 10),
         count: r.count

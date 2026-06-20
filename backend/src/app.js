@@ -101,6 +101,7 @@ app.register(require('./routes/today'), { prefix: '/today' })
 app.register(require('./routes/push-tokens'), { prefix: '/push-tokens' })
 app.register(require('./routes/analytics'), { prefix: '/analytics' })
 app.register(require('./routes/geocode'), { prefix: '/geocode' })
+app.register(require('./routes/unsubscribe'), { prefix: '/unsubscribe' })
 
 // Health check
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
@@ -110,11 +111,13 @@ const { startWeatherJob } = require('./jobs/weatherJob')
 const { startCareRemindersJob } = require('./jobs/careRemindersJob')
 const { startRenewalJob } = require('./jobs/renewalJob')
 const { startNalogJob } = require('./jobs/nalogJob')
+const { startTrialEmailsJob } = require('./jobs/trialEmailsJob')
 app.addHook('onReady', async () => {
   startWeatherJob(app.db)
   startCareRemindersJob(app.db)
   startRenewalJob(app.db)
   startNalogJob(app.db)
+  startTrialEmailsJob(app.db)
 })
 
 // Start

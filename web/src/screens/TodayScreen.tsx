@@ -101,7 +101,7 @@ export default function TodayScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="dacha-card bg-gradient-to-br from-primary to-[#FF9E3D] p-5 text-white">
+      <div className="dacha-card bg-gradient-to-br from-primary to-[#FF9E3D] p-5 text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.30)]">
         <p className="text-sm font-bold uppercase opacity-90">Сегодня</p>
         <h1 className="text-2xl font-black">{active?.name ?? 'Мой участок'}</h1>
         {active?.city && <p className="font-semibold opacity-90">{active.city}</p>}
@@ -126,12 +126,12 @@ export default function TodayScreen() {
             </div>
             <div className="ml-auto flex flex-col items-end gap-1">
               {today.weather.frost_risk && (
-                <span className="flex items-center gap-1 rounded-pill bg-white/25 px-2 py-0.5 text-xs font-bold">
+                <span className="flex items-center gap-1 rounded-pill bg-black/25 px-2 py-0.5 text-xs font-bold">
                   <Snowflake size={13} aria-hidden /> заморозки
                 </span>
               )}
               {today.weather.heat_risk && (
-                <span className="flex items-center gap-1 rounded-pill bg-white/25 px-2 py-0.5 text-xs font-bold">
+                <span className="flex items-center gap-1 rounded-pill bg-black/25 px-2 py-0.5 text-xs font-bold">
                   <Flame size={13} aria-hidden /> жара
                 </span>
               )}

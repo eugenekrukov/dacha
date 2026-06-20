@@ -606,7 +606,15 @@ private fun SunnyHero(
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.Black,
                     fontSize   = 26.sp,
-                    color      = Color.White
+                    color      = Color.White,
+                    // a11y: тень для читаемости белого на оранжевом (как у заголовка/даты)
+                    style      = TextStyle(
+                        shadow = Shadow(
+                            color      = Color(0x55000000),
+                            offset     = Offset(0f, 1f),
+                            blurRadius = 6f
+                        )
+                    )
                 )
 
                 // Humidity chip
@@ -627,10 +635,12 @@ private enum class HeroChipStyle { Subtle, Alert }
 
 @Composable
 private fun HeroChip(text: String, style: HeroChipStyle) {
+    // Subtle: тёмная полупрозрачная подложка (а не светлая) — иначе белый текст на светлом
+    // оранжевом hero даёт контраст ниже AA. Тёмный фон поднимает контраст до читаемого.
     val bg    = if (style == HeroChipStyle.Alert) Color.White.copy(alpha = .92f)
-                else Color.White.copy(alpha = .2f)
+                else Color.Black.copy(alpha = .22f)
     val color = if (style == HeroChipStyle.Alert) Color(0xFF0D47A1)
-                else Color.White.copy(alpha = .9f)
+                else Color.White
     val border = if (style == HeroChipStyle.Subtle) Color.White.copy(alpha = .35f)
                  else Color.Transparent
 

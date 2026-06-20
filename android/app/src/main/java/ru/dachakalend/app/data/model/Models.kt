@@ -437,6 +437,7 @@ data class AnalyticsSummary(
     val streak: Int,
     @Json(name = "total_actions") val totalActions: Int,
     @Json(name = "total_harvests") val totalHarvests: Int,
+    @Json(name = "plantings_count") val plantingsCount: Int = 0,
     @Json(name = "activity_by_day") val activityByDay: List<ActivityDay>,
     val onboarding: OnboardingProgress
 )
