@@ -40,6 +40,8 @@ app.register(require('@fastify/jwt'), {
   sign: { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
 })
 
+app.register(require('@fastify/multipart'), { limits: { fileSize: 10 * 1024 * 1024 } })
+
 // DB connection
 app.register(require('./plugins/db'))
 
@@ -102,6 +104,7 @@ app.register(require('./routes/push-tokens'), { prefix: '/push-tokens' })
 app.register(require('./routes/analytics'), { prefix: '/analytics' })
 app.register(require('./routes/geocode'), { prefix: '/geocode' })
 app.register(require('./routes/unsubscribe'), { prefix: '/unsubscribe' })
+app.register(require('./routes/photos'), { prefix: '/photos' })
 
 // Health check
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
@@ -112,12 +115,14 @@ const { startCareRemindersJob } = require('./jobs/careRemindersJob')
 const { startRenewalJob } = require('./jobs/renewalJob')
 const { startNalogJob } = require('./jobs/nalogJob')
 const { startTrialEmailsJob } = require('./jobs/trialEmailsJob')
+const { startPhotoSweepJob } = require('./jobs/photoSweepJob')
 app.addHook('onReady', async () => {
   startWeatherJob(app.db)
   startCareRemindersJob(app.db)
   startRenewalJob(app.db)
   startNalogJob(app.db)
   startTrialEmailsJob(app.db)
+  startPhotoSweepJob(app.db)
 })
 
 // Start
