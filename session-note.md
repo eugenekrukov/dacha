@@ -2,6 +2,42 @@
 
 **Дата последней сессии**: 2026-06-20
 
+## Сессия 2026-06-20 (2) — F12 фото-дневник: спек + план + BACKEND задеплоен
+
+Полный цикл superpowers по фиче **F12 (фото-дневник посадок)**: брейнсторминг → спек
+(`docs/superpowers/specs/2026-06-20-photo-diary-design.md`) → план
+(`docs/superpowers/plans/2026-06-20-photo-diary-backend.md`) → реализация backend через
+subagent-driven (8 задач, TDD) → деплой на прод.
+
+**Архитектура (утв.):** гибрид — фото = отдельная сущность `planting_photos` (nullable `action_id`),
+захват из листа действия (наполняет дневник пассивно) + standalone; **личная приватная лента сейчас**,
+публичный фид + **модерация запретного контента (блокер соц-Tier'а)** — позже. Лимиты: free 3 /
+paid 30 на посадку + потолок ~1000/аккаунт. Хранение `/var/www/dacha-media/` (вне гита), отдача через
+**X-Accel-Redirect** (истинная приватность), EXIF/GPS срезаем. AI-разрешение = 1600px webp (Claude
+Vision и так даунскейлит до ~1568px). Полностью в спеке.
+
+**Backend (РЕАЛИЗОВАН + ЗАДЕПЛОЕН, тесты 327 vitest):** миграция 044 (`planting_photos`),
+`services/imageService.js` (sharp: resize 1600px→webp + thumbnail 400px, срез EXIF), `routes/photos.js`
+(POST/GET/DELETE/`GET /file/:id`), джоба-сборщик осиротевших файлов `photoSweepJob`. Зависимости:
+`sharp@0.35.2`, **`@fastify/multipart@8`** (v10 требует Fastify 5 — даунгрейд под Fastify 4).
+
+**Деплой backend (прод, VPS на `b1f6313`):** `git reset --hard` + `npm install` (sharp под Linux OK,
+vips 8.18.3); миграция 044 + `ALTER TABLE planting_photos OWNER TO dacha_user`; каталог
+`/var/www/dacha-media` (root:www-data 750); nginx — добавлены `client_max_body_size 12m` + `internal`-
+локация `/media-internal/` (alias на медиа-каталог), бэкап `dacha.bak.photos`, `nginx -t` OK, reload;
+`pm2 restart`. **E2E-смоук пройден:** POST→201 (sharp обработал, файлы записаны), GET /file → 200
+image/webp (X-Accel-Redirect отдал байты), thumb→200, list→200, DELETE→204 (файлы и строка удалены).
+API аддитивный — **бездействует, пока нет клиентов**.
+
+**Осталось по F12:** планы и реализация **веб- и Android-клиентов** (отдельные планы, пишутся после
+backend). Точки захвата: лист действия (`ActionLog{Sheet,BottomSheet}`, в мульти-режиме фото off) +
+standalone на экране посадки; лента (сетка thumb → полноэкранный просмотр). Оффлайн-кью загрузки —
+после F1.
+
+⚠️ Гоча PowerShell→ssh: here-string добавляет CRLF → имя файла в конце строки становится `dacha\r`
+(«No such file»); для одиночных команд — прямой `ssh hetzner '...'`, для конфигов — собрать локально
++ scp + `sed -i 's/\r$//'`.
+
 ## Сессия 2026-06-20 — Продуктовое исследование, UI-ревью, GTM + реализация Tier 1
 
 > ✅ **ДЕПЛОЙ TIER 1 ВЫПОЛНЕН 2026-06-20** (см. блок «Деплой» ниже). Tier 1 был только в рабочем
