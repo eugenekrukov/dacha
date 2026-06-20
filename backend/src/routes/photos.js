@@ -103,4 +103,20 @@ module.exports = async function (fastify, opts) {
     )
     return res.rows.map(({ file_path, ...r }) => ({ ...r, url: `/photos/file/${r.id}`, thumb_url: `/photos/file/${r.id}?thumb=1` }))
   })
+
+  // DELETE /photos/:id — удалить своё фото (строка + файлы).
+  fastify.delete('/:id', auth, async (request, reply) => {
+    const id = parseInt(request.params.id, 10)
+    const found = await fastify.db.query(
+      `SELECT pp.file_path FROM planting_photos pp
+       JOIN plantings p ON p.id = pp.planting_id
+       JOIN gardens g   ON g.id = p.garden_id
+       WHERE pp.id = $1 AND g.user_id = $2`,
+      [id, request.user.userId]
+    )
+    if (found.rows.length === 0) return reply.code(404).send({ error: 'not_found' })
+    await imageService.remove(found.rows[0].file_path)
+    await fastify.db.query('DELETE FROM planting_photos WHERE id = $1', [id])
+    return reply.code(204).send()
+  })
 }

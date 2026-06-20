@@ -145,3 +145,46 @@ describe('GET /photos', () => {
     await app.close()
   })
 })
+
+describe('DELETE /photos/:id', () => {
+  it('владелец → 204, файл удалён, строка удалена', async () => {
+    const img = { removed: [], async remove(rel) { this.removed.push(rel) } }
+    const deleted = []
+    const db = {
+      async query(sql, params) {
+        if (/SELECT pp\.file_path FROM planting_photos pp/i.test(sql)) {
+          return { rows: [{ file_path: 'plantings/5/a.webp' }] }
+        }
+        if (/DELETE FROM planting_photos WHERE id/i.test(sql)) {
+          deleted.push(params[0]); return { rowCount: 1 }
+        }
+        throw new Error('Неожиданный SQL: ' + sql)
+      }
+    }
+    const app = await buildApp(db, { imageService: img })
+    const res = await supertest(app.server)
+      .delete('/photos/10')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(204)
+    expect(img.removed).toEqual(['plantings/5/a.webp'])
+    expect(deleted).toEqual([10])
+    await app.close()
+  })
+
+  it('чужое/несуществующее → 404, файл не трогаем', async () => {
+    const img = { removed: [], async remove(rel) { this.removed.push(rel) } }
+    const db = {
+      async query(sql) {
+        if (/SELECT pp\.file_path FROM planting_photos pp/i.test(sql)) return { rows: [] }
+        throw new Error('Неожиданный SQL: ' + sql)
+      }
+    }
+    const app = await buildApp(db, { imageService: img })
+    const res = await supertest(app.server)
+      .delete('/photos/10')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(404)
+    expect(img.removed).toHaveLength(0)
+    await app.close()
+  })
+})
