@@ -86,4 +86,21 @@ module.exports = async function (fastify, opts) {
       thumb_url: `/photos/file/${row.id}?thumb=1`
     })
   })
+
+  // GET /photos?planting_id= — лента посадки (по владельцу), сорт по дате съёмки.
+  fastify.get('/', auth, async (request) => {
+    const { planting_id } = request.query
+    const params = [request.user.userId]
+    const conds = []
+    if (planting_id) { params.push(planting_id); conds.push(`pp.planting_id = $${params.length}`) }
+    const res = await fastify.db.query(
+      `SELECT pp.id, pp.planting_id, pp.action_id, pp.caption, pp.taken_at, pp.width, pp.height FROM planting_photos pp
+       JOIN plantings p ON p.id = pp.planting_id
+       JOIN gardens g   ON g.id = p.garden_id
+       WHERE g.user_id = $1 ${conds.length ? 'AND ' + conds.join(' AND ') : ''}
+       ORDER BY pp.taken_at DESC`,
+      params
+    )
+    return res.rows.map(({ file_path, ...r }) => ({ ...r, url: `/photos/file/${r.id}`, thumb_url: `/photos/file/${r.id}?thumb=1` }))
+  })
 }

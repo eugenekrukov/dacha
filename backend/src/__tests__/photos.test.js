@@ -121,3 +121,27 @@ describe('POST /photos', () => {
     await app.close()
   })
 })
+
+describe('GET /photos', () => {
+  it('возвращает фото посадки с url/thumb_url, scoped по владельцу', async () => {
+    const db = {
+      async query(sql, params) {
+        if (/SELECT .* FROM planting_photos pp/i.test(sql) && /g\.user_id = \$1/i.test(sql)) {
+          expect(params[0]).toBe(1) // userId из токена
+          return { rows: [{ id: 10, planting_id: 5, file_path: 'plantings/5/a.webp', taken_at: '2026-06-01', caption: null, action_id: null, width: 1600, height: 1200 }] }
+        }
+        throw new Error('Неожиданный SQL: ' + sql)
+      }
+    }
+    const app = await buildApp(db, {})
+    const res = await supertest(app.server)
+      .get('/photos?planting_id=5')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(200)
+    expect(res.body).toHaveLength(1)
+    expect(res.body[0].url).toBe('/photos/file/10')
+    expect(res.body[0].thumb_url).toBe('/photos/file/10?thumb=1')
+    expect(res.body[0].file_path).toBeUndefined() // внутренний путь наружу не отдаём
+    await app.close()
+  })
+})
