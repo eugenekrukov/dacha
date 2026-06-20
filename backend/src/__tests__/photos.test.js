@@ -188,3 +188,45 @@ describe('DELETE /photos/:id', () => {
     await app.close()
   })
 })
+
+describe('GET /photos/file/:id', () => {
+  function db() {
+    return {
+      async query(sql, params) {
+        if (/SELECT pp\.file_path FROM planting_photos pp/i.test(sql)) {
+          return params[1] === 1 ? { rows: [{ file_path: 'plantings/5/a.webp' }] } : { rows: [] }
+        }
+        throw new Error('Неожиданный SQL: ' + sql)
+      }
+    }
+  }
+
+  it('владелец → 200 + X-Accel-Redirect на основной файл', async () => {
+    const app = await buildApp(db(), {})
+    const res = await supertest(app.server)
+      .get('/photos/file/10')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(200)
+    expect(res.headers['x-accel-redirect']).toBe('/media-internal/plantings/5/a.webp')
+    expect(res.headers['content-type']).toContain('image/webp')
+    await app.close()
+  })
+
+  it('?thumb=1 → X-Accel-Redirect на thumbnail', async () => {
+    const app = await buildApp(db(), {})
+    const res = await supertest(app.server)
+      .get('/photos/file/10?thumb=1')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.headers['x-accel-redirect']).toBe('/media-internal/plantings/5/a_t.webp')
+    await app.close()
+  })
+
+  it('чужое → 404', async () => {
+    const app = await buildApp(db(), {})
+    const res = await supertest(app.server)
+      .get('/photos/file/10')
+      .set('Authorization', `Bearer ${makeToken(app, 2)}`)
+    expect(res.status).toBe(404)
+    await app.close()
+  })
+})
