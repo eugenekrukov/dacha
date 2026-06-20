@@ -19,6 +19,9 @@ async function buildApp(mockDb, billingOpts = {}) {
   // JWT
   fastify.register(require('@fastify/jwt'), { secret: 'test-secret' })
 
+  // Приём файлов (фото-дневник). Лимит на размер файла — 10 МБ.
+  fastify.register(require('@fastify/multipart'), { limits: { fileSize: 10 * 1024 * 1024 } })
+
   // Подставляем мок-БД вместо реального подключения
   fastify.decorate('db', mockDb)
 
@@ -68,6 +71,7 @@ async function buildApp(mockDb, billingOpts = {}) {
   fastify.register(require('../../routes/reminders'), { prefix: '/reminders' })
   fastify.register(require('../../routes/push-tokens'), { prefix: '/push-tokens' })
   fastify.register(require('../../routes/unsubscribe'), { prefix: '/unsubscribe' })
+  fastify.register(require('../../routes/photos'), { prefix: '/photos', imageService: billingOpts.imageService })
 
   await fastify.ready()
   return fastify
