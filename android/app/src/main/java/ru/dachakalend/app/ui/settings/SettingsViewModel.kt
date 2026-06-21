@@ -10,6 +10,8 @@ import kotlinx.coroutines.launch
 import ru.dachakalend.app.billing.SubscriptionManager
 import ru.dachakalend.app.billing.SubscriptionStatus
 import ru.dachakalend.app.data.api.DachaApi
+import ru.dachakalend.app.data.local.ActionQueue
+import ru.dachakalend.app.data.local.TodayCache
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.repository.AuthRepository
 import ru.dachakalend.app.data.repository.Result
@@ -28,7 +30,9 @@ class SettingsViewModel @Inject constructor(
     private val tokenStorage: TokenStorage,
     private val subscriptionManager: SubscriptionManager,
     private val authRepository: AuthRepository,
-    private val api: DachaApi
+    private val api: DachaApi,
+    private val todayCache: TodayCache,
+    private val actionQueue: ActionQueue
 ) : ViewModel() {
 
     private val _settings = MutableStateFlow(loadSettings())
@@ -160,6 +164,8 @@ class SettingsViewModel @Inject constructor(
                 runCatching { api.deletePushToken(mapOf("token" to pushToken)) }
             }
             tokenStorage.logout()
+            todayCache.clear()
+            actionQueue.clear()
             _loggedOut.value = true
         }
     }
