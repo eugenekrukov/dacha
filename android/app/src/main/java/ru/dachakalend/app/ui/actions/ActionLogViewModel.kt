@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.repository.ActionsRepository
-import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 
@@ -81,8 +80,7 @@ fun treatmentNote(careTaskName: String?, product: String? = null): String? {
 
 @HiltViewModel
 class ActionLogViewModel @Inject constructor(
-    private val actionsRepository: ActionsRepository,
-    private val plantingsRepository: PlantingsRepository
+    private val actionsRepository: ActionsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ActionLogUiState())
@@ -103,13 +101,12 @@ class ActionLogViewModel @Inject constructor(
         }
     }
 
-    /** Логирует "Высаживание" и переводит стадию в transplanted («Высажено в грунт») —
-     *  задача transplant_due исчезнет, подкормки/урожай учитывают transplanted как фазу роста. */
+    /** Логирует "Высаживание" и переводит стадию в transplanted. Офлайн-устойчиво (очередь). */
     fun logTransplanting(plantingId: Int) {
         viewModelScope.launch {
             _uiState.value = ActionLogUiState(isLoading = true)
             actionsRepository.logAction(plantingId, "transplanting", null)
-            when (val result = plantingsRepository.updateStage(plantingId, "transplanted")) {
+            when (val result = actionsRepository.changeStage(plantingId, "transplanted")) {
                 is Result.Success -> _uiState.value = ActionLogUiState(success = true)
                 is Result.Error   -> _uiState.value = ActionLogUiState(error = result.message)
                 is Result.Loading -> Unit
@@ -140,7 +137,7 @@ class ActionLogViewModel @Inject constructor(
             _uiState.value = ActionLogUiState(isLoading = true)
             for (id in plantingIds) {
                 actionsRepository.logAction(id, "transplanting", null)
-                val result = plantingsRepository.updateStage(id, "transplanted")
+                val result = actionsRepository.changeStage(id, "transplanted")
                 if (result is Result.Error) {
                     _uiState.value = ActionLogUiState(error = result.message)
                     return@launch

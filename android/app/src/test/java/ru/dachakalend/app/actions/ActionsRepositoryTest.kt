@@ -70,4 +70,38 @@ class ActionsRepositoryTest {
         assertTrue(res is Result.Success)
         coVerify(exactly = 0) { api.deleteAction(any()) }
     }
+
+    @Test
+    fun `офлайн changeStage ставит STAGE в очередь и возвращает Success`() = runTest {
+        val api = io.mockk.mockk<ru.dachakalend.app.data.api.DachaApi>()
+        val queue = io.mockk.mockk<ru.dachakalend.app.data.local.ActionQueue>(relaxed = true)
+        val cache = io.mockk.mockk<ru.dachakalend.app.data.local.TodayCache>(relaxed = true)
+        coEvery { api.updatePlantingStage(any(), any()) } throws java.io.IOException("offline")
+
+        val repo = ActionsRepository(api, queue, cache)
+        val res = repo.changeStage(3, "transplanted")
+
+        assertTrue(res is Result.Success)
+        val opSlot = io.mockk.slot<ru.dachakalend.app.data.local.QueuedOp>()
+        verify { queue.enqueue(capture(opSlot)) }
+        assertEquals("STAGE", opSlot.captured.op)
+        assertEquals("transplanted", opSlot.captured.stage)
+    }
+
+    @Test
+    fun `офлайн-удаление серверного действия ставит DELETE в очередь`() = runTest {
+        val api = io.mockk.mockk<ru.dachakalend.app.data.api.DachaApi>()
+        val queue = io.mockk.mockk<ru.dachakalend.app.data.local.ActionQueue>(relaxed = true)
+        val cache = io.mockk.mockk<ru.dachakalend.app.data.local.TodayCache>(relaxed = true)
+        coEvery { api.deleteAction(any()) } throws java.io.IOException("offline")
+
+        val repo = ActionsRepository(api, queue, cache)
+        val res = repo.deleteAction(42)
+
+        assertTrue(res is Result.Success)
+        val opSlot = io.mockk.slot<ru.dachakalend.app.data.local.QueuedOp>()
+        verify { queue.enqueue(capture(opSlot)) }
+        assertEquals("DELETE", opSlot.captured.op)
+        assertEquals(42, opSlot.captured.targetServerId)
+    }
 }
