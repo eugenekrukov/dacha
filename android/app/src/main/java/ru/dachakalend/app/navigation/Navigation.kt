@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String) {
@@ -58,7 +58,7 @@ sealed class Screen(val route: String) {
     object Analytics : Screen("analytics")
 
     // Хаб «Информация» (таб): справочник + статистика
-    object Info : Screen("info")
+    object Profile : Screen("profile")
 
     // Монетизация
     object Paywall : Screen("paywall")
@@ -102,7 +102,7 @@ val bottomNavItems = listOf(
     BottomNavItem(Screen.Today, "Сегодня", Icons.Default.Home),
     BottomNavItem(Screen.Calendar, "Календарь", Icons.Default.CalendarMonth),
     BottomNavItem(Screen.Plantings, "Посадки", Icons.Default.Grass),
-    BottomNavItem(Screen.Info, "Информация", Icons.Default.Info),
+    BottomNavItem(Screen.Profile, "Профиль", Icons.Default.Person),
 )
 
 val screensWithoutBottomBar = setOf(

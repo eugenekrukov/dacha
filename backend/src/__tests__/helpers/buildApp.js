@@ -72,6 +72,7 @@ async function buildApp(mockDb, billingOpts = {}) {
   fastify.register(require('../../routes/push-tokens'), { prefix: '/push-tokens' })
   fastify.register(require('../../routes/unsubscribe'), { prefix: '/unsubscribe' })
   fastify.register(require('../../routes/photos'), { prefix: '/photos', imageService: billingOpts.imageService })
+  fastify.register(require('../../routes/feed'), { prefix: '/feed' })
 
   await fastify.ready()
   return fastify

@@ -229,6 +229,33 @@ data class PlantingPhoto(
     @Json(name = "thumb_url") val thumbUrl: String
 )
 
+// --- Лента «Мой участок» (GET /feed) ---
+
+@JsonClass(generateAdapter = true)
+data class FeedResponse(
+    val items: List<FeedItem>,
+    @Json(name = "next_offset") val nextOffset: Int? = null
+)
+
+// Плоский элемент ленты: type='photo' заполняет фото-поля, type='milestone' — kind + по нужде weightKg.
+@JsonClass(generateAdapter = true)
+data class FeedItem(
+    val type: String,                                 // "photo" | "milestone"
+    val date: String,
+    @Json(name = "planting_id") val plantingId: Int? = null,
+    @Json(name = "crop_name") val cropName: String? = null,
+    // photo
+    @Json(name = "photo_id") val photoId: Int? = null,
+    @Json(name = "action_id") val actionId: Int? = null,
+    @Json(name = "action_type") val actionType: String? = null,
+    val caption: String? = null,
+    val url: String? = null,
+    @Json(name = "thumb_url") val thumbUrl: String? = null,
+    // milestone
+    val kind: String? = null,                         // sowing | transplanted | first_harvest | done
+    @Json(name = "weight_kg") val weightKg: Double? = null
+)
+
 // --- Crop ---
 
 @JsonClass(generateAdapter = true)

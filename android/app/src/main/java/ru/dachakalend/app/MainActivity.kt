@@ -50,7 +50,7 @@ import ru.dachakalend.app.ui.harvest.HarvestScreen
 import ru.dachakalend.app.ui.guide.GuideScreen
 import ru.dachakalend.app.ui.guide.GuideDetailScreen
 import ru.dachakalend.app.ui.plantings.PlantingInfoScreen
-import ru.dachakalend.app.ui.info.InfoHubScreen
+import ru.dachakalend.app.ui.profile.ProfileScreen
 import ru.dachakalend.app.ui.journal.JournalScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
 import ru.dachakalend.app.ui.settings.SettingsScreen
@@ -420,11 +420,12 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() }
                             )
                         }
-                        composable(Screen.Info.route) {
-                            InfoHubScreen(
+                        composable(Screen.Profile.route) {
+                            ProfileScreen(
                                 onOpenCrops     = { navController.navigate(Screen.Crops.route) },
                                 onOpenGuide     = { navController.navigate(Screen.Guide.route) },
-                                onOpenAnalytics = { navController.navigate(Screen.Analytics.route) }
+                                onOpenAnalytics = { navController.navigate(Screen.Analytics.route) },
+                                onOpenPlanting  = { id -> navController.navigate(Screen.PlantingInfo.route(id)) }
                             )
                         }
                         // Справочник проблем — без фильтра (из «Информации»)

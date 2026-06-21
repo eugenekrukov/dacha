@@ -105,6 +105,7 @@ app.register(require('./routes/analytics'), { prefix: '/analytics' })
 app.register(require('./routes/geocode'), { prefix: '/geocode' })
 app.register(require('./routes/unsubscribe'), { prefix: '/unsubscribe' })
 app.register(require('./routes/photos'), { prefix: '/photos' })
+app.register(require('./routes/feed'), { prefix: '/feed' })
 
 // Health check
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))

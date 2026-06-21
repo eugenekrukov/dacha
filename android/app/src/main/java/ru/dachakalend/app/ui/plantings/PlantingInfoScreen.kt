@@ -38,6 +38,8 @@ import ru.dachakalend.app.data.model.PlantingPhoto
 import ru.dachakalend.app.ui.actions.careTaskActionType
 import ru.dachakalend.app.ui.crops.CropCareSection
 import ru.dachakalend.app.ui.crops.CropNeighborsSection
+import ru.dachakalend.app.ui.feed.FeedMonthHeader
+import ru.dachakalend.app.ui.feed.PhotoFeedRow
 import ru.dachakalend.app.ui.guide.ProblemList
 import ru.dachakalend.app.ui.theme.NunitoFamily
 import java.time.LocalDate
@@ -323,18 +325,13 @@ private fun PhotoDiarySection(
             photos.sortedByDescending { it.takenAt }
                 .groupBy { it.takenAt.take(7) }
                 .forEach { (monthKey, monthPhotos) ->
-                    Text(
-                        text = monthYearLabel(monthKey),
-                        fontFamily = NunitoFamily,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
-                    )
+                    FeedMonthHeader(monthKey)
                     monthPhotos.forEach { p ->
                         PhotoFeedRow(
-                            photo = p,
+                            thumbUrl = p.thumbUrl,
+                            dateLabel = formatShort(p.takenAt),
                             actionLabel = p.actionId?.let { actionLabelById[it] },
+                            caption = p.caption,
                             onOpen = { viewer = p }
                         )
                     }
@@ -344,66 +341,6 @@ private fun PhotoDiarySection(
 
     viewer?.let { p ->
         PhotoViewerDialog(photo = p, onDismiss = { viewer = null }, onDelete = { onDelete(p.id); viewer = null })
-    }
-}
-
-private val RU_MONTHS = listOf(
-    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-)
-
-// "2026-06" → "Июнь 2026". На входе ключ takenAt.take(7).
-private fun monthYearLabel(monthKey: String): String = runCatching {
-    val (y, m) = monthKey.split("-")
-    "${RU_MONTHS[m.toInt() - 1]} $y"
-}.getOrDefault(monthKey)
-
-// Строка ленты: миниатюра + дата, привязанное действие и подпись.
-@Composable
-private fun PhotoFeedRow(photo: PlantingPhoto, actionLabel: String?, onOpen: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onOpen)
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AsyncImage(
-            model = mediaUrl(photo.thumbUrl),
-            contentDescription = "Фото посадки",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(12.dp))
-        )
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = formatShort(photo.takenAt),
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            actionLabel?.let {
-                Text(
-                    text = it,
-                    fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            photo.caption?.takeIf { it.isNotBlank() }?.let {
-                Text(
-                    text = it,
-                    fontFamily = NunitoFamily,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
     }
 }
 

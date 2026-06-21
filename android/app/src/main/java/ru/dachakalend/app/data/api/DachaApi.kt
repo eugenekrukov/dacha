@@ -151,6 +151,13 @@ interface DachaApi {
     @DELETE("photos/{id}")
     suspend fun deletePhoto(@Path("id") id: Int)
 
+    // Лента «Мой участок»
+    @GET("feed")
+    suspend fun getFeed(
+        @Query("limit") limit: Int? = null,
+        @Query("offset") offset: Int? = null
+    ): FeedResponse
+
     // Reminders
     @GET("reminders")
     suspend fun getReminders(): List<Reminder>
