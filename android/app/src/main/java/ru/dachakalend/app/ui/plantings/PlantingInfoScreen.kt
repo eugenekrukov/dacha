@@ -245,6 +245,7 @@ private fun AboutTab(
 
         PhotoDiarySection(
             photos = state.photos,
+            actions = state.recentActions,
             uploadBusy = state.uploadBusy,
             photoError = state.photoError,
             onUpload = onUpload,
@@ -270,11 +271,16 @@ private fun AboutTab(
 @Composable
 private fun PhotoDiarySection(
     photos: List<PlantingPhoto>,
+    actions: List<ActionLog>,
     uploadBusy: Boolean,
     photoError: String?,
     onUpload: (ByteArray) -> Unit,
     onDelete: (Int) -> Unit,
 ) {
+    // Привязка фото → название действия (read-only; actionId проставляется при съёмке из шторки действия).
+    val actionLabelById = remember(actions) {
+        actions.associate { it.id to (ACTION_LABELS[it.type] ?: it.type) }
+    }
     val context = LocalContext.current
     var viewer by remember { mutableStateOf<PlantingPhoto?>(null) }
     // Системный photo picker (галерея/камера) — без рантайм-разрешений.
@@ -312,29 +318,92 @@ private fun PhotoDiarySection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            // Сетка 3-в-ряд вручную (LazyVerticalGrid нельзя вложить в verticalScroll-колонку).
-            photos.chunked(3).forEach { rowPhotos ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    rowPhotos.forEach { p ->
-                        AsyncImage(
-                            model = mediaUrl(p.thumbUrl),
-                            contentDescription = "Фото посадки",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { viewer = p }
+            // Лента роста: новые сверху, с разделителями по месяцам (как в журнале действий).
+            // groupBy по "yyyy-MM" сохраняет порядок убывания после сортировки.
+            photos.sortedByDescending { it.takenAt }
+                .groupBy { it.takenAt.take(7) }
+                .forEach { (monthKey, monthPhotos) ->
+                    Text(
+                        text = monthYearLabel(monthKey),
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                    )
+                    monthPhotos.forEach { p ->
+                        PhotoFeedRow(
+                            photo = p,
+                            actionLabel = p.actionId?.let { actionLabelById[it] },
+                            onOpen = { viewer = p }
                         )
                     }
-                    repeat(3 - rowPhotos.size) { Spacer(Modifier.weight(1f)) }
                 }
-            }
         }
     }
 
     viewer?.let { p ->
         PhotoViewerDialog(photo = p, onDismiss = { viewer = null }, onDelete = { onDelete(p.id); viewer = null })
+    }
+}
+
+private val RU_MONTHS = listOf(
+    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+)
+
+// "2026-06" → "Июнь 2026". На входе ключ takenAt.take(7).
+private fun monthYearLabel(monthKey: String): String = runCatching {
+    val (y, m) = monthKey.split("-")
+    "${RU_MONTHS[m.toInt() - 1]} $y"
+}.getOrDefault(monthKey)
+
+// Строка ленты: миниатюра + дата, привязанное действие и подпись.
+@Composable
+private fun PhotoFeedRow(photo: PlantingPhoto, actionLabel: String?, onOpen: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onOpen)
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = mediaUrl(photo.thumbUrl),
+            contentDescription = "Фото посадки",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(12.dp))
+        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = formatShort(photo.takenAt),
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            actionLabel?.let {
+                Text(
+                    text = it,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            photo.caption?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    text = it,
+                    fontFamily = NunitoFamily,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

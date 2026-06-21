@@ -1,6 +1,7 @@
 ﻿package ru.dachakalend.app.ui.plantings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -469,7 +470,10 @@ private fun PlantingCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            // Клик по карточке открывает информацию о посадке. Вложенные кнопки
+            // (меню ⋮, «Записать действие») перехватывают свои клики сами.
+            .clickable(onClick = onInfo),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.White,

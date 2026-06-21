@@ -1223,18 +1223,26 @@ private val STAGE_LABELS = mapOf(
     "done"         to "Завершено"
 )
 
+// Полный набор типов — должен совпадать с ACTION_TYPES (ActionLogViewModel) и
+// ACTION_LABELS журнала/инфо-экрана, иначе незамапленный тип утекает английским ключом.
 private val ACTION_TYPE_LABELS = mapOf(
-    "watering"      to "Полив",
-    "fertilizing"   to "Подкормка",
-    "treatment"     to "Обработка",
-    "transplanting" to "Высадка",
-    "tying"         to "Подвязка",
-    "pinching"      to "Пасынкование",
-    "hilling"       to "Окучивание",
-    "pruning"       to "Обрезка",
-    "weeding"       to "Прополка",
-    "loosening"     to "Рыхление",
-    "other"         to "Другое"
+    "watering"       to "Полив",
+    "fertilizing"    to "Подкормка",
+    "treatment"      to "Обработка",
+    "pricking_out"   to "Пикировка",
+    "transplanting"  to "Высадка",
+    "tying"          to "Подвязка",
+    "pinching"       to "Пасынкование",
+    "hilling"        to "Окучивание",
+    "pruning"        to "Обрезка",
+    "weeding"        to "Прополка",
+    "loosening"      to "Рыхление",
+    "thinning"       to "Прореживание",
+    "runner_removal" to "Удаление усов",
+    "bolt_removal"   to "Удаление стрелок",
+    "deflowering"    to "Удаление цветков",
+    "staking"        to "Установка опоры",
+    "other"          to "Другое"
 )
 
 @OptIn(ExperimentalFoundationApi::class)
