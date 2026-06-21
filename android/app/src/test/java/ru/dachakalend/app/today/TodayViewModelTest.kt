@@ -39,6 +39,8 @@ class TodayViewModelTest {
     private lateinit var actionsRepo: ActionsRepository
     private lateinit var tokenStorage: TokenStorage
     private lateinit var api: DachaApi
+    private lateinit var todayCache: ru.dachakalend.app.data.local.TodayCache
+    private lateinit var syncManager: ru.dachakalend.app.data.sync.ActionSyncManager
 
     @Before
     fun setUp() {
@@ -51,6 +53,8 @@ class TodayViewModelTest {
         // relaxed: прочие save*/get*-вызовы кэша возвращают пустые значения по умолчанию
         tokenStorage  = mockk(relaxed = true)
         api           = mockk(relaxed = true)
+        todayCache    = mockk(relaxed = true)
+        syncManager   = mockk(relaxed = true)
 
         every { tokenStorage.getGardenId() }    returns 1
         every { tokenStorage.getClimateZone() } returns "4"
@@ -62,7 +66,7 @@ class TodayViewModelTest {
     }
 
     private fun buildViewModel() = TodayViewModel(
-        todayRepo, recsRepo, plantingsRepo, gardenRepo, actionsRepo, tokenStorage, api
+        todayRepo, recsRepo, plantingsRepo, gardenRepo, actionsRepo, tokenStorage, api, todayCache, syncManager
     )
 
     // ── Базовые состояния ─────────────────────────────────────────────────────
@@ -143,6 +147,43 @@ class TodayViewModelTest {
         buildViewModel().uiState.test {
             assertEquals(TodayUiState.Loading, awaitItem())
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── F1: офлайн-фолбэк из кэша ──────────────────────────────────────────────
+
+    @Test
+    fun `сетевая ошибка с кэшем показывает офлайн-Success`() = runTest {
+        coEvery { todayRepo.getToday() }              returns Result.Error("offline", isNetwork = true)
+        coEvery { recsRepo.getRecommendations() }     returns Result.Success(emptyList())
+        coEvery { plantingsRepo.getPlantings(any()) } returns Result.Success(emptyList())
+        every { todayCache.load(1) } returns ru.dachakalend.app.data.local.CachedToday(
+            gardenId = 1, cachedAt = 123L,
+            today = TodayResponse(gardenId = 1), recommendations = emptyList(),
+            plantings = emptyList(), todayActions = emptyList(),
+        )
+
+        buildViewModel().uiState.test {
+            awaitItem() // Loading
+            dispatcher.scheduler.advanceUntilIdle()
+            val state = awaitItem() as TodayUiState.Success
+            assertTrue(state.data.offline)
+            assertEquals(123L, state.data.cachedAt)
+        }
+    }
+
+    @Test
+    fun `сетевая ошибка без кэша остаётся Error`() = runTest {
+        coEvery { todayRepo.getToday() }              returns Result.Error("offline", isNetwork = true)
+        coEvery { recsRepo.getRecommendations() }     returns Result.Success(emptyList())
+        coEvery { plantingsRepo.getPlantings(any()) } returns Result.Success(emptyList())
+        every { todayCache.load(any()) } returns null
+
+        buildViewModel().uiState.test {
+            awaitItem()
+            dispatcher.scheduler.advanceUntilIdle()
+            val state = awaitItem() as TodayUiState.Error
+            assertTrue(state.message.contains("offline"))
         }
     }
 }

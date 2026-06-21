@@ -135,7 +135,7 @@ fun TodayScreen(
                     },
                     plantings     = state.data.plantings,
                     todayActions  = state.data.todayActions,
-                    onDeleteAction  = { viewModel.deleteAction(it) },
+                    onDeleteAction  = { action -> viewModel.deleteAction(action.id, action.clientId) },
                     onSnoozeRec     = { rec -> viewModel.snoozeRec(recKey(rec)) },
                     onDeleteRec     = { rec -> viewModel.deleteRec(recKey(rec)) },
                     onSnoozeTask    = { task -> viewModel.snoozeTask(taskSnoozeKey(task)) },
@@ -152,9 +152,6 @@ fun TodayScreen(
     }
 }
 
-private fun recKey(rec: Recommendation) = "${rec.type}:${rec.cropName}:${rec.message.take(30)}"
-private fun taskSnoozeKey(task: TodayTask) = "${task.type}:${task.plantingId}:${task.cropName}:${task.careTaskName}"
-
 // ─── Main content ──────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -166,7 +163,7 @@ private fun TodayContent(
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
     todayActions: List<ActionLog> = emptyList(),
-    onDeleteAction: (Int) -> Unit = {},
+    onDeleteAction: (ActionLog) -> Unit = {},
     onSnoozeRec: (Recommendation) -> Unit = {},
     onDeleteRec: (Recommendation) -> Unit = {},
     onSnoozeTask: (TodayTask) -> Unit = {},
@@ -1181,7 +1178,7 @@ private val ACTION_TYPE_LABELS = mapOf(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TodayActionRow(action: ActionLog, onDelete: (Int) -> Unit) {
+private fun TodayActionRow(action: ActionLog, onDelete: (ActionLog) -> Unit) {
     var showConfirm by remember { mutableStateOf(false) }
 
     if (showConfirm) {
@@ -1200,7 +1197,7 @@ private fun TodayActionRow(action: ActionLog, onDelete: (Int) -> Unit) {
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showConfirm = false; onDelete(action.id) }) {
+                TextButton(onClick = { showConfirm = false; onDelete(action) }) {
                     Text("Удалить", color = MaterialTheme.colorScheme.error,
                         fontFamily = NunitoFamily, fontWeight = FontWeight.Black)
                 }
