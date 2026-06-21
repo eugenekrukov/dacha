@@ -123,7 +123,11 @@ fun TodayScreen(
             is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
             is TodayUiState.Success -> {
                 val hiddenRecKeys = dismissedRecs + deletedRecs
+                val queueSize by viewModel.queueSize.collectAsState()
                 TodayContent(
+                    offline       = state.data.offline,
+                    cachedAt      = state.data.cachedAt,
+                    queueSize     = queueSize,
                     weather       = state.data.today.weather,
                     forecast      = state.data.today.forecast,
                     tasks         = state.data.today.tasks.filterNot { task ->
@@ -163,6 +167,9 @@ private fun TodayContent(
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
     todayActions: List<ActionLog> = emptyList(),
+    offline: Boolean = false,
+    cachedAt: Long? = null,
+    queueSize: Int = 0,
     onDeleteAction: (ActionLog) -> Unit = {},
     onSnoozeRec: (Recommendation) -> Unit = {},
     onDeleteRec: (Recommendation) -> Unit = {},
@@ -260,6 +267,11 @@ private fun TodayContent(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier            = Modifier.weight(1f).fillMaxWidth()
         ) {
+            // F1: баннер офлайна / очереди неотправленных действий
+            if (offline || queueSize > 0) {
+                item { OfflineBanner(offline = offline, cachedAt = cachedAt, queueSize = queueSize) }
+            }
+
             // Погодные детали + 7-дневный прогноз
             if (weather != null || forecast.isNotEmpty()) {
                 item {
@@ -443,6 +455,42 @@ private fun TodayContent(
                 }
             }
         }
+    }
+}
+
+// ─── F1: баннер офлайна / очереди ─────────────────────────────────────────
+
+@Composable
+private fun OfflineBanner(offline: Boolean, cachedAt: Long?, queueSize: Int) {
+    val text = when {
+        offline && cachedAt != null -> {
+            val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                .format(java.util.Date(cachedAt))
+            if (queueSize > 0) "Нет связи · данные от $time · $queueSize в очереди"
+            else "Нет связи · данные от $time"
+        }
+        offline -> "Нет связи · показаны сохранённые данные"
+        else    -> "$queueSize ${plural(queueSize, "действие", "действия", "действий")} ждут отправки"
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
+            Icon(Icons.Default.CloudOff, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(text, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+private fun plural(n: Int, one: String, few: String, many: String): String {
+    val mod10 = n % 10; val mod100 = n % 100
+    return when {
+        mod10 == 1 && mod100 != 11 -> one
+        mod10 in 2..4 && mod100 !in 12..14 -> few
+        else -> many
     }
 }
 
@@ -1238,6 +1286,13 @@ private fun TodayActionRow(action: ActionLog, onDelete: (ActionLog) -> Unit) {
                     color      = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines   = 1,
                     overflow   = TextOverflow.Ellipsis
+                )
+            }
+            if (action.pending) {
+                Text(
+                    "↑ ждёт отправки",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
                 )
             }
         }

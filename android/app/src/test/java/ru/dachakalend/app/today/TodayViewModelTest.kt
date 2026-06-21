@@ -41,6 +41,7 @@ class TodayViewModelTest {
     private lateinit var api: DachaApi
     private lateinit var todayCache: ru.dachakalend.app.data.local.TodayCache
     private lateinit var syncManager: ru.dachakalend.app.data.sync.ActionSyncManager
+    private lateinit var actionQueue: ru.dachakalend.app.data.local.ActionQueue
 
     @Before
     fun setUp() {
@@ -55,6 +56,8 @@ class TodayViewModelTest {
         api           = mockk(relaxed = true)
         todayCache    = mockk(relaxed = true)
         syncManager   = mockk(relaxed = true)
+        actionQueue   = mockk(relaxed = true)
+        every { actionQueue.size } returns kotlinx.coroutines.flow.MutableStateFlow(0)
 
         every { tokenStorage.getGardenId() }    returns 1
         every { tokenStorage.getClimateZone() } returns "4"
@@ -66,7 +69,7 @@ class TodayViewModelTest {
     }
 
     private fun buildViewModel() = TodayViewModel(
-        todayRepo, recsRepo, plantingsRepo, gardenRepo, actionsRepo, tokenStorage, api, todayCache, syncManager
+        todayRepo, recsRepo, plantingsRepo, gardenRepo, actionsRepo, tokenStorage, api, todayCache, syncManager, actionQueue
     )
 
     // ── Базовые состояния ─────────────────────────────────────────────────────

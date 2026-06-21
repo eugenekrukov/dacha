@@ -53,11 +53,14 @@ class TodayViewModel @Inject constructor(
     private val tokenStorage: TokenStorage,
     private val api: DachaApi,
     private val todayCache: ru.dachakalend.app.data.local.TodayCache,
-    private val syncManager: ru.dachakalend.app.data.sync.ActionSyncManager
+    private val syncManager: ru.dachakalend.app.data.sync.ActionSyncManager,
+    private val actionQueue: ru.dachakalend.app.data.local.ActionQueue,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<TodayUiState>(TodayUiState.Loading)
     val uiState: StateFlow<TodayUiState> = _uiState
+
+    val queueSize: kotlinx.coroutines.flow.StateFlow<Int> = actionQueue.size
 
     private val _dismissedRecs = MutableStateFlow<Set<String>>(
         tokenStorage.getDismissedRecsForToday()
