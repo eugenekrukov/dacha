@@ -99,6 +99,10 @@ ssh hetzner 'cp /var/www/dacha-api/landing/index.html /var/www/dacha-landing/ind
 
 ## История
 
+- **2026-06-21 (2)** — правки тестеров + Tier 2 (vc6). Миграции **046** (`plantings.variety`) и **047**
+  (`crops.image_url/image_credit`) — аддитивные. Backend (группировка полива/подкормки в `todayLogic`,
+  variety) + web (hero, фото-дневник, фото культур lazy-load) задеплоены: `reset --hard origin/main`,
+  psql 046+047, `pm2 restart`, `npm run build` → `/var/www/dacha-web`. Android vc6/1.0.3 — пользователь.
 - **2026-06-12** — первый деплой веб-версии: backend (`store='web'`, `last_action_type`, фикс пушей),
   SPA в `/app/`, nginx `location /app/`, лендинг с входом в веб-версию. Подробности — `docs/web-migration-plan.md`.
 
