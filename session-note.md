@@ -1,6 +1,55 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-06-20
+**Дата последней сессии**: 2026-06-21
+
+## Сессия 2026-06-21 — F1 офлайн «Сегодня»: read-кэш + очередь записи (Android + backend)
+
+Полный цикл superpowers по фиче **F1 (офлайн-режим «Сегодня»)** через subagent-driven (12 задач,
+TDD/ревью на задачу): брейнсторминг → спек (`docs/superpowers/specs/2026-06-21-offline-today-design.md`)
+→ план (`docs/superpowers/plans/2026-06-21-offline-today.md`) → реализация. **НЕ задеплоено** (ветка
+`feature/offline-today`, не влита). Веб вне scope (полевой сценарий — Android).
+
+**Что закрывает:** инсайт №1 (дача без связи) — экран «Сегодня» был завязан на API, при сетевой ошибке
+уходил в `Error` (кэша не было). Теперь: офлайн-чтение из кэша + баннер; запись действий (лог/смена
+стадии/удаление) офлайн ставится в очередь и синхронизируется при возврате связи.
+
+**Backend (миграция 045, тесты 330 vitest, +3):** `action_logs.client_id UUID` (nullable) + частичный
+UNIQUE-индекс; `POST /actions` принимает опц. `client_id` (ключ идемпотентности, UUID-валидация→400) и
+`logged_at` (клиентское время, `COALESCE($5,NOW())`); атомарный `ON CONFLICT (client_id) DO UPDATE …
+RETURNING` (по ревью — вместо DO NOTHING+SELECT, без гонки на двойной отправке). IDOR-проверка раньше
+валидации. Старые клиенты без `client_id` работают по-прежнему. Стадия «Высадки» — через существующий
+`PATCH /plantings/:id/stage` (idempotent), бэкенд не трогали.
+
+**Android (подход A — без Room/WorkManager):**
+- `data/local/TodayCache.kt` — снимок «Сегодня» (Moshi→SharedPreferences `dacha_today_cache`),
+  привязан к `gardenId`; `save/load/updateActions/clear`.
+- `data/local/ActionQueue.kt` — персистентная FIFO-очередь `QueuedOp` (LOG/STAGE/DELETE), `@Synchronized`,
+  мягкий потолок 200, реактивный `size: StateFlow`.
+- `data/sync/ActionSyncManager.kt` — прогон очереди под `Mutex.tryLock()`: успех/4xx(вкл.404 DELETE)/
+  конфликт `client_id` → снять; 5xx/IOException → стоп до след. триггера.
+- `data/sync/ConnectivityObserver.kt` — `registerDefaultNetworkCallback`, `onAvailable`→`sync()`; старт
+  из `App.onCreate`. +`ACCESS_NETWORK_STATE` в манифесте.
+- `Result.Error.isNetwork` (IOException vs HttpException) — отделяет офлайн от прикладных ошибок.
+- `ActionsRepository` — онлайн шлёт сразу (с `client_id`+`logged_at`); офлайн (IOException) → enqueue +
+  оптимистичный синтетический `ActionLog` (отриц. id, `pending=true`) в кэш-ленту; `changeStage`
+  (офлайн→STAGE в очередь); `deleteAction(id, clientId?)` (несинхронизированное — выкинуть из очереди без
+  сервера; серверное офлайн → DELETE в очередь). Событие `loggedActionEvents`.
+- `TodayViewModel` — кэш сохраняется при успехе + `syncManager.sync()`; при **сетевой** ошибке с кэшем →
+  `Success(offline=true, cachedAt)` (иначе `Error`); по `loggedActionEvents` оптимистично закрывает
+  задачи посадки (snooze, обратимо) + silent reload. `queueSize` проброшен в UI.
+- UI (`TodayScreen`): баннер «Нет связи · данные от HH:MM · N в очереди» (рус. плюрализация), пометка
+  «↑ ждёт отправки» на pending-действиях.
+- Logout чистит `TodayCache`+`ActionQueue` (как push-токен) — чужие данные не показываем/не шлём.
+
+⚠️ **Android JVM unit-тесты в этом окружении НЕ запускаются** — `ClassNotFoundException` тест-воркера для
+ВСЕХ классов (вкл. пред-существующие), корень — **кириллический путь** `Календарь дачника` (это и есть
+давний «E3/баг AGP 9»). Верификация Android = **компиляция** main + тест-исходников
+(`:app:compileGplayDebugUnitTestKotlin`). Тесты написаны (mockk), компилируются, прогон — в Android Studio
+или на ASCII-пути. Все 3 флейвора (gplay/rustore/samsung) + тест-исходники компилируются.
+
+**Деплой (СЛЕДУЮЩАЯ сессия):** backend — влить ветку, `git reset --hard origin/main` на VPS +
+`npm run migrate` (045, аддитивна/обратносовместима) + `pm2 restart`; `npm install` НЕ нужен. Android —
+собрать/опубликовать (пользователь). Веб не трогаем.
 
 ## Сессия 2026-06-20 (2) — F12 фото-дневник: спек + план + BACKEND задеплоен
 

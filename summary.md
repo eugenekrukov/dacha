@@ -13,7 +13,13 @@
 - **Веб**: `https://dacha.studio1008.com/app/` (папка `web/`, статика `/var/www/dacha-web`, nginx `location /app/`). Та же БД/API.
 - **Android**: package `ru.dachakalend.app` · minSdk 26 · compileSdk/targetSdk **36** (Android 16) · флейворы `rustore`/`gplay`/`samsung` (сборка `:app:compileGplayDebugKotlin` и т.п.).
 - **Справочник проблем растений**: в проде на всех платформах (~68 записей, 52/68 с фото). См. `docs/plant-guide-plan.md`.
-- **Бэкенд-тесты**: 300/300 (`npm test` → vitest run; **НЕ** jest).
+- **Бэкенд-тесты**: 330/330 (`npm test` → vitest run; **НЕ** jest).
+- ⚠️ **Android JVM unit-тесты не запускаются в этом окружении** — кириллический путь `Календарь дачника`
+  ломает тест-воркер (`ClassNotFoundException` для всех классов; давний «E3»). Верификация Android =
+  компиляция main + тест-исходников (`:app:compile<Flavor>DebugUnitTestKotlin`); прогон тестов — в
+  Android Studio / на ASCII-пути.
+- **F1 офлайн «Сегодня»** (Android+backend): реализован в ветке `feature/offline-today`, **НЕ задеплоен**
+  (read-кэш + очередь записи; миграция 045). См. session-note (2026-06-21).
 
 ## Монетизация (ФИНАЛ 2026-06-16)
 
