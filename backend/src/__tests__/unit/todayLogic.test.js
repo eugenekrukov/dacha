@@ -263,10 +263,10 @@ describe('сортировка и лимит', () => {
     expect(tasks.length).toBeLessThanOrEqual(7)
   })
 
-  it('задачи с большей просрочкой идут раньше при одинаковом приоритете', () => {
+  it('полив на нескольких посадках группируется в одну карточку (days_overdue = максимум)', () => {
     const plantings = [
-      makePlanting({ id: 1, watering_freq_days: 3 }),
-      makePlanting({ id: 2, watering_freq_days: 3 }),
+      makePlanting({ id: 1, crop_name: 'Томат', watering_freq_days: 3 }),
+      makePlanting({ id: 2, crop_name: 'Огурец', watering_freq_days: 3 }),
     ]
     // id=1: полив 7 дней назад (overdue=4), id=2: полив 4 дня назад (overdue=1)
     const lastWatered = {
@@ -275,7 +275,25 @@ describe('сортировка и лимит', () => {
     }
     const tasks = buildTasks(plantings, makeWeather(), lastWatered, {}, [], TODAY)
     const wateringTasks = tasks.filter(t => t.type === 'watering_due')
-    expect(wateringTasks[0].planting_id).toBe(1)
+    expect(wateringTasks).toHaveLength(1)
+    const card = wateringTasks[0]
+    expect(card.planting_id).toBeNull() // групповая — информационная
+    expect(card.planting_ids).toEqual([1, 2])
+    expect(card.crop_names_with_ids).toEqual([
+      { id: 1, name: 'Томат' },
+      { id: 2, name: 'Огурец' },
+    ])
+    expect(card.days_overdue).toBe(4) // максимум просрочки по группе
+  })
+
+  it('полив на одной посадке остаётся адресным (planting_id, без группировки)', () => {
+    const tasks = buildTasks(
+      [makePlanting({ id: 5, crop_name: 'Томат', watering_freq_days: 3 })],
+      makeWeather(), { 5: new Date(daysAgo(7, TODAY)) }, {}, [], TODAY
+    )
+    const watering = tasks.find(t => t.type === 'watering_due')
+    expect(watering.planting_id).toBe(5)
+    expect(watering.crop_names_with_ids).toBeUndefined()
   })
 
   it('daysSincePlanting = 0 когда planted_at = сегодня', () => {

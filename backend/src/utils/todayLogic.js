@@ -165,11 +165,32 @@ function listCrops(crops) {
   return `${crops.slice(0, max).join(', ')} и ещё ${crops.length - max}`
 }
 
+// Группирует однотипные задачи (полив/подкормка) в одну информационную карточку с мульти-листом.
+// Одиночные пушатся как есть (адресные). Группа теряет per-planting product (у культур разные),
+// поэтому заголовок/описание формируются formatTasks по crops, без конкретного препарата.
+function pushGrouped(tasks, accum, type) {
+  if (accum.length === 0) return
+  if (accum.length === 1) { tasks.push(accum[0]); return }
+  const crops = accum.map(g => g.crop_name)
+  tasks.push({
+    type,
+    priority: accum[0].priority,
+    planting_id: null,
+    crop_name: null,
+    crops,
+    planting_ids: accum.map(g => g.planting_id),
+    crop_names_with_ids: accum.map(g => ({ id: g.planting_id, name: g.crop_name })),
+    days_overdue: Math.max(...accum.map(g => g.days_overdue || 0)),
+  })
+}
+
 function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null, lastCareActionMap = {}) {
   // Если завтра дождь ≥70% — полив не нужен
   const rainExpected = precipProb !== null && precipProb >= 70
   const tasks = []
   const careAccum = [] // care-задачи копим отдельно — потом группируем однотипные
+  const waterAccum = [] // полив — тоже группируем (одна карточка «Полить: …» на много посадок)
+  const fertAccum = []  // подкормка — аналогично
 
   for (const p of plantings) {
     // Для многолетников отсчёт ухода — от текущего сезона (см. effectivePlantedAt).
@@ -262,7 +283,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       const daysSinceWatering = Math.floor((today - lastWatered) / 86400000)
       const freq = wateringIntervalDays(p.watering_freq_days, p.conditions)
       if (daysSinceWatering >= freq) {
-        tasks.push({
+        waterAccum.push({
           type: 'watering_due',
           priority: TASK_PRIORITY.watering_due,
           planting_id: p.id,
@@ -282,7 +303,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       const lastFertilized = lastFertilizedMap[p.id] || plantedAt
       const daysSinceFertilized = Math.floor((today - lastFertilized) / 86400000)
       if (daysSinceFertilized > 14) {
-        tasks.push({
+        fertAccum.push({
           type: 'fertilizing_due',
           priority: TASK_PRIORITY.fertilizing_due,
           planting_id: p.id,
@@ -344,6 +365,13 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
     }
   }
 
+  // Полив и подкормка — самые частые задачи; на участке с десятком культур они забивают
+  // список однотипными карточками. Группируем их в одну «Полить: …» / «Подкормить: …»
+  // (как care-задачи): клиент открывает мульти-лист и снимает/выполняет по каждой культуре.
+  // Одиночные остаются адресными (planting_id → tappable + детали на карточке посадки).
+  pushGrouped(tasks, waterAccum, 'watering_due')
+  pushGrouped(tasks, fertAccum, 'fertilizing_due')
+
   tasks.push(...reminders)
 
   tasks.sort((a, b) => {
@@ -359,9 +387,13 @@ function formatTasks(tasks) {
     // Короткий actionable заголовок — помещается в одну строку карточки
     let title
     switch (t.type) {
-      case 'watering_due':     title = `Полить: ${t.crop_name}`; break
+      case 'watering_due':     title = (t.crops && t.crops.length)
+                                 ? `Полить: ${listCrops(t.crops)}`
+                                 : `Полить: ${t.crop_name}`; break
       case 'transplant_due':   title = `Высадить в грунт: ${t.crop_name}`; break
-      case 'fertilizing_due':  title = t.product_example ? `Подкормить ${t.crop_name} (${t.product_example})` : `Подкормить: ${t.crop_name}`; break
+      case 'fertilizing_due':  title = (t.crops && t.crops.length)
+                                 ? `Подкормить: ${listCrops(t.crops)}`
+                                 : t.product_example ? `Подкормить ${t.crop_name} (${t.product_example})` : `Подкормить: ${t.crop_name}`; break
       case 'harvest_due':      title = `Убрать урожай: ${t.crop_name}`; break
       case 'frost_alert':      title = `Заморозки: ${t.crop_name}`; break
       case 'care_task_due':    title = (t.crops && t.crops.length)
