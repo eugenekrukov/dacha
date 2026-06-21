@@ -470,7 +470,7 @@ private fun OfflineBanner(offline: Boolean, cachedAt: Long?, queueSize: Int) {
             else "Нет связи · данные от $time"
         }
         offline -> "Нет связи · показаны сохранённые данные"
-        else    -> "$queueSize ${plural(queueSize, "действие", "действия", "действий")} ждут отправки"
+        else    -> "$queueSize ${plural(queueSize, "действие", "действия", "действий")} ${plural(queueSize, "ждёт", "ждут", "ждут")} отправки"
     }
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
