@@ -44,3 +44,6 @@ android/local.properties
 
 # GitNexus knowledge-graph index (generated)
 .gitnexus/
+
+# Superpowers brainstorming companion (local mockups)
+.superpowers/
