@@ -13,6 +13,7 @@ import javax.inject.Inject
 class App : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var connectivityObserver: ru.dachakalend.app.data.sync.ConnectivityObserver
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -35,5 +36,7 @@ class App : Application(), Configuration.Provider {
 
         // Реклама РСЯ — no-op в rustore-сборке, реальная инициализация в gplay/samsung (src/withAds).
         Ads.init(this)
+
+        connectivityObserver.start()
     }
 }
