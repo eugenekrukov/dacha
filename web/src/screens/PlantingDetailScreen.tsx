@@ -7,6 +7,7 @@ import { buildSchedule, collapseActions, type SchedStatus } from '../api/schedul
 import { CareSection, NeighborsSection } from '../components/CropCare'
 import ProblemList from '../components/ProblemList'
 import ActionLogSheet from '../components/ActionLogSheet'
+import PhotoDiary from '../components/PhotoDiary'
 import type { ActionLog, Crop, GuideEntry, Planting } from '../api/types'
 
 type Tab = 'planting' | 'care' | 'disease' | 'pest' | 'neighbors'
@@ -31,6 +32,8 @@ export default function PlantingDetailScreen() {
   const [error, setError] = useState<string | null>(null)
   const [logging, setLogging] = useState(false)
   const [tab, setTab] = useState<Tab>('planting')
+  // Бамп при записи действия — чтобы лента дневника перечитала фото, прикреплённые к действию.
+  const [photoRefresh, setPhotoRefresh] = useState(0)
 
   const load = async () => {
     try {
@@ -98,6 +101,7 @@ export default function PlantingDetailScreen() {
             {STAGE_LABELS[planting.stage] ?? planting.stage}
           </span>
         </div>
+        {planting.variety && <p className="font-bold text-tertiary">Сорт: {planting.variety}</p>}
         <p className="font-semibold text-muted">
           Посажено {formatDate(planting.planted_at)} · {planting.quantity ?? 1} шт.
           {planting.conditions === 'greenhouse' ? ' · теплица' : ''}
@@ -140,6 +144,8 @@ export default function PlantingDetailScreen() {
               ))}
             </section>
           )}
+
+          <PhotoDiary key={photoRefresh} plantingId={planting.id} />
 
           <section className="flex flex-col gap-2">
             <h2 className="text-lg font-black">История действий</h2>
@@ -185,6 +191,7 @@ export default function PlantingDetailScreen() {
           onClose={() => setLogging(false)}
           onLogged={() => {
             setLogging(false)
+            setPhotoRefresh((n) => n + 1)
             load()
           }}
         />

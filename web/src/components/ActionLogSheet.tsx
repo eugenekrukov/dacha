@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Camera, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { ACTION_CATALOG } from '../api/labels'
 import { actionIcon } from '../ui/icons'
-import type { CropRef } from '../api/types'
+import type { ActionLog, CropRef } from '../api/types'
 
 interface Props {
   plantingId?: number
@@ -40,6 +40,11 @@ export default function ActionLogSheet({
   const [autoNote, setAutoNote] = useState(initialNote ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Фото-вложение — только в одиночном режиме (один кадр на одну посадку/действие).
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  // Действие записано, но фото не загрузилось — кнопка превращается в «Закрыть».
+  const [savedWithoutPhoto, setSavedWithoutPhoto] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const pick = (t: string) => {
     setType(t)
@@ -59,13 +64,26 @@ export default function ActionLogSheet({
     try {
       // Одно действие во все оставшиеся посадки (последовательно — чтобы первая ошибка
       // доступа/сети всплыла явно, а не потерялась среди параллельных запросов).
+      let lastLogged: ActionLog | null = null
       for (const tg of targets) {
         if (type === 'transplanting') {
           // «Высадка»: фиксируем действие + переводим стадию в transplanted
-          await api.logAction(tg.id, 'transplanting')
+          lastLogged = await api.logAction(tg.id, 'transplanting')
           await api.updateStage(tg.id, 'transplanted')
         } else {
-          await api.logAction(tg.id, type, note.trim() || undefined)
+          lastLogged = await api.logAction(tg.id, type, note.trim() || undefined)
+        }
+      }
+      // Фото привязываем к записанному действию (только одиночный режим — один target).
+      if (!grouped && photoFile && lastLogged) {
+        try {
+          await api.uploadPhoto(targets[0].id, photoFile, { actionId: lastLogged.id })
+        } catch {
+          // Действие важнее фото — не откатываем; сообщаем и даём закрыть.
+          setError('Действие записано, но фото не загрузилось')
+          setSavedWithoutPhoto(true)
+          setBusy(false)
+          return
         }
       }
       onLogged(type)
@@ -147,15 +165,56 @@ export default function ActionLogSheet({
           onChange={(e) => setNote(e.target.value)}
         />
 
+        {!grouped && (
+          <div className="mt-3">
+            {photoFile ? (
+              <div className="flex items-center justify-between rounded-btn bg-background px-3 py-2 text-sm font-bold">
+                <span className="min-w-0 truncate">📷 {photoFile.name}</span>
+                <button type="button" onClick={() => setPhotoFile(null)} aria-label="Убрать фото" className="shrink-0 text-muted">
+                  <X size={18} aria-hidden />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="dacha-chip flex items-center gap-1.5 px-3 py-2"
+                onClick={() => fileRef.current?.click()}
+              >
+                <Camera size={18} aria-hidden /> Прикрепить фото
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null
+                e.target.value = ''
+                setPhotoFile(f)
+              }}
+            />
+          </div>
+        )}
+
         {error && <p className="mt-2 text-sm font-bold text-red-600">{error}</p>}
 
         <div className="mt-4 flex gap-2">
-          <button type="button" className="dacha-chip flex-1 py-3" onClick={onClose}>
-            Отмена
-          </button>
-          <button className="dacha-btn flex-1" disabled={!type || busy} onClick={save}>
-            {busy ? '…' : 'Сохранить'}
-          </button>
+          {savedWithoutPhoto ? (
+            <button className="dacha-btn flex-1" onClick={() => { onLogged(type!); onClose() }}>
+              Закрыть
+            </button>
+          ) : (
+            <>
+              <button type="button" className="dacha-chip flex-1 py-3" onClick={onClose}>
+                Отмена
+              </button>
+              <button className="dacha-btn flex-1" disabled={!type || busy} onClick={save}>
+                {busy ? '…' : 'Сохранить'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

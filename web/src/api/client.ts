@@ -15,6 +15,7 @@ import type {
   GuideKind,
   Harvest,
   Planting,
+  PlantingPhoto,
   PlantingStage,
   Recommendation,
   TodayResponse,
@@ -140,6 +141,35 @@ export const api = {
       method: 'POST',
       body: { planting_id: plantingId, action_type: type, notes: notes ?? null },
     }),
+  // --- photos (фото-дневник) ---
+  getPhotos: (plantingId: number) =>
+    request<PlantingPhoto[]>(`/photos?planting_id=${plantingId}`),
+  uploadPhoto: async (
+    plantingId: number,
+    file: File,
+    opts: { actionId?: number; caption?: string } = {},
+  ): Promise<PlantingPhoto> => {
+    const fd = new FormData()
+    fd.append('planting_id', String(plantingId))
+    if (opts.actionId != null) fd.append('action_id', String(opts.actionId))
+    if (opts.caption) fd.append('caption', opts.caption)
+    fd.append('file', file)
+    const token = tokenStore.getToken()
+    const res = await fetch(`${BASE}/photos`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd, // НЕ ставим Content-Type — браузер сам выставит boundary
+    })
+    if (!res.ok) {
+      let code: string | undefined
+      try { code = (await res.json()).code } catch { /* ignore */ }
+      throw new ApiError(res.status, code === 'photo_limit_reached' ? 'Достигнут лимит фото' : `HTTP ${res.status}`, code)
+    }
+    return res.json()
+  },
+  deletePhoto: (id: number) =>
+    request<void>(`/photos/${id}`, { method: 'DELETE' }),
+
   // CSV-экспорт журнала: нужен Bearer → тянем blob вручную (не через request()).
   fetchActionsCsv: async (): Promise<Blob> => {
     const token = tokenStore.getToken()
