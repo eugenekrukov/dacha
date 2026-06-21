@@ -296,6 +296,8 @@ data class Crop(
     val id: Int,
     val name: String,
     val category: String,
+    @Json(name = "image_url") val imageUrl: String? = null,
+    @Json(name = "image_credit") val imageCredit: String? = null,
     @Json(name = "is_perennial") val isPerennial: Boolean? = null,
     @Json(name = "sowing_start_day") val sowingStartDay: Int?,
     @Json(name = "sowing_end_day") val sowingEndDay: Int?,

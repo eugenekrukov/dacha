@@ -8,6 +8,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Spa
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -57,6 +59,15 @@ fun CropDetailScreen(
         }) else ({}),
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
+            // Фото культуры (F4) — если есть.
+            crop.imageUrl?.let { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = crop.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().height(180.dp)
+                )
+            }
             ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
                 tabs.forEachIndexed { index, title ->
                     Tab(selected = selectedTab == index, onClick = { selectedTab = index },

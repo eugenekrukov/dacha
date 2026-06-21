@@ -43,6 +43,15 @@ export default function CropDetailScreen() {
         <ArrowLeft size={18} aria-hidden /> Назад
       </button>
 
+      {crop.image_url && (
+        <figure className="overflow-hidden rounded-2xl">
+          <img src={crop.image_url} alt={crop.name} loading="lazy" className="aspect-[16/9] w-full object-cover" />
+          {crop.image_credit && (
+            <figcaption className="px-1 pt-1 text-[11px] text-muted">{crop.image_credit}</figcaption>
+          )}
+        </figure>
+      )}
+
       <div className="dacha-card flex flex-col gap-2 p-5">
         <h1 className="text-2xl font-black">{crop.name}</h1>
         <div className="flex flex-wrap items-center gap-2">

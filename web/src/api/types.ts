@@ -190,6 +190,8 @@ export interface Crop {
   id: number
   name: string
   category?: string | null
+  image_url?: string | null
+  image_credit?: string | null
   is_perennial?: boolean
   sowing_start_day?: number | null
   sowing_end_day?: number | null

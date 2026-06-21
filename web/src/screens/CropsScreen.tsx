@@ -115,6 +115,14 @@ function CropGroup({ title, subtitle, crops }: { title?: string; subtitle?: stri
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {crops.map((c) => (
           <Link key={c.id} to={`/crops/${c.id}`} className="dacha-card-link flex flex-col gap-1 p-4">
+            {c.image_url && (
+              <img
+                src={c.image_url}
+                alt={c.name}
+                loading="lazy"
+                className="mb-1 aspect-[4/3] w-full rounded-btn object-cover"
+              />
+            )}
             <span className="font-black">{c.name}</span>
             <div className="flex flex-wrap items-center gap-1">
               {c.category && (
