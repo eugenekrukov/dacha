@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -48,7 +49,9 @@ fun CropDetailScreen(
         bottomBar = if (onPlant != null) ({
             Surface(shadowElevation = 8.dp, color = MaterialTheme.colorScheme.background) {
                 Button(onClick = { onPlant(crop) }, modifier = Modifier.fillMaxWidth().padding(16.dp).height(52.dp), shape = RoundedCornerShape(16.dp)) {
-                    Text("🌱 Посадить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, softWrap = false)
+                    Icon(Icons.Default.Spa, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Посадить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, softWrap = false)
                 }
             }
         }) else ({}),

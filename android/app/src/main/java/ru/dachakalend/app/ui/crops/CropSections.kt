@@ -3,6 +3,12 @@ package ru.dachakalend.app.ui.crops
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Science
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -122,21 +128,24 @@ fun CropNeighborsSection(crop: Crop, modifier: Modifier = Modifier) {
         return
     }
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (good.isNotEmpty()) NeighborSection("✅ Хорошие соседи", good,
+        if (good.isNotEmpty()) NeighborSection(Icons.Default.CheckCircle, "Хорошие соседи", good,
             MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
-        if (bad.isNotEmpty()) NeighborSection("❌ Плохие соседи", bad,
+        if (bad.isNotEmpty()) NeighborSection(Icons.Default.Cancel, "Плохие соседи", bad,
             MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
-        if (prev.isNotEmpty()) NeighborSection("🔄 Хорошие предшественники", prev,
+        if (prev.isNotEmpty()) NeighborSection(Icons.Default.Autorenew, "Хорошие предшественники", prev,
             MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NeighborSection(title: String, items: List<String>, chipColor: Color, textColor: Color) {
+private fun NeighborSection(icon: ImageVector, title: String, items: List<String>, chipColor: Color, textColor: Color) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onBackground)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(16.dp))
+            Text(title, fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground)
+        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items.forEach { name ->
                 Box(modifier = Modifier.background(chipColor, RoundedCornerShape(50)).padding(horizontal = 12.dp, vertical = 6.dp)) {
@@ -159,7 +168,10 @@ private fun FertilizingRow(entry: FertilizingEntry) {
         entry.timing?.let { Text(it, fontFamily = NunitoFamily, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         entry.productExample?.let { product ->
             val dose = entry.dose?.let { " — $it" } ?: ""
-            Text("🧪 $product$dose", fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(Icons.Default.Science, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                Text("$product$dose", fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
+            }
         }
         entry.notes?.let { if (it.isNotBlank()) Text(it, fontFamily = NunitoFamily, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }

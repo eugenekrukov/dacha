@@ -297,7 +297,10 @@ private fun ActionLogSheetImpl(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("📷 Фото прикреплено", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text("Фото прикреплено", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
                         IconButton(onClick = { pendingPhoto = null }, modifier = Modifier.size(36.dp)) {
                             Icon(Icons.Default.Close, contentDescription = "Убрать фото", modifier = Modifier.size(18.dp))
                         }

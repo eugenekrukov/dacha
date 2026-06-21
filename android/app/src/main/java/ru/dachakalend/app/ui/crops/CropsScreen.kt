@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Eco
@@ -239,12 +240,15 @@ private fun CropCard(crop: Crop, onClick: () -> Unit) {
                     )
                 }
                 if (crop.frostSensitive == true) {
-                    Text(
-                        "❄️ Боится заморозков",
-                        fontFamily = NunitoFamily,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.AcUnit, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(13.dp))
+                        Text(
+                            "Боится заморозков",
+                            fontFamily = NunitoFamily,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
                 if (crop.isPerennial == true) {
                     Text(

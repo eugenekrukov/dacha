@@ -669,12 +669,12 @@ private fun SunnyHero(
 
                 // Humidity chip
                 weather?.humidity?.let {
-                    HeroChip(text = "💧 $it%", style = HeroChipStyle.Subtle)
+                    HeroChip(text = "$it%", style = HeroChipStyle.Subtle, icon = Icons.Default.WaterDrop)
                 }
 
                 // Frost alert
                 if (weather?.frostRisk == true) {
-                    HeroChip(text = "❄ Заморозки", style = HeroChipStyle.Alert)
+                    HeroChip(text = "Заморозки", style = HeroChipStyle.Alert, icon = Icons.Default.AcUnit)
                 }
             }
         }
@@ -684,7 +684,7 @@ private fun SunnyHero(
 private enum class HeroChipStyle { Subtle, Alert }
 
 @Composable
-private fun HeroChip(text: String, style: HeroChipStyle) {
+private fun HeroChip(text: String, style: HeroChipStyle, icon: ImageVector? = null) {
     // Subtle: тёмная полупрозрачная подложка (а не светлая) — иначе белый текст на светлом
     // оранжевом hero даёт контраст ниже AA. Тёмный фон поднимает контраст до читаемого.
     val bg    = if (style == HeroChipStyle.Alert) Color.White.copy(alpha = .92f)
@@ -699,14 +699,22 @@ private fun HeroChip(text: String, style: HeroChipStyle) {
         shape  = CircleShape,
         border = if (style == HeroChipStyle.Subtle) BorderStroke(1.dp, border) else null
     ) {
-        Text(
-            text       = text,
-            style      = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color      = color,
-            softWrap   = false,
-            modifier   = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+            }
+            Text(
+                text       = text,
+                style      = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color      = color,
+                softWrap   = false
+            )
+        }
     }
 }
 
