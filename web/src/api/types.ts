@@ -57,6 +57,7 @@ export interface Planting {
   stage: PlantingStage
   conditions?: 'soil' | 'greenhouse'
   sowing_method?: 'seedling' | 'direct'
+  variety?: string | null
   quantity?: number
   planted_at?: string
   yield_per_plant_kg?: number | null
@@ -251,6 +252,7 @@ export interface CreatePlantingRequest {
   quantity?: number
   conditions?: 'soil' | 'greenhouse'
   sowing_method?: 'seedling' | 'direct'
+  variety?: string
 }
 
 export interface Harvest {
@@ -300,6 +302,19 @@ export interface GuideCropLink {
   crop_name: string
   signs?: string | null
   image_url?: string | null
+}
+
+// Фото-дневник посадки (F12). url/thumb_url — относительные, требуют Bearer (см. AuthImage).
+export interface PlantingPhoto {
+  id: number
+  planting_id: number
+  action_id: number | null
+  caption: string | null
+  taken_at: string
+  width: number | null
+  height: number | null
+  url: string        // /photos/file/:id
+  thumb_url: string  // /photos/file/:id?thumb=1
 }
 
 export interface GuideEntryDetail extends GuideEntry {

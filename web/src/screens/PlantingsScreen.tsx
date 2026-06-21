@@ -94,6 +94,7 @@ function PlantingCard({ p }: { p: Planting }) {
           {STAGE_LABELS[p.stage] ?? p.stage}
         </span>
       </div>
+      {p.variety && <span className="text-sm font-bold text-tertiary">Сорт: {p.variety}</span>}
       <span className="text-sm font-semibold text-muted">
         Посажено {formatDate(p.planted_at)} · {p.quantity ?? 1} шт.
         {p.conditions === 'greenhouse' ? ' · теплица' : ''}

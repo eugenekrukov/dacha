@@ -44,6 +44,15 @@ function preselectFor(t: TodayTask): { type: string | null; note?: string } {
   }
 }
 
+// Заголовок мульти-листа для групповой задачи. У care-задач — её имя («Прополка»);
+// у полива/подкормки care_task_name пуст, поэтому подписываем по типу.
+function groupedTitle(t: TodayTask): string {
+  if (t.care_task_name) return t.care_task_name
+  if (t.type === 'watering_due') return 'Полив'
+  if (t.type === 'fertilizing_due') return 'Подкормка'
+  return 'Действие'
+}
+
 // Отклонённые на сегодня советы — в localStorage по дню (как dismissed-рекомендации в Android).
 function dismissKey() {
   return `dacha_dismissed_recs_${new Date().toISOString().slice(0, 10)}`
@@ -98,46 +107,53 @@ export default function TodayScreen() {
   }
 
   const visibleRecs = recs.filter((r) => !dismissed.has(recKey(r)))
+  const todayLabel = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="dacha-card bg-gradient-to-br from-primary to-[#FF9E3D] p-5 text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.30)]">
-        <p className="text-sm font-bold uppercase opacity-90">Сегодня</p>
-        <h1 className="text-2xl font-black">{active?.name ?? 'Мой участок'}</h1>
-        {active?.city && <p className="font-semibold opacity-90">{active.city}</p>}
-        {today?.weather && (
-          <div className="mt-3 flex items-center gap-3 border-t border-white/25 pt-3">
-            {today.weather.temp_c != null && (
-              <span className="text-3xl font-black">{Math.round(today.weather.temp_c)}°</span>
-            )}
-            <div className="flex flex-col text-sm font-semibold opacity-95">
-              {today.weather.condition_text && <span>{today.weather.condition_text}</span>}
-              <span className="flex items-center gap-1">
-                {today.weather.temp_min != null && today.weather.temp_max != null
-                  ? `${Math.round(today.weather.temp_min)}…${Math.round(today.weather.temp_max)}°`
-                  : ''}
-                {today.weather.precip_prob_pct != null && (
-                  <>
-                    {' · '}
-                    <Droplet size={15} aria-hidden /> {today.weather.precip_prob_pct}%
-                  </>
-                )}
-              </span>
-            </div>
-            <div className="ml-auto flex flex-col items-end gap-1">
-              {today.weather.frost_risk && (
-                <span className="flex items-center gap-1 rounded-pill bg-black/25 px-2 py-0.5 text-xs font-bold">
-                  <Snowflake size={13} aria-hidden /> заморозки
-                </span>
-              )}
-              {today.weather.heat_risk && (
-                <span className="flex items-center gap-1 rounded-pill bg-black/25 px-2 py-0.5 text-xs font-bold">
-                  <Flame size={13} aria-hidden /> жара
-                </span>
-              )}
-            </div>
+      <div className="dacha-card bg-gradient-to-br from-primary to-[#FF9E3D] p-4 text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.30)]">
+        <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wide opacity-90">Сегодня · {todayLabel}</p>
+            <h1 className="truncate text-2xl font-black leading-tight">{active?.name ?? 'Мой участок'}</h1>
+            {active?.city && <p className="text-sm font-semibold opacity-90">{active.city}</p>}
           </div>
-        )}
+          {today?.weather && (
+            <div className="flex items-center gap-3">
+              {today.weather.temp_c != null && (
+                <span className="text-4xl font-black leading-none">{Math.round(today.weather.temp_c)}°</span>
+              )}
+              <div className="flex flex-col text-sm font-semibold opacity-95">
+                {today.weather.condition_text && <span>{today.weather.condition_text}</span>}
+                <span className="flex items-center gap-1">
+                  {today.weather.temp_min != null && today.weather.temp_max != null
+                    ? `${Math.round(today.weather.temp_min)}…${Math.round(today.weather.temp_max)}°`
+                    : ''}
+                  {today.weather.precip_prob_pct != null && (
+                    <>
+                      {' · '}
+                      <Droplet size={15} aria-hidden /> {today.weather.precip_prob_pct}%
+                    </>
+                  )}
+                </span>
+                {(today.weather.frost_risk || today.weather.heat_risk) && (
+                  <span className="mt-1 flex flex-wrap gap-1">
+                    {today.weather.frost_risk && (
+                      <span className="flex items-center gap-1 rounded-pill bg-black/25 px-2 py-0.5 text-xs font-bold">
+                        <Snowflake size={13} aria-hidden /> заморозки
+                      </span>
+                    )}
+                    {today.weather.heat_risk && (
+                      <span className="flex items-center gap-1 rounded-pill bg-black/25 px-2 py-0.5 text-xs font-bold">
+                        <Flame size={13} aria-hidden /> жара
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading && <p className="font-bold text-muted">Загрузка…</p>}
@@ -252,7 +268,7 @@ export default function TodayScreen() {
           plantingId={logTask.planting_id ?? undefined}
           cropName={logTask.crop_name}
           plantings={logTask.crop_names_with_ids ?? undefined}
-          title={logTask.crop_names_with_ids?.length ? (logTask.care_task_name ?? undefined) : undefined}
+          title={logTask.crop_names_with_ids?.length ? groupedTitle(logTask) : undefined}
           preselectedType={preselectFor(logTask).type}
           initialNote={preselectFor(logTask).note}
           onClose={() => setLogTask(null)}

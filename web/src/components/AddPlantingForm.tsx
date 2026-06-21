@@ -13,6 +13,7 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
   const today = new Date().toISOString().slice(0, 10)
   const [cropId, setCropId] = useState<number | ''>('')
   const [plantedAt, setPlantedAt] = useState(today)
+  const [variety, setVariety] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [conditions, setConditions] = useState<'soil' | 'greenhouse'>('soil')
   const [error, setError] = useState<string | null>(null)
@@ -41,6 +42,7 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
         quantity,
         conditions,
         sowing_method: sowingMethod,
+        variety: variety.trim() || undefined,
       })
       onCreated()
     } catch (err) {
@@ -80,6 +82,16 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
               </option>
             ))}
           </select>
+
+          <label className="mt-2 text-sm font-bold text-muted">Сорт (необязательно)</label>
+          <input
+            type="text"
+            className="dacha-input"
+            placeholder="Например: Бычье сердце"
+            maxLength={120}
+            value={variety}
+            onChange={(e) => setVariety(e.target.value)}
+          />
 
           <label className="mt-2 text-sm font-bold text-muted">Дата посадки</label>
           <input
