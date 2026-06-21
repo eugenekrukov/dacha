@@ -92,6 +92,63 @@ describe('POST /actions', () => {
     expect(res.status).toBe(401)
     await app.close()
   })
+
+  it('передаёт client_id и logged_at в INSERT', async () => {
+    let insertParams
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('INSERT INTO action_logs')) { insertParams = params; return { rows: [ACTION] } }
+        return { rows: [{ id: 1 }] } // владелец найден
+      },
+    }))
+    const token = makeToken(app)
+
+    await supertest(app.server)
+      .post('/actions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        planting_id: 1, type: 'watering',
+        client_id: '11111111-1111-4111-8111-111111111111',
+        logged_at: '2026-06-20T08:30:00.000Z',
+      })
+
+    expect(insertParams[4]).toBe('2026-06-20T08:30:00.000Z') // logged_at — 5-й параметр
+    expect(insertParams[5]).toBe('11111111-1111-4111-8111-111111111111') // client_id — 6-й
+    await app.close()
+  })
+
+  it('при конфликте client_id возвращает существующую строку (идемпотентно)', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        // ON CONFLICT DO UPDATE ... RETURNING * атомарно возвращает существующую строку
+        if (sql.includes('INSERT INTO action_logs')) return { rows: [ACTION] }
+        return { rows: [{ id: 1 }] }                                          // владелец
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/actions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ planting_id: 1, type: 'watering', client_id: '11111111-1111-4111-8111-111111111111' })
+
+    expect(res.status).toBe(201)
+    expect(res.body.action_type).toBe('watering')
+    await app.close()
+  })
+
+  it('кривой client_id → 400', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [{ id: 1 }] }) }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/actions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ planting_id: 1, type: 'watering', client_id: 'not-a-uuid' })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
 })
 
 describe('GET /actions', () => {

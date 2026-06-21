@@ -14,6 +14,7 @@ import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayResponse
+import ru.dachakalend.app.data.model.TodayTask
 import ru.dachakalend.app.data.repository.ActionsRepository
 import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
@@ -30,7 +31,10 @@ data class TodayScreenData(
     val today: TodayResponse,
     val recommendations: List<Recommendation>,
     val plantings: List<Planting> = emptyList(),
-    val todayActions: List<ActionLog> = emptyList()
+    val todayActions: List<ActionLog> = emptyList(),
+    // F1: данные показаны из кэша (нет сети), cachedAt — когда снят снимок.
+    val offline: Boolean = false,
+    val cachedAt: Long? = null,
 )
 
 sealed class TodayUiState {
@@ -47,11 +51,16 @@ class TodayViewModel @Inject constructor(
     private val gardenRepository: GardenRepository,
     private val actionsRepository: ActionsRepository,
     private val tokenStorage: TokenStorage,
-    private val api: DachaApi
+    private val api: DachaApi,
+    private val todayCache: ru.dachakalend.app.data.local.TodayCache,
+    private val syncManager: ru.dachakalend.app.data.sync.ActionSyncManager,
+    private val actionQueue: ru.dachakalend.app.data.local.ActionQueue,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<TodayUiState>(TodayUiState.Loading)
     val uiState: StateFlow<TodayUiState> = _uiState
+
+    val queueSize: kotlinx.coroutines.flow.StateFlow<Int> = actionQueue.size
 
     private val _dismissedRecs = MutableStateFlow<Set<String>>(
         tokenStorage.getDismissedRecsForToday()
@@ -93,9 +102,9 @@ class TodayViewModel @Inject constructor(
         _deletedTasks.value = _deletedTasks.value + key
     }
 
-    fun deleteAction(id: Int) {
+    fun deleteAction(id: Int, clientId: String? = null) {
         viewModelScope.launch {
-            when (actionsRepository.deleteAction(id)) {
+            when (actionsRepository.deleteAction(id, clientId)) {
                 is Result.Success -> loadToday(silent = true)
                 else -> Unit
             }
@@ -110,6 +119,16 @@ class TodayViewModel @Inject constructor(
         registerPushToken()
         viewModelScope.launch {
             actionsRepository.deletedActionEvents.collect {
+                loadToday(silent = true)
+            }
+        }
+        viewModelScope.launch {
+            actionsRepository.loggedActionEvents.collect { info ->
+                // Офлайн нельзя пересчитать задачи на сервере → закрываем подходящую локально
+                // (snooze: вернётся завтра / обратимо), затем перечитываем (офлайн — из кэша).
+                (_uiState.value as? TodayUiState.Success)?.data?.today?.tasks
+                    ?.filter { it.plantingId == info.plantingId }
+                    ?.forEach { snoozeTask(taskSnoozeKey(it)) }
                 loadToday(silent = true)
             }
         }
@@ -192,19 +211,50 @@ class TodayViewModel @Inject constructor(
                 )
             }
 
+            val gardenIdForCache = gardenId ?: -1
             _uiState.value = when (todayResult) {
-                is Result.Success -> TodayUiState.Success(
-                    TodayScreenData(
+                is Result.Success -> {
+                    val data = TodayScreenData(
                         today          = todayResult.data,
                         recommendations = if (recsResult is Result.Success) recsResult.data else emptyList(),
                         // Завершённые (архивные) посадки не показываем в быстрых действиях
                         plantings      = plantingsList.filter { it.stage != "done" },
-                        todayActions   = todayActions
+                        todayActions   = todayActions,
                     )
-                )
-                is Result.Error   -> TodayUiState.Error(todayResult.message)
+                    if (gardenIdForCache != -1) {
+                        todayCache.save(ru.dachakalend.app.data.local.CachedToday(
+                            gardenId = gardenIdForCache,
+                            cachedAt = System.currentTimeMillis(),
+                            today = data.today,
+                            recommendations = data.recommendations,
+                            plantings = data.plantings,
+                            todayActions = data.todayActions,
+                        ))
+                    }
+                    launch { syncManager.sync() }
+                    TodayUiState.Success(data)
+                }
+                is Result.Error -> {
+                    val cached = if (todayResult.isNetwork && gardenIdForCache != -1)
+                        todayCache.load(gardenIdForCache) else null
+                    if (cached != null) {
+                        TodayUiState.Success(TodayScreenData(
+                            today = cached.today,
+                            recommendations = cached.recommendations,
+                            plantings = cached.plantings.filter { it.stage != "done" },
+                            todayActions = cached.todayActions,
+                            offline = true,
+                            cachedAt = cached.cachedAt,
+                        ))
+                    } else {
+                        TodayUiState.Error(todayResult.message)
+                    }
+                }
                 is Result.Loading -> TodayUiState.Loading
             }
         }
     }
 }
+
+internal fun recKey(rec: Recommendation) = "${rec.type}:${rec.cropName}:${rec.message.take(30)}"
+internal fun taskSnoozeKey(task: TodayTask) = "${task.type}:${task.plantingId}:${task.cropName}:${task.careTaskName}"

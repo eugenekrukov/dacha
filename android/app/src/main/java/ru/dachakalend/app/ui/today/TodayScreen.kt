@@ -123,7 +123,11 @@ fun TodayScreen(
             is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
             is TodayUiState.Success -> {
                 val hiddenRecKeys = dismissedRecs + deletedRecs
+                val queueSize by viewModel.queueSize.collectAsState()
                 TodayContent(
+                    offline       = state.data.offline,
+                    cachedAt      = state.data.cachedAt,
+                    queueSize     = queueSize,
                     weather       = state.data.today.weather,
                     forecast      = state.data.today.forecast,
                     tasks         = state.data.today.tasks.filterNot { task ->
@@ -135,7 +139,7 @@ fun TodayScreen(
                     },
                     plantings     = state.data.plantings,
                     todayActions  = state.data.todayActions,
-                    onDeleteAction  = { viewModel.deleteAction(it) },
+                    onDeleteAction  = { action -> viewModel.deleteAction(action.id, action.clientId) },
                     onSnoozeRec     = { rec -> viewModel.snoozeRec(recKey(rec)) },
                     onDeleteRec     = { rec -> viewModel.deleteRec(recKey(rec)) },
                     onSnoozeTask    = { task -> viewModel.snoozeTask(taskSnoozeKey(task)) },
@@ -152,9 +156,6 @@ fun TodayScreen(
     }
 }
 
-private fun recKey(rec: Recommendation) = "${rec.type}:${rec.cropName}:${rec.message.take(30)}"
-private fun taskSnoozeKey(task: TodayTask) = "${task.type}:${task.plantingId}:${task.cropName}:${task.careTaskName}"
-
 // ─── Main content ──────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -166,7 +167,10 @@ private fun TodayContent(
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
     todayActions: List<ActionLog> = emptyList(),
-    onDeleteAction: (Int) -> Unit = {},
+    offline: Boolean = false,
+    cachedAt: Long? = null,
+    queueSize: Int = 0,
+    onDeleteAction: (ActionLog) -> Unit = {},
     onSnoozeRec: (Recommendation) -> Unit = {},
     onDeleteRec: (Recommendation) -> Unit = {},
     onSnoozeTask: (TodayTask) -> Unit = {},
@@ -263,6 +267,11 @@ private fun TodayContent(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier            = Modifier.weight(1f).fillMaxWidth()
         ) {
+            // F1: баннер офлайна / очереди неотправленных действий
+            if (offline || queueSize > 0) {
+                item { OfflineBanner(offline = offline, cachedAt = cachedAt, queueSize = queueSize) }
+            }
+
             // Погодные детали + 7-дневный прогноз
             if (weather != null || forecast.isNotEmpty()) {
                 item {
@@ -446,6 +455,42 @@ private fun TodayContent(
                 }
             }
         }
+    }
+}
+
+// ─── F1: баннер офлайна / очереди ─────────────────────────────────────────
+
+@Composable
+private fun OfflineBanner(offline: Boolean, cachedAt: Long?, queueSize: Int) {
+    val text = when {
+        offline && cachedAt != null -> {
+            val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                .format(java.util.Date(cachedAt))
+            if (queueSize > 0) "Нет связи · данные от $time · $queueSize в очереди"
+            else "Нет связи · данные от $time"
+        }
+        offline -> "Нет связи · показаны сохранённые данные"
+        else    -> "$queueSize ${plural(queueSize, "действие", "действия", "действий")} ${plural(queueSize, "ждёт", "ждут", "ждут")} отправки"
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
+            Icon(Icons.Default.CloudOff, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(text, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+private fun plural(n: Int, one: String, few: String, many: String): String {
+    val mod10 = n % 10; val mod100 = n % 100
+    return when {
+        mod10 == 1 && mod100 != 11 -> one
+        mod10 in 2..4 && mod100 !in 12..14 -> few
+        else -> many
     }
 }
 
@@ -1181,7 +1226,7 @@ private val ACTION_TYPE_LABELS = mapOf(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TodayActionRow(action: ActionLog, onDelete: (Int) -> Unit) {
+private fun TodayActionRow(action: ActionLog, onDelete: (ActionLog) -> Unit) {
     var showConfirm by remember { mutableStateOf(false) }
 
     if (showConfirm) {
@@ -1200,7 +1245,7 @@ private fun TodayActionRow(action: ActionLog, onDelete: (Int) -> Unit) {
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showConfirm = false; onDelete(action.id) }) {
+                TextButton(onClick = { showConfirm = false; onDelete(action) }) {
                     Text("Удалить", color = MaterialTheme.colorScheme.error,
                         fontFamily = NunitoFamily, fontWeight = FontWeight.Black)
                 }
@@ -1241,6 +1286,13 @@ private fun TodayActionRow(action: ActionLog, onDelete: (Int) -> Unit) {
                     color      = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines   = 1,
                     overflow   = TextOverflow.Ellipsis
+                )
+            }
+            if (action.pending) {
+                Text(
+                    "↑ ждёт отправки",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
                 )
             }
         }

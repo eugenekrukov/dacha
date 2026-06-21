@@ -388,7 +388,11 @@ data class ActionLog(
     val notes: String?,
     // true = заметка подставлена автоматически (имя задачи/удобрения) → скрываем в журнале
     val auto: Boolean = false,
-    @Json(name = "logged_at") val loggedAt: String
+    @Json(name = "logged_at") val loggedAt: String,
+    // F1: client_id связывает запись с операцией очереди; pending=true — синтетическая
+    // «оптимистичная» запись, ещё не подтверждённая сервером (рисуем «↑ ждёт отправки»).
+    @Json(name = "client_id") val clientId: String? = null,
+    val pending: Boolean = false,
 )
 
 @JsonClass(generateAdapter = true)
@@ -396,7 +400,10 @@ data class CreateActionRequest(
     @Json(name = "planting_id") val plantingId: Int,
     val type: String,
     val notes: String? = null,
-    val auto: Boolean = false
+    val auto: Boolean = false,
+    // F1: идемпотентность офлайн-очереди + клиентское время записи.
+    @Json(name = "client_id") val clientId: String? = null,
+    @Json(name = "logged_at") val loggedAt: String? = null,
 )
 
 // --- Reminder request ---

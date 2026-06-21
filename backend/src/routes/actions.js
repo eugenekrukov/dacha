@@ -19,16 +19,33 @@ module.exports = async function (fastify) {
     const { planting_id, notes } = request.body
     const action_type = request.body.action_type ?? request.body.type
     const auto = request.body.auto === true // заметка подставлена автоматически (не введена юзером)
+    const client_id = request.body.client_id ?? null
+    const logged_at = request.body.logged_at ?? null
 
     // Защита от IDOR: нельзя писать в журнал чужой посадки
     if (!planting_id || !(await userOwnsPlanting(planting_id, request.user.userId))) {
       return reply.code(403).send({ error: 'Planting not found or not yours' })
     }
 
+    // Валидация клиентских полей офлайн-очереди (F1)
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (client_id !== null && !UUID_RE.test(client_id)) {
+      return reply.code(400).send({ error: 'Некорректный client_id' })
+    }
+    if (logged_at !== null && Number.isNaN(Date.parse(logged_at))) {
+      return reply.code(400).send({ error: 'Некорректный logged_at' })
+    }
+
+    // logged_at: клиентское время (офлайн) либо NOW(); client_id — ключ идемпотентности.
+    // DO UPDATE (no-op) вместо DO NOTHING — чтобы RETURNING атомарно вернул существующую
+    // строку при конфликте (гонка двойной отправки из офлайн-очереди), без отдельного SELECT.
     const result = await fastify.db.query(
-      `INSERT INTO action_logs (planting_id, action_type, notes, auto, logged_at)
-       VALUES ($1,$2,$3,$4,NOW()) RETURNING *`,
-      [planting_id, action_type, notes, auto]
+      `INSERT INTO action_logs (planting_id, action_type, notes, auto, logged_at, client_id)
+       VALUES ($1,$2,$3,$4, COALESCE($5::timestamptz, NOW()), $6::uuid)
+       ON CONFLICT (client_id) WHERE client_id IS NOT NULL
+         DO UPDATE SET client_id = EXCLUDED.client_id
+       RETURNING *`,
+      [planting_id, action_type, notes, auto, logged_at, client_id]
     )
     return reply.code(201).send(result.rows[0])
   })

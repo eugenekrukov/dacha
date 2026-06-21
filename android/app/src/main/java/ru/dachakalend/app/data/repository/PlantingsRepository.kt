@@ -31,7 +31,7 @@ class PlantingsRepository @Inject constructor(private val api: DachaApi) {
     suspend fun updateStage(plantingId: Int, stage: String): Result<Planting> = try {
         Result.Success(api.updatePlantingStage(plantingId, mapOf("stage" to stage)))
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Ошибка обновления стадии")
+        errorResult(e, "Ошибка смены стадии")
     }
 
     suspend fun updateInfo(plantingId: Int, request: UpdatePlantingInfoRequest): Result<Planting> = try {
