@@ -19,18 +19,41 @@ module.exports = async function (fastify) {
     const { planting_id, notes } = request.body
     const action_type = request.body.action_type ?? request.body.type
     const auto = request.body.auto === true // заметка подставлена автоматически (не введена юзером)
+    const client_id = request.body.client_id ?? null
+    const logged_at = request.body.logged_at ?? null
+
+    // Валидация клиентских полей офлайн-очереди (F1)
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (client_id !== null && !UUID_RE.test(client_id)) {
+      return reply.code(400).send({ error: 'Некорректный client_id' })
+    }
+    if (logged_at !== null && Number.isNaN(Date.parse(logged_at))) {
+      return reply.code(400).send({ error: 'Некорректный logged_at' })
+    }
 
     // Защита от IDOR: нельзя писать в журнал чужой посадки
     if (!planting_id || !(await userOwnsPlanting(planting_id, request.user.userId))) {
       return reply.code(403).send({ error: 'Planting not found or not yours' })
     }
 
-    const result = await fastify.db.query(
-      `INSERT INTO action_logs (planting_id, action_type, notes, auto, logged_at)
-       VALUES ($1,$2,$3,$4,NOW()) RETURNING *`,
-      [planting_id, action_type, notes, auto]
+    // logged_at: клиентское время (офлайн) либо NOW(); client_id — ключ идемпотентности.
+    const insert = await fastify.db.query(
+      `INSERT INTO action_logs (planting_id, action_type, notes, auto, logged_at, client_id)
+       VALUES ($1,$2,$3,$4, COALESCE($5::timestamptz, NOW()), $6::uuid)
+       ON CONFLICT (client_id) WHERE client_id IS NOT NULL DO NOTHING
+       RETURNING *`,
+      [planting_id, action_type, notes, auto, logged_at, client_id]
     )
-    return reply.code(201).send(result.rows[0])
+
+    // ON CONFLICT DO NOTHING → 0 строк: действие уже записано, вернём существующее (идемпотентно).
+    if (insert.rows.length === 0 && client_id) {
+      const existing = await fastify.db.query(
+        `SELECT * FROM action_logs WHERE client_id = $1`,
+        [client_id]
+      )
+      return reply.code(201).send(existing.rows[0])
+    }
+    return reply.code(201).send(insert.rows[0])
   })
 
   // GET /actions?planting_id=&garden_id=&limit=
