@@ -118,11 +118,10 @@ describe('POST /actions', () => {
   })
 
   it('при конфликте client_id возвращает существующую строку (идемпотентно)', async () => {
-    let selectCalled = false
     const app = await buildApp(makeMockDb({
       query: async (sql) => {
-        if (sql.includes('INSERT INTO action_logs')) return { rows: [] }      // ON CONFLICT DO NOTHING
-        if (sql.startsWith('SELECT * FROM action_logs WHERE client_id')) { selectCalled = true; return { rows: [ACTION] } }
+        // ON CONFLICT DO UPDATE ... RETURNING * атомарно возвращает существующую строку
+        if (sql.includes('INSERT INTO action_logs')) return { rows: [ACTION] }
         return { rows: [{ id: 1 }] }                                          // владелец
       },
     }))
@@ -133,7 +132,6 @@ describe('POST /actions', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ planting_id: 1, type: 'watering', client_id: '11111111-1111-4111-8111-111111111111' })
 
-    expect(selectCalled).toBe(true)
     expect(res.status).toBe(201)
     expect(res.body.action_type).toBe('watering')
     await app.close()
