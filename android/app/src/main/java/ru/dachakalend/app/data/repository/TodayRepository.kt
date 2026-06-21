@@ -8,9 +8,13 @@ import javax.inject.Singleton
 
 sealed class Result<out T> {
     data class Success<T>(val data: T) : Result<T>()
-    data class Error(val message: String) : Result<Nothing>()
+    data class Error(val message: String, val isNetwork: Boolean = false) : Result<Nothing>()
     object Loading : Result<Nothing>()
 }
+
+/** Классификация исключения: отсутствие связи (IOException) → isNetwork=true; HTTP-ошибки → false. */
+fun errorResult(e: Throwable, fallback: String): Result.Error =
+    Result.Error(e.message ?: fallback, isNetwork = e is java.io.IOException)
 
 @Singleton
 class TodayRepository @Inject constructor(
@@ -23,7 +27,7 @@ class TodayRepository @Inject constructor(
             if (gardenId == -1) return Result.Error("Участок не выбран")
             Result.Success(api.getToday(gardenId))
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Ошибка загрузки")
+            errorResult(e, "Ошибка загрузки")
         }
     }
 }
