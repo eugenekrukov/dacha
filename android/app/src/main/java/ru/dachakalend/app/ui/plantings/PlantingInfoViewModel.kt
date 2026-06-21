@@ -12,9 +12,11 @@ import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.Crop
 import ru.dachakalend.app.data.model.GuideEntry
 import ru.dachakalend.app.data.model.Planting
+import ru.dachakalend.app.data.model.PlantingPhoto
 import ru.dachakalend.app.data.repository.ActionsRepository
 import ru.dachakalend.app.data.repository.CropsRepository
 import ru.dachakalend.app.data.repository.GuideRepository
+import ru.dachakalend.app.data.repository.PhotosRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
@@ -25,7 +27,11 @@ data class PlantingInfoUiState(
     val recentActions: List<ActionLog> = emptyList(),
     val problems: List<GuideEntry> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    // Фото-дневник
+    val photos: List<PlantingPhoto> = emptyList(),
+    val uploadBusy: Boolean = false,
+    val photoError: String? = null
 )
 
 @HiltViewModel
@@ -33,7 +39,8 @@ class PlantingInfoViewModel @Inject constructor(
     private val plantingsRepository: PlantingsRepository,
     private val cropsRepository: CropsRepository,
     private val actionsRepository: ActionsRepository,
-    private val guideRepository: GuideRepository
+    private val guideRepository: GuideRepository,
+    private val photosRepository: PhotosRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlantingInfoUiState())
@@ -68,7 +75,54 @@ class PlantingInfoViewModel @Inject constructor(
                 isLoading = false,
                 error = if (crop is Result.Error) crop.message else null
             )
+            loadPhotos(plantingId)
         }
+    }
+
+    fun loadPhotos(plantingId: Int) {
+        viewModelScope.launch {
+            val res = photosRepository.getPhotos(plantingId)
+            if (res is Result.Success) {
+                _uiState.value = _uiState.value.copy(photos = res.data)
+            }
+        }
+    }
+
+    fun uploadPhoto(plantingId: Int, bytes: ByteArray) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(uploadBusy = true, photoError = null)
+            when (val res = photosRepository.uploadPhoto(plantingId, bytes)) {
+                is Result.Success ->
+                    _uiState.value = _uiState.value.copy(
+                        photos = listOf(res.data) + _uiState.value.photos,
+                        uploadBusy = false
+                    )
+                is Result.Error ->
+                    _uiState.value = _uiState.value.copy(
+                        uploadBusy = false,
+                        // 409 от бэкенда = достигнут лимит фото (free 3 / paid 30 на посадку).
+                        photoError = if (res.message.contains("409"))
+                            "Достигнут лимит фото. Оформите подписку, чтобы добавить больше."
+                        else "Не удалось загрузить фото"
+                    )
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun deletePhoto(id: Int) {
+        viewModelScope.launch {
+            val res = photosRepository.deletePhoto(id)
+            if (res is Result.Success) {
+                _uiState.value = _uiState.value.copy(photos = _uiState.value.photos.filter { it.id != id })
+            } else {
+                _uiState.value = _uiState.value.copy(photoError = "Не удалось удалить фото")
+            }
+        }
+    }
+
+    fun clearPhotoError() {
+        _uiState.value = _uiState.value.copy(photoError = null)
     }
 
     fun reset() {

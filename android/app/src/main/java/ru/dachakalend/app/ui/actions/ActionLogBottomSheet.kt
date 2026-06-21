@@ -13,13 +13,18 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -100,6 +105,15 @@ private fun ActionLogSheetImpl(
     var notes by remember { mutableStateOf(if (selectedType == preselectedType) initialNotes ?: "" else "") }
     var lastAuto by remember { mutableStateOf(if (selectedType == preselectedType) initialNotes else null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Фото-вложение — только одиночный режим (один кадр на одну посадку/действие).
+    val context = LocalContext.current
+    var pendingPhoto by remember { mutableStateOf<ByteArray?>(null) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            pendingPhoto = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+        }
+    }
 
     LaunchedEffect(selectedType) {
         val auto = if (selectedType == preselectedType) initialNotes else null
@@ -262,6 +276,35 @@ private fun ActionLogSheetImpl(
                 )
             )
 
+            // Фото-вложение — только одиночный режим (в групповом один кадр на много посадок неоднозначен).
+            if (!grouped) {
+                if (pendingPhoto == null) {
+                    OutlinedButton(
+                        onClick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Прикрепить фото", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = .4f))
+                            .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("📷 Фото прикреплено", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        IconButton(onClick = { pendingPhoto = null }, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Убрать фото", modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+
             state.error?.let {
                 Text(
                     it,
@@ -275,7 +318,15 @@ private fun ActionLogSheetImpl(
                 onClick = {
                     selectedType?.let { type ->
                         val ids = activeTargets.map { it.id }
-                        if (type == "transplanting") {
+                        if (!grouped) {
+                            // Одиночный режим: фото привязываем к записанному действию.
+                            val pid = ids.firstOrNull() ?: return@let
+                            if (type == "transplanting") {
+                                viewModel.logTransplanting(pid, photoBytes = pendingPhoto)
+                            } else {
+                                viewModel.logAction(pid, type, notes.ifBlank { null }, auto = false, photoBytes = pendingPhoto)
+                            }
+                        } else if (type == "transplanting") {
                             viewModel.logTransplantingMulti(ids)
                         } else {
                             // Заметка теперь содержит осмысленное (препарат «Обработки» / удобрение

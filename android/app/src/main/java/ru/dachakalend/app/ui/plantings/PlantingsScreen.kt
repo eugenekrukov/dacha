@@ -301,7 +301,7 @@ fun PlantingsScreen(
     state.pendingCropId?.let { cropId ->
         PlantingSetupBottomSheet(
             defaultSeedling = state.pendingCropTransplantDays != null,
-            onConfirm = { date, qty, cond, method -> viewModel.confirmPlanting(cropId, date, qty, cond, method) },
+            onConfirm = { date, qty, cond, method, variety -> viewModel.confirmPlanting(cropId, date, qty, cond, method, variety) },
             onDismiss = { viewModel.dismissSetupSheet() }
         )
     }
@@ -370,7 +370,7 @@ fun PlantingsScreen(
     state.editingPlanting?.let { planting ->
         PlantingEditBottomSheet(
             planting = planting,
-            onConfirm = { date, qty, cond, method -> viewModel.saveEditedInfo(planting.id, date, qty, cond, method) },
+            onConfirm = { date, qty, cond, method, variety -> viewModel.saveEditedInfo(planting.id, date, qty, cond, method, variety) },
             onDismiss = { viewModel.dismissEditSheet() }
         )
     }
@@ -501,6 +501,7 @@ private fun PlantingCard(
                     val metaParts = buildList {
                         planting.sownAt?.let { add(formatIsoDate(it)) }
                         planting.quantity?.let { if (it > 1) add("$it раст.") }
+                        planting.variety?.takeIf { it.isNotBlank() }?.let { add("сорт «$it»") }
                     }
                     if (metaParts.isNotEmpty()) {
                         Text(
@@ -677,13 +678,14 @@ private fun PlantingCard(
 @Composable
 private fun PlantingSetupBottomSheet(
     defaultSeedling: Boolean,
-    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String) -> Unit,
+    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var date by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)) }
     var dateDisplay by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))) }
     var quantity by remember { mutableStateOf("1") }
+    var variety by remember { mutableStateOf("") }
     var conditions by remember { mutableStateOf("soil") }
     var sowingMethod by remember(defaultSeedling) { mutableStateOf(if (defaultSeedling) "seedling" else "direct") }
 
@@ -734,6 +736,16 @@ private fun PlantingSetupBottomSheet(
                 value = quantity,
                 onValueChange = { if (it.all(Char::isDigit)) quantity = it },
                 label = { Text("Количество растений", fontFamily = NunitoFamily) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            OutlinedTextField(
+                value = variety,
+                onValueChange = { if (it.length <= 120) variety = it },
+                label = { Text("Сорт (необязательно)", fontFamily = NunitoFamily) },
+                placeholder = { Text("Например: Бычье сердце", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
@@ -802,7 +814,7 @@ private fun PlantingSetupBottomSheet(
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick = {
-                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod)
+                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, variety.trim().ifEmpty { null })
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
@@ -830,7 +842,7 @@ private fun PlantingSetupBottomSheet(
 @Composable
 private fun PlantingEditBottomSheet(
     planting: Planting,
-    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String) -> Unit,
+    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -844,6 +856,7 @@ private fun PlantingEditBottomSheet(
     var date by remember { mutableStateOf(initialDate) }
     var dateDisplay by remember { mutableStateOf(initialDateDisplay) }
     var quantity by remember { mutableStateOf((planting.quantity ?: 1).toString()) }
+    var variety by remember { mutableStateOf(planting.variety ?: "") }
     var conditions by remember { mutableStateOf(planting.conditions ?: "soil") }
     var sowingMethod by remember { mutableStateOf(if (planting.sowingMethod == "direct") "direct" else "seedling") }
 
@@ -894,6 +907,16 @@ private fun PlantingEditBottomSheet(
                 value = quantity,
                 onValueChange = { if (it.all(Char::isDigit)) quantity = it },
                 label = { Text("Количество растений", fontFamily = NunitoFamily) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            OutlinedTextField(
+                value = variety,
+                onValueChange = { if (it.length <= 120) variety = it },
+                label = { Text("Сорт (необязательно)", fontFamily = NunitoFamily) },
+                placeholder = { Text("Например: Бычье сердце", fontFamily = NunitoFamily) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
@@ -961,7 +984,7 @@ private fun PlantingEditBottomSheet(
 
             Spacer(Modifier.height(8.dp))
             Button(
-                onClick = { onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod) },
+                onClick = { onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, variety.trim().ifEmpty { null }) },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {

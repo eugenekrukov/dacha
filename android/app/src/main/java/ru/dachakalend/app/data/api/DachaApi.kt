@@ -135,6 +135,22 @@ interface DachaApi {
     @DELETE("actions/{id}")
     suspend fun deleteAction(@Path("id") id: Int)
 
+    // Photos (фото-дневник)
+    @GET("photos")
+    suspend fun getPhotos(@Query("planting_id") plantingId: Int): List<PlantingPhoto>
+
+    @Multipart
+    @POST("photos")
+    suspend fun uploadPhoto(
+        @Part("planting_id") plantingId: okhttp3.RequestBody,
+        @Part("action_id") actionId: okhttp3.RequestBody?,
+        @Part("caption") caption: okhttp3.RequestBody?,
+        @Part file: okhttp3.MultipartBody.Part
+    ): PlantingPhoto
+
+    @DELETE("photos/{id}")
+    suspend fun deletePhoto(@Path("id") id: Int)
+
     // Reminders
     @GET("reminders")
     suspend fun getReminders(): List<Reminder>

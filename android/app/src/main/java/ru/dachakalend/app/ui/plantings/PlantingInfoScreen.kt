@@ -1,14 +1,26 @@
 package ru.dachakalend.app.ui.plantings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,8 +30,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import ru.dachakalend.app.data.api.mediaUrl
 import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.CareTask
+import ru.dachakalend.app.data.model.PlantingPhoto
 import ru.dachakalend.app.ui.actions.careTaskActionType
 import ru.dachakalend.app.ui.crops.CropCareSection
 import ru.dachakalend.app.ui.crops.CropNeighborsSection
@@ -163,7 +178,11 @@ fun PlantingInfoScreen(
                     .verticalScroll(rememberScrollState()).padding(16.dp)
                 val crop = state.crop
                 when (tab) {
-                    0 -> AboutTab(state, scroll)
+                    0 -> AboutTab(
+                        state, scroll,
+                        onUpload = { bytes -> viewModel.uploadPhoto(planting.id, bytes) },
+                        onDelete = viewModel::deletePhoto,
+                    )
                     1 -> if (crop != null) CropCareSection(crop, modifier = scroll)
                          else EmptyTab(scroll, "Нет данных об уходе.")
                     2 -> ProblemList(state.problems, "disease", "Болезни не отмечены.") { onOpenGuide(planting.cropId, planting.cropName) }
@@ -184,11 +203,17 @@ private fun EmptyTab(modifier: Modifier, text: String) {
 }
 
 @Composable
-private fun AboutTab(state: PlantingInfoUiState, modifier: Modifier) {
+private fun AboutTab(
+    state: PlantingInfoUiState,
+    modifier: Modifier,
+    onUpload: (ByteArray) -> Unit,
+    onDelete: (Int) -> Unit,
+) {
     val planting = state.planting ?: return
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         InfoSection(title = "Посадка") {
             InfoRow2("Дата посадки", planting.sownAt?.let { formatShort(it) } ?: "—")
+            planting.variety?.takeIf { it.isNotBlank() }?.let { InfoRow2("Сорт", it) }
             InfoRow2("Условия", if (planting.conditions == "greenhouse") "Теплица" else "Грунт")
             InfoRow2("Количество растений", "${planting.quantity ?: 1} шт.")
             planting.yieldPerPlantKg?.let { perPlant ->
@@ -218,6 +243,14 @@ private fun AboutTab(state: PlantingInfoUiState, modifier: Modifier) {
             }
         }
 
+        PhotoDiarySection(
+            photos = state.photos,
+            uploadBusy = state.uploadBusy,
+            photoError = state.photoError,
+            onUpload = onUpload,
+            onDelete = onDelete,
+        )
+
         InfoSection(title = "История действий") {
             val groups = collapseActions(state.recentActions)
             if (groups.isEmpty()) {
@@ -228,6 +261,107 @@ private fun AboutTab(state: PlantingInfoUiState, modifier: Modifier) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                     Text(date, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoDiarySection(
+    photos: List<PlantingPhoto>,
+    uploadBusy: Boolean,
+    photoError: String?,
+    onUpload: (ByteArray) -> Unit,
+    onDelete: (Int) -> Unit,
+) {
+    val context = LocalContext.current
+    var viewer by remember { mutableStateOf<PlantingPhoto?>(null) }
+    // Системный photo picker (галерея/камера) — без рантайм-разрешений.
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            val bytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+            if (bytes != null) onUpload(bytes)
+        }
+    }
+
+    InfoSection(title = "Дневник") {
+        OutlinedButton(
+            onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            enabled = !uploadBusy
+        ) {
+            if (uploadBusy) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Загрузка…", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+            } else {
+                Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Добавить фото", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        photoError?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+
+        if (photos.isEmpty()) {
+            Text(
+                "Пока нет фото. Снимите свою посадку — соберётся лента роста.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            // Сетка 3-в-ряд вручную (LazyVerticalGrid нельзя вложить в verticalScroll-колонку).
+            photos.chunked(3).forEach { rowPhotos ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    rowPhotos.forEach { p ->
+                        AsyncImage(
+                            model = mediaUrl(p.thumbUrl),
+                            contentDescription = "Фото посадки",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { viewer = p }
+                        )
+                    }
+                    repeat(3 - rowPhotos.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+
+    viewer?.let { p ->
+        PhotoViewerDialog(photo = p, onDismiss = { viewer = null }, onDelete = { onDelete(p.id); viewer = null })
+    }
+}
+
+@Composable
+private fun PhotoViewerDialog(photo: PlantingPhoto, onDismiss: () -> Unit, onDelete: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().background(Color(0xE6000000))) {
+            AsyncImage(
+                model = mediaUrl(photo.url),
+                contentDescription = "Фото посадки",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().padding(24.dp).align(Alignment.Center)
+            )
+            IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
+                Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White)
+            }
+            Row(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(formatShort(photo.takenAt), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                    photo.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily) }
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = Color(0xFFEF5350))
                 }
             }
         }

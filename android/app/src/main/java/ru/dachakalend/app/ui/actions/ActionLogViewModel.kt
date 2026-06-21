@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.repository.ActionsRepository
+import ru.dachakalend.app.data.repository.PhotosRepository
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 
@@ -80,7 +82,8 @@ fun treatmentNote(careTaskName: String?, product: String? = null): String? {
 
 @HiltViewModel
 class ActionLogViewModel @Inject constructor(
-    private val actionsRepository: ActionsRepository
+    private val actionsRepository: ActionsRepository,
+    private val photosRepository: PhotosRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ActionLogUiState())
@@ -90,11 +93,22 @@ class ActionLogViewModel @Inject constructor(
         _uiState.value = ActionLogUiState()
     }
 
-    fun logAction(plantingId: Int, type: String, notes: String? = null, auto: Boolean = false) {
+    // Фото прикрепляем к записанному действию. Ошибка загрузки фото НЕ откатывает действие
+    // (действие важнее). Офлайн-действие (синтетический отрицательный id) — без фото.
+    private suspend fun maybeUploadPhoto(plantingId: Int, action: ActionLog, photoBytes: ByteArray?) {
+        if (photoBytes == null) return
+        val actionId = action.id.takeIf { it > 0 } ?: return
+        photosRepository.uploadPhoto(plantingId, photoBytes, actionId = actionId)
+    }
+
+    fun logAction(plantingId: Int, type: String, notes: String? = null, auto: Boolean = false, photoBytes: ByteArray? = null) {
         viewModelScope.launch {
             _uiState.value = ActionLogUiState(isLoading = true)
             when (val result = actionsRepository.logAction(plantingId, type, notes, auto)) {
-                is Result.Success -> _uiState.value = ActionLogUiState(success = true)
+                is Result.Success -> {
+                    maybeUploadPhoto(plantingId, result.data, photoBytes)
+                    _uiState.value = ActionLogUiState(success = true)
+                }
                 is Result.Error   -> _uiState.value = ActionLogUiState(error = result.message)
                 is Result.Loading -> Unit
             }
@@ -102,10 +116,11 @@ class ActionLogViewModel @Inject constructor(
     }
 
     /** Логирует "Высаживание" и переводит стадию в transplanted. Офлайн-устойчиво (очередь). */
-    fun logTransplanting(plantingId: Int) {
+    fun logTransplanting(plantingId: Int, photoBytes: ByteArray? = null) {
         viewModelScope.launch {
             _uiState.value = ActionLogUiState(isLoading = true)
-            actionsRepository.logAction(plantingId, "transplanting", null)
+            val logRes = actionsRepository.logAction(plantingId, "transplanting", null)
+            if (logRes is Result.Success) maybeUploadPhoto(plantingId, logRes.data, photoBytes)
             when (val result = actionsRepository.changeStage(plantingId, "transplanted")) {
                 is Result.Success -> _uiState.value = ActionLogUiState(success = true)
                 is Result.Error   -> _uiState.value = ActionLogUiState(error = result.message)

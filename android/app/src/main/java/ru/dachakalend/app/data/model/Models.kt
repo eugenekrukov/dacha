@@ -202,6 +202,7 @@ data class Planting(
     val stage: String,
     @Json(name = "planted_at") val sownAt: String?,
     @Json(name = "expected_harvest_at") val expectedHarvestAt: String?,
+    val variety: String? = null,
     val notes: String?,
     @Json(name = "last_action_at") val lastActionAt: String? = null,
     val quantity: Int? = 1,
@@ -211,6 +212,21 @@ data class Planting(
     @Json(name = "yield_per_plant_kg") val yieldPerPlantKg: Double? = null,
     @Json(name = "next_care_task") val nextCareTask: NextCareTask? = null,
     @Json(name = "overdue_care_task") val overdueCareTask: OverdueCareTask? = null
+)
+
+// --- Фото-дневник (F12) ---
+
+@JsonClass(generateAdapter = true)
+data class PlantingPhoto(
+    val id: Int,
+    @Json(name = "planting_id") val plantingId: Int,
+    @Json(name = "action_id") val actionId: Int? = null,
+    val caption: String? = null,
+    @Json(name = "taken_at") val takenAt: String,
+    val width: Int? = null,
+    val height: Int? = null,
+    val url: String,                                  // относительный: /photos/file/:id
+    @Json(name = "thumb_url") val thumbUrl: String
 )
 
 // --- Crop ---
@@ -364,7 +380,8 @@ data class CreatePlantingRequest(
     val notes: String? = null,
     val quantity: Int = 1,
     val conditions: String = "soil",
-    @Json(name = "sowing_method") val sowingMethod: String = "seedling"   // seedling | direct
+    @Json(name = "sowing_method") val sowingMethod: String = "seedling",   // seedling | direct
+    val variety: String? = null
 )
 
 // --- UpdatePlantingInfoRequest ---
@@ -374,7 +391,8 @@ data class UpdatePlantingInfoRequest(
     @Json(name = "planted_at") val plantedAt: String? = null,
     val quantity: Int? = null,
     val conditions: String? = null,
-    @Json(name = "sowing_method") val sowingMethod: String? = null
+    @Json(name = "sowing_method") val sowingMethod: String? = null,
+    val variety: String? = null
 )
 
 // --- ActionLog ---

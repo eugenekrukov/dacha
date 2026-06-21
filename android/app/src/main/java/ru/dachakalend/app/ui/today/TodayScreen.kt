@@ -208,7 +208,12 @@ private fun TodayContent(
         ru.dachakalend.app.ui.actions.MultiActionLogBottomSheet(
             title           = task.careTaskName ?: task.title,
             targets         = task.cropNamesWithIds ?: emptyList(),
-            preselectedType = careTaskActionType(task.careTaskName),
+            // Группа полива/подкормки приходит без careTaskName — предвыбор по типу задачи.
+            preselectedType = when (task.type) {
+                "watering_due"    -> "watering"
+                "fertilizing_due" -> "fertilizing"
+                else              -> careTaskActionType(task.careTaskName)
+            },
             initialNotes    = treatmentNote(task.careTaskName, task.product),
             onDismiss       = {
                 multiTask = null

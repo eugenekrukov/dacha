@@ -134,16 +134,16 @@ class PlantingsViewModel @Inject constructor(
         }
     }
 
-    fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String) {
+    fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null) {
         _uiState.value = _uiState.value.copy(pendingCropId = null, pendingCropTransplantDays = null)
-        createPlanting(cropId, date, quantity, conditions, sowingMethod)
+        createPlanting(cropId, date, quantity, conditions, sowingMethod, variety)
     }
 
     fun dismissSetupSheet() {
         _uiState.value = _uiState.value.copy(pendingCropId = null, pendingCropTransplantDays = null)
     }
 
-    private fun createPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String) {
+    private fun createPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null) {
         viewModelScope.launch {
             val gardenId = tokenStorage.getGardenId()
             if (gardenId == -1) {
@@ -156,7 +156,8 @@ class PlantingsViewModel @Inject constructor(
                 sownAt = date,
                 quantity = quantity,
                 conditions = conditions,
-                sowingMethod = sowingMethod
+                sowingMethod = sowingMethod,
+                variety = variety
             )
             when (val result = plantingsRepository.createPlanting(request)) {
                 is Result.Success -> {
@@ -177,10 +178,11 @@ class PlantingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(editingPlanting = null)
     }
 
-    fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String) {
+    fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null) {
         _uiState.value = _uiState.value.copy(editingPlanting = null)
         viewModelScope.launch {
-            val request = UpdatePlantingInfoRequest(plantedAt = date, quantity = quantity, conditions = conditions, sowingMethod = sowingMethod)
+            // variety: null → не передаём (сервер не трогает); '' → сброс; текст → запись.
+            val request = UpdatePlantingInfoRequest(plantedAt = date, quantity = quantity, conditions = conditions, sowingMethod = sowingMethod, variety = variety ?: "")
             when (plantingsRepository.updateInfo(plantingId, request)) {
                 is Result.Success -> {
                     _uiState.value = _uiState.value.copy(successMessage = "Посадка обновлена!")

@@ -1,11 +1,14 @@
 package ru.dachakalend.app.ui.garden
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import ru.dachakalend.app.data.model.GeocodeSuggestion
@@ -14,12 +17,11 @@ import ru.dachakalend.app.data.model.GeocodeSuggestion
  * Поле ввода населённого пункта с автодополнением.
  * Дебаунс — в ViewModel (Flow.debounce 400мс).
  *
- * Используем ExposedDropdownMenuBox: список открывается ПОД строкой ввода (привязан к
- * её якорю и ширине), поле остаётся редактируемым (клавиатура не закрывается, можно
- * добавлять/удалять символы — список обновляется). Раньше был DropdownMenu внутри Box,
- * который рисовался поверх поля и перехватывал фокус.
+ * Подсказки рендерим ИНЛАЙНОМ под полем (обычная Column, не popup). Раньше был
+ * ExposedDropdownMenu/DropdownMenu — popup перехватывал фокус IME, из-за чего удаление
+ * символов с клавиатуры срабатывало не всегда (жалоба тестера: «Сергиев не стирался»).
+ * Инлайн-список фокус не отбирает — поле остаётся полностью редактируемым.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CityInputField(
     value: String,
@@ -33,68 +35,70 @@ fun CityInputField(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        val expanded = suggestions.isNotEmpty()
+        var focused by remember { mutableStateOf(false) }
 
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { /* раскрытие определяется наличием подсказок, не тапом */ }
-        ) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = { new ->
-                    onValueChange(new)
-                    onCityQueryChanged(new)
-                },
-                label = { Text("Населённый пункт *") },
-                placeholder = { Text("Например: Сергиев Посад") },
-                supportingText = {
-                    if (isError) Text("Обязательное поле", color = MaterialTheme.colorScheme.error)
-                    else Text("Обязательно — для точного прогноза погоды")
-                },
-                isError = isError,
-                singleLine = true,
-                enabled = enabled,
-                // Кнопка-крестик: гарантированная очистка поля одним тапом. Нужна потому,
-                // что при открытом списке подсказок popup ExposedDropdownMenu может
-                // перехватывать фокус, и обычное удаление с клавиатуры срабатывает не всегда.
-                trailingIcon = {
-                    if (value.isNotEmpty() && enabled) {
-                        IconButton(onClick = {
-                            onValueChange("")
-                            onCityQueryChanged("")
-                        }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Очистить")
+        OutlinedTextField(
+            value = value,
+            onValueChange = { new ->
+                onValueChange(new)
+                onCityQueryChanged(new)
+            },
+            label = { Text("Населённый пункт *") },
+            placeholder = { Text("Например: Сергиев Посад") },
+            supportingText = {
+                if (isError) Text("Обязательное поле", color = MaterialTheme.colorScheme.error)
+                else Text("Обязательно — для точного прогноза погоды")
+            },
+            isError = isError,
+            singleLine = true,
+            enabled = enabled,
+            // Крестик-очистка одним тапом — удобный сброс всего поля.
+            trailingIcon = {
+                if (value.isNotEmpty() && enabled) {
+                    IconButton(onClick = {
+                        onValueChange("")
+                        onCityQueryChanged("")
+                    }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Очистить")
+                    }
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focused = it.isFocused }
+        )
+
+        // Инлайн-список подсказок: показываем, пока поле в фокусе и есть варианты.
+        if (focused && suggestions.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 2.dp,
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+            ) {
+                Column {
+                    suggestions.forEach { s ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onValueChange(s.name)
+                                    onSuggestionSelected(s)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                        ) {
+                            Text(s.name, style = MaterialTheme.typography.bodyMedium)
+                            if (s.displayName.isNotBlank() && s.displayName != s.name) {
+                                Text(
+                                    s.displayName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
-                },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
-
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { /* закрытие — через очистку запроса/выбор, ввод не прерываем */ }
-            ) {
-                suggestions.forEach { s ->
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(s.name, style = MaterialTheme.typography.bodyMedium)
-                                if (s.displayName.isNotBlank() && s.displayName != s.name) {
-                                    Text(
-                                        s.displayName,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        },
-                        onClick = {
-                            onValueChange(s.name)
-                            onSuggestionSelected(s)
-                        }
-                    )
                 }
             }
         }
