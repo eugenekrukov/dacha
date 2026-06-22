@@ -237,22 +237,36 @@ data class FeedResponse(
     @Json(name = "next_offset") val nextOffset: Int? = null
 )
 
-// Плоский элемент ленты: type='photo' заполняет фото-поля, type='milestone' — kind + по нужде weightKg.
+// Фото, агрегированное в action-запись ленты.
+@JsonClass(generateAdapter = true)
+data class FeedPhoto(
+    @Json(name = "photo_id") val photoId: Int,
+    val url: String,                                  // относительный: /photos/file/:id
+    @Json(name = "thumb_url") val thumbUrl: String
+)
+
+// Плоский элемент ленты. Запись-центричная модель (3 типа):
+//   action    — действие + заметка + агрегированные фото (photos[]).
+//   photo     — одиночное фото без действия (photoId/url/thumbUrl/caption).
+//   milestone — веха (kind + по нужде weightKg).
 @JsonClass(generateAdapter = true)
 data class FeedItem(
-    val type: String,                                 // "photo" | "milestone"
+    val type: String,                                 // "action" | "photo" | "milestone"
     val date: String,
     @Json(name = "planting_id") val plantingId: Int? = null,
     @Json(name = "crop_name") val cropName: String? = null,
-    // photo
-    @Json(name = "photo_id") val photoId: Int? = null,
+    // action
     @Json(name = "action_id") val actionId: Int? = null,
     @Json(name = "action_type") val actionType: String? = null,
+    val note: String? = null,
+    val photos: List<FeedPhoto> = emptyList(),
+    // photo (одиночное)
+    @Json(name = "photo_id") val photoId: Int? = null,
     val caption: String? = null,
     val url: String? = null,
     @Json(name = "thumb_url") val thumbUrl: String? = null,
     // milestone
-    val kind: String? = null,                         // sowing | transplanted | first_harvest | done
+    val kind: String? = null,                         // sowing | first_harvest | done
     @Json(name = "weight_kg") val weightKg: Double? = null
 )
 

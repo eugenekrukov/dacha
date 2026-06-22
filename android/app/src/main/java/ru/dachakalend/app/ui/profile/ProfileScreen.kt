@@ -32,9 +32,10 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import ru.dachakalend.app.data.api.mediaUrl
-import ru.dachakalend.app.data.model.FeedItem
 import ru.dachakalend.app.ui.actions.ACTION_TYPES
+import ru.dachakalend.app.ui.feed.ActionFeedCard
 import ru.dachakalend.app.ui.feed.FeedMonthHeader
+import ru.dachakalend.app.ui.feed.FeedThumb
 import ru.dachakalend.app.ui.feed.MilestoneFeedRow
 import ru.dachakalend.app.ui.feed.PhotoActionsBar
 import ru.dachakalend.app.ui.feed.PhotoFeedRow
@@ -95,11 +96,7 @@ fun ProfileScreen(
                     onLoadMore = viewModel::loadMore,
                     onDeletePhoto = viewModel::deletePhoto,
                     onDeleteAction = viewModel::deleteAction,
-                    onReplace = { item, bytes ->
-                        val pid = item.plantingId
-                        val photoId = item.photoId
-                        if (pid != null && photoId != null) viewModel.replacePhoto(pid, photoId, item.actionId, bytes)
-                    },
+                    onReplace = { pid, photoId, actionId, bytes -> viewModel.replacePhoto(pid, photoId, actionId, bytes) },
                 )
                 1 -> HubTab(
                     listOf(HubEntry(Icons.Default.Insights, "Статистика", "Серия дней, активность, экспорт в CSV", onOpenAnalytics))
@@ -130,6 +127,17 @@ private fun ProfileHeader(name: String?, region: String?) {
     }
 }
 
+// Цель полноэкранного просмотра — конкретное фото (у action-записи их несколько).
+private data class PhotoViewerTarget(
+    val photoId: Int,
+    val url: String?,
+    val actionId: Int?,
+    val plantingId: Int?,
+    val dateIso: String,
+    val cropName: String?,
+    val caption: String?,
+)
+
 @Composable
 private fun FeedList(
     state: FeedUiState,
@@ -137,9 +145,9 @@ private fun FeedList(
     onLoadMore: () -> Unit,
     onDeletePhoto: (Int) -> Unit,
     onDeleteAction: (Int) -> Unit,
-    onReplace: (FeedItem, ByteArray) -> Unit,
+    onReplace: (plantingId: Int, photoId: Int, actionId: Int?, bytes: ByteArray) -> Unit,
 ) {
-    var viewer by remember { mutableStateOf<FeedItem?>(null) }
+    var viewer by remember { mutableStateOf<PhotoViewerTarget?>(null) }
 
     when {
         state.isLoading && state.items.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -177,17 +185,39 @@ private fun FeedList(
             ) {
                 grouped.forEach { (monthKey, monthItems) ->
                     item(key = "m_$monthKey") { FeedMonthHeader(monthKey) }
-                    items(monthItems, key = { "${it.type}_${it.photoId ?: it.kind}_${it.plantingId}_${it.date}" }) { item ->
-                        if (item.type == "photo") {
-                            PhotoFeedRow(
+                    items(monthItems, key = { "${it.type}_${it.actionId ?: it.photoId ?: it.kind}_${it.plantingId}_${it.date}" }) { item ->
+                        when (item.type) {
+                            "action" -> ActionFeedCard(
+                                actionType = item.actionType ?: "other",
+                                actionLabel = item.actionType?.let { ACTION_LABELS[it] ?: it } ?: "Действие",
+                                note = item.note,
+                                dateLabel = feedDateShort(item.date),
+                                thumbs = item.photos.map { ph ->
+                                    FeedThumb(thumbUrl = ph.thumbUrl) {
+                                        viewer = PhotoViewerTarget(
+                                            photoId = ph.photoId, url = ph.url, actionId = item.actionId,
+                                            plantingId = item.plantingId, dateIso = item.date,
+                                            cropName = item.cropName, caption = item.note,
+                                        )
+                                    }
+                                },
+                            )
+                            "photo" -> PhotoFeedRow(
                                 thumbUrl = item.thumbUrl,
                                 dateLabel = feedDateShort(item.date),
-                                actionLabel = item.actionType?.let { ACTION_LABELS[it] ?: it },
+                                actionLabel = null,
                                 caption = item.caption,
-                                onOpen = { viewer = item }
+                                onOpen = {
+                                    item.photoId?.let { pid ->
+                                        viewer = PhotoViewerTarget(
+                                            photoId = pid, url = item.url, actionId = null,
+                                            plantingId = item.plantingId, dateIso = item.date,
+                                            cropName = item.cropName, caption = item.caption,
+                                        )
+                                    }
+                                }
                             )
-                        } else {
-                            MilestoneFeedRow(
+                            else -> MilestoneFeedRow(
                                 kind = item.kind ?: "",
                                 cropName = item.cropName,
                                 weightKg = item.weightKg,
@@ -208,20 +238,22 @@ private fun FeedList(
         }
     }
 
-    viewer?.let { item ->
+    viewer?.let { target ->
         FeedPhotoViewer(
-            item = item,
+            target = target,
             onDismiss = { viewer = null },
-            onDeletePhoto = { item.photoId?.let { onDeletePhoto(it) }; viewer = null },
-            onReplace = { bytes -> onReplace(item, bytes); viewer = null },
-            onDeleteRecord = { item.actionId?.let { onDeleteAction(it) }; viewer = null },
+            onDeletePhoto = { onDeletePhoto(target.photoId); viewer = null },
+            onReplace = { bytes ->
+                target.plantingId?.let { onReplace(it, target.photoId, target.actionId, bytes) }; viewer = null
+            },
+            onDeleteRecord = { target.actionId?.let { onDeleteAction(it) }; viewer = null },
         )
     }
 }
 
 @Composable
 private fun FeedPhotoViewer(
-    item: FeedItem,
+    target: PhotoViewerTarget,
     onDismiss: () -> Unit,
     onDeletePhoto: () -> Unit,
     onReplace: (ByteArray) -> Unit,
@@ -230,7 +262,7 @@ private fun FeedPhotoViewer(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color(0xE6000000))) {
             AsyncImage(
-                model = mediaUrl(item.url.orEmpty()),
+                model = mediaUrl(target.url.orEmpty()),
                 contentDescription = "Фото посадки",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize().padding(24.dp).align(Alignment.Center)
@@ -243,7 +275,7 @@ private fun FeedPhotoViewer(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PhotoActionsBar(
-                    hasAction = item.actionId != null,
+                    hasAction = target.actionId != null,
                     onReplaceBytes = onReplace,
                     onDeletePhoto = onDeletePhoto,
                     onDeleteRecord = onDeleteRecord,
@@ -256,9 +288,9 @@ private fun FeedPhotoViewer(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                     .navigationBarsPadding().padding(16.dp)
             ) {
-                Text(feedDateShort(item.date), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
-                item.cropName?.let { Text(it, color = Color(0xCCFFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
-                item.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
+                Text(feedDateShort(target.dateIso), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                target.cropName?.let { Text(it, color = Color(0xCCFFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
+                target.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
             }
         }
     }

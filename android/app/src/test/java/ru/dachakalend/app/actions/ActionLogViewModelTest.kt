@@ -43,7 +43,7 @@ class ActionLogViewModelTest {
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         repository = mockk()
-        viewModel = ActionLogViewModel(repository)
+        viewModel = ActionLogViewModel(repository, mockk(relaxed = true))
     }
 
     @After

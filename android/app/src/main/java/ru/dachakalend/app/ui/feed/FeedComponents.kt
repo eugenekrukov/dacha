@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import ru.dachakalend.app.data.api.mediaUrl
+import ru.dachakalend.app.ui.actions.actionIcon
 import ru.dachakalend.app.ui.common.rememberPhotoPickers
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
@@ -49,6 +50,65 @@ fun FeedMonthHeader(monthKey: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier.padding(top = 8.dp, bottom = 2.dp)
     )
+}
+
+/** Одна миниатюра в ряду фото записи: эскиз + обработчик открытия. */
+data class FeedThumb(val thumbUrl: String?, val onOpen: () -> Unit)
+
+/**
+ * Единая карточка записи «действие + заметка + прикреплённые фото» — общий компонент
+ * для глобальной ленты «Мой участок» и журнала на экране посадки.
+ * Иконку и метку действия даёт вызывающая сторона (единый источник ACTION_TYPES/actionIcon).
+ * Тап по миниатюре открывает конкретное фото; карточка без фото — информационная строка.
+ */
+@Composable
+fun ActionFeedCard(
+    actionType: String,
+    actionLabel: String,
+    note: String?,
+    dateLabel: String,
+    thumbs: List<FeedThumb>,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(actionIcon(actionType), contentDescription = null,
+                modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(actionLabel, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
+                note?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, fontFamily = NunitoFamily, fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Text(dateLabel, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (thumbs.isNotEmpty()) {
+            Row(
+                modifier = Modifier.padding(start = 30.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                thumbs.forEach { t ->
+                    AsyncImage(
+                        model = mediaUrl(t.thumbUrl.orEmpty()),
+                        contentDescription = "Фото записи",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(64.dp).clip(RoundedCornerShape(10.dp)).clickable(onClick = t.onOpen)
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -160,7 +220,7 @@ fun PhotoActionsBar(
 
 /**
  * Карточка-веха сезона в ленте (только глобальная лента «Мой участок»).
- * kind: sowing | transplanted | first_harvest | done.
+ * kind: sowing | first_harvest | done (высадка — обычное действие, не веха).
  */
 @Composable
 fun MilestoneFeedRow(
@@ -173,7 +233,6 @@ fun MilestoneFeedRow(
     val crop = cropName ?: "культура"
     val text = when (kind) {
         "sowing"        -> "🌱 Посев — $crop"
-        "transplanted"  -> "🌿 Высажено в грунт — $crop"
         "first_harvest" -> {
             val kg = weightKg?.let { w ->
                 val s = "%.1f".format(w).removeSuffix(",0").removeSuffix(".0")

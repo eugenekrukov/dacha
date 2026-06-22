@@ -40,7 +40,9 @@ import ru.dachakalend.app.ui.actions.careTaskActionType
 import ru.dachakalend.app.ui.common.rememberPhotoPickers
 import ru.dachakalend.app.ui.crops.CropCareSection
 import ru.dachakalend.app.ui.crops.CropNeighborsSection
+import ru.dachakalend.app.ui.feed.ActionFeedCard
 import ru.dachakalend.app.ui.feed.FeedMonthHeader
+import ru.dachakalend.app.ui.feed.FeedThumb
 import ru.dachakalend.app.ui.feed.PhotoActionsBar
 import ru.dachakalend.app.ui.feed.PhotoFeedRow
 import ru.dachakalend.app.ui.guide.ProblemList
@@ -126,20 +128,6 @@ private fun buildSchedule(
     }
     harvestDays?.let { val d = planted.plusDays(it.toLong()); rows += SchedRow("Сбор урожая", fmtDate(d), d, SchedStatus.NEUTRAL) }
     return rows.sortedBy { it.date }
-}
-
-// История действий: подряд идущие однотипные записи (без заметки) склеиваем в одну со счётчиком.
-private data class ActionGroup(val id: Int, val type: String, val note: String?, val count: Int, val firstAt: String, val lastAt: String)
-private fun collapseActions(list: List<ActionLog>): List<ActionGroup> {
-    val out = mutableListOf<ActionGroup>()
-    for (a in list) {
-        val note = a.notes?.takeIf { it.isNotBlank() && !a.auto }
-        val last = out.lastOrNull()
-        if (last != null && last.type == a.type && note == null && last.note == null) {
-            out[out.size - 1] = last.copy(count = last.count + 1, firstAt = a.loggedAt)
-        } else out.add(ActionGroup(a.id, a.type, note, 1, a.loggedAt, a.loggedAt))
-    }
-    return out
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -252,7 +240,7 @@ private fun AboutTab(
             }
         }
 
-        PhotoDiarySection(
+        JournalSection(
             photos = state.photos,
             actions = state.recentActions,
             uploadBusy = state.uploadBusy,
@@ -262,25 +250,21 @@ private fun AboutTab(
             onReplace = onReplace,
             onDeleteRecord = onDeleteRecord,
         )
-
-        InfoSection(title = "История действий") {
-            val groups = collapseActions(state.recentActions)
-            if (groups.isEmpty()) {
-                Text("Действий пока не записано", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else groups.forEach { g ->
-                val label = (ACTION_LABELS[g.type] ?: g.type) + (if (g.count > 1) " ×${g.count}" else "") + (g.note?.let { ": $it" } ?: "")
-                val date = if (g.count > 1) "${formatShort(g.firstAt)}–${formatShort(g.lastAt)}" else formatShort(g.lastAt)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    Text(date, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
     }
 }
 
+// Единый журнал посадки: действие + заметка + его фото в одной карточке, плюс одиночные фото.
+// Собирается клиентом из recentActions + photos (без отдельного бэкенд-запроса).
+private sealed interface JournalEntry { val dateIso: String }
+private data class ActionEntry(val action: ActionLog, val photos: List<PlantingPhoto>) : JournalEntry {
+    override val dateIso get() = action.loggedAt
+}
+private data class PhotoEntry(val photo: PlantingPhoto) : JournalEntry {
+    override val dateIso get() = photo.takenAt
+}
+
 @Composable
-private fun PhotoDiarySection(
+private fun JournalSection(
     photos: List<PlantingPhoto>,
     actions: List<ActionLog>,
     uploadBusy: Boolean,
@@ -290,17 +274,23 @@ private fun PhotoDiarySection(
     onReplace: (PlantingPhoto, ByteArray) -> Unit,
     onDeleteRecord: (Int) -> Unit,
 ) {
-    // Привязка фото → название действия (для ярлыка у фото).
-    val actionLabelById = remember(actions) {
-        actions.associate { it.id to (ACTION_LABELS[it.type] ?: it.type) }
-    }
     var viewer by remember { mutableStateOf<PlantingPhoto?>(null) }
     // Источник фото: галерея или камера. После выбора кадра — диалог привязки к действию (ниже),
-    // чтобы фото показывало действие в ленте «Мой участок» и в дневнике.
+    // чтобы фото показывало действие в ленте «Мой участок» и в журнале.
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     val pickers = rememberPhotoPickers(onBytes = { pendingBytes = it })
 
-    InfoSection(title = "Дневник") {
+    // Записи: действие (с его фото) + одиночные фото без действия (или с «осиротевшим» actionId).
+    val entries = remember(actions, photos) {
+        val photosByAction = photos.groupBy { it.actionId }
+        val actionIds = actions.mapTo(HashSet()) { it.id }
+        buildList<JournalEntry> {
+            actions.forEach { a -> add(ActionEntry(a, photosByAction[a.id].orEmpty())) }
+            photos.filter { it.actionId == null || it.actionId !in actionIds }.forEach { add(PhotoEntry(it)) }
+        }.sortedByDescending { it.dateIso }
+    }
+
+    InfoSection(title = "Журнал") {
         if (uploadBusy) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -326,29 +316,39 @@ private fun PhotoDiarySection(
             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
 
-        if (photos.isEmpty()) {
+        if (entries.isEmpty()) {
             Text(
-                "Пока нет фото. Снимите свою посадку — соберётся лента роста.",
+                "Пока пусто. Отмечайте действия и снимайте посадку — соберётся история роста.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            // Лента роста: новые сверху, с разделителями по месяцам (как в журнале действий).
-            // groupBy по "yyyy-MM" сохраняет порядок убывания после сортировки.
-            photos.sortedByDescending { it.takenAt }
-                .groupBy { it.takenAt.take(7) }
-                .forEach { (monthKey, monthPhotos) ->
-                    FeedMonthHeader(monthKey)
-                    monthPhotos.forEach { p ->
-                        PhotoFeedRow(
-                            thumbUrl = p.thumbUrl,
-                            dateLabel = formatShort(p.takenAt),
-                            actionLabel = p.actionId?.let { actionLabelById[it] },
-                            caption = p.caption,
-                            onOpen = { viewer = p }
+            // Новые сверху, разделители по месяцам. groupBy по "yyyy-MM" сохраняет порядок после сортировки.
+            entries.groupBy { it.dateIso.take(7) }.forEach { (monthKey, monthEntries) ->
+                FeedMonthHeader(monthKey)
+                monthEntries.forEach { entry ->
+                    when (entry) {
+                        is ActionEntry -> {
+                            val a = entry.action
+                            val note = a.notes?.takeIf { it.isNotBlank() && !a.auto }
+                            ActionFeedCard(
+                                actionType = a.type,
+                                actionLabel = ACTION_LABELS[a.type] ?: a.type,
+                                note = note,
+                                dateLabel = formatShort(a.loggedAt),
+                                thumbs = entry.photos.map { p -> FeedThumb(thumbUrl = p.thumbUrl) { viewer = p } },
+                            )
+                        }
+                        is PhotoEntry -> PhotoFeedRow(
+                            thumbUrl = entry.photo.thumbUrl,
+                            dateLabel = formatShort(entry.photo.takenAt),
+                            actionLabel = null,
+                            caption = entry.photo.caption,
+                            onOpen = { viewer = entry.photo }
                         )
                     }
                 }
+            }
         }
     }
 
