@@ -235,25 +235,30 @@ private fun FeedPhotoViewer(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize().padding(24.dp).align(Alignment.Center)
             )
-            IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
-                Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White)
-            }
+            // Верхняя панель: действия слева, «Закрыть» справа (низ диалога перекрыт навигацией).
             Row(
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
+                modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                    .background(Color(0x99000000)).statusBarsPadding().padding(horizontal = 4.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(feedDateShort(item.date), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
-                    item.cropName?.let { Text(it, color = Color(0xCCFFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
-                    item.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
-                }
                 PhotoActionsBar(
                     hasAction = item.actionId != null,
                     onReplaceBytes = onReplace,
                     onDeletePhoto = onDeletePhoto,
                     onDeleteRecord = onDeleteRecord,
                 )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White)
+                }
+            }
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .navigationBarsPadding().padding(16.dp)
+            ) {
+                Text(feedDateShort(item.date), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                item.cropName?.let { Text(it, color = Color(0xCCFFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
+                item.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
             }
         }
     }

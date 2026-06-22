@@ -408,24 +408,30 @@ private fun PhotoViewerDialog(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize().padding(24.dp).align(Alignment.Center)
             )
-            IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
-                Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White)
-            }
+            // Верхняя панель: действия слева, «Закрыть» справа. Наверху, т.к. низ диалога
+            // перекрывается системной навигацией (инсеты в Dialog не доходят).
             Row(
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
+                modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                    .background(Color(0x99000000)).statusBarsPadding().padding(horizontal = 4.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(formatShort(photo.takenAt), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
-                    photo.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily) }
-                }
                 PhotoActionsBar(
                     hasAction = photo.actionId != null,
                     onReplaceBytes = onReplace,
                     onDeletePhoto = onDeletePhoto,
                     onDeleteRecord = onDeleteRecord,
                 )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White)
+                }
+            }
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .navigationBarsPadding().padding(16.dp)
+            ) {
+                Text(formatShort(photo.takenAt), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                photo.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily) }
             }
         }
     }
