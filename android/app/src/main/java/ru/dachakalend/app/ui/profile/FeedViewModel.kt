@@ -8,8 +8,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.FeedItem
+import ru.dachakalend.app.data.repository.ActionsRepository
 import ru.dachakalend.app.data.repository.FeedRepository
 import ru.dachakalend.app.data.repository.GardenRepository
+import ru.dachakalend.app.data.repository.PhotosRepository
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
 
@@ -29,6 +31,8 @@ private const val PAGE = 30
 class FeedViewModel @Inject constructor(
     private val feedRepository: FeedRepository,
     private val gardenRepository: GardenRepository,
+    private val photosRepository: PhotosRepository,
+    private val actionsRepository: ActionsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedUiState())
@@ -59,6 +63,30 @@ class FeedViewModel @Inject constructor(
                 )
                 is Result.Error   -> _uiState.value = _uiState.value.copy(isLoading = false, error = res.message, nextOffset = null)
                 is Result.Loading -> Unit
+            }
+        }
+    }
+
+    /** Удалить фото (действие, если было, остаётся). Лента перезагружается. */
+    fun deletePhoto(photoId: Int) {
+        viewModelScope.launch {
+            if (photosRepository.deletePhoto(photoId) is Result.Success) load()
+        }
+    }
+
+    /** Удалить запись (действие) вместе с её фото (каскад на бэкенде). Лента перезагружается. */
+    fun deleteAction(actionId: Int) {
+        viewModelScope.launch {
+            if (actionsRepository.deleteAction(actionId) is Result.Success) load()
+        }
+    }
+
+    /** Заменить кадр: грузим новый (тот же action_id), затем удаляем старый. Лента перезагружается. */
+    fun replacePhoto(plantingId: Int, oldPhotoId: Int, actionId: Int?, bytes: ByteArray) {
+        viewModelScope.launch {
+            if (photosRepository.uploadPhoto(plantingId, bytes, actionId = actionId) is Result.Success) {
+                photosRepository.deletePhoto(oldPhotoId)
+                load()
             }
         }
     }

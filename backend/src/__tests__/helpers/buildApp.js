@@ -64,7 +64,7 @@ async function buildApp(mockDb, billingOpts = {}) {
   fastify.register(require('../../routes/gardens'),   { prefix: '/gardens' })
   fastify.register(require('../../routes/guide'),      { prefix: '/guide' })
   fastify.register(require('../../routes/today'),     { prefix: '/today' })
-  fastify.register(require('../../routes/actions'),   { prefix: '/actions' })
+  fastify.register(require('../../routes/actions'),   { prefix: '/actions', imageService: billingOpts.imageService })
   fastify.register(require('../../routes/plantings'), { prefix: '/plantings' })
   fastify.register(require('../../routes/harvests'),  { prefix: '/harvests' })
   fastify.register(require('../../routes/analytics'), { prefix: '/analytics' })

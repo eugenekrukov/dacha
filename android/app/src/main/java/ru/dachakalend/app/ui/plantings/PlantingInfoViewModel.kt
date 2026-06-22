@@ -110,6 +110,39 @@ class PlantingInfoViewModel @Inject constructor(
         }
     }
 
+    /** Заменить кадр: грузим новый (тот же action_id) и только потом удаляем старый — при ошибке старое на месте. */
+    fun replacePhoto(oldPhoto: PlantingPhoto, bytes: ByteArray) {
+        val plantingId = _uiState.value.planting?.id ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(uploadBusy = true, photoError = null)
+            when (val up = photosRepository.uploadPhoto(plantingId, bytes, actionId = oldPhoto.actionId)) {
+                is Result.Success -> {
+                    photosRepository.deletePhoto(oldPhoto.id)
+                    _uiState.value = _uiState.value.copy(
+                        photos = listOf(up.data) + _uiState.value.photos.filter { it.id != oldPhoto.id },
+                        uploadBusy = false
+                    )
+                }
+                is Result.Error -> _uiState.value = _uiState.value.copy(uploadBusy = false, photoError = "Не удалось заменить фото")
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    /** Удалить действие целиком: бэкенд удаляет и прикреплённые фото — чистим их из состояния. */
+    fun deleteAction(actionId: Int) {
+        viewModelScope.launch {
+            if (actionsRepository.deleteAction(actionId) is Result.Success) {
+                _uiState.value = _uiState.value.copy(
+                    photos = _uiState.value.photos.filter { it.actionId != actionId },
+                    recentActions = _uiState.value.recentActions.filter { it.id != actionId }
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(photoError = "Не удалось удалить запись")
+            }
+        }
+    }
+
     fun deletePhoto(id: Int) {
         viewModelScope.launch {
             val res = photosRepository.deletePhoto(id)

@@ -1,7 +1,9 @@
 'use strict'
 
-module.exports = async function (fastify) {
+module.exports = async function (fastify, opts) {
   const auth = { onRequest: [fastify.authenticate] }
+  // Для каскадного удаления фото-вложений действия (файлы). Переопределяемо в тестах.
+  const imageService = opts.imageService || require('../services/imageService')
 
   // Проверка принадлежности посадки текущему пользователю
   async function userOwnsPlanting(plantingId, userId) {
@@ -84,6 +86,13 @@ module.exports = async function (fastify) {
       [id, request.user.userId]
     )
     if (check.rowCount === 0) return reply.code(404).send({ error: 'Не найдено' })
+    // Фото — вложение записи: удаляется вместе с действием (файлы + строки),
+    // иначе FK ON DELETE SET NULL оставил бы «осиротевшие» кадры в дневнике/ленте.
+    const photos = await fastify.db.query('SELECT file_path FROM planting_photos WHERE action_id = $1', [id])
+    for (const ph of photos.rows) {
+      try { await imageService.remove(ph.file_path) } catch (_) { /* файл мог уже исчезнуть — не валим удаление */ }
+    }
+    await fastify.db.query('DELETE FROM planting_photos WHERE action_id = $1', [id])
     await fastify.db.query('DELETE FROM action_logs WHERE id = $1', [id])
     return reply.code(204).send()
   })

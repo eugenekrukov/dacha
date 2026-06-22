@@ -193,3 +193,37 @@ describe('GET /actions', () => {
     await app.close()
   })
 })
+
+describe('DELETE /actions/:id', () => {
+  it('удаляет действие и его фото-вложения (файлы + строки)', async () => {
+    const removed = []
+    const queries = []
+    const mockDb = {
+      query: async (sql) => {
+        queries.push(sql)
+        if (sql.includes('FROM action_logs al')) return { rows: [{ id: 1 }], rowCount: 1 } // ownership
+        if (sql.includes('file_path FROM planting_photos')) return { rows: [{ file_path: 'p/1.webp' }] }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+    const imageService = { remove: async (p) => { removed.push(p) } }
+    const app = await buildApp(mockDb, { imageService })
+    const token = makeToken(app)
+
+    const res = await supertest(app.server).delete('/actions/1').set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(204)
+    expect(removed).toEqual(['p/1.webp']) // файл вложения удалён
+    expect(queries.some(q => q.includes('DELETE FROM planting_photos WHERE action_id'))).toBe(true)
+    expect(queries.some(q => q.includes('DELETE FROM action_logs'))).toBe(true)
+    await app.close()
+  })
+
+  it('404 при чужом/несуществующем действии', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [], rowCount: 0 }) }))
+    const token = makeToken(app)
+    const res = await supertest(app.server).delete('/actions/999').set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(404)
+    await app.close()
+  })
+})

@@ -4,9 +4,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import ru.dachakalend.app.data.api.mediaUrl
+import ru.dachakalend.app.ui.common.rememberPhotoPickers
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 private val RU_MONTHS = listOf(
@@ -82,6 +90,71 @@ fun PhotoFeedRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+/**
+ * Панель действий над фото в полноэкранном просмотре (дневник и лента):
+ * «Заменить» (камера/галерея → [onReplaceBytes]), «Удалить фото» ([onDeletePhoto]) и —
+ * если фото привязано к действию — «Удалить запись» (действие + фото, с подтверждением).
+ */
+@Composable
+fun PhotoActionsBar(
+    hasAction: Boolean,
+    onReplaceBytes: (ByteArray) -> Unit,
+    onDeletePhoto: () -> Unit,
+    onDeleteRecord: () -> Unit,
+) {
+    val pickers = rememberPhotoPickers(onBytes = onReplaceBytes)
+    var sourceMenu by remember { mutableStateOf(false) }
+    var confirmRecord by remember { mutableStateOf(false) }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box {
+            IconButton(onClick = { sourceMenu = true }) {
+                Icon(Icons.Default.SwapHoriz, contentDescription = "Заменить", tint = Color.White)
+            }
+            DropdownMenu(expanded = sourceMenu, onDismissRequest = { sourceMenu = false }) {
+                DropdownMenuItem(
+                    text = { Text("Сделать фото", fontFamily = NunitoFamily) },
+                    onClick = { sourceMenu = false; pickers.camera() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Из галереи", fontFamily = NunitoFamily) },
+                    onClick = { sourceMenu = false; pickers.gallery() }
+                )
+            }
+        }
+        IconButton(onClick = onDeletePhoto) {
+            Icon(Icons.Default.Delete, contentDescription = "Удалить фото", tint = Color.White)
+        }
+        if (hasAction) {
+            IconButton(onClick = { confirmRecord = true }) {
+                Icon(Icons.Default.DeleteSweep, contentDescription = "Удалить запись", tint = Color(0xFFEF5350))
+            }
+        }
+    }
+
+    if (confirmRecord) {
+        AlertDialog(
+            onDismissRequest = { confirmRecord = false },
+            title = { Text("Удалить запись?", fontFamily = NunitoFamily, fontWeight = FontWeight.Black) },
+            text = {
+                Text("Действие и прикреплённое фото будут удалены без возможности восстановления.",
+                    fontFamily = NunitoFamily)
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmRecord = false; onDeleteRecord() }) {
+                    Text("Удалить", color = MaterialTheme.colorScheme.error,
+                        fontFamily = NunitoFamily, fontWeight = FontWeight.Black)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRecord = false }) {
+                    Text("Отмена", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 }
 

@@ -41,6 +41,7 @@ import ru.dachakalend.app.ui.common.rememberPhotoPickers
 import ru.dachakalend.app.ui.crops.CropCareSection
 import ru.dachakalend.app.ui.crops.CropNeighborsSection
 import ru.dachakalend.app.ui.feed.FeedMonthHeader
+import ru.dachakalend.app.ui.feed.PhotoActionsBar
 import ru.dachakalend.app.ui.feed.PhotoFeedRow
 import ru.dachakalend.app.ui.guide.ProblemList
 import ru.dachakalend.app.ui.theme.NunitoFamily
@@ -186,6 +187,8 @@ fun PlantingInfoScreen(
                         state, scroll,
                         onUpload = { bytes, actionId -> viewModel.uploadPhoto(planting.id, bytes, actionId) },
                         onDelete = viewModel::deletePhoto,
+                        onReplace = { p, bytes -> viewModel.replacePhoto(p, bytes) },
+                        onDeleteRecord = viewModel::deleteAction,
                     )
                     1 -> if (crop != null) CropCareSection(crop, modifier = scroll)
                          else EmptyTab(scroll, "Нет данных об уходе.")
@@ -212,6 +215,8 @@ private fun AboutTab(
     modifier: Modifier,
     onUpload: (ByteArray, Int?) -> Unit,
     onDelete: (Int) -> Unit,
+    onReplace: (PlantingPhoto, ByteArray) -> Unit,
+    onDeleteRecord: (Int) -> Unit,
 ) {
     val planting = state.planting ?: return
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -254,6 +259,8 @@ private fun AboutTab(
             photoError = state.photoError,
             onUpload = onUpload,
             onDelete = onDelete,
+            onReplace = onReplace,
+            onDeleteRecord = onDeleteRecord,
         )
 
         InfoSection(title = "История действий") {
@@ -280,6 +287,8 @@ private fun PhotoDiarySection(
     photoError: String?,
     onUpload: (ByteArray, Int?) -> Unit,
     onDelete: (Int) -> Unit,
+    onReplace: (PlantingPhoto, ByteArray) -> Unit,
+    onDeleteRecord: (Int) -> Unit,
 ) {
     // Привязка фото → название действия (для ярлыка у фото).
     val actionLabelById = remember(actions) {
@@ -373,12 +382,24 @@ private fun PhotoDiarySection(
     }
 
     viewer?.let { p ->
-        PhotoViewerDialog(photo = p, onDismiss = { viewer = null }, onDelete = { onDelete(p.id); viewer = null })
+        PhotoViewerDialog(
+            photo = p,
+            onDismiss = { viewer = null },
+            onDeletePhoto = { onDelete(p.id); viewer = null },
+            onReplace = { bytes -> onReplace(p, bytes); viewer = null },
+            onDeleteRecord = { p.actionId?.let { onDeleteRecord(it) }; viewer = null },
+        )
     }
 }
 
 @Composable
-private fun PhotoViewerDialog(photo: PlantingPhoto, onDismiss: () -> Unit, onDelete: () -> Unit) {
+private fun PhotoViewerDialog(
+    photo: PlantingPhoto,
+    onDismiss: () -> Unit,
+    onDeletePhoto: () -> Unit,
+    onReplace: (ByteArray) -> Unit,
+    onDeleteRecord: () -> Unit,
+) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color(0xE6000000))) {
             AsyncImage(
@@ -395,13 +416,16 @@ private fun PhotoViewerDialog(photo: PlantingPhoto, onDismiss: () -> Unit, onDel
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text(formatShort(photo.takenAt), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
                     photo.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily) }
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = Color(0xFFEF5350))
-                }
+                PhotoActionsBar(
+                    hasAction = photo.actionId != null,
+                    onReplaceBytes = onReplace,
+                    onDeletePhoto = onDeletePhoto,
+                    onDeleteRecord = onDeleteRecord,
+                )
             }
         }
     }

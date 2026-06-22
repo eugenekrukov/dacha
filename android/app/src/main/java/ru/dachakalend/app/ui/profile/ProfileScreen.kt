@@ -36,6 +36,7 @@ import ru.dachakalend.app.data.model.FeedItem
 import ru.dachakalend.app.ui.actions.ACTION_TYPES
 import ru.dachakalend.app.ui.feed.FeedMonthHeader
 import ru.dachakalend.app.ui.feed.MilestoneFeedRow
+import ru.dachakalend.app.ui.feed.PhotoActionsBar
 import ru.dachakalend.app.ui.feed.PhotoFeedRow
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
@@ -88,7 +89,18 @@ fun ProfileScreen(
                 }
             }
             when (tab) {
-                0 -> FeedList(state, onOpenPlanting, viewModel::loadMore)
+                0 -> FeedList(
+                    state = state,
+                    onOpenPlanting = onOpenPlanting,
+                    onLoadMore = viewModel::loadMore,
+                    onDeletePhoto = viewModel::deletePhoto,
+                    onDeleteAction = viewModel::deleteAction,
+                    onReplace = { item, bytes ->
+                        val pid = item.plantingId
+                        val photoId = item.photoId
+                        if (pid != null && photoId != null) viewModel.replacePhoto(pid, photoId, item.actionId, bytes)
+                    },
+                )
                 1 -> HubTab(
                     listOf(HubEntry(Icons.Default.Insights, "Статистика", "Серия дней, активность, экспорт в CSV", onOpenAnalytics))
                 )
@@ -123,6 +135,9 @@ private fun FeedList(
     state: FeedUiState,
     onOpenPlanting: (Int) -> Unit,
     onLoadMore: () -> Unit,
+    onDeletePhoto: (Int) -> Unit,
+    onDeleteAction: (Int) -> Unit,
+    onReplace: (FeedItem, ByteArray) -> Unit,
 ) {
     var viewer by remember { mutableStateOf<FeedItem?>(null) }
 
@@ -193,11 +208,25 @@ private fun FeedList(
         }
     }
 
-    viewer?.let { item -> FeedPhotoViewer(item, onDismiss = { viewer = null }) }
+    viewer?.let { item ->
+        FeedPhotoViewer(
+            item = item,
+            onDismiss = { viewer = null },
+            onDeletePhoto = { item.photoId?.let { onDeletePhoto(it) }; viewer = null },
+            onReplace = { bytes -> onReplace(item, bytes); viewer = null },
+            onDeleteRecord = { item.actionId?.let { onDeleteAction(it) }; viewer = null },
+        )
+    }
 }
 
 @Composable
-private fun FeedPhotoViewer(item: FeedItem, onDismiss: () -> Unit) {
+private fun FeedPhotoViewer(
+    item: FeedItem,
+    onDismiss: () -> Unit,
+    onDeletePhoto: () -> Unit,
+    onReplace: (ByteArray) -> Unit,
+    onDeleteRecord: () -> Unit,
+) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color(0xE6000000))) {
             AsyncImage(
@@ -209,10 +238,22 @@ private fun FeedPhotoViewer(item: FeedItem, onDismiss: () -> Unit) {
             IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
                 Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White)
             }
-            Column(modifier = Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-                Text(feedDateShort(item.date), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
-                item.cropName?.let { Text(it, color = Color(0xCCFFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
-                item.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
+            Row(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(feedDateShort(item.date), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                    item.cropName?.let { Text(it, color = Color(0xCCFFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
+                    item.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
+                }
+                PhotoActionsBar(
+                    hasAction = item.actionId != null,
+                    onReplaceBytes = onReplace,
+                    onDeletePhoto = onDeletePhoto,
+                    onDeleteRecord = onDeleteRecord,
+                )
             }
         }
     }
