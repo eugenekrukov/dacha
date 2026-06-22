@@ -68,6 +68,7 @@ fun ActionFeedCard(
     note: String?,
     dateLabel: String,
     thumbs: List<FeedThumb>,
+    cropName: String? = null,
 ) {
     Column(
         modifier = Modifier
@@ -85,6 +86,10 @@ fun ActionFeedCard(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(actionLabel, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
                     fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
+                cropName?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                }
                 note?.takeIf { it.isNotBlank() }?.let {
                     Text(it, fontFamily = NunitoFamily, fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -119,9 +124,9 @@ fun ActionFeedCard(
 fun PhotoFeedRow(
     thumbUrl: String?,
     dateLabel: String,
-    actionLabel: String?,
     caption: String?,
     onOpen: () -> Unit,
+    cropName: String? = null,
 ) {
     Row(
         modifier = Modifier
@@ -141,7 +146,7 @@ fun PhotoFeedRow(
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(dateLabel, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
                 fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
-            actionLabel?.let {
+            cropName?.takeIf { it.isNotBlank() }?.let {
                 Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,
                     fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
             }

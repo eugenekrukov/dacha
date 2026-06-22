@@ -333,20 +333,23 @@ private fun ActionLogSheetImpl(
                 onClick = {
                     selectedType?.let { type ->
                         val ids = activeTargets.map { it.id }
+                        val noteVal = notes.ifBlank { null }
+                        // auto = текст заметки не редактировался пользователем (равен авто-подстановке
+                        // препарата/удобрения). Такие записи не публикуются в ленте «Мой участок»
+                        // (только вручную изменённый текст или добавленное фото).
+                        val isAutoNote = noteVal != null && noteVal == lastAuto
                         if (!grouped) {
                             // Одиночный режим: фото привязываем к записанному действию.
                             val pid = ids.firstOrNull() ?: return@let
                             if (type == "transplanting") {
                                 viewModel.logTransplanting(pid, photoBytes = pendingPhoto)
                             } else {
-                                viewModel.logAction(pid, type, notes.ifBlank { null }, auto = false, photoBytes = pendingPhoto)
+                                viewModel.logAction(pid, type, noteVal, auto = isAutoNote, photoBytes = pendingPhoto)
                             }
                         } else if (type == "transplanting") {
                             viewModel.logTransplantingMulti(ids)
                         } else {
-                            // Заметка теперь содержит осмысленное (препарат «Обработки» / удобрение
-                            // или текст пользователя) — показываем её в журнале: auto = false.
-                            viewModel.logActionMulti(ids, type, notes.ifBlank { null }, auto = false)
+                            viewModel.logActionMulti(ids, type, noteVal, auto = isAutoNote)
                         }
                     }
                 },

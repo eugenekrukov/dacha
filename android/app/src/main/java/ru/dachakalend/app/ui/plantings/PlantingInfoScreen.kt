@@ -330,7 +330,10 @@ private fun JournalSection(
                     when (entry) {
                         is ActionEntry -> {
                             val a = entry.action
-                            val note = a.notes?.takeIf { it.isNotBlank() && !a.auto }
+                            // Полный журнал посадки показывает текст заметки, включая авто-подстановку
+                            // (препарат/удобрение) — полезный контекст. В глобальной ленте авто-заметки
+                            // скрывает бэкенд.
+                            val note = a.notes?.takeIf { it.isNotBlank() }
                             ActionFeedCard(
                                 actionType = a.type,
                                 actionLabel = ACTION_LABELS[a.type] ?: a.type,
@@ -342,7 +345,6 @@ private fun JournalSection(
                         is PhotoEntry -> PhotoFeedRow(
                             thumbUrl = entry.photo.thumbUrl,
                             dateLabel = formatShort(entry.photo.takenAt),
-                            actionLabel = null,
                             caption = entry.photo.caption,
                             onOpen = { viewer = entry.photo }
                         )

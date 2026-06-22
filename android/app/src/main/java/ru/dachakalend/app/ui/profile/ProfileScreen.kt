@@ -192,6 +192,7 @@ private fun FeedList(
                                 actionLabel = item.actionType?.let { ACTION_LABELS[it] ?: it } ?: "Действие",
                                 note = item.note,
                                 dateLabel = feedDateShort(item.date),
+                                cropName = item.cropName,
                                 thumbs = item.photos.map { ph ->
                                     FeedThumb(thumbUrl = ph.thumbUrl) {
                                         viewer = PhotoViewerTarget(
@@ -205,8 +206,8 @@ private fun FeedList(
                             "photo" -> PhotoFeedRow(
                                 thumbUrl = item.thumbUrl,
                                 dateLabel = feedDateShort(item.date),
-                                actionLabel = null,
                                 caption = item.caption,
+                                cropName = item.cropName,
                                 onOpen = {
                                     item.photoId?.let { pid ->
                                         viewer = PhotoViewerTarget(
@@ -286,11 +287,18 @@ private fun FeedPhotoViewer(
             }
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                    .navigationBarsPadding().padding(16.dp)
+                    .navigationBarsPadding().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(feedDateShort(target.dateIso), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
-                target.cropName?.let { Text(it, color = Color(0xCCFFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
-                target.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp) }
+                // Культура — заметно (как на карточке записи), затем дата и текст заметки.
+                target.cropName?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                }
+                Text(feedDateShort(target.dateIso), color = Color(0xCCFFFFFF), fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                target.caption?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, color = Color(0xE6FFFFFF), fontFamily = NunitoFamily, fontSize = 14.sp)
+                }
             }
         }
     }
