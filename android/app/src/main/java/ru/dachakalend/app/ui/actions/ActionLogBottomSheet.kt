@@ -1,6 +1,12 @@
 ﻿package ru.dachakalend.app.ui.actions
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -135,9 +141,11 @@ private fun ActionLogSheetImpl(
         containerColor = MaterialTheme.colorScheme.surface,
         windowInsets = WindowInsets(0)
     ) {
+        val focusManager = LocalFocusManager.current
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
                 .imePadding()
@@ -267,6 +275,8 @@ private fun ActionLogSheetImpl(
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 1,
                 maxLines = 3,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 textStyle = TextStyle(
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.SemiBold,
