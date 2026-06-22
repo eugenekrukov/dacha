@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CircleShape
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.CropRef
 import ru.dachakalend.app.data.model.Planting
+import ru.dachakalend.app.ui.common.rememberPhotoPickers
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 /** Одиночная посадка: запись действия из карточки задачи / экрана посадки. */
@@ -107,13 +109,9 @@ private fun ActionLogSheetImpl(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Фото-вложение — только одиночный режим (один кадр на одну посадку/действие).
-    val context = LocalContext.current
+    // Источник: галерея или камера (общий помощник rememberPhotoPickers).
     var pendingPhoto by remember { mutableStateOf<ByteArray?>(null) }
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
-            pendingPhoto = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
-        }
-    }
+    val photoPickers = rememberPhotoPickers(onBytes = { pendingPhoto = it })
 
     LaunchedEffect(selectedType) {
         val auto = if (selectedType == preselectedType) initialNotes else null
@@ -279,13 +277,17 @@ private fun ActionLogSheetImpl(
             // Фото-вложение — только одиночный режим (в групповом один кадр на много посадок неоднозначен).
             if (!grouped) {
                 if (pendingPhoto == null) {
-                    OutlinedButton(
-                        onClick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Прикрепить фото", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { photoPickers.camera() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Камера", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false)
+                        }
+                        OutlinedButton(onClick = { photoPickers.gallery() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Галерея", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false)
+                        }
                     }
                 } else {
                     Row(

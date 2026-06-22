@@ -34,7 +34,9 @@ class FeedViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(FeedUiState())
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
 
-    init { load(); loadGarden() }
+    // Первичную загрузку ленты дёргает ON_RESUME экрана (см. ProfileScreen) — это же даёт
+    // обновление при каждом возврате на вкладку. Здесь грузим только статичную шапку участка.
+    init { loadGarden() }
 
     private fun loadGarden() {
         viewModelScope.launch {

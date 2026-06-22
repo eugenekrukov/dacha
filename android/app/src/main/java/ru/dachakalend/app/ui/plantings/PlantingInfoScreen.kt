@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.CareTask
 import ru.dachakalend.app.data.model.PlantingPhoto
 import ru.dachakalend.app.ui.actions.careTaskActionType
+import ru.dachakalend.app.ui.common.rememberPhotoPickers
 import ru.dachakalend.app.ui.crops.CropCareSection
 import ru.dachakalend.app.ui.crops.CropNeighborsSection
 import ru.dachakalend.app.ui.feed.FeedMonthHeader
@@ -182,7 +184,7 @@ fun PlantingInfoScreen(
                 when (tab) {
                     0 -> AboutTab(
                         state, scroll,
-                        onUpload = { bytes -> viewModel.uploadPhoto(planting.id, bytes) },
+                        onUpload = { bytes, actionId -> viewModel.uploadPhoto(planting.id, bytes, actionId) },
                         onDelete = viewModel::deletePhoto,
                     )
                     1 -> if (crop != null) CropCareSection(crop, modifier = scroll)
@@ -208,7 +210,7 @@ private fun EmptyTab(modifier: Modifier, text: String) {
 private fun AboutTab(
     state: PlantingInfoUiState,
     modifier: Modifier,
-    onUpload: (ByteArray) -> Unit,
+    onUpload: (ByteArray, Int?) -> Unit,
     onDelete: (Int) -> Unit,
 ) {
     val planting = state.planting ?: return
@@ -276,36 +278,38 @@ private fun PhotoDiarySection(
     actions: List<ActionLog>,
     uploadBusy: Boolean,
     photoError: String?,
-    onUpload: (ByteArray) -> Unit,
+    onUpload: (ByteArray, Int?) -> Unit,
     onDelete: (Int) -> Unit,
 ) {
-    // Привязка фото → название действия (read-only; actionId проставляется при съёмке из шторки действия).
+    // Привязка фото → название действия (для ярлыка у фото).
     val actionLabelById = remember(actions) {
         actions.associate { it.id to (ACTION_LABELS[it.type] ?: it.type) }
     }
-    val context = LocalContext.current
     var viewer by remember { mutableStateOf<PlantingPhoto?>(null) }
-    // Системный photo picker (галерея/камера) — без рантайм-разрешений.
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
-            val bytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
-            if (bytes != null) onUpload(bytes)
-        }
-    }
+    // Источник фото: галерея или камера. После выбора кадра — диалог привязки к действию (ниже),
+    // чтобы фото показывало действие в ленте «Мой участок» и в дневнике.
+    var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    val pickers = rememberPhotoPickers(onBytes = { pendingBytes = it })
 
     InfoSection(title = "Дневник") {
-        OutlinedButton(
-            onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            enabled = !uploadBusy
-        ) {
-            if (uploadBusy) {
+        if (uploadBusy) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
                 Text("Загрузка…", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
-            } else {
-                Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Добавить фото", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { pickers.camera() }, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Камера", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false)
+                }
+                OutlinedButton(onClick = { pickers.gallery() }, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Галерея", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false)
+                }
             }
         }
 
@@ -337,6 +341,35 @@ private fun PhotoDiarySection(
                     }
                 }
         }
+    }
+
+    // Привязка к действию: после выбора кадра — выбрать действие этой посадки (или «без действия»).
+    pendingBytes?.let { bytes ->
+        AlertDialog(
+            onDismissRequest = { pendingBytes = null },
+            title = { Text("К какому действию?", fontFamily = NunitoFamily, fontWeight = FontWeight.Black) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    TextButton(onClick = { onUpload(bytes, null); pendingBytes = null }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Без действия", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.fillMaxWidth())
+                    }
+                    actions.take(15).forEach { a ->
+                        val label = (ACTION_LABELS[a.type] ?: a.type) + " · " + formatShort(a.loggedAt)
+                        TextButton(onClick = { onUpload(bytes, a.id); pendingBytes = null }, modifier = Modifier.fillMaxWidth()) {
+                            Text(label, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { pendingBytes = null }) {
+                    Text("Отмена", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 
     viewer?.let { p ->

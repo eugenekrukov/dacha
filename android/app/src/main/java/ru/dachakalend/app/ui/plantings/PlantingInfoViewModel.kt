@@ -88,10 +88,10 @@ class PlantingInfoViewModel @Inject constructor(
         }
     }
 
-    fun uploadPhoto(plantingId: Int, bytes: ByteArray) {
+    fun uploadPhoto(plantingId: Int, bytes: ByteArray, actionId: Int? = null) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(uploadBusy = true, photoError = null)
-            when (val res = photosRepository.uploadPhoto(plantingId, bytes)) {
+            when (val res = photosRepository.uploadPhoto(plantingId, bytes, actionId = actionId)) {
                 is Result.Success ->
                     _uiState.value = _uiState.value.copy(
                         photos = listOf(res.data) + _uiState.value.photos,
