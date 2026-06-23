@@ -8,6 +8,7 @@ import type {
   CreatePaymentResponse,
   CreatePlantingRequest,
   Crop,
+  FeedResponse,
   Garden,
   GeocodeSuggestion,
   GuideEntry,
@@ -169,6 +170,13 @@ export const api = {
   },
   deletePhoto: (id: number) =>
     request<void>(`/photos/${id}`, { method: 'DELETE' }),
+  // Удаление записи действия вместе с привязанными фото (FK: фото удаляются на бэкенде).
+  deleteAction: (id: number) =>
+    request<{ deleted: boolean }>(`/actions/${id}`, { method: 'DELETE' }),
+
+  // --- персональная лента «Мой участок» (P1) ---
+  getFeed: (limit = 30, offset = 0) =>
+    request<FeedResponse>(`/feed?limit=${limit}&offset=${offset}`),
 
   // CSV-экспорт журнала: нужен Bearer → тянем blob вручную (не через request()).
   fetchActionsCsv: async (): Promise<Blob> => {

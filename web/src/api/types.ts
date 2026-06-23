@@ -328,6 +328,41 @@ export interface GuideEntryDetail extends GuideEntry {
   crops?: GuideCropLink[]
 }
 
+// Персональная лента «Мой участок» (GET /feed) — зеркало backend/src/routes/feed.js.
+// Запись-центричная модель: action (действие+заметка+фото), photo (одиночное фото), milestone (веха).
+export interface FeedPhoto {
+  photo_id: number
+  url: string        // /photos/file/:id
+  thumb_url: string  // /photos/file/:id?thumb=1
+}
+
+export type MilestoneKind = 'sowing' | 'first_harvest' | 'done'
+
+export interface FeedItem {
+  type: 'action' | 'photo' | 'milestone'
+  date: string
+  planting_id?: number | null
+  crop_name?: string | null
+  // action
+  action_id?: number
+  action_type?: string
+  note?: string | null
+  photos?: FeedPhoto[]
+  // photo (одиночное, без привязки к действию)
+  photo_id?: number
+  caption?: string | null
+  url?: string
+  thumb_url?: string
+  // milestone
+  kind?: MilestoneKind
+  weight_kg?: number | null
+}
+
+export interface FeedResponse {
+  items: FeedItem[]
+  next_offset: number | null
+}
+
 export type BillingPlan = 'monthly' | 'yearly'
 
 export interface CreatePaymentResponse {

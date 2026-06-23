@@ -16,6 +16,7 @@ import GuideDetailScreen from './screens/GuideDetailScreen'
 import CalendarScreen from './screens/CalendarScreen'
 import JournalScreen from './screens/JournalScreen'
 import HarvestsScreen from './screens/HarvestsScreen'
+import ProfileScreen from './screens/ProfileScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import PaywallScreen from './screens/PaywallScreen'
 import VerifyEmailScreen from './screens/VerifyEmailScreen'
@@ -52,6 +53,7 @@ export default function App() {
         <Route element={<GardenGate />}>
           <Route element={<Layout />}>
             <Route path="/today" element={<TodayScreen />} />
+            <Route path="/profile" element={<ProfileScreen />} />
             <Route path="/garden/edit" element={<EditGardenScreen />} />
             <Route path="/plantings" element={<PlantingsScreen />} />
             <Route path="/plantings/:id" element={<PlantingDetailScreen />} />

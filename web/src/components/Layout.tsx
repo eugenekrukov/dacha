@@ -5,6 +5,7 @@ import {
   Sprout,
   CalendarDays,
   BookOpen,
+  User,
   MoreHorizontal,
   NotebookPen,
   BarChart3,
@@ -16,15 +17,16 @@ import Sunflower from '../ui/Sunflower'
 
 type Item = { to: string; label: string; icon: LucideIcon }
 
-// Частые разделы — на виду (верхний ряд / нижний бар).
+// Частые разделы — на виду (верхний ряд / нижний бар). Зеркало Android bottom-nav.
 const PRIMARY: Item[] = [
   { to: '/today', label: 'Сегодня', icon: Sun },
   { to: '/plantings', label: 'Посадки', icon: Sprout },
   { to: '/calendar', label: 'Календарь', icon: CalendarDays },
-  { to: '/crops', label: 'Справочник', icon: BookOpen },
+  { to: '/profile', label: 'Профиль', icon: User },
 ]
 // Редкие разделы — под «Ещё».
 const MORE: Item[] = [
+  { to: '/crops', label: 'Справочник культур', icon: BookOpen },
   { to: '/journal', label: 'Журнал действий', icon: NotebookPen },
   { to: '/harvests', label: 'Аналитика', icon: BarChart3 },
   { to: '/guide', label: 'Болезни и дефициты', icon: ShieldAlert },

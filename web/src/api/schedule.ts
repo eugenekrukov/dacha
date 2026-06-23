@@ -46,6 +46,7 @@ export function treatmentNote(careTaskName?: string | null, product?: string | n
 // и диапазоном дат. Записи с заметкой остаются отдельными (заметка важна).
 export interface ActionGroup {
   id: number
+  ids: number[] // все id записей свёрнутой серии (для удаления группы целиком)
   action_type: string
   crop_name?: string | null
   note?: string | null
@@ -61,9 +62,10 @@ export function collapseActions(actions: ActionLog[]): ActionGroup[] {
     const last = out[out.length - 1]
     if (last && last.action_type === a.action_type && (last.crop_name ?? null) === (a.crop_name ?? null) && !note && !last.note) {
       last.count++
+      last.ids.push(a.id)
       last.firstAt = a.logged_at // список идёт от свежих к старым → старая дата уходит вниз
     } else {
-      out.push({ id: a.id, action_type: a.action_type, crop_name: a.crop_name, note, count: 1, firstAt: a.logged_at, lastAt: a.logged_at })
+      out.push({ id: a.id, ids: [a.id], action_type: a.action_type, crop_name: a.crop_name, note, count: 1, firstAt: a.logged_at, lastAt: a.logged_at })
     }
   }
   return out
