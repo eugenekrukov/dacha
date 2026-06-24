@@ -13,7 +13,11 @@
 - **Веб**: `https://dacha.studio1008.com/app/` (папка `web/`, статика `/var/www/dacha-web`, nginx `location /app/`). Та же БД/API.
 - **Android**: package `ru.dachakalend.app` · minSdk 26 · compileSdk/targetSdk **36** (Android 16) · флейворы `rustore`/`gplay`/`samsung` (сборка `:app:compileGplayDebugKotlin` и т.п.).
 - **Справочник проблем растений**: в проде на всех платформах (~68 записей, 52/68 с фото). См. `docs/plant-guide-plan.md`.
-- **Бэкенд-тесты**: 337/337 (`npm test` → vitest run; **НЕ** jest).
+- **Бэкенд-тесты**: 356/356 (`npm test` → vitest run; **НЕ** jest).
+- **Лента «Мой участок»**: запись-центричная (`action`/`photo`/`milestone`), единый блок «действие+заметка+фото»
+  на ленте и в журнале посадки. В проде (`GET /feed`, без миграции). Android — vc6/1.0.3 (не опубликован).
+- **Автопостер ВК** (маркетинг): очередь с расписанием `vk_post_queue` (миграция 048) + cron `vkQueueJob`,
+  публикует посты из md-файла контента в сообщество `calendacha`. Нужен ПОЛЬЗОВАТЕЛЬСКИЙ VK-токен. Ops — `docs/DEPLOY.md`.
 - ⚠️ **Android JVM unit-тесты не запускаются в этом окружении** — кириллический путь `Календарь дачника`
   ломает тест-воркер (`ClassNotFoundException` для всех классов; давний «E3»). Верификация Android =
   компиляция main + тест-исходников (`:app:compile<Flavor>DebugUnitTestKotlin`); прогон тестов — в

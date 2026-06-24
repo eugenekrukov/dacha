@@ -97,7 +97,49 @@ ssh hetzner 'cp /var/www/dacha-api/landing/index.html /var/www/dacha-landing/ind
 
 ---
 
+## Автопостер ВК (маркетинг, `vk-queue`)
+
+Агент-автопостер: cron-джоб `jobs/vkQueueJob.js` (`*/10`) публикует «созревшие» посты из таблицы
+`vk_post_queue` (миграция **048**) в сообщество ВК. Очередь наполняется заранее из md-файла контента.
+Без env (`VK_GROUP_ID`+`VK_ACCESS_TOKEN`) джоб idle — деплоить безопасно.
+
+**Деплой:** обычный backend (`reset --hard` + `pm2 restart`); миграция один раз:
+`sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/048_vk_post_queue.sql` (внутри уже
+`ALTER TABLE … OWNER TO dacha_user`).
+
+**`.env` (Hetzner):**
+```
+VK_GROUP_ID=239559357           # числовой id сообщества (calendacha), без минуса
+VK_ACCESS_TOKEN=vk1.a.XXXX       # ПОЛЬЗОВАТЕЛЬСКИЙ токен админа группы (НЕ community)
+VK_POST_LINK=https://dacha.studio1008.com   # опц., деф. = лендинг (уходит первым комментарием)
+```
+⚠️ **Только пользовательский токен.** Community-токен не умеет загружать фото на стену
+(`photos.getWallUploadServer` → ошибка 27). Получить user-токен: implicit flow через **Kate Mobile**
+(свои новые VK-приложения VK гонит в VK ID, где scope `offline` невалиден):
+```
+https://oauth.vk.com/authorize?client_id=2685278&redirect_uri=https://oauth.vk.com/blank.html&scope=wall,photos,groups,offline&response_type=token&v=5.199&display=page
+```
+→ из `#access_token=vk1.a.…&expires_in=0` (0 = бессрочный). Комментарий со ссылкой шлётся **от лица
+админа** (без `from_group` — community-комментарий требует community-токена, ошибка 15). После смены
+токена в `.env` — `pm2 restart dacha-api`.
+
+**Управление очередью** (на сервере, `cd /var/www/dacha-api/backend`):
+```
+node scripts/vk-queue.js load ../docs/vk-content/<файл>.md   # загрузить посты в очередь
+node scripts/vk-queue.js list                                # статусы очереди
+node scripts/vk-autopost.js --text-file post.txt --image url --link <url> [--dry]   # разовый пост
+```
+Формат файла контента — `## YYYY-MM-DD HH:MM — Заголовок` + тело + `Теги:` + `Картинка:` (время МСК).
+Правка уже загруженного поста — в БД (`UPDATE vk_post_queue …`), файла недостаточно.
+**Дзен — вручную:** API/RSS постинга у Дзена нет, тексты копировать из того же файла.
+
+---
+
 ## История
+
+- **2026-06-24** — единый блок «действие+заметка+фото» (`/feed` запись-центричный, без миграции) +
+  автопостер ВК: миграция **048** (`vk_post_queue`), cron `vkQueueJob`, env `VK_*` (раздел выше).
+  Деплой обычный (`reset --hard` + `pm2 restart`).
 
 - **2026-06-21 (2)** — правки тестеров + Tier 2 (vc6). Миграции **046** (`plantings.variety`) и **047**
   (`crops.image_url/image_credit`) — аддитивные. Backend (группировка полива/подкормки в `todayLogic`,
