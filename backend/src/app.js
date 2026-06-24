@@ -117,6 +117,7 @@ const { startRenewalJob } = require('./jobs/renewalJob')
 const { startNalogJob } = require('./jobs/nalogJob')
 const { startTrialEmailsJob } = require('./jobs/trialEmailsJob')
 const { startPhotoSweepJob } = require('./jobs/photoSweepJob')
+const { startVkQueueJob } = require('./jobs/vkQueueJob')
 app.addHook('onReady', async () => {
   startWeatherJob(app.db)
   startCareRemindersJob(app.db)
@@ -124,6 +125,7 @@ app.addHook('onReady', async () => {
   startNalogJob(app.db)
   startTrialEmailsJob(app.db)
   startPhotoSweepJob(app.db)
+  startVkQueueJob(app.db)
 })
 
 // Start
