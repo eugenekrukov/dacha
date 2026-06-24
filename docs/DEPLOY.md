@@ -94,6 +94,8 @@ ssh hetzner 'curl -s -o /dev/null -w %{http_code} https://dacha.studio1008.com/a
 ```powershell
 ssh hetzner 'cp /var/www/dacha-api/landing/index.html /var/www/dacha-landing/index.html && cp /var/www/dacha-api/landing/return.html /var/www/dacha-landing/return.html'
 ```
+Если правили `offer.html` или `privacy.html` — скопировать и их (команда выше их не трогает), а также
+**синхронизировать дублирующий текст в аккордеоне `#legal` внутри `index.html`** — см. `landing/README.md`.
 
 ---
 
