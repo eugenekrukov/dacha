@@ -60,7 +60,8 @@ export default function CreateGardenScreen() {
         climate_zone: picked.zone ?? undefined,
       })
       await reload()
-      navigate('/today', { replace: true })
+      // Сразу предлагаем выбрать стартовые культуры (онбординг), затем «Сегодня».
+      navigate('/garden/crops', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось создать участок')
     } finally {

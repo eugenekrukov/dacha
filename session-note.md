@@ -28,7 +28,13 @@
 **Деплой 2026-06-23:** VPS `reset --hard origin/main` (`e5913fe`) → `npm ci && npm run build` → `/var/www/dacha-web`.
 `/app/` = 200 с новым бандлом `index-tDAz_N-Q.js`, `/feed` = 401 без токена (живой). Только веб, без миграций.
 
-**Осталось по плану:** P4 (онбординг-выбор культур), P5 (snooze, reverse-geocode, Web Push). См. `docs/web-parity-plan.md`.
+**P4 — онбординг-выбор культур (`OnboardingCropsScreen.tsx`):** после создания участка — экран
+выбора стартовых культур (поиск + фильтр по категории + сетка-тогглы), батч `createPlanting`
+(`planted_at`=сегодня) → `/plantings`; «Пропустить» → `/today`. Маршрут `/garden/crops` (вне
+`GardenGate`/`Layout`), `CreateGardenScreen` ведёт на него вместо `/today`; гард ждёт `gardensLoading`.
+Проверено в превью (demo); `POST /plantings` на демо не дёргался.
+
+**Осталось по плану:** P5 (snooze, reverse-geocode, Web Push). См. `docs/web-parity-plan.md`.
 
 ---
 
