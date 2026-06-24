@@ -60,12 +60,14 @@ async function postToWall(vk, { groupId, message, photo, link }) {
   const params = { owner_id: wallOwnerId(groupId), from_group: 1, message }
   if (photo) params.attachments = attachmentOf(photo)
   const { post_id } = await vk.call('wall.post', params)
-  // Комментарий со ссылкой — «лучшим усилием»: пост уже опубликован, и его падение НЕ должно
-  // валить операцию, иначе вызывающий уйдёт в ретрай и продублирует пост (wall.post не идемпотентен).
+  // Комментарий со ссылкой — от лица АДМИНА (без from_group): комментирование от имени сообщества
+  // требует community-токена (с user-токеном — ошибка 15 «could not access to this community»),
+  // а пост мы уже опубликовали от имени группы. И «лучшим усилием»: пост уже опубликован, падение
+  // комментария НЕ должно валить операцию, иначе ретрай продублирует пост (wall.post не идемпотентен).
   if (link) {
     try {
       await vk.call('wall.createComment', {
-        owner_id: wallOwnerId(groupId), post_id, from_group: 1, message: link
+        owner_id: wallOwnerId(groupId), post_id, message: link
       })
     } catch (e) {
       console.error(`[vk] пост ${post_id} опубликован, но комментарий со ссылкой не добавлен: ${e.message}`)

@@ -42,9 +42,11 @@ describe('vkService', () => {
       owner_id: -50, from_group: 1, message: 'привет', attachments: 'photo-50_9'
     })
     const comment = vk.calls.find((c) => c.method === 'wall.createComment')
+    // Комментарий от лица админа (без from_group — community-комментарий требует community-токена).
     expect(comment.params).toMatchObject({
-      owner_id: -50, post_id: 77, from_group: 1, message: 'https://dacha.studio1008.com'
+      owner_id: -50, post_id: 77, message: 'https://dacha.studio1008.com'
     })
+    expect(comment.params.from_group).toBeUndefined()
   })
 
   it('postToWall: без ссылки комментарий не создаётся; без фото нет attachments', async () => {
