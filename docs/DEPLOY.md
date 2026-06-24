@@ -137,6 +137,14 @@ node scripts/vk-autopost.js --text-file post.txt --image url --link <url> [--dry
 
 ## История
 
+- **2026-06-24 (2)** — фото в групповом действии при 1 культуре, фикс лейбла `transplanting`
+  (`web/src/api/labels.ts` собран из `ACTION_CATALOG`), Яндекс.Метрика (id `110118201`) и
+  cookie-уведомление на лендинге и в веб-версии. Деплой: backend без изменений, `web` пересобран
+  (`npm ci && npm run build` → `/var/www/dacha-web`), `landing/index.html`+`privacy.html` скопированы
+  в `/var/www/dacha-landing`. **Грабли:** `<noscript>` со вложенным `<div>` в `<head>` — невалиден по
+  HTML5, Vite (`parse5`) валит сборку с `disallowed-content-in-noscript-in-head` — фолбэк перенесён в
+  `<body>`.
+
 - **2026-06-24** — единый блок «действие+заметка+фото» (`/feed` запись-центричный, без миграции) +
   автопостер ВК: миграция **048** (`vk_post_queue`), cron `vkQueueJob`, env `VK_*` (раздел выше).
   Деплой обычный (`reset --hard` + `pm2 restart`).
