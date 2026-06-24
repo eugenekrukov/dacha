@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import { GardenProvider, useGardens } from './garden/GardenContext'
 import Layout from './components/Layout'
+import CookieConsentBanner from './components/CookieConsentBanner'
 import LoginScreen from './screens/LoginScreen'
 import PasswordResetScreen from './screens/PasswordResetScreen'
 import TodayScreen from './screens/TodayScreen'
@@ -39,11 +40,14 @@ export default function App() {
 
   if (!isAuthed) {
     return (
-      <Routes>
-        <Route path="/login" element={<LoginScreen />} />
-        <Route path="/reset-password" element={<PasswordResetScreen />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      <>
+        <Routes>
+          <Route path="/login" element={<LoginScreen />} />
+          <Route path="/reset-password" element={<PasswordResetScreen />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+        <CookieConsentBanner />
+      </>
     )
   }
 
@@ -73,6 +77,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/today" replace />} />
       </Routes>
+      <CookieConsentBanner />
     </GardenProvider>
   )
 }

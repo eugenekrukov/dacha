@@ -40,20 +40,11 @@ export const ACTION_CATALOG: { type: string; label: string }[] = [
 ]
 
 // Полная карта для отображения (включая care-действия из backend для журнала/истории).
-const ALL_ACTION_LABELS: Record<string, string> = {
-  ...ACTION_LABELS,
-  tying: 'Подвязка',
-  pinching: 'Пасынкование',
-  hilling: 'Окучивание',
-  pruning: 'Обрезка',
-  weeding: 'Прополка',
-  loosening: 'Рыхление',
-  thinning: 'Прореживание',
-  runner_removal: 'Удаление усов',
-  bolt_removal: 'Удаление стрелок',
-  deflowering: 'Удаление цветков',
-  staking: 'Установка опоры',
-}
+// Источник — ACTION_CATALOG (единый список всех типов действий), чтобы не дублировать
+// и не забывать типы при добавлении новых (так уже было с transplanting/pricking_out).
+const ALL_ACTION_LABELS: Record<string, string> = Object.fromEntries(
+  ACTION_CATALOG.map((a) => [a.type, a.label]),
+)
 
 export function actionLabel(type: string): string {
   return ALL_ACTION_LABELS[type] ?? type

@@ -74,8 +74,9 @@ export default function ActionLogSheet({
           lastLogged = await api.logAction(tg.id, type, note.trim() || undefined)
         }
       }
-      // Фото привязываем к записанному действию (только одиночный режим — один target).
-      if (!grouped && photoFile && lastLogged) {
+      // Фото привязываем к записанному действию (только когда остался один target —
+      // в т.ч. групповой режим, если пользователь убрал все культуры кроме одной).
+      if (targets.length === 1 && photoFile && lastLogged) {
         try {
           await api.uploadPhoto(targets[0].id, photoFile, { actionId: lastLogged.id })
         } catch {
@@ -165,7 +166,7 @@ export default function ActionLogSheet({
           onChange={(e) => setNote(e.target.value)}
         />
 
-        {!grouped && (
+        {targets.length === 1 && (
           <div className="mt-3">
             {photoFile ? (
               <div className="flex items-center justify-between rounded-btn bg-background px-3 py-2 text-sm font-bold">

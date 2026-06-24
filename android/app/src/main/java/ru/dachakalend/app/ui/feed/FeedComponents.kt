@@ -84,12 +84,9 @@ fun ActionFeedCard(
             Icon(actionIcon(actionType), contentDescription = null,
                 modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(actionLabel, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
+                val title = actionLabel + (cropName?.takeIf { it.isNotBlank() }?.let { " — $it" } ?: "")
+                Text(title, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
                     fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
-                cropName?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-                }
                 note?.takeIf { it.isNotBlank() }?.let {
                     Text(it, fontFamily = NunitoFamily, fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)

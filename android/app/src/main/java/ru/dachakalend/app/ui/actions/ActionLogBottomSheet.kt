@@ -284,8 +284,10 @@ private fun ActionLogSheetImpl(
                 )
             )
 
-            // Фото-вложение — только одиночный режим (в групповом один кадр на много посадок неоднозначен).
-            if (!grouped) {
+            // Фото-вложение — только когда активна одна посадка (один кадр на много посадок
+            // неоднозначен; но если пользователь убрал из группового действия все культуры
+            // кроме одной, фото становится доступным).
+            if (activeTargets.size == 1) {
                 if (pendingPhoto == null) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { photoPickers.camera() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.weight(1f)) {
@@ -338,8 +340,9 @@ private fun ActionLogSheetImpl(
                         // препарата/удобрения). Такие записи не публикуются в ленте «Мой участок»
                         // (только вручную изменённый текст или добавленное фото).
                         val isAutoNote = noteVal != null && noteVal == lastAuto
-                        if (!grouped) {
-                            // Одиночный режим: фото привязываем к записанному действию.
+                        if (activeTargets.size == 1) {
+                            // Одна активная посадка (одиночный режим или группа, схлопнутая до одной
+                            // культуры): фото привязываем к записанному действию.
                             val pid = ids.firstOrNull() ?: return@let
                             if (type == "transplanting") {
                                 viewModel.logTransplanting(pid, photoBytes = pendingPhoto)
