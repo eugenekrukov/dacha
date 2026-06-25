@@ -40,7 +40,7 @@ data class TodayScreenData(
 sealed class TodayUiState {
     object Loading : TodayUiState()
     data class Success(val data: TodayScreenData) : TodayUiState()
-    data class Error(val message: String) : TodayUiState()
+    data class Error(val message: String, val isSubscriptionRequired: Boolean = false) : TodayUiState()
 }
 
 @HiltViewModel
@@ -247,7 +247,7 @@ class TodayViewModel @Inject constructor(
                             cachedAt = cached.cachedAt,
                         ))
                     } else {
-                        TodayUiState.Error(todayResult.message)
+                        TodayUiState.Error(todayResult.message, todayResult.isSubscriptionRequired)
                     }
                 }
                 is Result.Loading -> TodayUiState.Loading

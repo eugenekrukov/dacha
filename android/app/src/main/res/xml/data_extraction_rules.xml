@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 31+ (Android 12+): правила облачного бэкапа и переноса при смене устройства. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="dacha_prefs.xml" />
+        <exclude domain="sharedpref" path="dacha_secure_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="dacha_prefs.xml" />
+        <exclude domain="sharedpref" path="dacha_secure_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>

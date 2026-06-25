@@ -372,7 +372,8 @@ class MainActivity : ComponentActivity() {
                                 onEditGarden        = { navController.navigate(Screen.GardenEdit.route) },
                                 onOpenSettings      = { navController.navigate(Screen.Settings.route) },
                                 onOpenJournal       = { navController.navigate(Screen.Journal.route) },
-                                onAddPlanting       = { navController.navigate(Screen.Crops.route) }
+                                onAddPlanting       = { navController.navigate(Screen.Crops.route) },
+                                onOpenPaywall       = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(
@@ -389,7 +390,8 @@ class MainActivity : ComponentActivity() {
                                 onEditGarden        = { navController.navigate(Screen.GardenEdit.route) },
                                 onOpenSettings      = { navController.navigate(Screen.Settings.route) },
                                 onOpenJournal       = { navController.navigate(Screen.Journal.route) },
-                                onAddPlanting       = { navController.navigate(Screen.Crops.route) }
+                                onAddPlanting       = { navController.navigate(Screen.Crops.route) },
+                                onOpenPaywall       = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(Screen.Calendar.route) { CalendarScreen() }

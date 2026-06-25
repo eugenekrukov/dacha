@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 23–30 (Android 6–11): легаси Auto Backup, дублирует data_extraction_rules.xml (API 31+). -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="dacha_prefs.xml" />
+    <exclude domain="sharedpref" path="dacha_secure_prefs.xml" />
+</full-backup-content>

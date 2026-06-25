@@ -1,5 +1,6 @@
 package ru.dachakalend.app.data.repository
 
+import retrofit2.HttpException
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.TodayResponse
@@ -8,13 +9,24 @@ import javax.inject.Singleton
 
 sealed class Result<out T> {
     data class Success<T>(val data: T) : Result<T>()
-    data class Error(val message: String, val isNetwork: Boolean = false) : Result<Nothing>()
+    data class Error(
+        val message: String,
+        val isNetwork: Boolean = false,
+        val isSubscriptionRequired: Boolean = false,
+    ) : Result<Nothing>()
     object Loading : Result<Nothing>()
 }
 
-/** Классификация исключения: отсутствие связи (IOException) → isNetwork=true; HTTP-ошибки → false. */
+const val SUBSCRIPTION_REQUIRED_MESSAGE =
+    "Пробный период закончился или подписка не активна. Оформите подписку, чтобы продолжить."
+
+/** Классификация исключения: отсутствие связи (IOException) → isNetwork=true; HTTP 402 → isSubscriptionRequired=true. */
 fun errorResult(e: Throwable, fallback: String): Result.Error =
-    Result.Error(e.message ?: fallback, isNetwork = e is java.io.IOException)
+    if (e is HttpException && e.code() == 402) {
+        Result.Error(SUBSCRIPTION_REQUIRED_MESSAGE, isSubscriptionRequired = true)
+    } else {
+        Result.Error(e.message ?: fallback, isNetwork = e is java.io.IOException)
+    }
 
 @Singleton
 class TodayRepository @Inject constructor(

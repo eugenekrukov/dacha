@@ -79,6 +79,7 @@ fun TodayScreen(
     onOpenSettings: () -> Unit = {},
     onOpenJournal: () -> Unit = {},
     onAddPlanting: () -> Unit = {},
+    onOpenPaywall: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel()
 ) {
     val uiState       by viewModel.uiState.collectAsState()
@@ -120,7 +121,12 @@ fun TodayScreen(
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { _ ->
         when (val state = uiState) {
             is TodayUiState.Loading -> LoadingScreen()
-            is TodayUiState.Error   -> ErrorScreen(state.message) { viewModel.loadToday() }
+            is TodayUiState.Error   -> ErrorScreen(
+                message = state.message,
+                isSubscriptionRequired = state.isSubscriptionRequired,
+                onRetry = { viewModel.loadToday() },
+                onOpenPaywall = onOpenPaywall,
+            )
             is TodayUiState.Success -> {
                 val hiddenRecKeys = dismissedRecs + deletedRecs
                 val queueSize by viewModel.queueSize.collectAsState()
@@ -1380,15 +1386,31 @@ private fun LoadingScreen() {
 }
 
 @Composable
-private fun ErrorScreen(message: String, onRetry: () -> Unit) {
+private fun ErrorScreen(
+    message: String,
+    isSubscriptionRequired: Boolean = false,
+    onRetry: () -> Unit,
+    onOpenPaywall: () -> Unit = {},
+) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(message, color = MaterialTheme.colorScheme.error)
-            Button(onClick = onRetry, shape = RoundedCornerShape(16.dp)) {
-                Text("Повторить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, softWrap = false)
+            Text(
+                message,
+                textAlign = TextAlign.Center,
+                color = if (isSubscriptionRequired) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+            )
+            if (isSubscriptionRequired) {
+                // Повтор запроса не поможет, если подписка реально не активна — ведём на оплату.
+                Button(onClick = onOpenPaywall, shape = RoundedCornerShape(16.dp)) {
+                    Text("Оформить подписку", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, softWrap = false)
+                }
+            } else {
+                Button(onClick = onRetry, shape = RoundedCornerShape(16.dp)) {
+                    Text("Повторить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, softWrap = false)
+                }
             }
         }
     }

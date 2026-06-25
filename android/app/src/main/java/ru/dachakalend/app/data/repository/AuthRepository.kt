@@ -1,5 +1,6 @@
 package ru.dachakalend.app.data.repository
 
+import retrofit2.HttpException
 import ru.dachakalend.app.BuildConfig
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
@@ -7,8 +8,14 @@ import ru.dachakalend.app.data.model.LoginRequest
 import ru.dachakalend.app.data.model.RegisterRequest
 import ru.dachakalend.app.data.model.PromoRedeemResponse
 import ru.dachakalend.app.data.model.UserProfile
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+
+// HTTP-код ответа, если исключение — HttpException; иначе null. Раньше код доставали
+// строковым поиском по e.message (например, .contains("401")) — хрупко к изменению
+// формата исключения в Retrofit/OkHttp.
+private fun httpCode(e: Throwable): Int? = (e as? HttpException)?.code()
 
 @Singleton
 class AuthRepository @Inject constructor(
@@ -60,12 +67,15 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    private fun parsePromoError(e: Exception): String = when {
-        e.message?.contains("404") == true -> "Промокод не найден"
-        e.message?.contains("409") == true -> "Промокод уже использован"
-        e.message?.contains("410") == true -> "Срок действия промокода истёк"
-        e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
-        else -> "Не удалось активировать промокод"
+    private fun parsePromoError(e: Exception): String {
+        val code = httpCode(e)
+        return when {
+            code == 404 -> "Промокод не найден"
+            code == 409 -> "Промокод уже использован"
+            code == 410 -> "Срок действия промокода истёк"
+            e is IOException -> "Нет соединения с сервером"
+            else -> "Не удалось активировать промокод"
+        }
     }
 
     /** Подтверждает email кодом из письма. */
@@ -108,10 +118,13 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    private fun parseCodeError(e: Exception): String = when {
-        e.message?.contains("400") == true -> "Неверный или просроченный код"
-        e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
-        else -> "Не удалось проверить код"
+    private fun parseCodeError(e: Exception): String {
+        val code = httpCode(e)
+        return when {
+            code == 400 -> "Неверный или просроченный код"
+            e is IOException -> "Нет соединения с сервером"
+            else -> "Не удалось проверить код"
+        }
     }
 
     /** Смена пароля залогиненным пользователем (нужен текущий). */
@@ -130,11 +143,12 @@ class AuthRepository @Inject constructor(
             api.changeEmail(mapOf("new_email" to newEmail.trim(), "password" to password))
             Result.Success(Unit)
         } catch (e: Exception) {
+            val code = httpCode(e)
             Result.Error(
                 when {
-                    e.message?.contains("401") == true -> "Неверный пароль"
-                    e.message?.contains("409") == true -> "Этот email уже занят"
-                    e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
+                    code == 401 -> "Неверный пароль"
+                    code == 409 -> "Этот email уже занят"
+                    e is IOException -> "Нет соединения с сервером"
                     else -> "Не удалось отправить код"
                 }
             )
@@ -148,8 +162,8 @@ class AuthRepository @Inject constructor(
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(
-                when {
-                    e.message?.contains("409") == true -> "Этот email уже занят"
+                when (httpCode(e)) {
+                    409 -> "Этот email уже занят"
                     else -> "Неверный или просроченный код"
                 }
             )
@@ -166,18 +180,24 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    private fun parsePasswordError(e: Exception): String = when {
-        e.message?.contains("401") == true -> "Неверный пароль"
-        e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
-        else -> "Не удалось выполнить операцию"
+    private fun parsePasswordError(e: Exception): String {
+        val code = httpCode(e)
+        return when {
+            code == 401 -> "Неверный пароль"
+            e is IOException -> "Нет соединения с сервером"
+            else -> "Не удалось выполнить операцию"
+        }
     }
 
     fun logout() = tokenStorage.clearToken()
 
-    private fun parseError(e: Exception): String = when {
-        e.message?.contains("401") == true -> "Неверный email или пароль"
-        e.message?.contains("409") == true -> "Пользователь с таким email уже существует"
-        e.message?.contains("Unable to resolve host") == true -> "Нет соединения с сервером"
-        else -> e.message ?: "Неизвестная ошибка"
+    private fun parseError(e: Exception): String {
+        val code = httpCode(e)
+        return when {
+            code == 401 -> "Неверный email или пароль"
+            code == 409 -> "Пользователь с таким email уже существует"
+            e is IOException -> "Нет соединения с сервером"
+            else -> e.message ?: "Неизвестная ошибка"
+        }
     }
 }
