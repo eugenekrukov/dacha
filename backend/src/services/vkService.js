@@ -29,8 +29,23 @@ function createVk({ token, fetchImpl = fetch } = {}) {
 const wallOwnerId = (groupId) => -Math.abs(Number(groupId))
 const attachmentOf = (photo) => `photo${photo.owner_id}_${photo.id}`
 
+// Грубая защита от SSRF: image_url приходит из md-файлов контент-плана (scripts/vk-queue.js) —
+// сейчас туда нет внешнего непроверенного ввода, но если этот путь когда-нибудь станет достижим
+// через HTTP-роут или пользовательский контент, fetch на внутренний/служебный адрес (включая
+// cloud-метадату 169.254.169.254) был бы реальной дырой. Без полноценного DNS-резолва и проверки
+// IP (избыточно для текущего источника данных) — блокируем по очевидным хостам/диапазонам.
+function isBlockedHost(hostname) {
+  const h = hostname.toLowerCase()
+  if (h === 'localhost' || h === '0.0.0.0' || h === '::1' || h === '169.254.169.254') return true
+  return /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.)/.test(h)
+}
+
 async function loadImageBytes(src, fetchImpl = fetch) {
   if (/^https?:\/\//i.test(src)) {
+    const url = new URL(src)
+    if (isBlockedHost(url.hostname)) {
+      throw new Error(`Загрузка изображения с этого адреса запрещена: ${url.hostname}`)
+    }
     const r = await fetchImpl(src)
     if (!r.ok) throw new Error(`Не удалось скачать изображение: HTTP ${r.status}`)
     return Buffer.from(await r.arrayBuffer())
