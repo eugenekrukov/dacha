@@ -18,10 +18,14 @@
   на ленте и в журнале посадки. В проде (`GET /feed`, без миграции). Android — vc6/1.0.3 (не опубликован).
 - **Автопостер ВК** (маркетинг): очередь с расписанием `vk_post_queue` (миграция 048) + cron `vkQueueJob`,
   публикует посты из md-файла контента в сообщество `calendacha`. Нужен ПОЛЬЗОВАТЕЛЬСКИЙ VK-токен. Ops — `docs/DEPLOY.md`.
-- ⚠️ **Android JVM unit-тесты не запускаются в этом окружении** — кириллический путь `Календарь дачника`
-  ломает тест-воркер (`ClassNotFoundException` для всех классов; давний «E3»). Верификация Android =
-  компиляция main + тест-исходников (`:app:compile<Flavor>DebugUnitTestKotlin`); прогон тестов — в
-  Android Studio / на ASCII-пути.
+- ✅ **E3 исправлен (2026-06-25)**: Android JVM unit-тесты теперь запускаются в этом окружении.
+  Корень — Gradle-тест-воркер на Windows не грузил классы из `build/`-каталога с кириллическим путём
+  (`ClassNotFoundException`, native-кодировка classpath-argfile, баг JVM/Gradle gradle/gradle#30304).
+  Фикс — `android/build.gradle.kts`: при не-ASCII пути проекта `buildDir` всех модулей переносится в
+  `%LOCALAPPDATA%\dacha-android-build` (ASCII), исходники остаются на месте. После фикса всплыл
+  реальный баг в `TodayViewModelTest` — relaxed-мок `ActionsRepository` не синтезировал `SharedFlow<T>`
+  (MockK `KotlinNothingValueException`), исправлено явным стабом в `setUp()`. `:app:testRustoreDebugUnitTest`
+  и `:app:testGplayDebugUnitTest` — зелёные.
 - **F1 офлайн «Сегодня»** (Android+backend): реализован в ветке `feature/offline-today`, **НЕ задеплоен**
   (read-кэш + очередь записи; миграция 045). См. session-note (2026-06-21).
 
@@ -108,8 +112,7 @@ Backend `GET /feed` (UNION, пагинация, без миграции). Фун
 - Уведомления на web.
 
 **Технический долг:**
-- **E3**: Android unit-тесты не запускаются (`testDebugUnitTest` → `ClassNotFoundException`, баг тулчейна AGP 9.2.1 + built-in Kotlin, не код). Рабочая проверка — `:app:compile*Kotlin`; логику покрывает backend-сьют.
-  ⚠️ 2026-06-25: владелец поднял приоритет («надо починить») — раньше считалось не срочным.
+- ✅ **E3** — исправлено 2026-06-25, см. «Текущий статус» выше.
 
 **«Could» из ТЗ:**
 - §5.8 сравнение урожая по сезонам · §5.2 профиль участка (отдельный экран) · §5.1 поля участка (площадь, тип почвы).

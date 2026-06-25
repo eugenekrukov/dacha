@@ -58,6 +58,10 @@ class TodayViewModelTest {
         syncManager   = mockk(relaxed = true)
         actionQueue   = mockk(relaxed = true)
         every { actionQueue.size } returns kotlinx.coroutines.flow.MutableStateFlow(0)
+        // relaxed-мок ActionsRepository не умеет синтезировать SharedFlow<T> (generic) — без явного
+        // стаба .collect() на этих свойствах бросает KotlinNothingValueException (известный гочи MockK).
+        every { actionsRepo.deletedActionEvents } returns kotlinx.coroutines.flow.MutableSharedFlow()
+        every { actionsRepo.loggedActionEvents }  returns kotlinx.coroutines.flow.MutableSharedFlow()
 
         every { tokenStorage.getGardenId() }    returns 1
         every { tokenStorage.getClimateZone() } returns "4"
