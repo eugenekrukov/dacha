@@ -10,10 +10,12 @@ const app = Fastify({
   }
 })
 
-// JWT-секрет обязателен в production — иначе токены подделываются предсказуемым ключом
+// JWT-секрет обязателен всегда — иначе токены подделываются предсказуемым дефолтным ключом.
+// Раньше проверка была завязана на NODE_ENV === 'production'; если деплой забывал выставить
+// NODE_ENV, секрет тихо падал на публично известную строку.
 const jwtSecret = process.env.JWT_SECRET
-if (!jwtSecret && process.env.NODE_ENV === 'production') {
-  app.log.error('JWT_SECRET must be set in production')
+if (!jwtSecret) {
+  app.log.error('JWT_SECRET must be set')
   process.exit(1)
 }
 
@@ -36,7 +38,7 @@ app.register(require('@fastify/rate-limit'), {
 })
 
 app.register(require('@fastify/jwt'), {
-  secret: jwtSecret || 'dev-secret-change-in-production',
+  secret: jwtSecret,
   sign: { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
 })
 
@@ -82,6 +84,11 @@ app.decorate('requireAccess', async function (request, reply) {
     'SELECT trial_started_at, subscription_until, promo_until, store FROM users WHERE id = $1',
     [request.user.userId]
   )
+  // Токен может пережить удаление аккаунта (живёт до 30 дней) — это ошибка
+  // аутентификации, а не отсутствие подписки, иначе клиент решит, что нужно платить.
+  if (!res.rows[0]) {
+    return reply.code(401).send({ error: 'user_not_found' })
+  }
   if (!hasAccess(res.rows[0])) {
     return reply.code(402).send({ error: 'subscription_required' })
   }

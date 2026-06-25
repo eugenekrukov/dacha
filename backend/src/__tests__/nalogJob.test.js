@@ -109,3 +109,49 @@ describe('runNalogReceipts', () => {
     expect(email.sent.length).toBe(0)
   })
 })
+
+// Мок БД с реальной фильтрацией по npd_status (а не статичной выдачей фикстур из массива) —
+// нужен, чтобы проверить, что claim (pending → registering) реально не даёт второму
+// параллельному прогону job забрать ту же строку.
+function makeStatefulDb(rows) {
+  const state = new Map(rows.map(r => [r.id, { npd_attempts: 0, ...r }]))
+  return {
+    state,
+    async query(sql, params) {
+      if (sql.includes("SET npd_status = 'registering'") && sql.includes('RETURNING')) {
+        const limit = params[0]
+        const claimed = [...state.values()].filter(r => r.npd_status === 'pending').slice(0, limit)
+        claimed.forEach(r => { r.npd_status = 'registering' })
+        return { rows: claimed.map(r => ({ ...r })) }
+      }
+      if (sql.includes("SET npd_status = 'canceling'") && sql.includes('RETURNING')) {
+        return { rows: [] }
+      }
+      if (sql.startsWith('UPDATE payments SET npd_status =')) {
+        const newStatus = sql.match(/npd_status = '(\w+)'/)[1]
+        const hasGuard = sql.includes('AND npd_status')
+        const idParam = params[params.length - 1]
+        const row = state.get(idParam)
+        if (row && (!hasGuard || row.npd_status === 'registering')) row.npd_status = newStatus
+        return { rows: [], rowCount: row ? 1 : 0 }
+      }
+      return { rows: [] }
+    }
+  }
+}
+
+describe('runNalogReceipts — защита от параллельного запуска', () => {
+  it('claim не даёт двум параллельным прогонам зарегистрировать один платёж дважды', async () => {
+    const db = makeStatefulDb([
+      { id: 100, user_id: 1, email: 'a@b.c', amount: '299.00', plan: 'monthly', created_at: new Date(), npd_status: 'pending' }
+    ])
+    let addIncomeCalls = 0
+    const nalog = makeNalog({ add: async () => { addIncomeCalls++; await new Promise((r) => setTimeout(r, 5)); return 'rcpt_100' } })
+    await Promise.all([
+      runNalogReceipts(db, nalog, makeEmail()),
+      runNalogReceipts(db, nalog, makeEmail())
+    ])
+    expect(addIncomeCalls).toBe(1)
+    expect(db.state.get(100).npd_status).toBe('registered')
+  })
+})

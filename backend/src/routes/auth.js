@@ -81,8 +81,16 @@ module.exports = async function (fastify) {
   })
 
   // POST /auth/login
+  // keyGenerator по email (а не только IP по умолчанию) — иначе перебор пароля одной жертвы
+  // можно распределить по множеству IP/проксям и не упереться в лимит.
   fastify.post('/login', {
-    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+        keyGenerator: (req) => (req.body && req.body.email ? `login:${String(req.body.email).toLowerCase()}` : req.ip)
+      }
+    },
     schema: {
       body: {
         type: 'object',

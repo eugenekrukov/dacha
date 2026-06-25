@@ -6,8 +6,38 @@ const { isSubscribed } = require('../utils/access')
 
 /**
  * Stateful-мок БД для /billing. Хранит users и payments в памяти и реагирует на SQL роута.
- * ЮKassa в тестах отключена (нет env) → webhook доверяет телу запроса (getPayment не вызывается).
+ * Вебхук требует включённый биллинг (иначе 503) — тесты инжектируют мок ЮKassa, который
+ * имитирует «перезапрос из API» (getPayment/getRefund по id), возвращая зарегистрированный
+ * объект — т.е. тестируется бизнес-логика обработки вебхука, а не сама верификация ЮKassa.
  */
+const realYk = require('../services/yookassaService')
+
+function makeYkMock() {
+  const payments = {}
+  const refunds = {}
+  return {
+    isEnabled: () => true,
+    getPlan: realYk.getPlan,
+    registerPayment(obj) { payments[obj.id] = obj },
+    registerRefund(obj) { refunds[obj.id] = obj },
+    async getPayment(id) {
+      if (!payments[id]) throw new Error(`yk mock: неизвестный payment ${id}`)
+      return payments[id]
+    },
+    async getRefund(id) {
+      if (!refunds[id]) throw new Error(`yk mock: неизвестный refund ${id}`)
+      return refunds[id]
+    }
+  }
+}
+
+// Регистрирует объект вебхука в моке ЮKassa и шлёт сам вебхук — один шаг вместо двух
+// на каждый вызов в тестах ниже.
+async function sendWebhook(app, yk, webhook) {
+  if (webhook.event === 'refund.succeeded') yk.registerRefund(webhook.object)
+  else yk.registerPayment(webhook.object)
+  return supertest(app.server).post('/billing/webhook').send(webhook)
+}
 function makeMockDb({ users = {}, payments = {} } = {}) {
   return {
     state: { users, payments },
@@ -144,10 +174,20 @@ describe('POST /billing/create-payment', () => {
 })
 
 describe('POST /billing/webhook', () => {
+  it('биллинг отключён → 503, тело запроса не обрабатывается', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const app = await buildApp(db) // без opts.yookassa → дефолтный сервис, isEnabled()=false
+    const res = await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    expect(res.status).toBe(503)
+    expect(db.state.users[1].subscription_until).toBeUndefined()
+    await app.close()
+  })
+
   it('payment.succeeded → продлевает подписку, включает автопродление, сохраняет карту', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db)
-    const res = await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    const res = await sendWebhook(app, yk, succeededWebhook())
 
     expect(res.status).toBe(200)
     const u = db.state.users[1]
@@ -164,9 +204,9 @@ describe('POST /billing/webhook', () => {
 
   it('годовой тариф → доступ ~365 дней', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db)
-    await supertest(app.server).post('/billing/webhook')
-      .send(succeededWebhook({ id: 'pay_year', plan: 'yearly' }))
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    await sendWebhook(app, yk, succeededWebhook({ id: 'pay_year', plan: 'yearly' }))
     const days = (new Date(db.state.users[1].subscription_until).getTime() - Date.now()) / 86_400_000
     expect(days).toBeGreaterThan(364)
     expect(days).toBeLessThan(366)
@@ -175,10 +215,11 @@ describe('POST /billing/webhook', () => {
 
   it('идемпотентность: повторный succeeded-вебхук не продлевает подписку дважды', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db)
-    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    await sendWebhook(app, yk, succeededWebhook())
     const firstUntil = db.state.users[1].subscription_until
-    const res = await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    const res = await sendWebhook(app, yk, succeededWebhook())
     expect(res.status).toBe(200)
     expect(db.state.users[1].subscription_until).toBe(firstUntil)  // не изменилось
     await app.close()
@@ -187,8 +228,9 @@ describe('POST /billing/webhook', () => {
   it('продление от конца активной подписки (не теряем оплаченное)', async () => {
     const future = new Date(Date.now() + 20 * 86_400_000)
     const db = makeMockDb({ users: { 1: { email: 'a@b.c', subscription_until: future } } })
-    const app = await buildApp(db)
-    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    await sendWebhook(app, yk, succeededWebhook())
     const days = (new Date(db.state.users[1].subscription_until).getTime() - Date.now()) / 86_400_000
     expect(days).toBeGreaterThan(49)   // 20 остаток + 30 новых
     expect(days).toBeLessThan(51)
@@ -197,8 +239,9 @@ describe('POST /billing/webhook', () => {
 
   it('payment.canceled → запись canceled, подписка не меняется', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db)
-    const res = await supertest(app.server).post('/billing/webhook').send({
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    const res = await sendWebhook(app, yk, {
       event: 'payment.canceled',
       object: { id: 'pay_cancel', status: 'canceled', metadata: { user_id: '1', plan: 'monthly' } }
     })
@@ -210,20 +253,32 @@ describe('POST /billing/webhook', () => {
 
   it('вебхук без metadata.user_id → 200 no-op', async () => {
     const db = makeMockDb()
-    const app = await buildApp(db)
-    const res = await supertest(app.server).post('/billing/webhook').send({
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    const res = await sendWebhook(app, yk, {
       event: 'payment.succeeded', object: { id: 'x', status: 'succeeded', metadata: {} }
     })
     expect(res.status).toBe(200)
     await app.close()
   })
 
+  it('неизвестный plan в metadata → не пишется в БД как есть, используется monthly', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    await sendWebhook(app, yk, succeededWebhook({ id: 'pay_evil', plan: "'; DROP TABLE users; --" }))
+    expect(db.state.users[1].plan).toBe('monthly')
+    expect(db.state.payments['pay_evil'].plan).toBe('monthly')
+    await app.close()
+  })
+
   it('карта не сохранена (saved=false) → подписка продлена, payment_method_id не выставлен', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db)
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
     const wh = succeededWebhook()
     wh.object.payment_method.saved = false
-    await supertest(app.server).post('/billing/webhook').send(wh)
+    await sendWebhook(app, yk, wh)
     expect(isSubscribed(db.state.users[1].subscription_until)).toBe(true)
     expect(db.state.users[1].payment_method_id).toBeUndefined()
     expect(db.state.users[1].auto_renew).toBe(false)   // нет карты → продление вручную
@@ -232,12 +287,13 @@ describe('POST /billing/webhook', () => {
 
   it('refund.succeeded → отзывает выданный период, помечает платёж refunded, гасит автопродление', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db)
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
     // Оплата: +30 дней доступа.
-    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    await sendWebhook(app, yk, succeededWebhook())
     expect(isSubscribed(db.state.users[1].subscription_until)).toBe(true)
     // Возврат того же платежа: период должен отозваться.
-    const res = await supertest(app.server).post('/billing/webhook').send(refundWebhook())
+    const res = await sendWebhook(app, yk, refundWebhook())
     expect(res.status).toBe(200)
     expect(isSubscribed(db.state.users[1].subscription_until)).toBe(false)  // доступа больше нет
     expect(db.state.users[1].auto_renew).toBe(false)
@@ -247,11 +303,12 @@ describe('POST /billing/webhook', () => {
 
   it('refund: идемпотентность — повторный возврат не отзывает период дважды', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db)
-    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
-    await supertest(app.server).post('/billing/webhook').send(refundWebhook())
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    await sendWebhook(app, yk, succeededWebhook())
+    await sendWebhook(app, yk, refundWebhook())
     const afterFirst = db.state.users[1].subscription_until
-    const res = await supertest(app.server).post('/billing/webhook').send(refundWebhook({ id: 'ref_002' }))
+    const res = await sendWebhook(app, yk, refundWebhook({ id: 'ref_002' }))
     expect(res.status).toBe(200)
     expect(db.state.users[1].subscription_until).toBe(afterFirst)  // не изменилось второй раз
     await app.close()
@@ -259,9 +316,9 @@ describe('POST /billing/webhook', () => {
 
   it('refund для неизвестного платежа → 200 no-op', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db)
-    const res = await supertest(app.server).post('/billing/webhook')
-      .send(refundWebhook({ id: 'ref_x', paymentId: 'pay_unknown' }))
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    const res = await sendWebhook(app, yk, refundWebhook({ id: 'ref_x', paymentId: 'pay_unknown' }))
     expect(res.status).toBe(200)
     await app.close()
   })
@@ -277,36 +334,40 @@ const nalogEnabled = {
 describe('POST /billing/webhook — пометка чеков НПД', () => {
   it('payment.succeeded при включённом «Мой налог» → npd_status=pending', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db, { nalog: nalogEnabled })
-    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk, nalog: nalogEnabled })
+    await sendWebhook(app, yk, succeededWebhook())
     expect(db.state.payments['pay_001'].npd_status).toBe('pending')
     await app.close()
   })
 
   it('«Мой налог» отключён → npd_status не выставляется', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db) // без opts.nalog → дефолтный сервис, isEnabled()=false (нет env)
-    await supertest(app.server).post('/billing/webhook').send(succeededWebhook({ id: 'pay_no_npd' }))
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk }) // без opts.nalog → дефолтный сервис, isEnabled()=false (нет env)
+    await sendWebhook(app, yk, succeededWebhook({ id: 'pay_no_npd' }))
     expect(db.state.payments['pay_no_npd'].npd_status).toBeUndefined()
     await app.close()
   })
 
   it('refund.succeeded с зарегистрированным чеком → npd_status=cancel_pending', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db, { nalog: nalogEnabled })
-    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk, nalog: nalogEnabled })
+    await sendWebhook(app, yk, succeededWebhook())
     db.state.payments['pay_001'].npd_receipt_uuid = 'rcpt_x' // имитируем уже выданный чек
-    await supertest(app.server).post('/billing/webhook').send(refundWebhook())
+    await sendWebhook(app, yk, refundWebhook())
     expect(db.state.payments['pay_001'].npd_status).toBe('cancel_pending')
     await app.close()
   })
 
   it('refund.succeeded до регистрации чека (pending, без uuid) → npd_status снимается', async () => {
     const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
-    const app = await buildApp(db, { nalog: nalogEnabled })
-    await supertest(app.server).post('/billing/webhook').send(succeededWebhook())
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk, nalog: nalogEnabled })
+    await sendWebhook(app, yk, succeededWebhook())
     expect(db.state.payments['pay_001'].npd_status).toBe('pending')
-    await supertest(app.server).post('/billing/webhook').send(refundWebhook())
+    await sendWebhook(app, yk, refundWebhook())
     expect(db.state.payments['pay_001'].npd_status).toBeNull()
     await app.close()
   })

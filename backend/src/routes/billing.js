@@ -54,6 +54,16 @@ module.exports = async function (fastify, opts) {
   // Безопасность: при включённом биллинге перезапрашиваем платёж из API (источник истины),
   // а не доверяем телу запроса. Идемпотентность — по payments.yk_payment_id.
   fastify.post('/webhook', async (request, reply) => {
+    // Если биллинг выключен (нет ключей ЮKassa), у нас нет способа проверить подлинность
+    // запроса — раньше код в этом случае доверял телу запроса напрямую, что позволяло
+    // подделать payment.succeeded для любого user_id. В проде биллинг всегда включён;
+    // если он внезапно выключен (ошибка конфигурации/деплоя), безопаснее отклонить вебхук,
+    // чем тихо начать доверять непроверенным данным.
+    if (!yk.isEnabled()) {
+      fastify.log.warn('[billing] webhook получен при отключённом биллинге — отклонён')
+      return reply.code(503).send({ error: 'billing_disabled' })
+    }
+
     const body = request.body || {}
     const event = body.event
     let object = body.object
@@ -66,14 +76,12 @@ module.exports = async function (fastify, opts) {
     // исходный платёж). НЕ перезапрашиваем как payment; верифицируем через getRefund.
     // Без обработки клиент мог бы оплатить → вернуть деньги → пользоваться доступом бесплатно.
     if (event === 'refund.succeeded') {
-      let refund = object
-      if (yk.isEnabled()) {
-        try {
-          refund = await yk.getRefund(object.id)
-        } catch (e) {
-          fastify.log.error(`[billing] webhook getRefund failed: ${e.message}`)
-          return reply.code(500).send({ error: 'verify_failed' })  // 500 → ЮKassa повторит
-        }
+      let refund
+      try {
+        refund = await yk.getRefund(object.id)
+      } catch (e) {
+        fastify.log.error(`[billing] webhook getRefund failed: ${e.message}`)
+        return reply.code(500).send({ error: 'verify_failed' })  // 500 → ЮKassa повторит
       }
       if (refund.status !== 'succeeded' || !refund.payment_id) {
         return reply.code(200).send({ ok: true })
@@ -106,9 +114,9 @@ module.exports = async function (fastify, opts) {
           "UPDATE payments SET npd_status = 'cancel_pending' WHERE yk_payment_id = $1",
           [refund.payment_id]
         )
-      } else if (nalog.isEnabled() && pay.npd_status === 'pending') {
-        // Возврат пришёл до регистрации чека — снимаем платёж с очереди, чтобы не пробить чек НПД
-        // на уже возвращённые деньги.
+      } else if (nalog.isEnabled() && (pay.npd_status === 'pending' || pay.npd_status === 'registering')) {
+        // Возврат пришёл до регистрации чека (или во время неё — 'registering' — см. nalogJob.js
+        // claim) — снимаем платёж с очереди, чтобы не пробить чек НПД на уже возвращённые деньги.
         await db.query(
           "UPDATE payments SET npd_status = NULL WHERE yk_payment_id = $1",
           [refund.payment_id]
@@ -118,18 +126,19 @@ module.exports = async function (fastify, opts) {
     }
 
     // Доверяем не телу, а перезапрошенному из ЮKassa объекту (защита от подделки).
-    if (yk.isEnabled()) {
-      try {
-        object = await yk.getPayment(object.id)
-      } catch (e) {
-        fastify.log.error(`[billing] webhook getPayment failed: ${e.message}`)
-        return reply.code(500).send({ error: 'verify_failed' })  // 500 → ЮKassa повторит
-      }
+    try {
+      object = await yk.getPayment(object.id)
+    } catch (e) {
+      fastify.log.error(`[billing] webhook getPayment failed: ${e.message}`)
+      return reply.code(500).send({ error: 'verify_failed' })  // 500 → ЮKassa повторит
     }
 
     const status = object.status   // succeeded | canceled | pending | waiting_for_capture
     const userId = parseInt(object.metadata && object.metadata.user_id)
-    const plan = object.metadata && object.metadata.plan
+    const metaPlan = object.metadata && object.metadata.plan
+    // metadata приходит из перезапрошенного у ЮKassa объекта, но сам plan мы туда положили
+    // при create-payment — на всякий случай не пишем в БД ничего, кроме известного тарифа.
+    const plan = yk.getPlan(metaPlan) ? metaPlan : 'monthly'
 
     if (!userId) return reply.code(200).send({ ok: true })
 

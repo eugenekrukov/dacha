@@ -86,6 +86,7 @@ async function buildGated(userRow) {
   fastify.decorate('requireAccess', async function (request, reply) {
     try { await request.jwtVerify() } catch (e) { return reply.send(e) }
     const res = await fastify.db.query('SELECT trial_started_at, subscription_until FROM users WHERE id = $1', [request.user.userId])
+    if (!res.rows[0]) return reply.code(401).send({ error: 'user_not_found' })
     if (!hasAccess(res.rows[0])) return reply.code(402).send({ error: 'subscription_required' })
   })
 
@@ -124,6 +125,15 @@ describe('requireAccess (интеграция, 402)', () => {
     const app = await buildGated({ trial_started_at: daysAgo(10), subscription_until: null })
     const res = await supertest(app.server).post('/gated')
     expect(res.status).toBe(401)
+    await app.close()
+  })
+
+  it('токен валиден, но пользователь удалён → 401 (а не 402)', async () => {
+    const app = await buildGated(undefined)
+    const token = app.jwt.sign({ userId: 1, email: 't@t.com' })
+    const res = await supertest(app.server).post('/gated').set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(401)
+    expect(res.body.error).toBe('user_not_found')
     await app.close()
   })
 })
