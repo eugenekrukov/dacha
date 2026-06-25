@@ -6,7 +6,18 @@
 
 ## Незавершённый хвост этапа 1
 
-- [ ] **Android: эмодзи → иконки на вторичных экранах.** Осталось: TodayScreen (hero 🌻, чипы погоды 💧❄🌧, почва, ⚠️, пусто 🌱, weatherEmoji-map), Analytics, Harvest, Crops, CropDetail, CropSections, GuideScreen + GuideViewModel (`guideKindIcon`), CreateGarden, OnboardingCrops, VerifyEmail, CityInputField, TutorialIntroScreen, CalendarViewModel. Проверка: `:app:compileGplayDebugKotlin`. (Web — уже полностью на lucide.)
+- [x] **Android: эмодзи → иконки на вторичных экранах.** ✅ 2026-06-25 (`9fa70bb`). TodayScreen
+      (hero — переиспользует брендовый `ic_sunflower_png` вместо системного 🌻, чипы погоды, почва,
+      предупреждения, 7-дневный прогноз, пусто), Analytics (стрик, чек-лист онбординга), Harvest,
+      Crops/CropSections (морозостойкость/многолетник/поиск), Guide+GuideViewModel (`guideKindIcon`
+      теперь возвращает `ImageVector`), CreateGarden, OnboardingCrops, VerifyEmail, CityInputField,
+      TutorialIntroScreen, CalendarViewModel (избыточные эмодзи-префиксы убраны — иконка уже
+      рисуется отдельно через `eventStyle`). Заодно дополнительно найденные: лента «Мой участок»
+      (вехи сезона), предупреждение на «Посадках», экран сброса пароля. Не трогали: статус-строки
+      с префиксом «✓ GPS-координаты…» в Garden*ViewModel/Screen (текстовый чек-марк, не цветной
+      эмодзи — рефактор в Icon+Text требует менять структуру данных за небольшую визуальную выгоду).
+      Проверено: `:app:compileGplayDebugKotlin` + `:app:compileGplayDebugUnitTestKotlin` — BUILD
+      SUCCESSFUL.
 
 ## Этап 2 — приоритетное
 
