@@ -5,6 +5,8 @@ import { actionLabel, formatDate } from '../api/labels'
 import { collapseActions, type ActionGroup } from '../api/schedule'
 import { actionIcon } from '../ui/icons'
 import type { ActionLog } from '../api/types'
+import ErrorCard from '../components/ErrorCard'
+import Modal from '../components/Modal'
 
 export default function JournalScreen() {
   const [actions, setActions] = useState<ActionLog[]>([])
@@ -55,16 +57,24 @@ export default function JournalScreen() {
   const doDelete = async () => {
     if (!confirm) return
     setDeleting(true)
-    try {
-      // Свёрнутая серия = несколько записей; удаляем все её id.
-      await Promise.all(confirm.ids.map((id) => api.deleteAction(id)))
-      setActions((prev) => prev.filter((a) => !confirm.ids.includes(a.id)))
-      setConfirm(null)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось удалить запись')
-    } finally {
-      setDeleting(false)
+    // Свёрнутая серия = несколько записей; удаляем все её id. Promise.all уронил бы весь
+    // батч при первой ошибке (уже удалённые на сервере записи остались бы в UI без следа) —
+    // allSettled убирает из списка только реально удалённые и явно сообщает про остальные.
+    const results = await Promise.allSettled(confirm.ids.map((id) => api.deleteAction(id)))
+    const deletedIds = confirm.ids.filter((_, i) => results[i].status === 'fulfilled')
+    const failedCount = results.length - deletedIds.length
+    setActions((prev) => prev.filter((a) => !deletedIds.includes(a.id)))
+    if (failedCount > 0) {
+      const firstError = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined
+      const reason = firstError?.reason
+      setError(
+        deletedIds.length > 0
+          ? `Удалено ${deletedIds.length} из ${confirm.ids.length}. Часть записей удалить не удалось — попробуйте ещё раз.`
+          : reason instanceof ApiError ? reason.message : 'Не удалось удалить запись'
+      )
     }
+    setConfirm(null)
+    setDeleting(false)
   }
 
   if (loading) return <p className="p-4 font-bold text-muted">Загрузка…</p>
@@ -77,7 +87,7 @@ export default function JournalScreen() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black">Журнал действий</h1>
         {actions.length > 0 && (
-          <button className="dacha-btn h-10 px-4" disabled={exporting} onClick={exportCsv}>
+          <button className="dacha-btn h-10 px-4" aria-label="Экспортировать журнал в CSV" disabled={exporting} onClick={exportCsv}>
             {exporting ? '…' : '⤓ CSV'}
           </button>
         )}
@@ -96,7 +106,7 @@ export default function JournalScreen() {
         </div>
       )}
 
-      {error && <div className="dacha-card p-4 font-semibold text-muted">{error}</div>}
+      {error && <ErrorCard message={error} />}
 
       {groups.length === 0 && !error ? (
         <div className="dacha-card p-6 text-center font-semibold text-muted">
@@ -133,8 +143,7 @@ export default function JournalScreen() {
       )}
 
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !deleting && setConfirm(null)}>
-          <div className="dacha-card flex w-full max-w-sm flex-col gap-4 p-5" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => !deleting && setConfirm(null)} className="flex w-full max-w-sm flex-col gap-4 p-5">
             <h2 className="text-lg font-black">Удалить запись?</h2>
             <p className="font-semibold text-muted">
               «{actionLabel(confirm.action_type)}
@@ -157,8 +166,7 @@ export default function JournalScreen() {
                 {deleting ? '…' : 'Удалить'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

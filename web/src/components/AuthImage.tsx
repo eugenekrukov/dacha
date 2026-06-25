@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { tokenStore } from '../auth/storage'
-
-const BASE = import.meta.env.DEV ? '/api' : ''
+import { BASE } from '../api/client'
 
 interface Props {
   path: string            // относительный url из API (например /photos/file/10?thumb=1)
@@ -30,7 +29,9 @@ export default function AuthImage({ path, alt, className }: Props) {
     return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
   }, [path])
 
-  if (failed) return <div className={`flex items-center justify-center bg-black/5 text-xs text-muted ${className ?? ''}`}>—</div>
+  if (failed) return (
+    <div role="img" aria-label="Не удалось загрузить фото" className={`flex items-center justify-center bg-black/5 text-xs text-muted ${className ?? ''}`}>—</div>
+  )
   if (!src) return <div className={`animate-pulse bg-black/5 ${className ?? ''}`} />
   return <img src={src} alt={alt} className={className} />
 }

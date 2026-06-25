@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useModalA11y } from './Modal'
 import {
   Sun,
   Sprout,
@@ -42,11 +43,15 @@ function MoreMenu({ dropUp = false }: { dropUp?: boolean }) {
   const [open, setOpen] = useState(false)
   const loc = useLocation()
   const active = MORE.some((i) => loc.pathname.startsWith(i.to))
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  useModalA11y(menuRef, () => setOpen(false), open)
 
   const menu = open && (
     <>
       <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
       <div
+        ref={menuRef}
+        role="menu"
         className={
           dropUp
             ? 'fixed inset-x-3 bottom-20 z-30 mx-auto flex max-w-xs flex-col gap-1 rounded-card border border-black/10 bg-white p-2 shadow-card'
@@ -59,6 +64,7 @@ function MoreMenu({ dropUp = false }: { dropUp?: boolean }) {
             <NavLink
               key={m.to}
               to={m.to}
+              role="menuitem"
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-2 rounded-btn px-3 py-2 font-bold transition hover:bg-background ${
@@ -77,7 +83,12 @@ function MoreMenu({ dropUp = false }: { dropUp?: boolean }) {
   if (dropUp) {
     return (
       <>
-        <button onClick={() => setOpen((o) => !o)} className={bottomItem(active)}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className={bottomItem(active)}
+        >
           <MoreHorizontal size={20} aria-hidden />
           <span>Ещё</span>
         </button>
@@ -90,6 +101,8 @@ function MoreMenu({ dropUp = false }: { dropUp?: boolean }) {
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className={`dacha-chip flex items-center gap-1.5 ${active ? 'dacha-chip-active' : ''}`}
       >
         <MoreHorizontal size={18} aria-hidden /> Ещё

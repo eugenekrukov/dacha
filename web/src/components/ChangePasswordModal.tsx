@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, ApiError } from '../api/client'
+import Modal from './Modal'
 
 export default function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const [current, setCurrent] = useState('')
@@ -26,9 +27,8 @@ export default function ChangePasswordModal({ onClose }: { onClose: () => void }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="dacha-card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-3 font-black">Смена пароля</h2>
+    <Modal onClose={onClose} className="w-full max-w-sm p-5">
+      <h2 className="mb-3 font-black">Смена пароля</h2>
         {done ? (
           <>
             <p className="font-semibold text-tertiary">Пароль изменён.</p>
@@ -55,7 +55,6 @@ export default function ChangePasswordModal({ onClose }: { onClose: () => void }
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }

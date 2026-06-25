@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, ApiError } from '../api/client'
+import Modal from './Modal'
 
 export default function ChangeEmailModal({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
   const [step, setStep] = useState<1 | 2>(1)
@@ -38,9 +39,8 @@ export default function ChangeEmailModal({ onClose, onChanged }: { onClose: () =
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="dacha-card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-3 font-black">Смена email</h2>
+    <Modal onClose={onClose} className="w-full max-w-sm p-5">
+      <h2 className="mb-3 font-black">Смена email</h2>
         {step === 1 ? (
           <>
             <input
@@ -73,7 +73,6 @@ export default function ChangeEmailModal({ onClose, onChanged }: { onClose: () =
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }

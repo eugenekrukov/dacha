@@ -17,6 +17,8 @@ import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
 import AuthImage from '../components/AuthImage'
 import EntryCard from '../components/EntryCard'
+import ErrorCard from '../components/ErrorCard'
+import { useModalA11y } from '../components/Modal'
 import type { FeedItem, MilestoneKind } from '../api/types'
 
 type Tab = 'feed' | 'stats' | 'guide'
@@ -137,7 +139,7 @@ function FeedList() {
   }
 
   if (loading) return <p className="p-4 font-bold text-muted">Загрузка…</p>
-  if (error) return <div className="dacha-card p-4 font-semibold text-muted">{error}</div>
+  if (error) return <ErrorCard message={error} />
   if (items.length === 0)
     return (
       <div className="dacha-card p-6 text-center font-semibold text-muted">
@@ -321,6 +323,8 @@ function PhotoViewer({
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [busy, setBusy] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  useModalA11y(containerRef, onClose)
 
   const wrap = (fn: () => void | Promise<void>) => async () => {
     setBusy(true)
@@ -332,7 +336,7 @@ function PhotoViewer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/90">
+    <div ref={containerRef} role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex flex-col bg-black/90">
       <div className="flex items-center justify-between gap-2 p-2">
         <div className="flex gap-1">
           <input
@@ -345,9 +349,11 @@ function PhotoViewer({
               if (f) wrap(() => onReplace(f))()
             }}
           />
-          <IconBtn label="Заменить фото" onClick={() => fileRef.current?.click()} disabled={busy}>
-            <RefreshCw size={20} />
-          </IconBtn>
+          {target.plantingId != null && (
+            <IconBtn label="Заменить фото" onClick={() => fileRef.current?.click()} disabled={busy}>
+              <RefreshCw size={20} />
+            </IconBtn>
+          )}
           <IconBtn label="Удалить фото" onClick={wrap(onDeletePhoto)} disabled={busy}>
             <Trash2 size={20} />
           </IconBtn>

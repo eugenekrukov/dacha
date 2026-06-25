@@ -6,6 +6,7 @@ import { useGardens } from '../garden/GardenContext'
 import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
 import type { Crop, Planting } from '../api/types'
 import AddPlantingForm from '../components/AddPlantingForm'
+import ErrorCard from '../components/ErrorCard'
 
 export default function PlantingsScreen() {
   const { gardenId } = useGardens()
@@ -48,7 +49,7 @@ export default function PlantingsScreen() {
         </button>
       </div>
 
-      {error && <div className="dacha-card p-4 font-semibold text-muted">{error}</div>}
+      {error && <ErrorCard message={error} />}
 
       {active.length === 0 && !error && (
         <div className="dacha-card flex flex-col items-center gap-2 p-6 text-center font-semibold text-muted">

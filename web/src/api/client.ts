@@ -25,7 +25,7 @@ import type {
 
 // В деве запросы идут через /api (Vite проксирует на прод с rewrite) — чтобы SPA-маршруты
 // не конфликтовали с API-роутами. В проде SPA и API на одном домене → префикс пустой.
-const BASE = import.meta.env.DEV ? '/api' : ''
+export const BASE = import.meta.env.DEV ? '/api' : ''
 
 export class ApiError extends Error {
   status: number
@@ -36,6 +36,11 @@ export class ApiError extends Error {
     this.code = code
   }
 }
+
+// Единое сообщение для 402 — раньше каждый экран показывал «как есть» код ошибки
+// от бэкенда (`subscription_required`), что выглядело как сырой текст ошибки.
+export const SUBSCRIPTION_REQUIRED_MESSAGE =
+  'Пробный период закончился или подписка не активна. Оформите подписку, чтобы продолжить.'
 
 type Json = Record<string, unknown>
 
@@ -75,6 +80,9 @@ async function request<T>(
 
   if (!res.ok) {
     const d = (data ?? {}) as { error?: string; message?: string }
+    if (res.status === 402) {
+      throw new ApiError(402, SUBSCRIPTION_REQUIRED_MESSAGE, d.error || 'subscription_required')
+    }
     throw new ApiError(res.status, d.error || d.message || `HTTP ${res.status}`, d.error)
   }
 

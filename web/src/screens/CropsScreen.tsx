@@ -4,6 +4,7 @@ import { Search, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { categoryLabel } from '../api/labels'
 import type { Crop } from '../api/types'
+import ErrorCard from '../components/ErrorCard'
 
 export default function CropsScreen() {
   const [crops, setCrops] = useState<Crop[]>([])
@@ -59,7 +60,7 @@ export default function CropsScreen() {
         )}
       </div>
 
-      {error && <div className="dacha-card p-4 font-semibold text-muted">{error}</div>}
+      {error && <ErrorCard message={error} />}
 
       {/* Категории прячем во время поиска (как в Android) */}
       {!q && categories.length > 0 && (

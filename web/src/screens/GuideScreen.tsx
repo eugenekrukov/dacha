@@ -5,6 +5,7 @@ import { api, ApiError } from '../api/client'
 import { GUIDE_KIND_LABELS } from '../api/labels'
 import { guideKindIcon } from '../ui/icons'
 import type { GuideEntry, GuideKind } from '../api/types'
+import ErrorCard from '../components/ErrorCard'
 
 const KINDS: GuideKind[] = ['deficiency', 'disease', 'pest']
 
@@ -70,7 +71,7 @@ export default function GuideScreen() {
           <X size={16} aria-hidden />
         </Link>
       )}
-      {error && <div className="dacha-card p-4 font-semibold text-muted">{error}</div>}
+      {error && <ErrorCard message={error} />}
 
       <input
         type="search"

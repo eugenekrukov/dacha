@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
 import { formatDate } from '../api/labels'
+import SubscribeCta from '../components/SubscribeCta'
 import type { AnalyticsSummary, Harvest, Planting } from '../api/types'
 
 export default function HarvestsScreen() {
@@ -60,13 +61,7 @@ export default function HarvestsScreen() {
       setNotes('')
       await load()
     } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.status === 402
-            ? 'Нужна подписка или активный пробный период'
-            : err.message
-          : 'Не удалось добавить'
-      setError(msg)
+      setError(err instanceof ApiError ? err.message : 'Не удалось добавить')
     } finally {
       setBusy(false)
     }
@@ -127,7 +122,12 @@ export default function HarvestsScreen() {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
-        {error && <p className="text-sm font-bold text-red-600">{error}</p>}
+        {error && (
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-bold text-red-600">{error}</p>
+            <SubscribeCta message={error} />
+          </div>
+        )}
         <button className="dacha-btn" disabled={busy}>
           {busy ? '…' : 'Добавить'}
         </button>

@@ -22,6 +22,7 @@ export default function GuideDetailScreen() {
   const [entry, setEntry] = useState<GuideEntryDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [imageFailed, setImageFailed] = useState(false)
 
   useEffect(() => {
     if (!slug) return
@@ -67,12 +68,13 @@ export default function GuideDetailScreen() {
         </div>
       </div>
 
-      {entry.image_url && (
+      {entry.image_url && !imageFailed && (
         <img
           src={entry.image_url}
           alt={entry.name}
           className="w-full rounded-card object-cover"
           loading="lazy"
+          onError={() => setImageFailed(true)}
         />
       )}
 

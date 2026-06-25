@@ -7,6 +7,7 @@ import { careTaskActionType, treatmentNote } from '../api/schedule'
 import { actionLabel } from '../api/labels'
 import { taskIcon, actionIcon } from '../ui/icons'
 import ActionLogSheet from '../components/ActionLogSheet'
+import ErrorCard from '../components/ErrorCard'
 import type { ActionLog, Recommendation, TodayResponse, TodayTask } from '../api/types'
 
 // Локальная дата (без времени) — для отбора действий, выполненных «сегодня».
@@ -157,7 +158,7 @@ export default function TodayScreen() {
       </div>
 
       {loading && <p className="font-bold text-muted">Загрузка…</p>}
-      {error && <div className="dacha-card p-4 font-semibold text-muted">{error}</div>}
+      {error && <ErrorCard message={error} />}
 
       {today?.forecast && today.forecast.length > 0 && (
         <section className="flex flex-col gap-2">

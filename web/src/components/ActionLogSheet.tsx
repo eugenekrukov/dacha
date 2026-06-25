@@ -3,6 +3,7 @@ import { Camera, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { ACTION_CATALOG } from '../api/labels'
 import { actionIcon } from '../ui/icons'
+import SubscribeCta from './SubscribeCta'
 import type { ActionLog, CropRef } from '../api/types'
 
 interface Props {
@@ -90,13 +91,7 @@ export default function ActionLogSheet({
       onLogged(type)
       onClose()
     } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.status === 402
-            ? 'Нужна подписка или активный пробный период'
-            : err.message
-          : 'Не удалось записать действие'
-      setError(msg)
+      setError(err instanceof ApiError ? err.message : 'Не удалось записать действие')
     } finally {
       setBusy(false)
     }
@@ -199,7 +194,12 @@ export default function ActionLogSheet({
           </div>
         )}
 
-        {error && <p className="mt-2 text-sm font-bold text-red-600">{error}</p>}
+        {error && (
+          <div className="mt-2 flex flex-col gap-1">
+            <p className="text-sm font-bold text-red-600">{error}</p>
+            <SubscribeCta message={error} />
+          </div>
+        )}
 
         <div className="mt-4 flex gap-2">
           {savedWithoutPhoto ? (

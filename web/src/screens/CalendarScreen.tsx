@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import { buildCalendarEvents, type CalendarEvent } from '../api/schedule'
 import { useGardens } from '../garden/GardenContext'
+import ErrorCard from '../components/ErrorCard'
 
 const MONTHS = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -75,7 +76,7 @@ export default function CalendarScreen() {
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-black">Календарь</h1>
 
-      {error && <div className="dacha-card p-4 font-semibold text-muted">{error}</div>}
+      {error && <ErrorCard message={error} />}
 
       {/* Навигатор месяца */}
       <div className="flex items-center justify-between">

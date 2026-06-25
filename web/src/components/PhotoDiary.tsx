@@ -3,6 +3,7 @@ import { Camera, Trash2, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import type { PlantingPhoto } from '../api/types'
 import AuthImage from './AuthImage'
+import { useModalA11y } from './Modal'
 
 export default function PhotoDiary({ plantingId }: { plantingId: number }) {
   const [photos, setPhotos] = useState<PlantingPhoto[]>([])
@@ -11,6 +12,8 @@ export default function PhotoDiary({ plantingId }: { plantingId: number }) {
   const [busy, setBusy] = useState(false)
   const [viewer, setViewer] = useState<PlantingPhoto | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const viewerRef = useRef<HTMLDivElement | null>(null)
+  useModalA11y(viewerRef, () => setViewer(null), viewer != null)
 
   useEffect(() => {
     let cancelled = false

@@ -4,6 +4,7 @@ import { Search, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
 import { categoryLabel } from '../api/labels'
+import SubscribeCta from '../components/SubscribeCta'
 import type { Crop } from '../api/types'
 
 // Онбординг-выбор стартовых культур (зеркало Android OnboardingCropsScreen):
@@ -71,13 +72,7 @@ export default function OnboardingCropsScreen() {
       // Даты выставлены = сегодня без явного выбора — пользователь сможет поправить в «Посадках».
       navigate('/plantings', { replace: true })
     } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.status === 402
-            ? 'Нужна подписка или активный пробный период'
-            : err.message
-          : 'Не удалось добавить посадки'
-      setError(msg)
+      setError(err instanceof ApiError ? err.message : 'Не удалось добавить посадки')
       setSaving(false)
     }
   }
@@ -162,7 +157,12 @@ export default function OnboardingCropsScreen() {
             )}
           </div>
 
-          {error && <p className="mt-2 text-center text-sm font-bold text-red-600">{error}</p>}
+          {error && (
+            <div className="mt-2 flex flex-col items-center gap-1">
+              <p className="text-center text-sm font-bold text-red-600">{error}</p>
+              <SubscribeCta message={error} />
+            </div>
+          )}
 
           <button className="dacha-btn mt-3 h-[52px] shrink-0" disabled={saving} onClick={addSelected}>
             {saving ? '…' : selected.size === 0 ? 'Пропустить' : `Добавить (${selected.size})`}
