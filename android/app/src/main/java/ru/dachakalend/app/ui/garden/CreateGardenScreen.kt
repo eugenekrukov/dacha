@@ -10,12 +10,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Grass
+import androidx.compose.material.icons.filled.House
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,10 +31,10 @@ import ru.dachakalend.app.data.local.LocationHelper
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 
-private val GARDEN_TYPES = listOf(
-    Triple("soil",       "Открытый грунт", "🌿"),
-    Triple("greenhouse", "Теплица",        "🏠"),
-    Triple("mixed",      "Смешанный",      "🌱")
+private val GARDEN_TYPES: List<Triple<String, String, ImageVector>> = listOf(
+    Triple("soil",       "Открытый грунт", Icons.Default.Grass),
+    Triple("greenhouse", "Теплица",        Icons.Default.House),
+    Triple("mixed",      "Смешанный",      Icons.Default.Spa)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,7 +116,8 @@ fun CreateGardenScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("🏡", fontSize = 56.sp)
+            Icon(Icons.Default.House, contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp))
             Spacer(Modifier.height(8.dp))
             Text(
                 "Расскажите об участке",
@@ -209,7 +214,7 @@ fun CreateGardenScreen(
             )
             Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GARDEN_TYPES.forEach { (type, label, emoji) ->
+                GARDEN_TYPES.forEach { (type, label, icon) ->
                     FilterChip(
                         selected = selectedType == type,
                         onClick = { selectedType = type },
@@ -218,9 +223,12 @@ fun CreateGardenScreen(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = Color.White
                         ),
+                        leadingIcon = {
+                            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+                        },
                         label = {
                             Text(
-                                "$emoji $label",
+                                label,
                                 fontFamily = NunitoFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,

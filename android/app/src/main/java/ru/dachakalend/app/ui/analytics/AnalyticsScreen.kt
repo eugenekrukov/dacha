@@ -9,6 +9,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -108,8 +112,9 @@ private fun AnalyticsContent(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatCard(
                     modifier = Modifier.weight(1f),
+                    icon = Icons.Default.LocalFireDepartment,
                     label = "Серия дней",
-                    value = "🔥 ${summary.streak}"
+                    value = "${summary.streak}"
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
@@ -168,7 +173,7 @@ private fun AnalyticsContent(
 }
 
 @Composable
-private fun StatCard(modifier: Modifier = Modifier, label: String, value: String) {
+private fun StatCard(modifier: Modifier = Modifier, icon: ImageVector? = null, label: String, value: String) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(22.dp),
@@ -181,6 +186,10 @@ private fun StatCard(modifier: Modifier = Modifier, label: String, value: String
                 .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = Color(0xFFFF7B00), modifier = Modifier.size(20.dp))
+                Spacer(Modifier.height(2.dp))
+            }
             Text(
                 value,
                 fontFamily = NunitoFamily,
@@ -231,10 +240,11 @@ private fun OnboardingCard(summary: AnalyticsSummary) {
             )
             steps.forEach { (label, completed) ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        if (completed) "✅" else "⬜",
-                        fontSize = 16.sp,
-                        modifier = Modifier.width(28.dp)
+                    Icon(
+                        if (completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = null,
+                        tint = if (completed) Color(0xFF2E7D32) else MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.width(28.dp).size(16.dp)
                     )
                     Text(
                         label,

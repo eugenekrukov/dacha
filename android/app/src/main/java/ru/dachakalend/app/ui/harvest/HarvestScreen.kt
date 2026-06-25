@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ShoppingBasket
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -122,7 +123,8 @@ private fun EmptyHarvestState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("🌾", fontSize = 48.sp)
+        Icon(Icons.Default.ShoppingBasket, contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
         Text(
             "Урожай пока не записан",
             fontFamily = NunitoFamily,
@@ -328,7 +330,8 @@ private fun HarvestCard(harvest: Harvest) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("🌾", fontSize = 22.sp)
+            Icon(Icons.Default.ShoppingBasket, contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

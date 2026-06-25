@@ -100,11 +100,11 @@ class CalendarViewModel @Inject constructor(
         todayTasks.forEach { task ->
             if (task.plantingId != null && task.plantingId in donePlantingIds) return@forEach
             val label = when (task.type) {
-                "watering_due"    -> "💧 Полив: ${task.cropName ?: ""}"
-                "fertilizing_due" -> "🌿 Подкормка: ${task.cropName ?: ""}"
-                "transplant_due"  -> "🌱 Пересадка: ${task.cropName ?: ""}"
-                "harvest_due"     -> "🌾 Урожай: ${task.cropName ?: ""}"
-                "frost_alert"     -> "❄️ Угроза заморозков"
+                "watering_due"    -> "Полив: ${task.cropName ?: ""}"
+                "fertilizing_due" -> "Подкормка: ${task.cropName ?: ""}"
+                "transplant_due"  -> "Пересадка: ${task.cropName ?: ""}"
+                "harvest_due"     -> "Урожай: ${task.cropName ?: ""}"
+                "frost_alert"     -> "Угроза заморозков"
                 else              -> task.title
             }
             result.getOrPut(today) { mutableListOf() }
@@ -140,7 +140,7 @@ class CalendarViewModel @Inject constructor(
                 runCatching {
                     val date = LocalDate.parse(harvestStr.take(10))
                     result.getOrPut(date) { mutableListOf() }
-                        .add(DayEvent(date, "🌾 Урожай: $cropName", "harvest"))
+                        .add(DayEvent(date, "Урожай: $cropName", "harvest"))
                 }
             }
 
@@ -161,7 +161,7 @@ class CalendarViewModel @Inject constructor(
             while (!nextWatering.isAfter(horizon)) {
                 if (!nextWatering.isBefore(today)) {
                     result.getOrPut(nextWatering) { mutableListOf() }
-                        .add(DayEvent(nextWatering, "💧 Полив: $cropName", "watering"))
+                        .add(DayEvent(nextWatering, "Полив: $cropName", "watering"))
                 }
                 nextWatering = nextWatering.plusDays(freqDays.toLong())
             }
@@ -171,7 +171,7 @@ class CalendarViewModel @Inject constructor(
                 val date = sown.plusDays(days.toLong())
                 if (!date.isBefore(today) && !date.isAfter(horizon)) {
                     result.getOrPut(date) { mutableListOf() }
-                        .add(DayEvent(date, "🌿 Пересадка: $cropName", "care"))
+                        .add(DayEvent(date, "Пересадка: $cropName", "care"))
                 }
             }
 
@@ -208,10 +208,10 @@ class CalendarViewModel @Inject constructor(
             val careTaskName = parts.getOrNull(3)?.takeIf { it != "null" }
 
             val baseLabel = when (type) {
-                "watering_due"    -> "💧 Полив: $cropName"
-                "fertilizing_due" -> "🌿 Подкормка${if (careTaskName != null) ": $careTaskName" else ": $cropName"}"
-                "transplant_due"  -> "🌱 Пересадка: $cropName"
-                "harvest_due"     -> "🌾 Урожай: $cropName"
+                "watering_due"    -> "Полив: $cropName"
+                "fertilizing_due" -> "Подкормка${if (careTaskName != null) ": $careTaskName" else ": $cropName"}"
+                "transplant_due"  -> "Пересадка: $cropName"
+                "harvest_due"     -> "Урожай: $cropName"
                 "care_task_due"   -> "${careTaskName ?: "Уход"}: $cropName"
                 else              -> "$type: $cropName"
             }

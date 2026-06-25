@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -143,7 +144,8 @@ fun CropsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🌿", fontSize = 40.sp)
+                    Icon(Icons.Default.SearchOff, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
                     Spacer(Modifier.height(8.dp))
                     Text(
                         if (state.searchQuery.isNotBlank()) "Ничего не найдено по \"${state.searchQuery}\""
@@ -264,13 +266,16 @@ private fun CropCard(crop: Crop, onClick: () -> Unit) {
                     }
                 }
                 if (crop.isPerennial == true) {
-                    Text(
-                        "🌿 Многолетник",
-                        fontFamily = NunitoFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.Eco, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(13.dp))
+                        Text(
+                            "Многолетник",
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                 }
             }
         }

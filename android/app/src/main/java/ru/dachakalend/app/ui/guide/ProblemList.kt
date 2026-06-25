@@ -61,9 +61,17 @@ private fun ProblemCard(e: GuideEntry) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("${guideKindIcon(e.kind)} ${e.name}",
-                    fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(guideKindIcon(e.kind), contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Text(e.name,
+                        fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onBackground)
+                }
                 Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }

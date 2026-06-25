@@ -7,7 +7,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -233,17 +237,19 @@ fun MilestoneFeedRow(
     onOpen: () -> Unit,
 ) {
     val crop = cropName ?: "культура"
+    val icon: ImageVector
     val text = when (kind) {
-        "sowing"        -> "🌱 Посев — $crop"
+        "sowing"        -> { icon = Icons.Default.Spa; "Посев — $crop" }
         "first_harvest" -> {
+            icon = Icons.Default.EmojiEvents
             val kg = weightKg?.let { w ->
                 val s = "%.1f".format(w).removeSuffix(",0").removeSuffix(".0")
                 " · $s кг"
             } ?: ""
-            "🌾 Первый урожай — $crop$kg"
+            "Первый урожай — $crop$kg"
         }
-        "done"          -> "🏆 Сезон завершён — $crop"
-        else            -> crop
+        "done"          -> { icon = Icons.Default.Flag; "Сезон завершён — $crop" }
+        else            -> { icon = Icons.Default.Spa; crop }
     }
     Row(
         modifier = Modifier
@@ -255,6 +261,8 @@ fun MilestoneFeedRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
                 fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground)

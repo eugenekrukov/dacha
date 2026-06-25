@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -105,12 +107,18 @@ fun CityInputField(
 
         // Климатическая зона после выбора
         if (detectedZone != null) {
-            Text(
-                text = "🌍 ${ZONE_LABELS[detectedZone] ?: "Зона $detectedZone"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF2E7D32),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-            )
+            ) {
+                Icon(Icons.Default.Public, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(14.dp))
+                Text(
+                    text = ZONE_LABELS[detectedZone] ?: "Зона $detectedZone",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF2E7D32)
+                )
+            }
         }
     }
 }

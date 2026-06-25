@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -68,7 +69,19 @@ fun CropCareSection(crop: Crop, climateZone: String? = null, modifier: Modifier 
                 InfoRow("До пикировки", crop.transplantDays?.let { "$it дн." } ?: "—")
             }
             InfoRow("До урожая", crop.harvestDays?.let { "~$it дн." } ?: "—")
-            InfoRow("Боится заморозков", if (crop.frostSensitive == true) "Да ❄️" else "Нет ✅")
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Боится заморозков", fontFamily = NunitoFamily, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(if (crop.frostSensitive == true) "Да" else "Нет", fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
+                    Icon(
+                        if (crop.frostSensitive == true) Icons.Default.AcUnit else Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = if (crop.frostSensitive == true) MaterialTheme.colorScheme.error else Color(0xFF2E7D32),
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
         }
 
         val watering = crop.wateringDetails

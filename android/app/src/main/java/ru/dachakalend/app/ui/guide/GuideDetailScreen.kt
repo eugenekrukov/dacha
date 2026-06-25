@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -114,8 +115,9 @@ private fun DetailContent(entry: GuideEntryDetail, modifier: Modifier, onCropCli
 
         // Бейджи: вид · элемент · сезон
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Badge("${guideKindIcon(entry.kind)} ${guideKindLabel(entry.kind)}",
-                MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+            Badge(guideKindLabel(entry.kind),
+                MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer,
+                icon = guideKindIcon(entry.kind))
             entry.element?.let {
                 Badge(it, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
             }
@@ -146,12 +148,17 @@ private fun DetailContent(entry: GuideEntryDetail, modifier: Modifier, onCropCli
 }
 
 @Composable
-private fun Badge(text: String, container: Color, content: Color) {
-    Box(
+private fun Badge(text: String, container: Color, content: Color, icon: ImageVector? = null) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .background(container, RoundedCornerShape(50))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(14.dp))
+        }
         Text(text, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = content)
     }
 }

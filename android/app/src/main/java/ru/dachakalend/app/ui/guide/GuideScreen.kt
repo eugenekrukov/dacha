@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -141,7 +142,8 @@ fun GuideScreen(
             }
             state.filtered.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🍃", fontSize = 40.sp)
+                    Icon(Icons.Default.SearchOff, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
                     Spacer(Modifier.height(8.dp))
                     Text("Ничего не найдено", fontFamily = NunitoFamily, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -156,14 +158,21 @@ fun GuideScreen(
                         val group = state.filtered.filter { it.kind == kind }
                         if (group.isNotEmpty()) {
                             item(key = "h_$kind") {
-                                Text(
-                                    "${guideKindIcon(kind)} ${GUIDE_KINDS.first { it.first == kind }.second}",
-                                    fontFamily = NunitoFamily,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 18.sp,
-                                    color = MaterialTheme.colorScheme.onBackground,
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
-                                )
+                                ) {
+                                    Icon(guideKindIcon(kind), contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(18.dp))
+                                    Text(
+                                        GUIDE_KINDS.first { it.first == kind }.second,
+                                        fontFamily = NunitoFamily,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 18.sp,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
                             }
                             items(group, key = { it.id }) { entry ->
                                 GuideCard(entry = entry, onClick = { onEntryClick(entry.slug) })

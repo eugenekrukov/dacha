@@ -1,5 +1,11 @@
 package ru.dachakalend.app.ui.guide
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Coronavirus
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Circle
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,11 +34,11 @@ fun guideKindLabel(kind: String): String = when (kind) {
     else -> kind
 }
 
-fun guideKindIcon(kind: String): String = when (kind) {
-    "deficiency" -> "🍂"
-    "disease" -> "🦠"
-    "pest" -> "🐛"
-    else -> "•"
+fun guideKindIcon(kind: String): ImageVector = when (kind) {
+    "deficiency" -> Icons.Default.Eco
+    "disease" -> Icons.Default.Coronavirus
+    "pest" -> Icons.Default.BugReport
+    else -> Icons.Default.Circle
 }
 
 data class GuideUiState(

@@ -5,6 +5,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,6 +50,7 @@ import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayTask
 import ru.dachakalend.app.data.model.WeatherSummary
 import androidx.compose.foundation.BorderStroke
+import ru.dachakalend.app.R
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 import ru.dachakalend.app.ui.actions.careTaskActionType
 import ru.dachakalend.app.ui.actions.treatmentNote
@@ -631,10 +634,11 @@ private fun SunnyHero(
                     )
                 }
                 // Animated sunflower — top-right
-                Text(
-                    text     = "🌻",
-                    fontSize = 80.sp,
+                Image(
+                    painter = painterResource(R.drawable.ic_sunflower_png),
+                    contentDescription = null,
                     modifier = Modifier
+                        .size(80.dp)
                         .align(Alignment.TopEnd)
                         .offset(x = 12.dp, y = (-8).dp)
                         .graphicsLayer {
@@ -793,14 +797,14 @@ private fun WeatherDetailsCard(
                 ) {
                     weather.precipProbPct?.let {
                         WeatherChip(
-                            icon  = "🌧",
+                            icon  = Icons.Default.WaterDrop,
                             label = "Дождь $it%",
                             tint  = if (it >= 70) Color(0xFF1565C0) else Color(0xFF666666)
                         )
                     }
                     weather.soilTempC?.let {
                         WeatherChip(
-                            icon  = "🌱",
+                            icon  = Icons.Default.Thermostat,
                             label = "Почва ${it.toInt()}°",
                             tint  = if (it >= 10.0) Color(0xFF2E7D32) else Color(0xFFBF360C)
                         )
@@ -818,7 +822,7 @@ private fun WeatherDetailsCard(
                             .background(Color(0xFFFFF3E0))
                             .padding(10.dp)
                     ) {
-                        Text("⚠️", fontSize = 14.sp)
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFBF360C), modifier = Modifier.size(14.dp))
                         Text(
                             "Почва холодная — посев не рекомендуется",
                             fontFamily = NunitoFamily,
@@ -840,7 +844,7 @@ private fun WeatherDetailsCard(
                             .background(Color(0xFFE3F2FD))
                             .padding(10.dp)
                     ) {
-                        Text("🌧", fontSize = 14.sp)
+                        Icon(Icons.Default.WaterDrop, contentDescription = null, tint = Color(0xFF1565C0), modifier = Modifier.size(14.dp))
                         Text(
                             "Ожидается дождь — задачи полива скрыты",
                             fontFamily = NunitoFamily,
@@ -894,7 +898,7 @@ private fun WeatherDetailsCard(
 }
 
 @Composable
-private fun WeatherChip(icon: String, label: String, tint: Color) {
+private fun WeatherChip(icon: ImageVector, label: String, tint: Color) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -903,7 +907,7 @@ private fun WeatherChip(icon: String, label: String, tint: Color) {
             .background(Color(0xFFF5F5F5))
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
-        Text(icon, fontSize = 13.sp)
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(13.dp))
         Text(label, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = tint)
     }
 }
@@ -911,11 +915,18 @@ private fun WeatherChip(icon: String, label: String, tint: Color) {
 @Composable
 private fun ForecastDayChip(day: ForecastDay) {
     val conditionIcon = when (day.condition) {
-        "rain"   -> "🌧"
-        "snow"   -> "❄️"
-        "storm"  -> "⛈"
-        "cloudy" -> "☁️"
-        else     -> "☀️"
+        "rain"   -> Icons.Default.WaterDrop
+        "snow"   -> Icons.Default.AcUnit
+        "storm"  -> Icons.Default.Thunderstorm
+        "cloudy" -> Icons.Default.Cloud
+        else     -> Icons.Default.WbSunny
+    }
+    val conditionTint = when (day.condition) {
+        "rain"   -> Color(0xFF1565C0)
+        "snow"   -> Color(0xFF42A5F5)
+        "storm"  -> Color(0xFF5E35B1)
+        "cloudy" -> Color(0xFF888888)
+        else     -> Color(0xFFFF7B00)
     }
     val dayLabel = try {
         val date = java.time.LocalDate.parse(day.date)
@@ -942,7 +953,7 @@ private fun ForecastDayChip(day: ForecastDay) {
             .width(54.dp)
     ) {
         Text(dayLabel, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF888888), maxLines = 1)
-        Text(conditionIcon, fontSize = 18.sp)
+        Icon(conditionIcon, contentDescription = null, tint = conditionTint, modifier = Modifier.size(18.dp))
         Text("${day.maxTempC?.toInt() ?: "—"}°", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color(0xFF333333))
         Text("${day.minTempC?.toInt() ?: "—"}°", fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = Color(0xFF888888))
         day.precipProbPct?.let { prob ->
@@ -1340,7 +1351,8 @@ private fun EmptyTasksCard(hasPlantings: Boolean, onAddPlanting: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("🌱", fontSize = 36.sp)
+            Icon(Icons.Default.Spa, contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
             if (hasPlantings) {
                 Text(
                     "Всё в порядке! Задач нет",

@@ -6,9 +6,24 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material.icons.filled.ShoppingBasket
+import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.Thermostat
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,12 +33,15 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import ru.dachakalend.app.R
 import ru.dachakalend.app.ui.theme.HeroGradientEnd
 import ru.dachakalend.app.ui.theme.HeroGradientStart
 import ru.dachakalend.app.ui.theme.NunitoFamily
@@ -39,16 +57,17 @@ private val IntroDiagonalShape: GenericShape
     }
 
 private data class SlideData(
-    val emoji: String,
+    val iconRes: Int? = null,
+    val icon: ImageVector? = null,
     val title: String,
     val heroHeight: Dp,
 )
 
 private val slides = listOf(
-    SlideData("🌻", "Календарь дачника", 380.dp),
-    SlideData("📋", "Всё под контролем",  280.dp),
-    SlideData("🗓️", "Умный план\nна каждый день", 300.dp),
-    SlideData("🚀", "Начнём!", 340.dp),
+    SlideData(iconRes = R.drawable.ic_sunflower_png, title = "Календарь дачника", heroHeight = 380.dp),
+    SlideData(icon = Icons.Default.Checklist, title = "Всё под контролем", heroHeight = 280.dp),
+    SlideData(icon = Icons.Default.CalendarMonth, title = "Умный план\nна каждый день", heroHeight = 300.dp),
+    SlideData(icon = Icons.Default.RocketLaunch, title = "Начнём!", heroHeight = 340.dp),
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -153,11 +172,20 @@ private fun IntroSlidePage(
                 horizontalAlignment    = Alignment.CenterHorizontally,
                 verticalArrangement   = Arrangement.Center,
             ) {
-                Text(
-                    text     = slide.emoji,
-                    fontSize = 72.sp,
-                    modifier = Modifier.graphicsLayer { translationY = floatOffsetPx },
-                )
+                if (slide.iconRes != null) {
+                    Image(
+                        painter  = painterResource(slide.iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(72.dp).graphicsLayer { translationY = floatOffsetPx },
+                    )
+                } else if (slide.icon != null) {
+                    Icon(
+                        slide.icon,
+                        contentDescription = null,
+                        tint     = Color.White,
+                        modifier = Modifier.size(72.dp).graphicsLayer { translationY = floatOffsetPx },
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 Text(
                     text       = slide.title,
@@ -220,13 +248,26 @@ private fun IntroSlidePage(
                 colors   = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
             ) {
-                Text(
-                    text       = if (page < slides.lastIndex) "Далее →" else "🌱 Зарегистрироваться",
-                    fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.Black,
-                    fontSize   = 16.sp,
-                    softWrap   = false,
-                )
+                if (page < slides.lastIndex) {
+                    Text(
+                        text       = "Далее →",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        fontSize   = 16.sp,
+                        softWrap   = false,
+                    )
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.Spa, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text(
+                            text       = "Зарегистрироваться",
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Black,
+                            fontSize   = 16.sp,
+                            softWrap   = false,
+                        )
+                    }
+                }
             }
 
             // Login link (slide 4 only)
@@ -262,9 +303,9 @@ private fun Slide1Content() {
         Modifier.fillMaxSize().padding(top = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        IntroFeaturePill("🌱", "Посадки под контролем")
-        IntroFeaturePill("⛅", "Советы с учётом погоды")
-        IntroFeaturePill("🔔", "Умные напоминания")
+        IntroFeaturePill(Icons.Default.Spa, "Посадки под контролем")
+        IntroFeaturePill(Icons.Default.Cloud, "Советы с учётом погоды")
+        IntroFeaturePill(Icons.Default.Notifications, "Умные напоминания")
     }
 }
 
@@ -276,19 +317,19 @@ private fun Slide2Content() {
     ) {
         IntroFeatureRow(
             iconBg   = Color(0xFFE3F2FD),
-            icon     = "💧",
+            icon     = Icons.Default.WaterDrop,
             title    = "Полив и подкормка",
             subtitle = "Напоминания по расписанию с учётом климата",
         )
         IntroFeatureRow(
             iconBg   = Color(0xFFFFF3E0),
-            icon     = "🌡️",
+            icon     = Icons.Default.Thermostat,
             title    = "Погода и риски",
             subtitle = "Предупреждения о заморозках и жаре",
         )
         IntroFeatureRow(
             iconBg   = Color(0xFFE8F5E9),
-            icon     = "📊",
+            icon     = Icons.Default.BarChart,
             title    = "Журнал и урожай",
             subtitle = "История действий и статистика по сезонам",
         )
@@ -301,9 +342,9 @@ private fun Slide3Content() {
         Modifier.fillMaxSize().padding(top = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        IntroTaskCard("💧", "Полить томаты",   "3 дня без полива",  Color(0xFFFF7B00), "Срочно",  Color(0xFFFFF3E0), Color(0xFFFF7B00))
-        IntroTaskCard("❄️", "Риск заморозка", "Завтра до −2°C",    Color(0xFF42A5F5), "Сегодня", Color(0xFFE3F2FD), Color(0xFF1565C0))
-        IntroTaskCard("🥒", "Урожай огурцов", "Готовы к сбору",    Color(0xFF2E7D32), "Готово",  Color(0xFFE8F5E9), Color(0xFF2E7D32))
+        IntroTaskCard(Icons.Default.WaterDrop,      "Полить томаты",   "3 дня без полива",  Color(0xFFFF7B00), "Срочно",  Color(0xFFFFF3E0), Color(0xFFFF7B00))
+        IntroTaskCard(Icons.Default.AcUnit,         "Риск заморозка", "Завтра до −2°C",    Color(0xFF42A5F5), "Сегодня", Color(0xFFE3F2FD), Color(0xFF1565C0))
+        IntroTaskCard(Icons.Default.ShoppingBasket, "Урожай огурцов", "Готовы к сбору",    Color(0xFF2E7D32), "Готово",  Color(0xFFE8F5E9), Color(0xFF2E7D32))
     }
 }
 
@@ -322,7 +363,8 @@ private fun Slide4Content(onLogin: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text("🎁", fontSize = 14.sp)
+            Icon(Icons.Default.CardGiftcard, contentDescription = null,
+                tint = Color(0xFF2E7D32), modifier = Modifier.size(14.dp))
             Text(
                 "7 дней бесплатно",
                 fontFamily = NunitoFamily,
@@ -352,7 +394,7 @@ private fun Slide4Content(onLogin: () -> Unit) {
 // ─── Reusable small composables ────────────────────────────────────────────
 
 @Composable
-private fun IntroFeaturePill(icon: String, label: String) {
+private fun IntroFeaturePill(icon: ImageVector, label: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -362,7 +404,7 @@ private fun IntroFeaturePill(icon: String, label: String) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(icon, fontSize = 20.sp)
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         Text(
             label,
             fontFamily = NunitoFamily,
@@ -374,7 +416,7 @@ private fun IntroFeaturePill(icon: String, label: String) {
 }
 
 @Composable
-private fun IntroFeatureRow(iconBg: Color, icon: String, title: String, subtitle: String) {
+private fun IntroFeatureRow(iconBg: Color, icon: ImageVector, title: String, subtitle: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -388,7 +430,7 @@ private fun IntroFeatureRow(iconBg: Color, icon: String, title: String, subtitle
             Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(iconBg),
             contentAlignment = Alignment.Center,
         ) {
-            Text(icon, fontSize = 22.sp)
+            Icon(icon, contentDescription = null, tint = Color(0xFF444444), modifier = Modifier.size(22.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title,    fontFamily = NunitoFamily, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFF1A1A1A))
@@ -399,7 +441,7 @@ private fun IntroFeatureRow(iconBg: Color, icon: String, title: String, subtitle
 
 @Composable
 private fun IntroTaskCard(
-    emoji: String,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     borderColor: Color,
@@ -430,7 +472,7 @@ private fun IntroTaskCard(
                 .clip(RoundedCornerShape(2.dp))
                 .background(borderColor)
         )
-        Text(emoji, fontSize = 22.sp)
+        Icon(icon, contentDescription = null, tint = borderColor, modifier = Modifier.size(22.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title,    fontFamily = NunitoFamily, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, color = Color(0xFF1A1A1A))
             Text(subtitle, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,  fontSize = 11.sp, color = Color(0xFF9E7050))
@@ -456,7 +498,7 @@ private fun IntroCTACheckItem(text: String) {
                 .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center,
         ) {
-            Text("✓", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black, fontFamily = NunitoFamily)
+            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
         }
         Text(
             text,
