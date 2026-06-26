@@ -103,7 +103,7 @@ export default function ActionLogSheet({
       onClick={onClose}
     >
       <div
-        className="dacha-card max-h-[92vh] w-full max-w-md overflow-y-auto p-6"
+        className="dacha-card max-h-[92dvh] w-full max-w-md overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-black">

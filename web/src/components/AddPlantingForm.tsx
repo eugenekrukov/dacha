@@ -90,7 +90,7 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
     <Modal
       onClose={onClose}
       backdropClassName="fixed inset-0 z-30 flex items-end justify-center bg-black/40 sm:items-center"
-      className="max-h-[90vh] w-full max-w-md overflow-y-auto p-6"
+      className="max-h-[90dvh] w-full max-w-md overflow-y-auto p-6"
     >
         <h2 className="mb-4 text-xl font-black">Новая посадка</h2>
         <form onSubmit={submit} className="flex flex-col gap-3">

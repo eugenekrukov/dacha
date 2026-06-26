@@ -119,6 +119,27 @@ describe('GET /plantings', () => {
     expect(res.body[0]).toHaveProperty('next_care_task')
     await app.close()
   })
+
+  it('для завершённой посадки (stage=done) next_care_task — null, даже если есть будущая care-задача', async () => {
+    const donePlanting = {
+      ...PLANTING,
+      stage: 'done',
+      planted_at: new Date().toISOString(),
+      care_tasks: [{ name: 'Пасынкование', day_offset: 100, repeat_days: null }],
+    }
+    const app = await buildApp(makeMockDb({
+      query: async () => ({ rows: [donePlanting] }),
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .get('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.body[0].next_care_task).toBeNull()
+    expect(res.body[0].overdue_care_task).toBeNull()
+    await app.close()
+  })
 })
 
 describe('GET /plantings/:id', () => {

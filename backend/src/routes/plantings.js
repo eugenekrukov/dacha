@@ -88,8 +88,10 @@ module.exports = async function (fastify) {
       // Многолетникам график ухода считаем от текущего сезона (см. effectivePlantedAt).
       const plantedAt = effectivePlantedAt(new Date(p.planted_at), p.is_perennial, now)
       const daysSincePlanting = Math.floor((now - plantedAt) / 86400000)
-      const nextCareTask = getNextCareTask(p.care_tasks, daysSincePlanting, p.harvest_days)
       // Завершённым посадкам уход не нужен
+      const nextCareTask = p.stage === 'done'
+        ? null
+        : getNextCareTask(p.care_tasks, daysSincePlanting, p.harvest_days)
       const overdueCareTask = p.stage === 'done'
         ? null
         : getOverdueCareTask(p.care_tasks, new Date(p.planted_at), now, p.harvest_days, lastCareMap[p.id] || {}, todayCareMap[p.id] || [], p.is_perennial)
