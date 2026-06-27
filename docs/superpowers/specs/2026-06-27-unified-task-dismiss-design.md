@@ -70,65 +70,38 @@ CREATE INDEX today_task_dismissals_lookup ON today_task_dismissals(user_id, targ
 сервером данным. Это попутно чинит существующую несогласованность: сейчас `attentionCount` учитывает
 только `snoozedTasks`, но не `deletedTasks` — удалённая задача могла зажигать бейдж.
 
-### 3. Напоминания (`type: 'reminder'`) — отдельный путь, без записи в `today_task_dismissals`
+### 3. Напоминания (`type: 'reminder'`) — вне скоупа v1
 
-У `reminder` уже есть собственная строка в БД (`reminders.id`, `remind_at`, `is_sent`) — отдельная запись
-о «скрытии» не нужна, мутируем сам reminder:
-
-- `task_key` для reminder — **`"reminder:<id>"`** (не общая 4-частная схема — у reminder нет
-  стабильного `cropName`/`careTaskName`, отличающего разные напоминания по одной культуре).
-- `formatTasks()` (`todayLogic.js:433`) сейчас не прокидывает `reminder_id` в выходной объект — нужно
-  добавить `reminder_id: t.reminder_id || null`. Без этого клиент не может построить ключ.
-- `POST /today/tasks/dismiss` при `task_key.startsWith('reminder:')`:
-  - `delete` → `UPDATE reminders SET is_sent=true WHERE id=$1 AND user_id=$2`.
-  - `snooze` → `UPDATE reminders SET remind_at = remind_at + interval '1 day' WHERE id=$1 AND user_id=$2`.
-  - `WHERE user_id=$2` закрывает IDOR (как в `reminders.js`).
-- Это естественно работает с уже существующим окном выборки в `today.js:118`
-  (`remind_at BETWEEN NOW() - INTERVAL '1 hour' AND NOW() + INTERVAL '24 hours'` и `r.is_sent=false`):
-  после `+1 day` напоминание само выпадает из окна и вернётся через сутки; после `is_sent=true` оно
-  исключено условием `is_sent=false` — никакого TTL-хранения не требуется.
+Карточки типа `reminder` не получают контролов снуза/удаления — как и сейчас, у них просто не будет
+крестика/свайпа. У `reminder` уже есть собственная строка в БД (`reminders.id`, `remind_at`, `is_sent`),
+поэтому это естественное расширение для отдельной будущей задачи (см. «Вне скоупа v1»), не блокирующее
+основной фикс.
 
 ### 4. Эндпоинт
 
 ```
 POST /today/tasks/dismiss
-Body: { task_key: string, action: "snooze" | "delete", client_id?: string }
+Body: { task_key: string, action: "snooze" | "delete" }
 Auth: обязательна
 → 204 No Content
 ```
 
-Роут: если `task_key` начинается с `reminder:` — путь из п. 3; иначе — upsert в `today_task_dismissals`
-с серверным `target_date` из п. 1.
+Один путь — upsert в `today_task_dismissals` с серверным `target_date` из п. 1. Без поддержки
+`reminder:`-ключей (см. п. 3).
 
-### 5. Android — ключ, очередь, UI
+### 5. Android — ключ и UI (online-only, без офлайн-очереди)
 
-- `taskSnoozeKey()` (`TodayViewModel.kt:260`) меняется:
-  ```kotlin
-  fun taskSnoozeKey(task: TodayTask) =
-      if (task.type == "reminder") "reminder:${task.reminderId}"
-      else "${task.type}:${task.plantingId}:${task.cropName}:${task.careTaskName}"
-  ```
-  (`Models.kt`: `TodayTask` += `reminderId: Int?`).
-- `ActionQueue.kt` (`QueuedOp`) — новый вариант операции `"DISMISS_TASK"`, два новых nullable-поля без
-  переименования существующих:
-  ```kotlin
-  data class QueuedOp(
-      val clientId: String,
-      val op: String,              // + "DISMISS_TASK"
-      val plantingId: Int,         // для DISMISS_TASK не используется — кладём -1
-      ...
-      val taskKey: String? = null,
-      val dismissAction: String? = null,  // "snooze" | "delete"
-  )
-  ```
-- `TodayViewModel.snoozeTask(key)`/`deleteTask(key)`:
+- `taskSnoozeKey()` (`TodayViewModel.kt:260`) не меняется — остаётся
+  `"${task.type}:${task.plantingId}:${task.cropName}:${task.careTaskName}"`.
+- `TodayViewModel.snoozeTask(key)`/`deleteTask(key)` перестают писать в `TokenStorage` и вызывают новый
+  метод API-клиента напрямую (`api.dismissTask(key, action)`), без `ActionQueue`:
   1. Оптимистично убирают карточку из текущего `Success`-стейта (локальный `Set<String>` "pending
-     hidden", живёт только до следующего успешного `loadToday()` — не персистентное хранилище, в
-     отличие от старого `TokenStorage`-подхода).
-  2. `ActionQueue.enqueue(QueuedOp(op="DISMISS_TASK", taskKey=key, dismissAction=...))`.
-  3. `ActionSyncManager` шлёт `POST /today/tasks/dismiss`; 4xx → снять из очереди (upsert идемпотентен,
-     конфликтов по сути не бывает); 5xx/`IOException` → оставить до следующего триггера сети — та же
-     схема, что уже работает для `LOG`/`STAGE`/`DELETE` (F1, `2026-06-21-offline-today-design.md`).
+     hidden", живёт только до следующего успешного `loadToday()`).
+  2. При ошибке сети/сервера — просто перезагрузить (`loadToday()`), как делает веб; карточка вернётся,
+     если запрос не дошёл. Поведение симметрично F1: до офлайн-очереди (F1) обычные действия тоже не
+     ставились в очередь — снуз/удаление сейчас не интегрируются в `ActionQueue`/`ActionSyncManager`;
+     если в будущем понадобится офлайн-поддержка именно для свайпов — отдельная небольшая задача поверх
+     уже существующей инфраструктуры F1.
 - Удаляются как мёртвый код: `TokenStorage.snoozeTask/getSnoozedTasksForToday/deleteTask/getDeletedTasks/
   getSnoozedTasksForCalendar/SnoozedCalendarTask`. Календарь в v1 **не показывает** отложенные задачи на
   их `targetDate` (так же, как сейчас не показывает удалённые) — фича выпадает из скоупа, ценность
@@ -141,15 +114,12 @@ Auth: обязательна
 - Новая функция `taskKey()` (например, в `web/src/api/schedule.ts`), зеркало Android-версии:
   ```ts
   function taskKey(t: TodayTask): string {
-    if (t.type === 'reminder') return `reminder:${t.reminder_id}`
     return `${t.type}:${t.planting_id}:${t.crop_name}:${t.care_task_name}`
   }
   ```
-  (`web/src/api/types.ts`: `TodayTask` += `reminder_id: number | null`).
 - `api/client.ts` — новый метод `dismissTask(taskKey: string, action: 'snooze' | 'delete')` →
   `POST /today/tasks/dismiss`.
-- `TodayScreen.tsx` — у веба нет offline-очереди, прямой вызов с оптимистичным обновлением и откатом
-  через перезагрузку при ошибке:
+- `TodayScreen.tsx` — прямой вызов с оптимистичным обновлением и откатом через перезагрузку при ошибке:
   ```ts
   const dismissTask = (t: TodayTask, action: 'snooze' | 'delete') => {
     setToday(prev => prev && { ...prev, tasks: prev.tasks.filter(x => x !== t) })
@@ -158,12 +128,17 @@ Auth: обязательна
   ```
 - `TaskCard` — две иконки в правом верхнем углу карточки (рядом с бейджем «N дн.»), стилистика как у
   крестика «советов дня»: `Clock` (отложить, title="На завтра") и `X` (удалить, title="Удалить").
-  Видимы всегда (не по hover) — для паритета с тач-устройствами, без воссоздания swipe-жеста.
+  Не показываются для `t.type === 'reminder'` (см. п. 3). Видимы всегда (не по hover) — для паритета
+  с тач-устройствами, без воссоздания swipe-жеста.
 - Существующий `dismiss()`/`loadDismissed()` для `Recommendation` (через `localStorage`) — не трогаем,
   это отдельный механизм (советы дня, не задачи дня).
 
 ## Вне скоупа v1
 
+- Снуз/удаление reminder-карточек (см. п. 3) — отдельная небольшая задача поверх этой же таблицы/эндпоинта
+  (или прямой мутации `reminders.is_sent`/`remind_at`), не блокирует основной фикс.
+- Офлайн-поддержка свайпов на Android через `ActionQueue`/`ActionSyncManager` (F1) — v1 online-only
+  (см. п. 5); расширение тривиально добавить позже на готовую инфраструктуру F1.
 - Календарь не показывает отложенные задачи на их `targetDate` (см. п. 5).
 - Миграция существующих локальных записей Android (`SharedPreferences`) на сервер — не делаем: снуз и
   так был однодневным и самосгорал, а постоянных `deleted_tasks` у реальных пользователей — редкий
@@ -175,14 +150,12 @@ Auth: обязательна
 ## Затронутые файлы
 
 **Backend:** `backend/src/db/migrations/054_today_task_dismissals.sql` (новый),
-`backend/src/utils/todayLogic.js` (`taskKey()` экспорт, `formatTasks` += `reminder_id`),
-`backend/src/routes/today.js` (фильтрация по дисмиссалам),
-`backend/src/routes/today.js` или новый `backend/src/routes/todayTasks.js` (роут `POST /today/tasks/dismiss`).
+`backend/src/utils/todayLogic.js` (`taskKey()` экспорт),
+`backend/src/routes/today.js` (фильтрация по дисмиссалам + роут `POST /today/tasks/dismiss`).
 
-**Android:** `TokenStorage.kt` (удаление снуз/делит-методов), `ActionQueue.kt` (`QueuedOp` += поля),
-`TodayViewModel.kt` (`taskSnoozeKey`, `snoozeTask`/`deleteTask`, `attentionCount`-вызов),
-`PlantingsViewModel.kt` (`attentionCount` сигнатура), `Models.kt` (`TodayTask` += `reminderId`),
-`data/sync/ActionSyncManager.kt` (обработка `DISMISS_TASK`).
+**Android:** `TokenStorage.kt` (удаление снуз/делит-методов),
+`TodayViewModel.kt` (`snoozeTask`/`deleteTask` → прямой вызов API, `attentionCount`-вызов),
+`PlantingsViewModel.kt` (`attentionCount` сигнатура), API-клиент (новый метод `dismissTask`).
 
-**Web:** `web/src/api/types.ts` (`TodayTask` += `reminder_id`), `web/src/api/schedule.ts` (`taskKey()`),
+**Web:** `web/src/api/schedule.ts` (`taskKey()`),
 `web/src/api/client.ts` (`dismissTask()`), `web/src/screens/TodayScreen.tsx` (`TaskCard` += иконки).
