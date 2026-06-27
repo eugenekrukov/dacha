@@ -216,4 +216,19 @@ describe('POST /gardens/:id/beds', () => {
     expect(res.status).toBe(404)
     await app.close()
   })
+
+  it('400 для невалидного type', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => sql.includes('SELECT id FROM gardens') ? { rows: [{ id: 1 }] } : { rows: [] },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/gardens/1/beds')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Грядка', type: 'greenhoue' })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
 })

@@ -44,6 +44,19 @@ describe('PATCH /beds/:id', () => {
     expect(res.status).toBe(404)
     await app.close()
   })
+
+  it('400 для невалидного type', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [{ id: 1 }] }) }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/beds/10')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ type: 'greenhoue' })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
 })
 
 describe('DELETE /beds/:id', () => {

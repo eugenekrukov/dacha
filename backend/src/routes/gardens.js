@@ -177,7 +177,10 @@ module.exports = async function (fastify) {
     if (!garden.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
 
     const { name, type } = request.body
-    const bedType = type === 'greenhouse' ? 'greenhouse' : 'soil'
+    if (type !== undefined && type !== 'soil' && type !== 'greenhouse') {
+      return reply.code(400).send({ error: 'Invalid type' })
+    }
+    const bedType = type ?? 'soil'
     const result = await fastify.db.query(
       'INSERT INTO garden_beds (garden_id, name, type) VALUES ($1, $2, $3) RETURNING *',
       [request.params.id, name, bedType]

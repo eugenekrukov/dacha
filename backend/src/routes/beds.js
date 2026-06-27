@@ -6,7 +6,10 @@ module.exports = async function (fastify) {
   // PATCH /beds/:id — переименовать/сменить тип грядки своего участка
   fastify.patch('/:id', auth, async (request, reply) => {
     const { name, type } = request.body
-    const bedType = type === undefined ? null : (type === 'greenhouse' ? 'greenhouse' : 'soil')
+    if (type !== undefined && type !== 'soil' && type !== 'greenhouse') {
+      return reply.code(400).send({ error: 'Invalid type' })
+    }
+    const bedType = type === undefined ? null : type
     const result = await fastify.db.query(
       `UPDATE garden_beds SET name = COALESCE($1, name), type = COALESCE($2, type)
        WHERE id = $3 AND garden_id IN (SELECT id FROM gardens WHERE user_id = $4)
