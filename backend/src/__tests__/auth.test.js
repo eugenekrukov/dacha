@@ -130,6 +130,25 @@ describe('POST /auth/login', () => {
     expect(res.status).toBe(401)
     await app.close()
   })
+
+  it('email в другом регистре всё равно находит аккаунт', async () => {
+    const hash = await bcrypt.hash('correct-password', 10)
+    let queriedEmail = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        queriedEmail = params[0]
+        return { rows: [{ id: 1, email: 'u@test.com', name: 'U', password_hash: hash }] }
+      },
+    }))
+
+    const res = await supertest(app.server)
+      .post('/auth/login')
+      .send({ email: 'U@Test.com', password: 'correct-password' })
+
+    expect(res.status).toBe(200)
+    expect(queriedEmail).toBe('u@test.com')
+    await app.close()
+  })
 })
 
 describe('GET /auth/me', () => {
@@ -265,6 +284,24 @@ describe('POST /auth/forgot-password', () => {
     const app = await buildApp(makeMockDb())
     const res = await supertest(app.server).post('/auth/forgot-password').send({ email: 'bad' })
     expect(res.status).toBe(400)
+    await app.close()
+  })
+
+  it('email в другом регистре всё равно находит аккаунт (баг: было 200 без письма)', async () => {
+    let queriedEmail = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('SELECT id FROM users')) { queriedEmail = params[0]; return { rows: [{ id: 1 }] } }
+        return { rows: [] }
+      },
+    }))
+
+    const res = await supertest(app.server)
+      .post('/auth/forgot-password')
+      .send({ email: 'User@Test.com' })
+
+    expect(res.status).toBe(200)
+    expect(queriedEmail).toBe('user@test.com')
     await app.close()
   })
 })

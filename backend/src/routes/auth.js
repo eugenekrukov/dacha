@@ -50,7 +50,8 @@ module.exports = async function (fastify) {
       }
     }
   }, async (request, reply) => {
-    const { email, password, name, store } = request.body
+    const email = request.body.email.toLowerCase()
+    const { password, name, store } = request.body
     const db = fastify.db
 
     const existing = await db.query('SELECT id FROM users WHERE email = $1', [email])
@@ -103,7 +104,8 @@ module.exports = async function (fastify) {
       }
     }
   }, async (request, reply) => {
-    const { email, password, store } = request.body
+    const email = request.body.email.toLowerCase()
+    const { password, store } = request.body
     const db = fastify.db
 
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email])
@@ -215,11 +217,12 @@ module.exports = async function (fastify) {
     }
   }, async (request) => {
     const db = fastify.db
-    const res = await db.query('SELECT id FROM users WHERE email = $1', [request.body.email])
+    const email = request.body.email.toLowerCase()
+    const res = await db.query('SELECT id FROM users WHERE email = $1', [email])
     if (res.rows.length > 0) {
       try {
         const code = await issueCode(db, res.rows[0].id, 'reset')
-        sendPasswordResetCode(request.body.email, code).catch(e =>
+        sendPasswordResetCode(email, code).catch(e =>
           fastify.log.warn(`[auth] forgot-password send: ${e.message}`))
       } catch (e) {
         fastify.log.warn(`[auth] forgot-password: ${e.message}`)
@@ -244,7 +247,8 @@ module.exports = async function (fastify) {
     }
   }, async (request, reply) => {
     const db = fastify.db
-    const { email, code, password } = request.body
+    const { code, password } = request.body
+    const email = request.body.email.toLowerCase()
     const res = await db.query('SELECT id FROM users WHERE email = $1', [email])
     if (res.rows.length === 0) return reply.code(400).send({ error: 'invalid_or_expired_code' })
 
@@ -301,13 +305,14 @@ module.exports = async function (fastify) {
     }
   }, async (request, reply) => {
     const db = fastify.db
-    const { new_email, password } = request.body
+    const { password } = request.body
+    const new_email = request.body.new_email.toLowerCase()
     const r = await db.query('SELECT email, password_hash FROM users WHERE id = $1', [request.user.userId])
     const user = r.rows[0]
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return reply.code(401).send({ error: 'invalid_password' })
     }
-    if (new_email.toLowerCase() === user.email.toLowerCase()) {
+    if (new_email === user.email.toLowerCase()) {
       return reply.code(409).send({ error: 'email_taken' })
     }
     const taken = await db.query('SELECT id FROM users WHERE email = $1', [new_email])
