@@ -89,7 +89,32 @@ Auth: обязательна
 Один путь — upsert в `today_task_dismissals` с серверным `target_date` из п. 1. Без поддержки
 `reminder:`-ключей (см. п. 3).
 
-### 5. Android — ключ и UI (online-only, без офлайн-очереди)
+### 5. Эндпоинт чтения дисмиссалов (для экрана «Посадки»)
+
+`TokenStorage.getSnoozedTasksForToday()` использует не только `TodayViewModel`, но и
+`PlantingsViewModel.kt:119,126,290` + `PlantingsScreen.kt:447-469` — индикатор «требует внимания» на
+карточке посадки в разделе «Посадки» тоже скрывается при снузе задачи на «Сегодня». Без этого экрана
+поведение бы регрессировало: пользователь отложил полив на «Сегодня», а карточка на «Посадках» всё
+равно подсвечена как срочная.
+
+```
+GET /today/tasks/dismissed
+Auth: обязательна
+→ 200 { task_keys: string[] }
+```
+`SELECT task_key FROM today_task_dismissals WHERE user_id=$1 AND target_date > CURRENT_DATE`.
+
+`PlantingsViewModel.loadPlantings()` — `tokenStorage.getSnoozedTasksForToday()` (строка 119) заменяется
+на вызов этого эндпоинта (новая инъекция `DachaApi` в конструктор). `attentionCount()`
+(`PlantingsViewModel.kt:59`) **не меняет сигнатуру** — 3-й параметр `snoozed` остаётся, просто
+`TodayViewModel` теперь передаёт туда `emptySet()` (т.к. `pending` там уже отфильтрован сервером в
+`GET /today`), а `PlantingsViewModel` передаёт набор из нового эндпоинта.
+
+`PlantingsViewModel.closeActionSheet()` (строка 285-293) убирает синхронное
+`snoozedTaskKeys = tokenStorage.getSnoozedTasksForToday()` — оно и сейчас избыточно, т.к. сразу следом
+идёт `loadPlantings(silent = true)`, который перечитывает актуальный набор.
+
+### 6. Android — ключ и UI (online-only, без офлайн-очереди)
 
 - `taskSnoozeKey()` (`TodayViewModel.kt:260`) не меняется — остаётся
   `"${task.type}:${task.plantingId}:${task.cropName}:${task.careTaskName}"`.
@@ -104,12 +129,15 @@ Auth: обязательна
      уже существующей инфраструктуры F1.
 - Удаляются как мёртвый код: `TokenStorage.snoozeTask/getSnoozedTasksForToday/deleteTask/getDeletedTasks/
   getSnoozedTasksForCalendar/SnoozedCalendarTask`. Календарь в v1 **не показывает** отложенные задачи на
-  их `targetDate` (так же, как сейчас не показывает удалённые) — фича выпадает из скоупа, ценность
-  признана недостаточной для отдельного эндпоинта `GET /today/tasks/dismissed`.
-- `attentionCount(plantings, pending, snoozed)` (`PlantingsViewModel.kt:59`) теряет параметр `snoozed` —
-  считается по уже отфильтрованным сервером данным.
+  их `targetDate` — это единственное место, где новый `GET /today/tasks/dismissed` (п. 5) не
+  используется: ценность отдельного календарного отображения признана недостаточной для доп. работы
+  по перерисовке событий на исходную `targetDate`.
+- `attentionCount(plantings, pending, snoozed)` (`PlantingsViewModel.kt:59`) сигнатуру не меняет (см. п. 5) —
+  `TodayViewModel` передаёт `emptySet()`.
+- `CalendarViewModel.kt:55,90` (`getSnoozedTasksForCalendar()`/`SnoozedCalendarTask`) — параметр
+  `snoozedTasks` в `buildEvents()` и связанная с ним ветка удаляются как мёртвый код.
 
-### 6. Web — ключ и UI
+### 7. Web — ключ и UI
 
 - Новая функция `taskKey()` (например, в `web/src/api/schedule.ts`), зеркало Android-версии:
   ```ts
@@ -139,7 +167,7 @@ Auth: обязательна
   (или прямой мутации `reminders.is_sent`/`remind_at`), не блокирует основной фикс.
 - Офлайн-поддержка свайпов на Android через `ActionQueue`/`ActionSyncManager` (F1) — v1 online-only
   (см. п. 5); расширение тривиально добавить позже на готовую инфраструктуру F1.
-- Календарь не показывает отложенные задачи на их `targetDate` (см. п. 5).
+- Календарь не показывает отложенные задачи на их `targetDate` (см. п. 6).
 - Миграция существующих локальных записей Android (`SharedPreferences`) на сервер — не делаем: снуз и
   так был однодневным и самосгорал, а постоянных `deleted_tasks` у реальных пользователей — редкий
   эдж-кейс; после обновления такая задача один раз снова появится — приемлемо.
@@ -151,11 +179,15 @@ Auth: обязательна
 
 **Backend:** `backend/src/db/migrations/054_today_task_dismissals.sql` (новый),
 `backend/src/utils/todayLogic.js` (`taskKey()` экспорт),
-`backend/src/routes/today.js` (фильтрация по дисмиссалам + роут `POST /today/tasks/dismiss`).
+`backend/src/routes/today.js` (фильтрация по дисмиссалам + роуты `POST /today/tasks/dismiss` и
+`GET /today/tasks/dismissed`).
 
-**Android:** `TokenStorage.kt` (удаление снуз/делит-методов),
-`TodayViewModel.kt` (`snoozeTask`/`deleteTask` → прямой вызов API, `attentionCount`-вызов),
-`PlantingsViewModel.kt` (`attentionCount` сигнатура), API-клиент (новый метод `dismissTask`).
+**Android:** `TokenStorage.kt` (удаление снуз/делит-методов), `DachaApi.kt` (`dismissTask`,
+`getDismissedTaskKeys`), `Models.kt` (`DismissedTasksResponse`),
+`TodayViewModel.kt` (`snoozeTask`/`deleteTask` → прямой вызов API, `pendingHiddenTasks`),
+`TodayScreen.kt` (фильтрация по `pendingHiddenTasks`),
+`PlantingsViewModel.kt` (`loadPlantings`/`closeActionSheet` читают `snoozed` из API вместо
+`TokenStorage`), `CalendarViewModel.kt` (удаление параметра `snoozedTasks`).
 
 **Web:** `web/src/api/schedule.ts` (`taskKey()`),
 `web/src/api/client.ts` (`dismissTask()`), `web/src/screens/TodayScreen.tsx` (`TaskCard` += иконки).
