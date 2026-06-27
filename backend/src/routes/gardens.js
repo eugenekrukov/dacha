@@ -140,4 +140,51 @@ module.exports = async function (fastify) {
     if (!result.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
     return normalizeGarden(result.rows[0])
   })
+
+  // GET /gardens/:id/beds — грядки участка + история посадок за 3 года (для подсказки севооборота)
+  fastify.get('/:id/beds', auth, async (request, reply) => {
+    const garden = await fastify.db.query(
+      'SELECT id FROM gardens WHERE id = $1 AND user_id = $2',
+      [request.params.id, request.user.userId]
+    )
+    if (!garden.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
+
+    const result = await fastify.db.query(
+      `SELECT b.id, b.name, b.type,
+              COALESCE((
+                SELECT json_agg(json_build_object(
+                         'crop_name', c.name, 'family', c.family,
+                         'year', EXTRACT(YEAR FROM p.planted_at)::int
+                       ) ORDER BY p.planted_at DESC)
+                FROM plantings p
+                JOIN crops c ON c.id = p.crop_id
+                WHERE p.bed_id = b.id AND p.planted_at >= NOW() - INTERVAL '3 years'
+              ), '[]'::json) AS history
+       FROM garden_beds b
+       WHERE b.garden_id = $1
+       ORDER BY b.created_at ASC`,
+      [request.params.id]
+    )
+    return result.rows
+  })
+
+  // POST /gardens/:id/beds — создать грядку
+  fastify.post('/:id/beds', auth, async (request, reply) => {
+    const garden = await fastify.db.query(
+      'SELECT id FROM gardens WHERE id = $1 AND user_id = $2',
+      [request.params.id, request.user.userId]
+    )
+    if (!garden.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
+
+    const { name, type } = request.body
+    if (type !== undefined && type !== 'soil' && type !== 'greenhouse') {
+      return reply.code(400).send({ error: 'Invalid type' })
+    }
+    const bedType = type ?? 'soil'
+    const result = await fastify.db.query(
+      'INSERT INTO garden_beds (garden_id, name, type) VALUES ($1, $2, $3) RETURNING *',
+      [request.params.id, name, bedType]
+    )
+    return reply.code(201).send({ ...result.rows[0], history: [] })
+  })
 }

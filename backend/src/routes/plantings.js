@@ -16,7 +16,7 @@ module.exports = async function (fastify) {
 
   // POST /plantings — платное действие: гейт по триалу/подписке
   fastify.post('/', { onRequest: [fastify.authenticate, fastify.requireAccess] }, async (request, reply) => {
-    const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes, sowing_method = 'seedling', variety } = request.body
+    const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes, sowing_method = 'seedling', variety, bed_id } = request.body
     const method = sowing_method === 'direct' ? 'direct' : 'seedling'
     const varietyVal = typeof variety === 'string' && variety.trim() ? variety.trim().slice(0, 120) : null
 
@@ -25,10 +25,20 @@ module.exports = async function (fastify) {
       return reply.code(403).send({ error: 'Garden not found or not yours' })
     }
 
+    // Грядка (если указана) должна принадлежать тому же участку — иначе подсказка севооборота
+    // могла бы сравнивать историю чужого/другого участка.
+    if (bed_id != null) {
+      const bedCheck = await fastify.db.query(
+        'SELECT 1 FROM garden_beds WHERE id = $1 AND garden_id = $2',
+        [bed_id, garden_id]
+      )
+      if (!bedCheck.rows[0]) return reply.code(400).send({ error: 'Invalid bed' })
+    }
+
     const result = await fastify.db.query(
-      `INSERT INTO plantings (garden_id, crop_id, planted_at, quantity, conditions, notes, stage, sowing_method, variety)
-       VALUES ($1,$2,$3,$4,$5,$6,'sowing',$7,$8) RETURNING *`,
-      [garden_id, crop_id, planted_at || new Date(), quantity, conditions, notes, method, varietyVal]
+      `INSERT INTO plantings (garden_id, crop_id, planted_at, quantity, conditions, notes, stage, sowing_method, variety, bed_id)
+       VALUES ($1,$2,$3,$4,$5,$6,'sowing',$7,$8,$9) RETURNING *`,
+      [garden_id, crop_id, planted_at || new Date(), quantity, conditions, notes, method, varietyVal, bed_id ?? null]
     )
     return reply.code(201).send(result.rows[0])
   })
@@ -145,13 +155,23 @@ module.exports = async function (fastify) {
 
   // PATCH /plantings/:id/info
   fastify.patch('/:id/info', auth, async (request, reply) => {
-    const { planted_at, quantity, conditions, sowing_method, variety } = request.body
+    const { planted_at, quantity, conditions, sowing_method, variety, bed_id } = request.body
     const method = sowing_method === 'direct' || sowing_method === 'seedling' ? sowing_method : null
     // variety: строка → обрезаем; пустая строка '' → сброс в NULL; undefined → не трогаем.
     const varietyVal = variety === undefined
       ? null
       : (typeof variety === 'string' && variety.trim() ? variety.trim().slice(0, 120) : '')
     // Защита от IDOR: обновляем только посадку в участке текущего пользователя
+    if (bed_id != null) {
+      const bedCheck = await fastify.db.query(
+        `SELECT 1 FROM garden_beds b
+         JOIN plantings p ON p.garden_id = b.garden_id AND p.id = $2
+         JOIN gardens g ON g.id = p.garden_id AND g.user_id = $3
+         WHERE b.id = $1`,
+        [bed_id, request.params.id, request.user.userId]
+      )
+      if (!bedCheck.rows[0]) return reply.code(400).send({ error: 'Invalid bed' })
+    }
     const result = await fastify.db.query(
       `UPDATE plantings
        SET planted_at    = COALESCE($1, planted_at),
@@ -161,10 +181,11 @@ module.exports = async function (fastify) {
            variety       = CASE WHEN $7::text IS NULL THEN variety
                                 WHEN $7 = '' THEN NULL
                                 ELSE $7 END,
+           bed_id        = COALESCE($8, bed_id),
            updated_at    = NOW()
        WHERE id = $5 AND garden_id IN (SELECT id FROM gardens WHERE user_id=$6)
        RETURNING *`,
-      [planted_at ?? null, quantity ?? null, conditions ?? null, method, request.params.id, request.user.userId, varietyVal]
+      [planted_at ?? null, quantity ?? null, conditions ?? null, method, request.params.id, request.user.userId, varietyVal, bed_id ?? null]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
     return result.rows[0]

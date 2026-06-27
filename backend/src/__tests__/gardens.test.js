@@ -144,3 +144,91 @@ describe('PUT /gardens/:id', () => {
     await app.close()
   })
 })
+
+describe('GET /gardens/:id/beds', () => {
+  it('возвращает грядки участка с историей посадок за 3 года', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT id FROM gardens')) return { rows: [{ id: 1 }] }
+        if (sql.includes('FROM garden_beds')) {
+          return { rows: [{ id: 10, name: 'Теплица 1', type: 'greenhouse', history: [
+            { crop_name: 'Томат', family: 'Паслёновые', year: 2025 },
+          ] }] }
+        }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .get('/gardens/1/beds')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body[0]).toMatchObject({ name: 'Теплица 1' })
+    expect(res.body[0].history[0]).toMatchObject({ crop_name: 'Томат', family: 'Паслёновые' })
+    await app.close()
+  })
+
+  it('404 для чужого участка', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .get('/gardens/999/beds')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(404)
+    await app.close()
+  })
+})
+
+describe('POST /gardens/:id/beds', () => {
+  it('создаёт грядку в своём участке', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT id FROM gardens')) return { rows: [{ id: 1 }] }
+        if (sql.includes('INSERT INTO garden_beds')) return { rows: [{ id: 10, garden_id: 1, name: 'Грядка 1', type: 'soil' }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/gardens/1/beds')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Грядка 1', type: 'soil' })
+
+    expect(res.status).toBe(201)
+    expect(res.body).toMatchObject({ name: 'Грядка 1', history: [] })
+    await app.close()
+  })
+
+  it('403/404 при создании грядки в чужом участке', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/gardens/999/beds')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Грядка', type: 'soil' })
+
+    expect(res.status).toBe(404)
+    await app.close()
+  })
+
+  it('400 для невалидного type', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => sql.includes('SELECT id FROM gardens') ? { rows: [{ id: 1 }] } : { rows: [] },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/gardens/1/beds')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Грядка', type: 'greenhoue' })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+})
