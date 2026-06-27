@@ -185,7 +185,10 @@ describe('GET /plantings', () => {
 describe('PATCH /plantings/:id/info', () => {
   it('обновляет bed_id (COALESCE — без bed_id в body значение не трогается)', async () => {
     const app = await buildApp(makeMockDb({
-      query: async () => ({ rows: [{ ...PLANTING, bed_id: 10 }] }),
+      query: async (sql) => {
+        if (sql.includes('FROM garden_beds')) return { rows: [{ ok: 1 }] }
+        return { rows: [{ ...PLANTING, bed_id: 10 }] }
+      },
     }))
     const token = makeToken(app)
 
@@ -196,6 +199,44 @@ describe('PATCH /plantings/:id/info', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.bed_id).toBe(10)
+    await app.close()
+  })
+
+  it('400 если bed_id не принадлежит участку этой посадки', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('FROM garden_beds')) return { rows: [] }
+        return { rows: [{ ...PLANTING, bed_id: 10 }] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ bed_id: 999 })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+
+  it('без bed_id в body не запускает проверку грядки и не трогает значение', async () => {
+    let capturedParams = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('UPDATE plantings')) { capturedParams = params; return { rows: [{ ...PLANTING, bed_id: 10 }] } }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ quantity: 5 })
+
+    expect(res.status).toBe(200)
+    expect(capturedParams[capturedParams.length - 1]).toBeNull()
     await app.close()
   })
 })

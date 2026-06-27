@@ -162,6 +162,16 @@ module.exports = async function (fastify) {
       ? null
       : (typeof variety === 'string' && variety.trim() ? variety.trim().slice(0, 120) : '')
     // Защита от IDOR: обновляем только посадку в участке текущего пользователя
+    if (bed_id != null) {
+      const bedCheck = await fastify.db.query(
+        `SELECT 1 FROM garden_beds b
+         JOIN plantings p ON p.garden_id = b.garden_id AND p.id = $2
+         JOIN gardens g ON g.id = p.garden_id AND g.user_id = $3
+         WHERE b.id = $1`,
+        [bed_id, request.params.id, request.user.userId]
+      )
+      if (!bedCheck.rows[0]) return reply.code(400).send({ error: 'Invalid bed' })
+    }
     const result = await fastify.db.query(
       `UPDATE plantings
        SET planted_at    = COALESCE($1, planted_at),
