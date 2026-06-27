@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -16,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,8 +104,8 @@ fun HarvestScreen(
             plantings = state.plantings,
             isSaving = state.isSaving,
             onDismiss = { viewModel.closeAddSheet() },
-            onSave = { plantingId, weightKg, quantity, notes ->
-                viewModel.addHarvest(plantingId, weightKg, quantity, notes)
+            onSave = { plantingId, weightKg, quantity, notes, finishSeason ->
+                viewModel.addHarvest(plantingId, weightKg, quantity, notes, finishSeason)
             }
         )
     }
@@ -367,138 +365,6 @@ private fun HarvestCard(harvest: Harvest) {
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddHarvestSheet(
-    plantings: List<Planting>,
-    isSaving: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (plantingId: Int, weightKg: Double?, quantity: Int?, notes: String?) -> Unit
-) {
-    var selectedPlanting by remember { mutableStateOf(plantings.firstOrNull()) }
-    var weightText by remember { mutableStateOf("") }
-    var quantityText by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
-    var dropdownExpanded by remember { mutableStateOf(false) }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        windowInsets = WindowInsets(0)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                "Записать урожай",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Black,
-                fontSize = 20.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            ExposedDropdownMenuBox(
-                expanded = dropdownExpanded,
-                onExpandedChange = { dropdownExpanded = it }
-            ) {
-                OutlinedTextField(
-                    value = selectedPlanting?.cropName
-                        ?: selectedPlanting?.let { "Посадка #${it.id}" }
-                        ?: "Нет посадок",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Культура", fontFamily = NunitoFamily) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(dropdownExpanded) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                ExposedDropdownMenu(
-                    expanded = dropdownExpanded,
-                    onDismissRequest = { dropdownExpanded = false }
-                ) {
-                    plantings.forEach { planting ->
-                        DropdownMenuItem(
-                            text = { Text(planting.cropName ?: "Посадка #${planting.id}", fontFamily = NunitoFamily) },
-                            onClick = {
-                                selectedPlanting = planting
-                                dropdownExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = weightText,
-                    onValueChange = { weightText = it },
-                    label = { Text("Вес, кг", fontFamily = NunitoFamily) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                OutlinedTextField(
-                    value = quantityText,
-                    onValueChange = { quantityText = it },
-                    label = { Text("Штук", fontFamily = NunitoFamily) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-
-            OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
-                label = { Text("Заметка (необязательно)", fontFamily = NunitoFamily) },
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 4,
-                minLines = 2,
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Button(
-                onClick = {
-                    val pid = selectedPlanting?.id ?: return@Button
-                    onSave(
-                        pid,
-                        weightText.toDoubleOrNull(),
-                        quantityText.toIntOrNull(),
-                        notes.ifBlank { null }
-                    )
-                },
-                enabled = selectedPlanting != null && !isSaving &&
-                        (weightText.toDoubleOrNull() != null || quantityText.toIntOrNull() != null),
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Text(
-                        "Сохранить",
-                        fontFamily = NunitoFamily,
-                        fontWeight = FontWeight.Black,
-                        softWrap = false
-                    )
-                }
-            }
         }
     }
 }
