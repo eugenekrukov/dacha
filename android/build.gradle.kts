@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.google.services) apply false
+    alias(libs.plugins.firebase.crashlytics) apply false
 }
 
 // E3: project path содержит кириллицу ("Календарь дачника") — Gradle 9 / AGP 9 тест-воркер на Windows

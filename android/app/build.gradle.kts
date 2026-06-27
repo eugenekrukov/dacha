@@ -1,4 +1,5 @@
 import java.util.Properties
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 
 plugins {
     alias(libs.plugins.android.application)
@@ -6,6 +7,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 // Релизная подпись из android/keystore.properties (не в репозитории). Если файла нет или он
@@ -25,8 +27,8 @@ android {
         applicationId = "ru.dachakalend.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.0.3"
+        versionCode = 7
+        versionName = "1.0.4"
 
         // URL бэкенда — менять здесь при смене окружения
         buildConfigField("String", "BASE_URL", "\"https://dacha.studio1008.com/\"")
@@ -59,6 +61,11 @@ android {
             )
             // Подпись из keystore.properties; если ключа нет — release остаётся неподписанным.
             if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
+            // Загружаем R8 mapping.txt в Crashlytics — иначе стектрейсы релизных крашей
+            // приходят с обфусцированными/неточными именами и номерами строк.
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = true
+            }
         }
     }
 
@@ -169,6 +176,10 @@ dependencies {
     // RuStore Push SDK (rustore-флейвор) + Firebase Cloud Messaging (gplay/samsung)
     implementation(libs.rustore.push)
     implementation(libs.firebase.messaging)
+
+    // Crashlytics — точные стектрейсы крашей (раньше расследовали баги без них).
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
 
     // Chrome Custom Tabs — открытие страницы оплаты ЮKassa
     implementation(libs.androidx.browser)
