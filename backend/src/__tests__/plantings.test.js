@@ -58,6 +58,46 @@ describe('POST /plantings', () => {
     expect(res.status).toBe(401)
     await app.close()
   })
+
+  it('принимает bed_id и проверяет, что грядка принадлежит тому же участку', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
+        if (sql.includes('FROM garden_beds')) return { rows: [{ ok: 1 }] }
+        if (sql.includes('INSERT INTO plantings')) return { rows: [{ ...PLANTING, bed_id: 10 }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ garden_id: 1, crop_id: 1, bed_id: 10 })
+
+    expect(res.status).toBe(201)
+    expect(res.body.bed_id).toBe(10)
+    await app.close()
+  })
+
+  it('400 если bed_id не принадлежит указанному участку', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
+        if (sql.includes('FROM garden_beds')) return { rows: [] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ garden_id: 1, crop_id: 1, bed_id: 999 })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
 })
 
 describe('GET /plantings', () => {
@@ -138,6 +178,24 @@ describe('GET /plantings', () => {
 
     expect(res.body[0].next_care_task).toBeNull()
     expect(res.body[0].overdue_care_task).toBeNull()
+    await app.close()
+  })
+})
+
+describe('PATCH /plantings/:id/info', () => {
+  it('обновляет bed_id (COALESCE — без bed_id в body значение не трогается)', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async () => ({ rows: [{ ...PLANTING, bed_id: 10 }] }),
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ bed_id: 10 })
+
+    expect(res.status).toBe(200)
+    expect(res.body.bed_id).toBe(10)
     await app.close()
   })
 })
