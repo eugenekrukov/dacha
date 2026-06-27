@@ -9,6 +9,10 @@ const CARE_ACTION_TYPES = ['tying', 'pinching', 'hilling', 'pruning', 'weeding',
 // иначе посадка с датой год назад выдаёт «лавину» давно пропущенных задач (см. effectivePlantedAt).
 const OVERDUE_WINDOW_DAYS = 21
 
+// Сколько дней не повторять harvest_due после лога в harvests — иначе многоразовые культуры
+// (огурцы, малина) получали бы карточку каждый день сразу после очередного сбора.
+const HARVEST_COOLDOWN_DAYS = 3
+
 // Сопоставление имени care_task (из БД) → action_type (что пишет Android).
 // По КЛЮЧЕВОМУ СЛОВУ, а не дословно: имена в БД описательные («Первое окучивание»,
 // «Обработка от капустной мухи», «Обрезка нижних листьев», «Прищипка верхушки»).
@@ -184,7 +188,7 @@ function pushGrouped(tasks, accum, type) {
   })
 }
 
-function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null, lastCareActionMap = {}) {
+function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null, lastCareActionMap = {}, lastHarvestedMap = {}) {
   // Если завтра дождь ≥70% — полив не нужен
   const rainExpected = precipProb !== null && precipProb >= 70
   const tasks = []
@@ -318,9 +322,13 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
     // 🌾 Пора убирать урожай.
     // Прямой посев растёт в грунте с момента посева (стадия остаётся 'sowing'), поэтому для него
     // урожай считаем по harvest_days напрямую; рассадные — после высадки (growing/transplanted/…).
+    // После лога в harvests — не повторяем карточку HARVEST_COOLDOWN_DAYS дней.
+    const lastHarvested = lastHarvestedMap[p.id]
+    const daysSinceHarvest = lastHarvested ? Math.floor((today - lastHarvested) / 86400000) : Infinity
     if (
       p.harvest_days &&
       daysSincePlanting >= p.harvest_days &&
+      daysSinceHarvest >= HARVEST_COOLDOWN_DAYS &&
       (p.sowing_method === 'direct' || ['growing', 'flowering', 'harvesting', 'transplanted'].includes(p.stage))
     ) {
       tasks.push({

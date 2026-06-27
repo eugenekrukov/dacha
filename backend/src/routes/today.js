@@ -107,6 +107,22 @@ module.exports = async function (fastify) {
       })
     }
 
+    // ── 3.8. ПОСЛЕДНИЙ СБОР УРОЖАЯ (cooldown для harvest_due) ───────────────
+    let lastHarvestedMap = {}
+    if (plantings.length > 0) {
+      const ids = plantings.map(p => p.id)
+      const harvestRes = await fastify.db.query(
+        `SELECT DISTINCT ON (planting_id) planting_id, harvested_at
+         FROM harvests
+         WHERE planting_id = ANY($1)
+         ORDER BY planting_id, harvested_at DESC`,
+        [ids]
+      )
+      harvestRes.rows.forEach(r => {
+        lastHarvestedMap[r.planting_id] = new Date(r.harvested_at)
+      })
+    }
+
     // ── 4. НАПОМИНАНИЯ НА СЕГОДНЯ ────────────────────────────────────────────
     const remindersRes = await fastify.db.query(
       `SELECT r.id, r.type, r.message, r.remind_at, c.name as crop_name
@@ -129,7 +145,7 @@ module.exports = async function (fastify) {
     }))
 
     // ── 5. ЗАДАЧИ ────────────────────────────────────────────────────────────
-    const rawTasks = buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminderTasks, today, careActionsToday, weather?.precip_prob_pct ?? null, lastCareActionMap)
+    const rawTasks = buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminderTasks, today, careActionsToday, weather?.precip_prob_pct ?? null, lastCareActionMap, lastHarvestedMap)
     const topTasks = formatTasks(rawTasks)
 
     return {
