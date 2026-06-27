@@ -256,6 +256,15 @@ describe('harvest_due', () => {
     )
     expect(tasks.some(t => t.type === 'harvest_due')).toBe(true)
   })
+
+  it('появляется ровно через 3 дня (граница cooldown включительно)', () => {
+    const lastHarvested = { 1: new Date(daysAgo(3, TODAY)) }
+    const tasks = buildTasks(
+      [makePlanting({ stage: 'growing', harvest_days: 10, planted_at: daysAgo(15, TODAY) })],
+      makeWeather(), {}, {}, [], TODAY, {}, null, {}, lastHarvested
+    )
+    expect(tasks.some(t => t.type === 'harvest_due')).toBe(true)
+  })
 })
 
 // ─── Сортировка и лимит ───────────────────────────────────────────────────────
