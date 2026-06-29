@@ -31,22 +31,21 @@ module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
   // POST /gardens
-  // Бесплатный план: максимум 3 участка.
-  // Если участок уже есть — возвращаем первый существующий вместо создания нового.
+  // Мульти-участки в UI пока не реализованы (онбординг гейтит создание по «нет участка»).
+  // Эндпоинт идемпотентен: если участок уже есть — возвращаем первый существующий (200),
+  // а не создаём дубль. Это закрывает баг, из-за которого повторный заход на создание
+  // (прямой /garden/new, повторный онбординг, чистый кэш) плодил участки-сироты, а пуш-джоб
+  // обходил их все и слал фантомные напоминания. Когда появится UI мульти-участков — снять гейт.
   fastify.post('/', auth, async (request, reply) => {
     const { name, region, soil_type, climate_zone, city, garden_type } = request.body
     const userId = request.user.userId
 
-    // Проверяем лимит участков
     const existing = await fastify.db.query(
-      'SELECT * FROM gardens WHERE user_id=$1 ORDER BY created_at ASC LIMIT 3',
+      'SELECT * FROM gardens WHERE user_id=$1 ORDER BY created_at ASC LIMIT 1',
       [userId]
     )
-    if (existing.rows.length >= 3) {
-      return reply.code(409).send({
-        error: 'Достигнут лимит участков',
-        existing_garden: existing.rows[0]
-      })
+    if (existing.rows.length > 0) {
+      return reply.code(200).send(normalizeGarden(existing.rows[0]))
     }
 
     let lat = request.body.lat

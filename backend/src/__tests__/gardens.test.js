@@ -30,11 +30,35 @@ describe('POST /gardens', () => {
     await app.close()
   })
 
-  it('возвращает 409 если достигнут лимит 3 участка', async () => {
+  it('идемпотентен: при существующем участке возвращает первый существующий (200), не создавая дубль', async () => {
+    let insertCalled = false
     const app = await buildApp(makeMockDb({
       query: async (sql) => {
-        if (sql.includes('SELECT * FROM gardens'))
-          return { rows: [GARDEN, { ...GARDEN, id: 2 }, { ...GARDEN, id: 3 }] }
+        if (sql.includes('SELECT * FROM gardens')) return { rows: [GARDEN] }
+        if (sql.includes('INSERT INTO gardens')) { insertCalled = true; return { rows: [{ ...GARDEN, id: 2, name: 'Второй' }] } }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/gardens')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Второй', region: 'Москва' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ id: 1, name: 'Мой участок' })
+    expect(insertCalled).toBe(false)
+    await app.close()
+  })
+
+  it('идемпотентен и при нескольких существующих участках: возвращает первый, не создаёт новый', async () => {
+    let insertCalled = false
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        // SELECT с LIMIT 1 (ORDER BY created_at ASC) — первый существующий участок
+        if (sql.includes('SELECT * FROM gardens')) return { rows: [GARDEN] }
+        if (sql.includes('INSERT INTO gardens')) { insertCalled = true; return { rows: [{ ...GARDEN, id: 4 }] } }
         return { rows: [] }
       },
     }))
@@ -45,7 +69,9 @@ describe('POST /gardens', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Четвёртый', region: 'Москва' })
 
-    expect(res.status).toBe(409)
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ id: 1 })
+    expect(insertCalled).toBe(false)
     await app.close()
   })
 
