@@ -52,6 +52,7 @@ import ru.dachakalend.app.data.model.WeatherSummary
 import androidx.compose.foundation.BorderStroke
 import ru.dachakalend.app.R
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
+import ru.dachakalend.app.ui.harvest.HarvestLogBottomSheet
 import ru.dachakalend.app.ui.actions.careTaskActionType
 import ru.dachakalend.app.ui.actions.treatmentNote
 import ru.dachakalend.app.ui.onboarding.CoachMarkController
@@ -195,6 +196,7 @@ private fun TodayContent(
     var quickActionType  by remember { mutableStateOf<String?>(null) }
     var quickActionNotes by remember { mutableStateOf<String?>(null) }  // для care_task_due
     var selectedPlanting by remember { mutableStateOf<Planting?>(null) }
+    var harvestPlanting  by remember { mutableStateOf<Planting?>(null) }  // карточка «Убрать урожай»
     // Групповая care-задача → мульти-посадочное действие (без адресной посадки).
     var multiTask by remember { mutableStateOf<TodayTask?>(null) }
     var recsExpanded by remember { mutableStateOf(false) }  // «Советы дня»: первые 3 + «показать ещё»
@@ -210,6 +212,14 @@ private fun TodayContent(
                 quickActionNotes = null
                 onRefresh()
             }
+        )
+    }
+
+    harvestPlanting?.let { planting ->
+        HarvestLogBottomSheet(
+            planting  = planting,
+            onDismiss = { harvestPlanting = null },
+            onLogged  = { onRefresh() }
         )
     }
 
@@ -319,6 +329,9 @@ private fun TodayContent(
                             SunnyTaskCard(
                                 task    = task,
                                 onClick = when {
+                                    task.type == "harvest_due" && taskPlanting != null -> {
+                                        { harvestPlanting = taskPlanting }
+                                    }
                                     taskPlanting != null -> {
                                         {
                                             selectedPlanting = taskPlanting

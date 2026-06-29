@@ -50,6 +50,7 @@ class HarvestViewModel @Inject constructor(
             val harvests = (harvestResult as? Result.Success)?.data ?: emptyList()
             val plantings = (plantingsResult as? Result.Success)?.data ?: emptyList()
             val error = (harvestResult as? Result.Error)?.message
+                ?: (plantingsResult as? Result.Error)?.message
 
             _uiState.value = _uiState.value.copy(
                 harvests = harvests,
