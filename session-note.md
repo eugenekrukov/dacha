@@ -1,6 +1,33 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-06-26
+**Дата последней сессии**: 2026-06-29
+
+## Сессия 2026-06-29 — унификация «Убрать урожай»: cooldown + шторка + завершение сезона
+
+Полный цикл superpowers по фиче из плана `docs/superpowers/plans/2026-06-27-harvest-due-unification.md` (спека `...-design.md`). Задача: связать карточку «Убрать урожай» на «Сегодня» с журналом `harvests`, убрать повторный показ у многоразовых культур, добавить завершение сезона.
+
+**Backend (Task 1):**
+- `todayLogic.js`: новая константа `HARVEST_COOLDOWN_DAYS = 3`; `buildTasks()` принимает `lastHarvestedMap` (10-й аргумент); `harvest_due` не генерируется, если последний сбор < 3 дней назад.
+- `routes/today.js`: перед вызовом `buildTasks` запрашивает `DISTINCT ON (planting_id)` последний `harvested_at` по всем посадкам участка → `lastHarvestedMap`.
+- **Тесты**: 2 новых (boundary cooldown) + 1 граничный. Итого: **391/391**.
+
+**Android (Tasks 2–3):**
+- `AddHarvestSheet.kt` — вынесен в отдельный файл; принимает опциональный `preselectedPlanting` (при задании поле культуры зафиксировано, пикер скрыт); добавлен чекбокс «Это весь урожай в этом сезоне» (`finishSeason`).
+- `HarvestScreen.kt` — убрана inline-декларация `AddHarvestSheet`, обновлен вызов с `finishSeason`.
+- `HarvestViewModel.kt` — `addHarvest()` принимает `finishSeason: Boolean`; при `true` вызывает `plantingsRepository.updateStage(plantingId, "done")`.
+- `HarvestLogViewModel.kt` (новый) — лёгкий VM только для записи одного урожая (без загрузки списков); `logHarvest(plantingId, weightKg, quantity, notes, finishSeason, onDone)`.
+- `HarvestLogBottomSheet.kt` (новый) — оборачивает `AddHarvestSheet` с `preselectedPlanting`, использует `HarvestLogViewModel`.
+- `TodayScreen.kt` — добавлена ветка `task.type == "harvest_due"` в `onClick` карточки: открывает `HarvestLogBottomSheet` вместо общего `ActionLogBottomSheet`.
+- **Тесты**: `HarvestLogViewModelTest` (3 теста: без finishSeason / с finishSeason / ошибка). BUILD SUCCESSFUL.
+
+**Веб (Tasks 4–6):**
+- `HarvestLogModal.tsx` (новый) — модальное окно с полями вес/штуки/заметка + чекбокс `finishSeason`; при сохранении вызывает `api.addHarvest` + опционально `api.updateStage(id, 'done')`.
+- `TodayScreen.tsx` — `harvest_due` карточка открывает `HarvestLogModal`, все остальные типы — прежний `ActionLogSheet`.
+- `HarvestsScreen.tsx` — в форму добавления урожая добавлен чекбокс завершения сезона; при сохранении вызывает `api.updateStage` если отмечен.
+- `PlantingDetailScreen.tsx` — кнопка «Завершить сезон» (паритет с Android) рядом с «Удалить посадку»; видна только пока `stage !== 'done'`.
+- `npm run build` — успешно (tsc + vite, 1804 модуля).
+
+**Деплой:** НЕ задеплоено (нет новых миграций; backend + web деплоятся стандартно).
 
 ## Сессия 2026-06-26 — баг собранных культур, ремайндеры подписки, vh→dvh на вебе
 

@@ -94,7 +94,7 @@ GET /analytics/summary
 1. `frost_alert` (риск заморозков)
 2. `transplant_due` (пора пересадить)
 3. `watering_due` (полив просрочен)
-4. `harvest_due` (урожай готов)
+4. `harvest_due` (урожай готов; cooldown 3 дня после последней записи в `harvests` по этой посадке)
 5. `reminder` (ручное напоминание)
 
 ### Push-уведомления
@@ -153,7 +153,8 @@ android/app/src/main/java/ru/dachakalend/app/
     ├── crops/             — CropsScreen, CropDetailScreen, CropsViewModel
     ├── plantings/         — PlantingsScreen, PlantingsViewModel, PlantingInfoBottomSheet
     ├── actions/           — ActionLogBottomSheet, ActionLogViewModel
-    ├── harvest/           — HarvestScreen, HarvestViewModel
+    ├── harvest/           — HarvestScreen, HarvestViewModel, AddHarvestSheet,
+    │                        HarvestLogViewModel, HarvestLogBottomSheet
     ├── analytics/         — AnalyticsScreen, AnalyticsRepository
     └── theme/             — DachaCalendarTheme
 ```
