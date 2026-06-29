@@ -50,6 +50,7 @@ class HarvestViewModel @Inject constructor(
             val harvests = (harvestResult as? Result.Success)?.data ?: emptyList()
             val plantings = (plantingsResult as? Result.Success)?.data ?: emptyList()
             val error = (harvestResult as? Result.Error)?.message
+                ?: (plantingsResult as? Result.Error)?.message
 
             _uiState.value = _uiState.value.copy(
                 harvests = harvests,
@@ -60,11 +61,12 @@ class HarvestViewModel @Inject constructor(
         }
     }
 
-    fun addHarvest(plantingId: Int, weightKg: Double?, quantity: Int?, notes: String?) {
+    fun addHarvest(plantingId: Int, weightKg: Double?, quantity: Int?, notes: String?, finishSeason: Boolean = false) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true)
             when (val result = harvestRepository.addHarvest(plantingId, weightKg, quantity, notes)) {
                 is Result.Success -> {
+                    if (finishSeason) plantingsRepository.updateStage(plantingId, "done")
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
                         showAddSheet = false,

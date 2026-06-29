@@ -80,6 +80,17 @@ export default function PlantingDetailScreen() {
     }
   }
 
+  const finishSeason = async () => {
+    if (!planting) return
+    if (!confirm(`«${planting.crop_name ?? 'Посадка'}» будет переведена в архив. Данные сохранятся.`)) return
+    try {
+      const updated = await api.updateStage(plantingId, 'done')
+      setPlanting(updated)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось завершить сезон')
+    }
+  }
+
   if (loading) return <p className="p-4 font-bold text-muted">Загрузка…</p>
   if (!planting) return <p className="p-4 font-bold text-muted">{error ?? 'Не найдено'}</p>
 
@@ -169,6 +180,11 @@ export default function PlantingDetailScreen() {
             )}
           </section>
 
+          {planting.stage !== 'done' && (
+            <button onClick={finishSeason} className="mt-2 font-bold text-tertiary">
+              Завершить сезон
+            </button>
+          )}
           <button onClick={remove} className="mt-2 font-bold text-red-600">
             Удалить посадку
           </button>

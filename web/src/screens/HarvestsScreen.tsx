@@ -17,6 +17,7 @@ export default function HarvestsScreen() {
   const [weight, setWeight] = useState('')
   const [quantity, setQuantity] = useState('')
   const [notes, setNotes] = useState('')
+  const [finishSeason, setFinishSeason] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const load = async () => {
@@ -56,9 +57,11 @@ export default function HarvestsScreen() {
         quantity: quantity ? Number(quantity) : undefined,
         notes: notes.trim() || undefined,
       })
+      if (finishSeason) await api.updateStage(plantingId, 'done')
       setWeight('')
       setQuantity('')
       setNotes('')
+      setFinishSeason(false)
       await load()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось добавить')
@@ -122,6 +125,14 @@ export default function HarvestsScreen() {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
+        <label className="flex items-center gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            checked={finishSeason}
+            onChange={(e) => setFinishSeason(e.target.checked)}
+          />
+          Это весь урожай в этом сезоне
+        </label>
         {error && (
           <div className="flex flex-col gap-1">
             <p className="text-sm font-bold text-red-600">{error}</p>
