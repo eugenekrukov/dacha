@@ -7,6 +7,7 @@ import { careTaskActionType, treatmentNote } from '../api/schedule'
 import { actionLabel } from '../api/labels'
 import { taskIcon, actionIcon } from '../ui/icons'
 import ActionLogSheet from '../components/ActionLogSheet'
+import HarvestLogModal from '../components/HarvestLogModal'
 import ErrorCard from '../components/ErrorCard'
 import type { ActionLog, Recommendation, TodayResponse, TodayTask } from '../api/types'
 
@@ -264,7 +265,19 @@ export default function TodayScreen() {
         </section>
       )}
 
-      {logTask && (logTask.planting_id != null || !!logTask.crop_names_with_ids?.length) && (
+      {logTask && logTask.type === 'harvest_due' && logTask.planting_id != null && (
+        <HarvestLogModal
+          plantingId={logTask.planting_id}
+          cropName={logTask.crop_name}
+          onClose={() => setLogTask(null)}
+          onLogged={() => {
+            setLogTask(null)
+            load()
+          }}
+        />
+      )}
+
+      {logTask && logTask.type !== 'harvest_due' && (logTask.planting_id != null || !!logTask.crop_names_with_ids?.length) && (
         <ActionLogSheet
           plantingId={logTask.planting_id ?? undefined}
           cropName={logTask.crop_name}
