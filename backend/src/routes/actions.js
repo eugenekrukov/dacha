@@ -53,21 +53,44 @@ module.exports = async function (fastify, opts) {
   })
 
   // GET /actions?planting_id=&garden_id=&limit=
+  // Возвращает action_logs + harvests (action_type='harvest') в единой хронологической ленте.
   fastify.get('/', auth, async (request) => {
     const { planting_id, garden_id, limit = 100 } = request.query
     const params = [request.user.userId]
     const conds = []
-    if (planting_id) { params.push(planting_id); conds.push(`al.planting_id = $${params.length}`) }
-    if (garden_id)   { params.push(garden_id);   conds.push(`p.garden_id = $${params.length}`) }
+    if (planting_id) { params.push(planting_id); conds.push(`combined.planting_id = $${params.length}`) }
+    if (garden_id)   { params.push(garden_id);   conds.push(`combined.garden_id   = $${params.length}`) }
     params.push(limit)
+    const whereClause = conds.length ? 'WHERE ' + conds.join(' AND ') : ''
     const result = await fastify.db.query(
-      `SELECT al.*, c.name AS crop_name
-       FROM action_logs al
-       JOIN plantings p ON p.id = al.planting_id
-       JOIN crops c     ON c.id = p.crop_id
-       JOIN gardens g   ON g.id = p.garden_id
-       WHERE g.user_id = $1 ${conds.length ? 'AND ' + conds.join(' AND ') : ''}
-       ORDER BY al.logged_at DESC
+      `SELECT id, planting_id, action_type, notes, auto, logged_at, client_id, crop_name
+       FROM (
+         SELECT al.id, al.planting_id, al.action_type, al.notes, al.auto, al.logged_at, al.client_id,
+                c.name AS crop_name, p.garden_id
+         FROM action_logs al
+         JOIN plantings p ON p.id = al.planting_id
+         JOIN crops c     ON c.id = p.crop_id
+         JOIN gardens g   ON g.id = p.garden_id
+         WHERE g.user_id = $1
+
+         UNION ALL
+
+         SELECT h.id, h.planting_id, 'harvest'::text,
+                CONCAT_WS(' · ',
+                  CASE WHEN h.weight_kg IS NOT NULL THEN ROUND(h.weight_kg::numeric, 1)::text || ' кг' END,
+                  CASE WHEN h.quantity  IS NOT NULL THEN h.quantity::text || ' шт' END,
+                  NULLIF(TRIM(COALESCE(h.notes, '')), '')
+                ) AS notes,
+                false AS auto, h.harvested_at AS logged_at, NULL::uuid AS client_id,
+                c.name AS crop_name, p.garden_id
+         FROM harvests h
+         JOIN plantings p ON p.id = h.planting_id
+         JOIN crops c     ON c.id = p.crop_id
+         JOIN gardens g   ON g.id = p.garden_id
+         WHERE g.user_id = $1
+       ) combined
+       ${whereClause}
+       ORDER BY logged_at DESC
        LIMIT $${params.length}`,
       params
     )

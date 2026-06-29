@@ -181,6 +181,23 @@ describe('GET /actions', () => {
     await app.close()
   })
 
+  it('включает записи урожая (action_type=harvest) в общую ленту', async () => {
+    const HARVEST_ROW = {
+      id: 99, planting_id: 1, action_type: 'harvest', notes: '1.5 кг · 3 шт',
+      auto: false, logged_at: new Date().toISOString(), client_id: null, crop_name: 'Огурец',
+    }
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [HARVEST_ROW] }) }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .get('/actions')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.some(r => r.action_type === 'harvest')).toBe(true)
+    await app.close()
+  })
+
   it('не возвращает действия по чужим посадкам (изоляция по user_id)', async () => {
     const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
     const token = makeToken(app, 2)  // другой пользователь

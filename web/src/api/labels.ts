@@ -37,6 +37,7 @@ export const ACTION_CATALOG: { type: string; label: string }[] = [
   { type: 'deflowering', label: 'Удаление цветков' },
   { type: 'staking', label: 'Установка опоры' },
   { type: 'other', label: 'Другое' },
+  { type: 'harvest', label: 'Сбор урожая' },
 ]
 
 // Полная карта для отображения (включая care-действия из backend для журнала/истории).

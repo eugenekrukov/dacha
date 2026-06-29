@@ -1272,6 +1272,7 @@ private val ACTION_TYPE_LABELS = mapOf(
     "bolt_removal"   to "Удаление стрелок",
     "deflowering"    to "Удаление цветков",
     "staking"        to "Установка опоры",
+    "harvest"        to "Сбор урожая",
     "other"          to "Другое"
 )
 
