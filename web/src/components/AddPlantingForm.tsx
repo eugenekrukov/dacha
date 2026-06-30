@@ -4,7 +4,8 @@ import { api, ApiError } from '../api/client'
 import Modal from './Modal'
 import SubscribeCta from './SubscribeCta'
 import { categoryLabel } from '../api/labels'
-import type { Crop } from '../api/types'
+import type { Crop, GardenBed } from '../api/types'
+import BedField from './BedField'
 
 interface Props {
   gardenId: number
@@ -20,6 +21,7 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
   const [variety, setVariety] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [conditions, setConditions] = useState<'soil' | 'greenhouse'>('soil')
+  const [bedId, setBedId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -77,6 +79,7 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
         conditions,
         sowing_method: sowingMethod,
         variety: variety.trim() || undefined,
+        bed_id: bedId ?? undefined,
       })
       onCreated()
     } catch (err) {
@@ -171,6 +174,17 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
               </div>
             )}
           </div>
+
+          <label className="mt-2 text-sm font-bold text-muted">Место (необязательно)</label>
+          <BedField
+            gardenId={gardenId}
+            value={bedId}
+            cropFamily={selectedCrop?.family}
+            onSelect={(bed: GardenBed | null) => {
+              setBedId(bed?.id ?? null)
+              if (bed) setConditions(bed.type)
+            }}
+          />
 
           <label className="mt-2 text-sm font-bold text-muted">Сорт (необязательно)</label>
           <input
