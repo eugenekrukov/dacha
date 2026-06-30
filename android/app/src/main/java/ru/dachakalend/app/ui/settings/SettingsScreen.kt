@@ -301,7 +301,7 @@ fun SettingsScreen(
             SettingsActionRow("Удалить аккаунт", danger = true) { showDeleteDialog = true }
             Spacer(Modifier.height(16.dp))
 
-            // ─── Блок подписки — только в платных сборках (rustore); в gplay/samsung оплаты нет ───
+            // ─── Блок подписки — только в платных сборках (PAYMENTS_ENABLED: rustore, gplay) ───
             if (BuildConfig.PAYMENTS_ENABLED) {
             Text(
                 text = "ПОДПИСКА",

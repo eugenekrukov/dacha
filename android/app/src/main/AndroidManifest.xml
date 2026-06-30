@@ -47,7 +47,7 @@
             android:name="ru.rustore.sdk.pushclient.default_notification_channel_id"
             android:value="dacha_reminders" />
 
-        <!-- FCM — сервис приёма уведомлений (gplay/samsung). В rustore не используется. -->
+        <!-- FCM — сервис приёма уведомлений (gplay). В rustore не используется. -->
         <service
             android:name=".notification.DachaFcmService"
             android:exported="false">

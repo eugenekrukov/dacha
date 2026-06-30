@@ -56,7 +56,6 @@ hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.
 rustore-push = { group = "ru.rustore.sdk", name = "pushclient", version.ref = "rustorePush" }
 rustore-review = { group = "ru.rustore.sdk", name = "review", version.ref = "rustoreReview" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "androidxBrowser" }
-yandex-mobileads = { group = "com.yandex.android", name = "mobileads", version.ref = "yandexMobileAds" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }

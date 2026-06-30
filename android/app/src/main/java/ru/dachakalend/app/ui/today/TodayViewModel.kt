@@ -135,7 +135,7 @@ class TodayViewModel @Inject constructor(
     }
 
     private fun registerPushToken() {
-        // По флейвору: rustore → RuStore Push токен; gplay/samsung → FCM-токен. Провайдер уходит на сервер.
+        // По флейвору: rustore → RuStore Push токен; gplay → FCM-токен. Провайдер уходит на сервер.
         if (BuildConfig.STORE == "rustore") {
             try {
                 RuStorePushClient.getToken()

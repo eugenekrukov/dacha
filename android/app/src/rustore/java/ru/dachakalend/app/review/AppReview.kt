@@ -6,8 +6,8 @@ import ru.rustore.sdk.review.RuStoreReviewManagerFactory
 import ru.rustore.sdk.review.model.ReviewInfo
 
 /**
- * Нативный запрос оценки RuStore (rustore-флейвор). В gplay/samsung — no-op заглушка
- * (см. копии в src/gplay и src/samsung). Вызывается из MainActivity на 6-й день
+ * Нативный запрос оценки RuStore (rustore-флейвор). В gplay — no-op заглушка
+ * (см. копию в src/gplay). Вызывается из MainActivity на 6-й день
  * использования (TokenStorage.isReviewDue()).
  *
  * Поток по доке RuStore: requestReviewFlow() готовит ReviewInfo (живёт ~5 мин), затем

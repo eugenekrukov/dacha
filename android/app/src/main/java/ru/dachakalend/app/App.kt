@@ -7,7 +7,6 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import dagger.hilt.android.HiltAndroidApp
 import okhttp3.OkHttpClient
-import ru.dachakalend.app.ads.Ads
 import ru.dachakalend.app.notification.NotificationHelper
 import ru.rustore.sdk.pushclient.RuStorePushClient
 import javax.inject.Inject
@@ -34,7 +33,7 @@ class App : Application(), Configuration.Provider, ImageLoaderFactory {
         super.onCreate()
         NotificationHelper.createChannel(this)
 
-        // Пуши: rustore-сборка — через RuStore Push SDK; gplay/samsung — через FCM (Firebase
+        // Пуши: rustore-сборка — через RuStore Push SDK; gplay — через FCM (Firebase
         // авто-инициализируется плагином google-services, ручной init не нужен).
         if (BuildConfig.STORE == "rustore") {
             RuStorePushClient.init(
@@ -43,9 +42,6 @@ class App : Application(), Configuration.Provider, ImageLoaderFactory {
             )
         }
         // Биллинг — прямые платежи ЮKassa (см. SubscriptionManager/BillingRepository), SDK не нужен.
-
-        // Реклама РСЯ — no-op в rustore-сборке, реальная инициализация в gplay/samsung (src/withAds).
-        Ads.init(this)
 
         connectivityObserver.start()
     }

@@ -103,8 +103,8 @@ class MainActivity : ComponentActivity() {
                     tokenStorage.isLoggedIn() && tokenStorage.hasGarden() && !tokenStorage.isCoachDone()
                 }
 
-                // При старте проверяем доступ (триал или подписка). Только в платных сборках:
-                // в gplay/samsung оплата невозможна → монетизация рекламой, Paywall не показываем.
+                // При старте проверяем доступ (триал или подписка) — гейт по PAYMENTS_ENABLED.
+                // Сейчас все сборки платные (rustore, gplay), флаг оставлен для ясности/будущего.
                 LaunchedEffect(Unit) {
                     if (BuildConfig.PAYMENTS_ENABLED && tokenStorage.isLoggedIn() && tokenStorage.hasGarden()) {
                         subscriptionManager.refresh()
@@ -136,7 +136,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Запрос оценки в RuStore на 6-й день использования. Один раз, когда пользователь
-                // уже освоился (залогинен + есть участок). В gplay/samsung AppReview — no-op.
+                // уже освоился (залогинен + есть участок). В gplay AppReview — no-op.
                 LaunchedEffect(Unit) {
                     if (tokenStorage.isLoggedIn() && tokenStorage.hasGarden() && tokenStorage.isReviewDue()) {
                         AppReview.request(this@MainActivity) { tokenStorage.setReviewRequested() }
@@ -156,9 +156,6 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
-                            androidx.compose.foundation.layout.Column {
-                            // Рекламный баннер РСЯ над навбаром (no-op в rustore-сборке)
-                            ru.dachakalend.app.ads.Ads.Banner()
                             NavigationBar {
                                 bottomNavItems.forEach { item ->
                                     val showBadge = item.screen == Screen.Plantings && activePlantings > 0
@@ -175,8 +172,6 @@ class MainActivity : ComponentActivity() {
                                         modifier = navModifier,
                                         selected = currentRoute == item.screen.route,
                                         onClick = {
-                                            // Контентное событие для рекламы (интерстишл раз в N; no-op в rustore)
-                                            ru.dachakalend.app.ads.Ads.onContentEvent(this@MainActivity)
                                             navController.navigate(item.screen.route) {
                                                 popUpTo(Screen.Today.route) { saveState = true }
                                                 launchSingleTop = true
@@ -195,7 +190,6 @@ class MainActivity : ComponentActivity() {
                                         label = { Text(item.label) }
                                     )
                                 }
-                            }
                             }
                         }
                     }

@@ -19,10 +19,12 @@
 
 ## Фаза 2 — Технический долг (код)
 
-- [ ] **2.1 `logout()` не чистит push-токен на клиенте.** `SettingsViewModel.logout()` →
-  вызвать `DachaApi.deletePushToken()` (метод есть, мёртвый). Гигиена; серверный фикс уже
-  закрывает основной баг привязки токена.
-- [ ] **2.2 Удалить код samsung-флейвора** в Android (флейвор не публикуется). Не срочно.
+- [x] **2.1 `logout()` чистит push-токен на клиенте.** Уже реализовано: `SettingsViewModel.logout()`
+  зовёт `api.deletePushToken(...)` ДО очистки auth-токена (с обоснованием в комментарии). План был стале.
+- [x] **2.2 Код samsung-флейвора удалён** (2026-06-30). Вырезан весь рекламный стек (РСЯ/Yandex Mobile
+  Ads был только в samsung): productFlavor `samsung`, `src/samsung/`, no-op `Ads.kt` в gplay/rustore,
+  `Ads.init/Banner/onContentEvent` в App/MainActivity, buildConfig `ADS_ENABLED/BANNER_AD/INTERSTITIAL`,
+  зависимость `yandex.mobileads`. Остались флейворы rustore + gplay. Компиляция обоих — BUILD SUCCESSFUL.
 - [x] **2.3 E3 — Android unit-тесты не запускаются.** Исправлено 2026-06-25: причина — Gradle
   тест-воркер на Windows не грузил классы из кириллического `build/`-пути; фикс — редирект `buildDir`
   в `android/build.gradle.kts` на ASCII-путь под не-ASCII проектом. Заодно поправлен всплывший

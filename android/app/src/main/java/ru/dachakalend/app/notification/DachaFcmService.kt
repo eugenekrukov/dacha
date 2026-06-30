@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 import ru.dachakalend.app.BuildConfig
 
 /**
- * Приём пушей через Firebase Cloud Messaging для gplay/samsung-сборок (устройства с Google).
+ * Приём пушей через Firebase Cloud Messaging для gplay-сборок (устройства с Google).
  * Регистрирует токен с provider='fcm'. В rustore-сборке не используется (там RuStore Push) —
  * onNewToken гейтится по флейвору, чтобы не регистрировать лишний FCM-токен.
  * Переиспользует PushServiceEntryPoint и NotificationHelper из RuStore-сервиса.

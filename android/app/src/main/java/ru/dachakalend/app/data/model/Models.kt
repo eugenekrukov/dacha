@@ -9,7 +9,7 @@ import com.squareup.moshi.JsonClass
 data class LoginRequest(
     val email: String,
     val password: String,
-    val store: String? = null   // магазин установки (E5): rustore/gplay/samsung
+    val store: String? = null   // магазин установки (E5): rustore/gplay
 )
 
 @JsonClass(generateAdapter = true)
@@ -159,7 +159,7 @@ data class Recommendation(
 data class RegisterRequest(
     val email: String,
     val password: String,
-    val store: String? = null   // магазин установки (E5): rustore/gplay/samsung
+    val store: String? = null   // магазин установки (E5): rustore/gplay
 )
 
 // --- Reminder ---

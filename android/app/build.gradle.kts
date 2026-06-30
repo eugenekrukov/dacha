@@ -70,15 +70,14 @@ android {
     }
 
     // Флейворы по магазину. rustore + gplay — платный гейт (ЮKassa), без рекламы (Google с 02.08.2022
-    // не требует Play Billing для оплаты из РФ → in-app ЮKassa легальна). samsung — бесплатно с рекламой
-    // РСЯ (Yandex Mobile Ads). Рекламный SDK только в samsung; rustore+gplay используют no-op Ads.
+    // не требует Play Billing для оплаты из РФ → in-app ЮKassa легальна). Рекламы в проекте нет
+    // (samsung-флейвор с РСЯ удалён 2026-06-30).
     flavorDimensions += "store"
     productFlavors {
         create("rustore") {
             dimension = "store"
             buildConfigField("String", "STORE", "\"rustore\"")
             buildConfigField("boolean", "PAYMENTS_ENABLED", "true")
-            buildConfigField("boolean", "ADS_ENABLED", "false")
         }
         create("gplay") {
             dimension = "store"
@@ -86,15 +85,6 @@ android {
             // С 2026-06-13 gplay — платная подписка (ЮKassa), без рекламы. Google не требует Google
             // Play Billing для оплаты из РФ (support 11950272, с 02.08.2022) → in-app ЮKassa легальна.
             buildConfigField("boolean", "PAYMENTS_ENABLED", "true")
-            buildConfigField("boolean", "ADS_ENABLED", "false")
-        }
-        create("samsung") {
-            dimension = "store"
-            buildConfigField("String", "STORE", "\"samsung\"")
-            buildConfigField("boolean", "PAYMENTS_ENABLED", "false")
-            buildConfigField("boolean", "ADS_ENABLED", "true")
-            buildConfigField("String", "BANNER_AD_UNIT", "\"demo-banner-yandex\"")
-            buildConfigField("String", "INTERSTITIAL_AD_UNIT", "\"demo-interstitial-yandex\"")
         }
     }
     compileOptions {
@@ -173,7 +163,7 @@ dependencies {
     implementation(libs.hilt.work)
     ksp(libs.hilt.work.compiler)
 
-    // RuStore Push SDK (rustore-флейвор) + Firebase Cloud Messaging (gplay/samsung)
+    // RuStore Push SDK (rustore-флейвор) + Firebase Cloud Messaging (gplay)
     implementation(libs.rustore.push)
     implementation(libs.firebase.messaging)
 
@@ -184,10 +174,7 @@ dependencies {
     // Chrome Custom Tabs — открытие страницы оплаты ЮKassa
     implementation(libs.androidx.browser)
 
-    // Yandex Mobile Ads (РСЯ) — только рекламный флейвор samsung. gplay с 2026-06-13 платный, без рекламы.
-    "samsungImplementation"(libs.yandex.mobileads)
-
-    // RuStore Reviews SDK — только rustore-флейвор (нативный запрос оценки). gplay/samsung — no-op AppReview.
+    // RuStore Reviews SDK — только rustore-флейвор (нативный запрос оценки). gplay — no-op AppReview.
     "rustoreImplementation"(libs.rustore.review)
 
     // Testing
