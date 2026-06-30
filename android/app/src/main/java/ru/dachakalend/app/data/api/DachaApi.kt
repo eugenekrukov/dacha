@@ -79,6 +79,19 @@ interface DachaApi {
     @PUT("gardens/{id}")
     suspend fun updateGarden(@Path("id") id: Int, @Body request: UpdateGardenRequest): Garden
 
+    // Garden beds (грядки)
+    @GET("gardens/{id}/beds")
+    suspend fun getBeds(@Path("id") gardenId: Int): List<GardenBed>
+
+    @POST("gardens/{id}/beds")
+    suspend fun createBed(@Path("id") gardenId: Int, @Body request: CreateBedRequest): GardenBed
+
+    @PATCH("beds/{id}")
+    suspend fun updateBed(@Path("id") id: Int, @Body request: UpdateBedRequest): GardenBed
+
+    @HTTP(method = "DELETE", path = "beds/{id}", hasBody = false)
+    suspend fun deleteBed(@Path("id") id: Int)
+
     // Crops
     @GET("crops")
     suspend fun getCrops(@Query("category") category: String? = null): List<Crop>
