@@ -47,3 +47,11 @@ android/local.properties
 
 # Superpowers brainstorming companion (local mockups)
 .superpowers/
+
+# Obsidian KB (Dacha/) — навигация поверх репо. Зеркальные папки = junction/hardlink
+# на реальные доки репо; их коммит = дубли. Игнорируем зеркала и конфиг Obsidian.
+# Авторские заметки (00–12, Темы/) можно коммитить вручную при желании.
+Dacha/.obsidian/
+Dacha/Календарь дачника/Документация/
+Dacha/Календарь дачника/Дизайн-система/
+Dacha/Календарь дачника/Корень репозитория/
