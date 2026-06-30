@@ -69,8 +69,8 @@ export default function BedField({ gardenId, value, cropFamily, onSelect }: Prop
     if (!name || name === bed.name) return
     try {
       const updated = await api.updateBed(bed.id, { name })
-      setBeds((prev) => prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)))
-      if (value === bed.id) onSelect({ ...bed, ...updated })
+      setBeds((prev) => prev.map((b) => (b.id === updated.id ? updated : b)))
+      if (value === bed.id) onSelect(updated)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось переименовать грядку')
     }
