@@ -8,7 +8,8 @@ import { CareSection, NeighborsSection } from '../components/CropCare'
 import ProblemList from '../components/ProblemList'
 import ActionLogSheet from '../components/ActionLogSheet'
 import PhotoDiary from '../components/PhotoDiary'
-import type { ActionLog, Crop, GuideEntry, Planting } from '../api/types'
+import BedField from '../components/BedField'
+import type { ActionLog, Crop, GardenBed, GuideEntry, Planting } from '../api/types'
 
 type Tab = 'planting' | 'care' | 'disease' | 'pest' | 'neighbors'
 const TABS: { key: Tab; label: string }[] = [
@@ -34,6 +35,8 @@ export default function PlantingDetailScreen() {
   const [tab, setTab] = useState<Tab>('planting')
   // Бамп при записи действия — чтобы лента дневника перечитала фото, прикреплённые к действию.
   const [photoRefresh, setPhotoRefresh] = useState(0)
+  const [beds, setBeds] = useState<GardenBed[]>([])
+  const [editingBed, setEditingBed] = useState(false)
 
   const load = async () => {
     try {
@@ -43,6 +46,7 @@ export default function PlantingDetailScreen() {
       const c = await api.getCrop(p.crop_id).catch(() => null)
       setCrop(c)
       api.getGuide({ crop_id: p.crop_id }).then(setProblems).catch(() => setProblems([]))
+      api.getBeds(p.garden_id).then(setBeds).catch(() => setBeds([]))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить посадку')
     } finally {
@@ -117,6 +121,31 @@ export default function PlantingDetailScreen() {
           Посажено {formatDate(planting.planted_at)} · {planting.quantity ?? 1} шт.
           {planting.conditions === 'greenhouse' ? ' · теплица' : ''}
         </p>
+        {editingBed ? (
+          <BedField
+            gardenId={planting.garden_id}
+            value={planting.bed_id ?? null}
+            cropFamily={crop?.family}
+            onSelect={async (bed) => {
+              setEditingBed(false)
+              try {
+                const updated = await api.updatePlantingInfo(planting.id, { bed_id: bed?.id ?? undefined })
+                setPlanting(updated)
+              } catch (err) {
+                setError(err instanceof ApiError ? err.message : 'Не удалось обновить место')
+              }
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            className="flex items-center gap-1 text-left font-semibold text-muted"
+            onClick={() => setEditingBed(true)}
+          >
+            <Pencil size={14} aria-hidden />
+            Место: {beds.find((b) => b.id === planting.bed_id)?.name ?? 'не выбрано'}
+          </button>
+        )}
         {expectedYield != null && (
           <p className="font-semibold text-tertiary">Ожидаемый урожай ~{expectedYield} кг</p>
         )}
