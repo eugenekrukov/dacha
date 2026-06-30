@@ -131,6 +131,11 @@ export default function PlantingDetailScreen() {
               try {
                 const updated = await api.updatePlantingInfo(planting.id, { bed_id: bed?.id ?? undefined })
                 setPlanting(updated)
+                if (bed) {
+                  setBeds((prev) =>
+                    prev.some((b) => b.id === bed.id) ? prev.map((b) => (b.id === bed.id ? bed : b)) : [...prev, bed],
+                  )
+                }
               } catch (err) {
                 setError(err instanceof ApiError ? err.message : 'Не удалось обновить место')
               }
