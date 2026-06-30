@@ -35,6 +35,20 @@ export interface Garden {
   planting_count?: number
 }
 
+export interface BedHistoryEntry {
+  crop_name: string
+  family: string | null
+  year: number
+}
+
+export interface GardenBed {
+  id: number
+  garden_id: number
+  name: string
+  type: 'soil' | 'greenhouse'
+  history: BedHistoryEntry[]
+}
+
 export type PlantingStage =
   | 'sowing'
   | 'transplanted'
@@ -58,6 +72,7 @@ export interface Planting {
   conditions?: 'soil' | 'greenhouse'
   sowing_method?: 'seedling' | 'direct'
   variety?: string | null
+  bed_id?: number | null
   quantity?: number
   planted_at?: string
   yield_per_plant_kg?: number | null
@@ -190,6 +205,7 @@ export interface Crop {
   id: number
   name: string
   category?: string | null
+  family?: string | null
   image_url?: string | null
   image_credit?: string | null
   is_perennial?: boolean
@@ -255,6 +271,16 @@ export interface CreatePlantingRequest {
   conditions?: 'soil' | 'greenhouse'
   sowing_method?: 'seedling' | 'direct'
   variety?: string
+  bed_id?: number
+}
+
+export interface UpdatePlantingInfoRequest {
+  planted_at?: string
+  quantity?: number
+  conditions?: 'soil' | 'greenhouse'
+  sowing_method?: 'seedling' | 'direct'
+  variety?: string
+  bed_id?: number
 }
 
 export interface Harvest {
