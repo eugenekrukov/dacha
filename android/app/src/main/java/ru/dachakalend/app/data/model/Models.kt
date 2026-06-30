@@ -203,6 +203,7 @@ data class Planting(
     @Json(name = "planted_at") val sownAt: String?,
     @Json(name = "expected_harvest_at") val expectedHarvestAt: String?,
     val variety: String? = null,
+    @Json(name = "bed_id") val bedId: Int? = null,
     val notes: String?,
     @Json(name = "last_action_at") val lastActionAt: String? = null,
     val quantity: Int? = 1,
@@ -337,6 +338,7 @@ data class Crop(
     val id: Int,
     val name: String,
     val category: String,
+    val family: String? = null,
     @Json(name = "image_url") val imageUrl: String? = null,
     @Json(name = "image_credit") val imageCredit: String? = null,
     @Json(name = "is_perennial") val isPerennial: Boolean? = null,
@@ -424,7 +426,8 @@ data class CreatePlantingRequest(
     val quantity: Int = 1,
     val conditions: String = "soil",
     @Json(name = "sowing_method") val sowingMethod: String = "seedling",   // seedling | direct
-    val variety: String? = null
+    val variety: String? = null,
+    @Json(name = "bed_id") val bedId: Int? = null
 )
 
 // --- UpdatePlantingInfoRequest ---
@@ -435,7 +438,8 @@ data class UpdatePlantingInfoRequest(
     val quantity: Int? = null,
     val conditions: String? = null,
     @Json(name = "sowing_method") val sowingMethod: String? = null,
-    val variety: String? = null
+    val variety: String? = null,
+    @Json(name = "bed_id") val bedId: Int? = null
 )
 
 // --- ActionLog ---
@@ -572,4 +576,35 @@ data class UpdateGardenRequest(
     @Json(name = "soil_type") val soilType: String? = null,
     @Json(name = "climate_zone") val climateZone: String? = null,
     @Json(name = "garden_type") val gardenType: String? = null
+)
+
+// --- Garden beds (грядки) ---
+
+@JsonClass(generateAdapter = true)
+data class BedHistoryEntry(
+    @Json(name = "crop_name") val cropName: String,
+    val family: String? = null,
+    val year: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class GardenBed(
+    val id: Int,
+    // В списке GET /gardens/:id/beds сервер garden_id не отдаёт — поле nullable.
+    @Json(name = "garden_id") val gardenId: Int? = null,
+    val name: String,
+    val type: String,                       // "soil" | "greenhouse"
+    val history: List<BedHistoryEntry> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateBedRequest(
+    val name: String,
+    val type: String                        // "soil" | "greenhouse"
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateBedRequest(
+    val name: String? = null,
+    val type: String? = null
 )
