@@ -10,6 +10,7 @@ import type {
   Crop,
   FeedResponse,
   Garden,
+  GardenBed,
   GeocodeSuggestion,
   GuideEntry,
   GuideEntryDetail,
@@ -20,6 +21,7 @@ import type {
   PlantingStage,
   Recommendation,
   TodayResponse,
+  UpdatePlantingInfoRequest,
   UserProfile,
 } from './types'
 
@@ -113,6 +115,13 @@ export const api = {
     request<Garden>(`/gardens/${id}`, { method: 'PUT', body: body as unknown as Record<string, unknown> }),
   geocodeSuggest: (q: string) =>
     request<GeocodeSuggestion[]>(`/geocode/suggest?q=${encodeURIComponent(q)}`),
+  getBeds: (gardenId: number) => request<GardenBed[]>(`/gardens/${gardenId}/beds`),
+  createBed: (gardenId: number, body: { name: string; type: 'soil' | 'greenhouse' }) =>
+    request<GardenBed>(`/gardens/${gardenId}/beds`, { method: 'POST', body: body as unknown as Record<string, unknown> }),
+  updateBed: (id: number, body: { name?: string; type?: 'soil' | 'greenhouse' }) =>
+    request<GardenBed>(`/beds/${id}`, { method: 'PATCH', body: body as unknown as Record<string, unknown> }),
+  deleteBed: (id: number) =>
+    request<{ deleted: boolean }>(`/beds/${id}`, { method: 'DELETE' }),
 
   // --- crops ---
   getCrops: () => request<Crop[]>('/crops', { auth: false }),
@@ -136,6 +145,8 @@ export const api = {
     request<Planting>('/plantings', { method: 'POST', body: body as unknown as Record<string, unknown> }),
   updateStage: (id: number, stage: PlantingStage) =>
     request<Planting>(`/plantings/${id}/stage`, { method: 'PATCH', body: { stage } }),
+  updatePlantingInfo: (id: number, body: UpdatePlantingInfoRequest) =>
+    request<Planting>(`/plantings/${id}/info`, { method: 'PATCH', body: body as unknown as Record<string, unknown> }),
   deletePlanting: (id: number) =>
     request<{ deleted: boolean }>(`/plantings/${id}`, { method: 'DELETE' }),
 
