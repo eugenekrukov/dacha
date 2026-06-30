@@ -56,6 +56,15 @@ fun BedPickerField(
 
     val selectedBed = beds.firstOrNull { it.id == selectedBedId }
 
+    val closeMenu = {
+        expanded = false
+        creating = false
+        newName = ""
+        newType = "soil"
+        renamingId = null
+        renameValue = ""
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             "Место (необязательно)",
@@ -82,11 +91,11 @@ fun BedPickerField(
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null)
             }
 
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(expanded = expanded, onDismissRequest = closeMenu) {
                 if (allowClear) {
                     DropdownMenuItem(
                         text = { Text("Не выбрано", fontFamily = NunitoFamily) },
-                        onClick = { expanded = false; onSelect(null) }
+                        onClick = { closeMenu(); onSelect(null) }
                     )
                 }
                 beds.forEach { bed ->
@@ -113,7 +122,7 @@ fun BedPickerField(
                                     fontWeight = if (bed.id == selectedBedId) FontWeight.Black else FontWeight.Normal
                                 )
                             },
-                            onClick = { expanded = false; onSelect(bed) },
+                            onClick = { closeMenu(); onSelect(bed) },
                             trailingIcon = {
                                 Row {
                                     IconButton(onClick = { renamingId = bed.id; renameValue = bed.name }, modifier = Modifier.size(32.dp)) {
@@ -169,7 +178,7 @@ fun BedPickerField(
                                 val n = newName.trim()
                                 if (n.isNotEmpty()) {
                                     onCreate(n, newType)
-                                    creating = false; newName = ""; newType = "soil"; expanded = false
+                                    closeMenu()
                                 }
                             }) { Text("Добавить", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold) }
                         }
