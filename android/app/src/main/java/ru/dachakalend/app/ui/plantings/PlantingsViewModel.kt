@@ -10,8 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.CreatePlantingRequest
+import ru.dachakalend.app.data.model.GardenBed
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.UpdatePlantingInfoRequest
+import ru.dachakalend.app.data.repository.BedsRepository
 import ru.dachakalend.app.data.repository.CropsRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
@@ -28,6 +30,9 @@ data class PlantingsUiState(
     val successMessage: String? = null,
     val pendingCropId: Int? = null,
     val pendingCropTransplantDays: Int? = null,
+    val pendingCropFamily: String? = null,
+    val editingCropFamily: String? = null,
+    val beds: List<GardenBed> = emptyList(),
     val editingPlanting: Planting? = null,
     val showInfoSheet: Planting? = null,
     val confirmDeletePlanting: Planting? = null,
@@ -74,6 +79,7 @@ fun attentionCount(
 class PlantingsViewModel @Inject constructor(
     private val plantingsRepository: PlantingsRepository,
     private val cropsRepository: CropsRepository,
+    private val bedsRepository: BedsRepository,
     private val tokenStorage: TokenStorage,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -83,6 +89,7 @@ class PlantingsViewModel @Inject constructor(
 
     init {
         loadPlantings()
+        loadBeds()
         val newCropId = savedStateHandle.get<Int>(Screen.Plantings.ARG_NEW_CROP_ID)
         if (newCropId != null && newCropId != -1) {
             _uiState.value = _uiState.value.copy(pendingCropId = newCropId)
@@ -99,11 +106,64 @@ class PlantingsViewModel @Inject constructor(
     /** Пользователь закрыл баннер «проверьте даты посадки». */
     fun dismissDatesNeedCheck() = tokenStorage.setPlantingDatesNeedCheck(false)
 
-    /** Грузим transplant_days культуры → дефолт тоггла способа посадки (есть рассадный период → «через рассаду»). */
+    /** Грузим культуру для дефолта способа посадки (рассада) и семейства (подсказка севооборота). */
     private fun loadPendingCropDefault(cropId: Int) {
         viewModelScope.launch {
-            val transplantDays = (cropsRepository.getCrop(cropId) as? Result.Success)?.data?.transplantDays
-            _uiState.value = _uiState.value.copy(pendingCropTransplantDays = transplantDays)
+            val crop = (cropsRepository.getCrop(cropId) as? Result.Success)?.data
+            _uiState.value = _uiState.value.copy(
+                pendingCropTransplantDays = crop?.transplantDays,
+                pendingCropFamily = crop?.family
+            )
+        }
+    }
+
+    private fun loadBeds() {
+        viewModelScope.launch {
+            val gardenId = tokenStorage.getGardenId().takeIf { it != -1 } ?: return@launch
+            when (val res = bedsRepository.getBeds(gardenId)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(beds = res.data)
+                is Result.Error -> Unit
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    /** Создать грядку и сразу выбрать её — onSelected получает созданный объект. */
+    fun createBed(name: String, type: String, onSelected: (GardenBed) -> Unit) {
+        viewModelScope.launch {
+            val gardenId = tokenStorage.getGardenId().takeIf { it != -1 } ?: return@launch
+            when (val res = bedsRepository.createBed(gardenId, name, type)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(beds = _uiState.value.beds + res.data)
+                    onSelected(res.data)
+                }
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = res.message)
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun renameBed(bed: GardenBed, name: String) {
+        viewModelScope.launch {
+            when (val res = bedsRepository.updateBed(bed.id, name = name)) {
+                is Result.Success ->
+                    _uiState.value = _uiState.value.copy(
+                        beds = _uiState.value.beds.map { if (it.id == res.data.id) res.data else it }
+                    )
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = res.message)
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun deleteBed(bed: GardenBed) {
+        viewModelScope.launch {
+            when (bedsRepository.deleteBed(bed.id)) {
+                is Result.Success ->
+                    _uiState.value = _uiState.value.copy(beds = _uiState.value.beds.filter { it.id != bed.id })
+                is Result.Error -> Unit
+                is Result.Loading -> Unit
+            }
         }
     }
 
@@ -134,16 +194,16 @@ class PlantingsViewModel @Inject constructor(
         }
     }
 
-    fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null) {
-        _uiState.value = _uiState.value.copy(pendingCropId = null, pendingCropTransplantDays = null)
-        createPlanting(cropId, date, quantity, conditions, sowingMethod, variety)
+    fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null, bedId: Int? = null) {
+        _uiState.value = _uiState.value.copy(pendingCropId = null, pendingCropTransplantDays = null, pendingCropFamily = null)
+        createPlanting(cropId, date, quantity, conditions, sowingMethod, variety, bedId)
     }
 
     fun dismissSetupSheet() {
-        _uiState.value = _uiState.value.copy(pendingCropId = null, pendingCropTransplantDays = null)
+        _uiState.value = _uiState.value.copy(pendingCropId = null, pendingCropTransplantDays = null, pendingCropFamily = null)
     }
 
-    private fun createPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null) {
+    private fun createPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null, bedId: Int? = null) {
         viewModelScope.launch {
             val gardenId = tokenStorage.getGardenId()
             if (gardenId == -1) {
@@ -157,12 +217,14 @@ class PlantingsViewModel @Inject constructor(
                 quantity = quantity,
                 conditions = conditions,
                 sowingMethod = sowingMethod,
-                variety = variety
+                variety = variety,
+                bedId = bedId
             )
             when (val result = plantingsRepository.createPlanting(request)) {
                 is Result.Success -> {
                     _uiState.value = _uiState.value.copy(successMessage = "Посадка добавлена!")
                     loadPlantings()
+                    loadBeds()
                 }
                 is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message)
                 is Result.Loading -> Unit
@@ -171,22 +233,29 @@ class PlantingsViewModel @Inject constructor(
     }
 
     fun openEditSheet(planting: Planting) {
-        _uiState.value = _uiState.value.copy(editingPlanting = planting)
+        _uiState.value = _uiState.value.copy(editingPlanting = planting, editingCropFamily = null)
+        viewModelScope.launch {
+            val family = (cropsRepository.getCrop(planting.cropId) as? Result.Success)?.data?.family
+            _uiState.value = _uiState.value.copy(editingCropFamily = family)
+        }
     }
 
     fun dismissEditSheet() {
-        _uiState.value = _uiState.value.copy(editingPlanting = null)
+        _uiState.value = _uiState.value.copy(editingPlanting = null, editingCropFamily = null)
     }
 
-    fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null) {
-        _uiState.value = _uiState.value.copy(editingPlanting = null)
+    fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null, bedId: Int? = null) {
+        _uiState.value = _uiState.value.copy(editingPlanting = null, editingCropFamily = null)
         viewModelScope.launch {
-            // variety: null → не передаём (сервер не трогает); '' → сброс; текст → запись.
-            val request = UpdatePlantingInfoRequest(plantedAt = date, quantity = quantity, conditions = conditions, sowingMethod = sowingMethod, variety = variety ?: "")
+            val request = UpdatePlantingInfoRequest(
+                plantedAt = date, quantity = quantity, conditions = conditions,
+                sowingMethod = sowingMethod, variety = variety ?: "", bedId = bedId
+            )
             when (plantingsRepository.updateInfo(plantingId, request)) {
                 is Result.Success -> {
                     _uiState.value = _uiState.value.copy(successMessage = "Посадка обновлена!")
                     loadPlantings()
+                    loadBeds()
                 }
                 is Result.Error   -> Unit
                 is Result.Loading -> Unit

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.local.TokenStorage
+import ru.dachakalend.app.data.model.GardenBed
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
 import ru.dachakalend.app.ui.actions.careTaskActionType
@@ -303,7 +304,12 @@ fun PlantingsScreen(
     state.pendingCropId?.let { cropId ->
         PlantingSetupBottomSheet(
             defaultSeedling = state.pendingCropTransplantDays != null,
-            onConfirm = { date, qty, cond, method, variety -> viewModel.confirmPlanting(cropId, date, qty, cond, method, variety) },
+            beds = state.beds,
+            cropFamily = state.pendingCropFamily,
+            onCreateBed = { name, type, onSelected -> viewModel.createBed(name, type, onSelected) },
+            onRenameBed = viewModel::renameBed,
+            onDeleteBed = viewModel::deleteBed,
+            onConfirm = { date, qty, cond, method, variety, bedId -> viewModel.confirmPlanting(cropId, date, qty, cond, method, variety, bedId) },
             onDismiss = { viewModel.dismissSetupSheet() }
         )
     }
@@ -372,7 +378,12 @@ fun PlantingsScreen(
     state.editingPlanting?.let { planting ->
         PlantingEditBottomSheet(
             planting = planting,
-            onConfirm = { date, qty, cond, method, variety -> viewModel.saveEditedInfo(planting.id, date, qty, cond, method, variety) },
+            beds = state.beds,
+            cropFamily = state.editingCropFamily,
+            onCreateBed = { name, type, onSelected -> viewModel.createBed(name, type, onSelected) },
+            onRenameBed = viewModel::renameBed,
+            onDeleteBed = viewModel::deleteBed,
+            onConfirm = { date, qty, cond, method, variety, bedId -> viewModel.saveEditedInfo(planting.id, date, qty, cond, method, variety, bedId) },
             onDismiss = { viewModel.dismissEditSheet() }
         )
     }
@@ -687,7 +698,12 @@ private fun PlantingCard(
 @Composable
 private fun PlantingSetupBottomSheet(
     defaultSeedling: Boolean,
-    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?) -> Unit,
+    beds: List<GardenBed>,
+    cropFamily: String?,
+    onCreateBed: (name: String, type: String, onSelected: (GardenBed) -> Unit) -> Unit,
+    onRenameBed: (bed: GardenBed, name: String) -> Unit,
+    onDeleteBed: (bed: GardenBed) -> Unit,
+    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?, bedId: Int?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -697,6 +713,7 @@ private fun PlantingSetupBottomSheet(
     var variety by remember { mutableStateOf("") }
     var conditions by remember { mutableStateOf("soil") }
     var sowingMethod by remember(defaultSeedling) { mutableStateOf(if (defaultSeedling) "seedling" else "direct") }
+    var bedId by remember { mutableStateOf<Int?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -758,6 +775,20 @@ private fun PlantingSetupBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
+            )
+
+            BedPickerField(
+                beds = beds,
+                selectedBedId = bedId,
+                cropFamily = cropFamily,
+                allowClear = true,
+                onSelect = { bed ->
+                    bedId = bed?.id
+                    if (bed != null) conditions = bed.type
+                },
+                onCreate = { name, type -> onCreateBed(name, type) { created -> bedId = created.id; conditions = created.type } },
+                onRename = onRenameBed,
+                onDelete = onDeleteBed,
             )
 
             Text(
@@ -823,7 +854,7 @@ private fun PlantingSetupBottomSheet(
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick = {
-                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, variety.trim().ifEmpty { null })
+                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, variety.trim().ifEmpty { null }, bedId)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
@@ -851,7 +882,12 @@ private fun PlantingSetupBottomSheet(
 @Composable
 private fun PlantingEditBottomSheet(
     planting: Planting,
-    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?) -> Unit,
+    beds: List<GardenBed>,
+    cropFamily: String?,
+    onCreateBed: (name: String, type: String, onSelected: (GardenBed) -> Unit) -> Unit,
+    onRenameBed: (bed: GardenBed, name: String) -> Unit,
+    onDeleteBed: (bed: GardenBed) -> Unit,
+    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?, bedId: Int?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -868,6 +904,7 @@ private fun PlantingEditBottomSheet(
     var variety by remember { mutableStateOf(planting.variety ?: "") }
     var conditions by remember { mutableStateOf(planting.conditions ?: "soil") }
     var sowingMethod by remember { mutableStateOf(if (planting.sowingMethod == "direct") "direct" else "seedling") }
+    var bedId by remember { mutableStateOf(planting.bedId) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -929,6 +966,20 @@ private fun PlantingEditBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
+            )
+
+            BedPickerField(
+                beds = beds,
+                selectedBedId = bedId,
+                cropFamily = cropFamily,
+                allowClear = false,
+                onSelect = { bed ->
+                    bedId = bed?.id
+                    if (bed != null) conditions = bed.type
+                },
+                onCreate = { name, type -> onCreateBed(name, type) { created -> bedId = created.id; conditions = created.type } },
+                onRename = onRenameBed,
+                onDelete = onDeleteBed,
             )
 
             Text(
@@ -993,7 +1044,7 @@ private fun PlantingEditBottomSheet(
 
             Spacer(Modifier.height(8.dp))
             Button(
-                onClick = { onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, variety.trim().ifEmpty { null }) },
+                onClick = { onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, variety.trim().ifEmpty { null }, bedId) },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
