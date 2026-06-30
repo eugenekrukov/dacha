@@ -178,6 +178,10 @@ fun PlantingInfoScreen(
                         onDelete = viewModel::deletePhoto,
                         onReplace = { p, bytes -> viewModel.replacePhoto(p, bytes) },
                         onDeleteRecord = viewModel::deleteAction,
+                        onSelectBed = viewModel::setBed,
+                        onCreateBed = viewModel::createAndSetBed,
+                        onRenameBed = viewModel::renameBed,
+                        onDeleteBed = viewModel::deleteBed,
                     )
                     1 -> if (crop != null) CropCareSection(crop, modifier = scroll)
                          else EmptyTab(scroll, "Нет данных об уходе.")
@@ -206,6 +210,10 @@ private fun AboutTab(
     onDelete: (Int) -> Unit,
     onReplace: (PlantingPhoto, ByteArray) -> Unit,
     onDeleteRecord: (Int) -> Unit,
+    onSelectBed: (ru.dachakalend.app.data.model.GardenBed) -> Unit,
+    onCreateBed: (name: String, type: String) -> Unit,
+    onRenameBed: (bed: ru.dachakalend.app.data.model.GardenBed, name: String) -> Unit,
+    onDeleteBed: (bed: ru.dachakalend.app.data.model.GardenBed) -> Unit,
 ) {
     val planting = state.planting ?: return
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -219,6 +227,21 @@ private fun AboutTab(
                 val s = "%.1f".format(expected).removeSuffix(",0").removeSuffix(".0")
                 InfoRow2("Ожидаемый урожай", "~$s кг")
             }
+            val currentBed = state.beds.firstOrNull { it.id == planting.bedId }
+            InfoRow2("Место", currentBed?.name ?: "не выбрано")
+        }
+
+        InfoSection(title = "Место (грядка)") {
+            BedPickerField(
+                beds = state.beds,
+                selectedBedId = planting.bedId,
+                cropFamily = state.crop?.family,
+                allowClear = false,
+                onSelect = { bed -> bed?.let { onSelectBed(it) } },
+                onCreate = onCreateBed,
+                onRename = onRenameBed,
+                onDelete = onDeleteBed,
+            )
         }
 
         val planted = plantedDate(planting.sownAt)

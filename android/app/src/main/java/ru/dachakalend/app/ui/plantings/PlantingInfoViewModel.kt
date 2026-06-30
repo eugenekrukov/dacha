@@ -10,10 +10,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.Crop
+import ru.dachakalend.app.data.model.GardenBed
 import ru.dachakalend.app.data.model.GuideEntry
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.PlantingPhoto
+import ru.dachakalend.app.data.model.UpdatePlantingInfoRequest
 import ru.dachakalend.app.data.repository.ActionsRepository
+import ru.dachakalend.app.data.repository.BedsRepository
 import ru.dachakalend.app.data.repository.CropsRepository
 import ru.dachakalend.app.data.repository.GuideRepository
 import ru.dachakalend.app.data.repository.PhotosRepository
@@ -26,6 +29,7 @@ data class PlantingInfoUiState(
     val crop: Crop? = null,
     val recentActions: List<ActionLog> = emptyList(),
     val problems: List<GuideEntry> = emptyList(),
+    val beds: List<GardenBed> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     // Фото-дневник
@@ -40,7 +44,8 @@ class PlantingInfoViewModel @Inject constructor(
     private val cropsRepository: CropsRepository,
     private val actionsRepository: ActionsRepository,
     private val guideRepository: GuideRepository,
-    private val photosRepository: PhotosRepository
+    private val photosRepository: PhotosRepository,
+    private val bedsRepository: BedsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlantingInfoUiState())
@@ -75,6 +80,7 @@ class PlantingInfoViewModel @Inject constructor(
                 isLoading = false,
                 error = if (crop is Result.Error) crop.message else null
             )
+            loadBeds(planting.gardenId)
             loadPhotos(plantingId)
         }
     }
@@ -156,6 +162,69 @@ class PlantingInfoViewModel @Inject constructor(
 
     fun clearPhotoError() {
         _uiState.value = _uiState.value.copy(photoError = null)
+    }
+
+    private fun loadBeds(gardenId: Int) {
+        viewModelScope.launch {
+            when (val res = bedsRepository.getBeds(gardenId)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(beds = res.data)
+                is Result.Error -> Unit
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    /** Привязать посадку к выбранной грядке (со снимком типа в условия — как при создании). */
+    fun setBed(bed: GardenBed) {
+        val planting = _uiState.value.planting ?: return
+        viewModelScope.launch {
+            val res = plantingsRepository.updateInfo(planting.id, UpdatePlantingInfoRequest(bedId = bed.id, conditions = bed.type))
+            if (res is Result.Success) {
+                _uiState.value = _uiState.value.copy(planting = res.data)
+            }
+        }
+    }
+
+    fun createAndSetBed(name: String, type: String) {
+        val planting = _uiState.value.planting ?: return
+        viewModelScope.launch {
+            when (val created = bedsRepository.createBed(planting.gardenId, name, type)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(beds = _uiState.value.beds + created.data)
+                    setBed(created.data)
+                }
+                is Result.Error -> Unit
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun renameBed(bed: GardenBed, name: String) {
+        viewModelScope.launch {
+            when (val res = bedsRepository.updateBed(bed.id, name = name)) {
+                is Result.Success ->
+                    _uiState.value = _uiState.value.copy(beds = _uiState.value.beds.map { if (it.id == res.data.id) res.data else it })
+                is Result.Error -> Unit
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun deleteBed(bed: GardenBed) {
+        viewModelScope.launch {
+            when (bedsRepository.deleteBed(bed.id)) {
+                is Result.Success -> {
+                    val planting = _uiState.value.planting
+                    _uiState.value = _uiState.value.copy(
+                        beds = _uiState.value.beds.filter { it.id != bed.id },
+                        // ON DELETE SET NULL на сервере: если удалили текущую грядку — локально снимаем привязку.
+                        planting = if (planting?.bedId == bed.id) planting.copy(bedId = null) else planting
+                    )
+                }
+                is Result.Error -> Unit
+                is Result.Loading -> Unit
+            }
+        }
     }
 
     fun reset() {
