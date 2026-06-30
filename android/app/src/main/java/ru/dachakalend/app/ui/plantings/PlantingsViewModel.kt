@@ -158,10 +158,10 @@ class PlantingsViewModel @Inject constructor(
 
     fun deleteBed(bed: GardenBed) {
         viewModelScope.launch {
-            when (bedsRepository.deleteBed(bed.id)) {
+            when (val res = bedsRepository.deleteBed(bed.id)) {
                 is Result.Success ->
                     _uiState.value = _uiState.value.copy(beds = _uiState.value.beds.filter { it.id != bed.id })
-                is Result.Error -> Unit
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = res.message)
                 is Result.Loading -> Unit
             }
         }

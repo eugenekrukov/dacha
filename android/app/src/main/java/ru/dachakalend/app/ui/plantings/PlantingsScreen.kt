@@ -788,7 +788,7 @@ private fun PlantingSetupBottomSheet(
                 },
                 onCreate = { name, type -> onCreateBed(name, type) { created -> bedId = created.id; conditions = created.type } },
                 onRename = onRenameBed,
-                onDelete = onDeleteBed,
+                onDelete = { bed -> if (bedId == bed.id) bedId = null; onDeleteBed(bed) },
             )
 
             Text(
@@ -979,7 +979,7 @@ private fun PlantingEditBottomSheet(
                 },
                 onCreate = { name, type -> onCreateBed(name, type) { created -> bedId = created.id; conditions = created.type } },
                 onRename = onRenameBed,
-                onDelete = onDeleteBed,
+                onDelete = { bed -> if (bedId == bed.id) bedId = null; onDeleteBed(bed) },
             )
 
             Text(
