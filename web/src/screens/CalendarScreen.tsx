@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Moon } from 'lucide-react'
+import { CircleMinus } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { buildCalendarEvents, type CalendarEvent } from '../api/schedule'
+import type { MoonDay } from '../api/types'
 import { useGardens } from '../garden/GardenContext'
 import ErrorCard from '../components/ErrorCard'
+import MoonIcon from '../ui/MoonIcon'
 
 const MONTHS = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -14,6 +15,9 @@ const DAY_HEADERS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
 const isoKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+// «🌕 Полнолуние» → «Полнолуние» — своя иконка диска рисуется рядом, эмодзи дублировал бы её.
+const stripEmoji = (label: string) => label.split(' ').slice(1).join(' ')
 
 // Цвет точки/полоски события по типу (зеркало android eventStyle).
 function eventColor(type: string): string {
@@ -29,6 +33,7 @@ function eventColor(type: string): string {
 export default function CalendarScreen() {
   const { gardenId } = useGardens()
   const [eventsByDay, setEventsByDay] = useState<Record<string, CalendarEvent[]>>({})
+  const [moonDays, setMoonDays] = useState<Record<string, MoonDay>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,6 +56,19 @@ export default function CalendarScreen() {
       .finally(() => setLoading(false))
   }, [gardenId])
 
+  // Фазы Луны зависят от просматриваемого месяца (в отличие от задач — те считаются
+  // от сегодняшней даты на 60 дней вперёд и не требуют перезагрузки при смене месяца).
+  useEffect(() => {
+    api
+      .getMoonCalendar(month.year, month.m + 1)
+      .then((res) => {
+        const map: Record<string, MoonDay> = {}
+        res.days.forEach((d) => { map[d.date] = d })
+        setMoonDays(map)
+      })
+      .catch(() => {}) // не критично для основного календаря — тихо игнорируем
+  }, [month])
+
   // Сетка месяца: ведущие пустые ячейки (Пн=0) + дни месяца
   const cells = useMemo(() => {
     const first = new Date(month.year, month.m, 1)
@@ -67,6 +85,7 @@ export default function CalendarScreen() {
 
   const todayKey = isoKey(today)
   const selectedEvents = selected ? eventsByDay[selected] ?? [] : []
+  const selectedMoon = selected ? moonDays[selected] : undefined
   const selectedLabel = selected
     ? (() => {
         const [, mm, dd] = selected.split('-').map(Number)
@@ -76,12 +95,7 @@ export default function CalendarScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black">Календарь</h1>
-        <Link to="/moon-calendar" className="dacha-chip flex items-center gap-1.5" aria-label="Лунный календарь">
-          <Moon size={16} aria-hidden /> Луна
-        </Link>
-      </div>
+      <h1 className="text-2xl font-black">Календарь</h1>
 
       {error && <ErrorCard message={error} />}
 
@@ -112,13 +126,14 @@ export default function CalendarScreen() {
             if (!date) return <div key={`e${i}`} />
             const key = isoKey(date)
             const has = !!eventsByDay[key]?.length
+            const moon = moonDays[key]
             const isToday = key === todayKey
             const isSelected = key === selected
             return (
               <button
                 key={key}
                 onClick={() => setSelected(key)}
-                className={`flex aspect-square flex-col items-center justify-center rounded-full text-[13px] font-bold transition ${
+                className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-bold transition ${
                   isSelected
                     ? 'bg-primary text-white'
                     : isToday
@@ -127,9 +142,10 @@ export default function CalendarScreen() {
                 }`}
               >
                 <span>{date.getDate()}</span>
+                {moon && <MoonIcon phaseFraction={moon.phaseFraction} size={16} />}
                 {has && (
                   <span
-                    className="mt-0.5 h-1 w-1 rounded-full"
+                    className="h-1 w-1 rounded-full"
                     style={{ backgroundColor: isSelected ? '#fff' : '#2E7D32' }}
                   />
                 )}
@@ -139,10 +155,26 @@ export default function CalendarScreen() {
         </div>
       </div>
 
-      {/* События выбранного дня */}
+      {/* Фаза Луны + события выбранного дня */}
       {selected && (
         <div className="flex flex-col gap-2">
           <h2 className="text-base font-black">{selectedLabel}</h2>
+
+          {selectedMoon && (
+            <div className="dacha-card flex items-center gap-3 p-3">
+              <MoonIcon phaseFraction={selectedMoon.phaseFraction} size={40} />
+              <div className="flex flex-col gap-0.5">
+                <span className="font-black">{stripEmoji(selectedMoon.phaseLabel)}</span>
+                <span className="text-xs font-semibold text-muted">{selectedMoon.message}</span>
+                {selectedMoon.label && (
+                  <span className="mt-0.5 flex items-center gap-1 text-xs font-bold text-muted">
+                    <CircleMinus size={12} aria-hidden /> Не сажать
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <p className="font-bold text-muted">Загрузка…</p>
           ) : selectedEvents.length === 0 ? (

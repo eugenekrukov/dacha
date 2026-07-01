@@ -47,7 +47,6 @@ sealed class Screen(val route: String) {
         fun fromOnboarding() = "today?$ARG_FROM_ONBOARDING=true"
     }
     object Calendar : Screen("calendar")
-    object MoonCalendar : Screen("moon_calendar")
     object Plantings : Screen("plantings") {
         const val ARG_NEW_CROP_ID = "newCropId"
         val routeWithArgs = "plantings?$ARG_NEW_CROP_ID={$ARG_NEW_CROP_ID}"
@@ -126,6 +125,5 @@ val screensWithoutBottomBar = setOf(
     Screen.PlantingInfo.route,
     Screen.Paywall.route,
     Screen.Analytics.route,
-    Screen.Harvest.route,
-    Screen.MoonCalendar.route
+    Screen.Harvest.route
 )

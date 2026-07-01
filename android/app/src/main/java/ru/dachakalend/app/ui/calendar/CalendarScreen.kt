@@ -12,7 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.NightlightRound
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material3.*
@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.data.model.MoonDay
 import ru.dachakalend.app.ui.theme.DachaColorScheme
 import ru.dachakalend.app.ui.theme.NunitoFamily
 import java.time.DayOfWeek
@@ -37,8 +38,11 @@ import java.util.Locale
 
 private val DAY_HEADERS = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
 
+// «🌕 Полнолуние» → «Полнолуние» — своя иконка диска рисуется рядом, эмодзи дублировал бы её.
+private fun stripEmoji(label: String) = label.substringAfter(' ')
+
 @Composable
-fun CalendarScreen(onOpenMoonCalendar: () -> Unit = {}, viewModel: CalendarViewModel = hiltViewModel()) {
+fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
 
     LazyColumn(
@@ -49,13 +53,11 @@ fun CalendarScreen(onOpenMoonCalendar: () -> Unit = {}, viewModel: CalendarViewM
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(vertical = 8.dp)
             ) {
                 Text(
                     "Календарь",
@@ -64,9 +66,6 @@ fun CalendarScreen(onOpenMoonCalendar: () -> Unit = {}, viewModel: CalendarViewM
                     fontSize = 28.sp,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                IconButton(onClick = onOpenMoonCalendar) {
-                    Icon(Icons.Default.NightlightRound, contentDescription = "Лунный календарь", tint = MaterialTheme.colorScheme.primary)
-                }
             }
         }
 
@@ -89,6 +88,7 @@ fun CalendarScreen(onOpenMoonCalendar: () -> Unit = {}, viewModel: CalendarViewM
                     MonthGrid(
                         month = state.currentMonth,
                         eventsByDay = state.eventsByDay,
+                        moonDays = state.moonDays,
                         selectedDay = state.selectedDay,
                         onDayClick = viewModel::selectDay
                     )
@@ -96,7 +96,7 @@ fun CalendarScreen(onOpenMoonCalendar: () -> Unit = {}, viewModel: CalendarViewM
             }
         }
 
-        // Список событий выбранного дня
+        // Фаза Луны + список событий выбранного дня
         state.selectedDay?.let { day ->
             val events = state.eventsByDay[day] ?: emptyList()
             item {
@@ -110,6 +110,9 @@ fun CalendarScreen(onOpenMoonCalendar: () -> Unit = {}, viewModel: CalendarViewM
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 4.dp)
                 )
+            }
+            state.moonDays[day]?.let { moonDay ->
+                item { MoonDayCard(moonDay) }
             }
             if (events.isEmpty()) {
                 item {
@@ -175,6 +178,7 @@ private fun MonthNavigator(
 private fun MonthGrid(
     month: YearMonth,
     eventsByDay: Map<LocalDate, List<DayEvent>>,
+    moonDays: Map<LocalDate, MoonDay>,
     selectedDay: LocalDate?,
     onDayClick: (LocalDate) -> Unit
 ) {
@@ -218,6 +222,7 @@ private fun MonthGrid(
                             isToday = isToday,
                             isSelected = isSelected,
                             hasEvents = hasEvents,
+                            moonDay = moonDays[date],
                             onClick = { onDayClick(date) },
                             modifier = Modifier.weight(1f)
                         )
@@ -234,6 +239,7 @@ private fun DayCell(
     isToday: Boolean,
     isSelected: Boolean,
     hasEvents: Boolean,
+    moonDay: MoonDay?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -250,20 +256,23 @@ private fun DayCell(
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .padding(2.dp)
+            .padding(1.dp)
             .clip(CircleShape)
             .background(bgColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
                 text = day.toString(),
                 fontFamily = NunitoFamily,
                 fontWeight = if (isToday || isSelected) FontWeight.ExtraBold else FontWeight.Bold,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 color = textColor
             )
+            if (moonDay != null) {
+                MoonIcon(phaseFraction = moonDay.phaseFraction, size = 13.dp)
+            }
             if (hasEvents) {
                 Box(
                     modifier = Modifier
@@ -274,6 +283,57 @@ private fun DayCell(
                             else DachaColorScheme.secondary
                         )
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoonDayCard(day: MoonDay) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            MoonIcon(phaseFraction = day.phaseFraction, size = 40.dp)
+            Column {
+                Text(
+                    stripEmoji(day.phaseLabel),
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    day.message,
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (day.label != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(
+                            Icons.Default.RemoveCircleOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            "Не сажать",
+                            fontFamily = NunitoFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }

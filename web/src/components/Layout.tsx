@@ -12,7 +12,6 @@ import {
   BarChart3,
   ShieldAlert,
   Settings,
-  Moon,
   type LucideIcon,
 } from 'lucide-react'
 import Sunflower from '../ui/Sunflower'
@@ -28,7 +27,6 @@ const PRIMARY: Item[] = [
 ]
 // Редкие разделы — под «Ещё».
 const MORE: Item[] = [
-  { to: '/moon-calendar', label: 'Лунный календарь', icon: Moon },
   { to: '/crops', label: 'Справочник культур', icon: BookOpen },
   { to: '/journal', label: 'Журнал действий', icon: NotebookPen },
   { to: '/harvests', label: 'Аналитика', icon: BarChart3 },

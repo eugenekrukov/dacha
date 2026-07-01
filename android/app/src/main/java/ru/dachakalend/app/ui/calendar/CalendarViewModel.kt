@@ -8,10 +8,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.Crop
+import ru.dachakalend.app.data.model.MoonDay
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Reminder
 import ru.dachakalend.app.data.model.TodayTask
 import ru.dachakalend.app.data.repository.CalendarRepository
+import ru.dachakalend.app.data.repository.MoonCalendarRepository
 import ru.dachakalend.app.data.repository.Result
 import java.time.LocalDate
 import java.time.YearMonth
@@ -28,19 +30,40 @@ data class CalendarUiState(
     val currentMonth: YearMonth = YearMonth.now(),
     val selectedDay: LocalDate? = LocalDate.now(),
     val eventsByDay: Map<LocalDate, List<DayEvent>> = emptyMap(),
+    val moonDays: Map<LocalDate, MoonDay> = emptyMap(),
     val error: String? = null
 )
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
     private val repository: CalendarRepository,
+    private val moonRepository: MoonCalendarRepository,
     private val tokenStorage: TokenStorage
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CalendarUiState())
     val uiState: StateFlow<CalendarUiState> = _uiState
 
-    init { load() }
+    init {
+        load()
+        loadMoon(_uiState.value.currentMonth)
+    }
+
+    // Фазы Луны зависят от просматриваемого месяца (в отличие от задач — те считаются
+    // от сегодняшней даты на 60 дней вперёд и не требуют перезагрузки при смене месяца).
+    private fun loadMoon(month: YearMonth) {
+        viewModelScope.launch {
+            when (val result = moonRepository.getMoonCalendar(month.year, month.monthValue)) {
+                is Result.Success -> {
+                    val byDate = result.data.days.mapNotNull { day ->
+                        runCatching { LocalDate.parse(day.date) to day }.getOrNull()
+                    }.toMap()
+                    _uiState.value = _uiState.value.copy(moonDays = byDate)
+                }
+                else -> Unit // не критично для основного календаря — тихо игнорируем
+            }
+        }
+    }
 
     fun load() {
         viewModelScope.launch {
@@ -69,17 +92,15 @@ class CalendarViewModel @Inject constructor(
     }
 
     fun previousMonth() {
-        _uiState.value = _uiState.value.copy(
-            currentMonth = _uiState.value.currentMonth.minusMonths(1),
-            selectedDay = null
-        )
+        val newMonth = _uiState.value.currentMonth.minusMonths(1)
+        _uiState.value = _uiState.value.copy(currentMonth = newMonth, selectedDay = null)
+        loadMoon(newMonth)
     }
 
     fun nextMonth() {
-        _uiState.value = _uiState.value.copy(
-            currentMonth = _uiState.value.currentMonth.plusMonths(1),
-            selectedDay = null
-        )
+        val newMonth = _uiState.value.currentMonth.plusMonths(1)
+        _uiState.value = _uiState.value.copy(currentMonth = newMonth, selectedDay = null)
+        loadMoon(newMonth)
     }
 
     private fun buildEvents(

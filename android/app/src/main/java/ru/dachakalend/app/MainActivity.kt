@@ -39,7 +39,6 @@ import ru.dachakalend.app.ui.auth.RegisterScreen
 import ru.dachakalend.app.ui.auth.VerifyEmailScreen
 import ru.dachakalend.app.ui.auth.PasswordResetScreen
 import ru.dachakalend.app.ui.calendar.CalendarScreen
-import ru.dachakalend.app.ui.mooncalendar.MoonCalendarScreen
 import ru.dachakalend.app.ui.crops.CropDetailScreen
 import ru.dachakalend.app.ui.crops.CropsScreen
 import ru.dachakalend.app.ui.crops.CropsViewModel
@@ -389,12 +388,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenPaywall       = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
-                        composable(Screen.Calendar.route) {
-                            CalendarScreen(onOpenMoonCalendar = { navController.navigate(Screen.MoonCalendar.route) })
-                        }
-                        composable(Screen.MoonCalendar.route) {
-                            MoonCalendarScreen(onBack = { navController.popBackStack() })
-                        }
+                        composable(Screen.Calendar.route) { CalendarScreen() }
                         composable(Screen.Plantings.route) {
                             PlantingsScreen(
                                 onAddCrop = { navController.navigate(Screen.Crops.route) },

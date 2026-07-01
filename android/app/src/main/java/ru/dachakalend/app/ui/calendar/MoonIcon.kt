@@ -1,4 +1,4 @@
-package ru.dachakalend.app.ui.mooncalendar
+package ru.dachakalend.app.ui.calendar
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
