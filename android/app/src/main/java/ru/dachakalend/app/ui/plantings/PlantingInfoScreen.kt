@@ -182,6 +182,7 @@ fun PlantingInfoScreen(
                         onCreateBed = viewModel::createAndSetBed,
                         onRenameBed = viewModel::renameBed,
                         onDeleteBed = viewModel::deleteBed,
+                        onSetConditions = viewModel::setConditions,
                     )
                     1 -> if (crop != null) CropCareSection(crop, modifier = scroll)
                          else EmptyTab(scroll, "Нет данных об уходе.")
@@ -214,13 +215,14 @@ private fun AboutTab(
     onCreateBed: (name: String, type: String) -> Unit,
     onRenameBed: (bed: ru.dachakalend.app.data.model.GardenBed, name: String) -> Unit,
     onDeleteBed: (bed: ru.dachakalend.app.data.model.GardenBed) -> Unit,
+    onSetConditions: (String) -> Unit,
 ) {
     val planting = state.planting ?: return
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         InfoSection(title = "Посадка") {
             InfoRow2("Дата посадки", planting.sownAt?.let { formatShort(it) } ?: "—")
             planting.variety?.takeIf { it.isNotBlank() }?.let { InfoRow2("Сорт", it) }
-            InfoRow2("Условия", if (planting.conditions == "greenhouse") "Теплица" else "Грунт")
+            ConditionsRow(current = planting.conditions ?: "soil", onSelect = onSetConditions)
             InfoRow2("Количество растений", "${planting.quantity ?: 1} шт.")
             planting.yieldPerPlantKg?.let { perPlant ->
                 val expected = perPlant * (planting.quantity ?: 1)
@@ -511,5 +513,31 @@ private fun InfoRow2(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
+// Редактируемые «Условия» (грунт/теплица) в карточке посадки — перенесены сюда из формы создания.
+@Composable
+private fun ConditionsRow(current: String, onSelect: (String) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Условия", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("soil" to "Грунт", "greenhouse" to "Теплица").forEach { (value, label) ->
+                FilterChip(
+                    selected = current == value,
+                    onClick = { onSelect(value) },
+                    shape = RoundedCornerShape(100.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    ),
+                    label = { Text(label, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                )
+            }
+        }
     }
 }

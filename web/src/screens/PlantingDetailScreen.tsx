@@ -119,7 +119,6 @@ export default function PlantingDetailScreen() {
         {planting.variety && <p className="font-bold text-tertiary">Сорт: {planting.variety}</p>}
         <p className="font-semibold text-muted">
           Посажено {formatDate(planting.planted_at)} · {planting.quantity ?? 1} шт.
-          {planting.conditions === 'greenhouse' ? ' · теплица' : ''}
         </p>
         {editingBed ? (
           <BedField
@@ -151,6 +150,27 @@ export default function PlantingDetailScreen() {
             Место: {beds.find((b) => b.id === planting.bed_id)?.name ?? 'не выбрано'}
           </button>
         )}
+        <div className="mt-1 flex items-center gap-2">
+          <span className="font-semibold text-muted">Условия:</span>
+          {(['soil', 'greenhouse'] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`dacha-chip text-xs ${planting.conditions === c ? 'dacha-chip-active' : ''}`}
+              onClick={async () => {
+                if (planting.conditions === c) return
+                try {
+                  const updated = await api.updatePlantingInfo(planting.id, { conditions: c })
+                  setPlanting(updated)
+                } catch (err) {
+                  setError(err instanceof ApiError ? err.message : 'Не удалось обновить условия')
+                }
+              }}
+            >
+              {c === 'soil' ? 'Грунт' : 'Теплица'}
+            </button>
+          ))}
+        </div>
         {expectedYield != null && (
           <p className="font-semibold text-tertiary">Ожидаемый урожай ~{expectedYield} кг</p>
         )}

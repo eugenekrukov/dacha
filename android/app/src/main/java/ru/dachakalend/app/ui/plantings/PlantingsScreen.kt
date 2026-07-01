@@ -790,36 +790,8 @@ private fun PlantingSetupBottomSheet(
                 onRename = onRenameBed,
                 onDelete = { bed -> if (bedId == bed.id) bedId = null; onDeleteBed(bed) },
             )
-
-            Text(
-                "Место посадки",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Black,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = conditions == "soil",
-                    onClick = { conditions = "soil" },
-                    shape = RoundedCornerShape(100.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    ),
-                    label = { Text("Грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
-                )
-                FilterChip(
-                    selected = conditions == "greenhouse",
-                    onClick = { conditions = "greenhouse" },
-                    shape = RoundedCornerShape(100.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    ),
-                    label = { Text("Теплица", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
-                )
-            }
+            // «Условия» (грунт/теплица) убраны из формы создания: значение берётся из типа
+            // выбранной грядки (иначе дефолт «грунт»), поменять можно в карточке посадки.
 
             Text(
                 "Способ посадки",

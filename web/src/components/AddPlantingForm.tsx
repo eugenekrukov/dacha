@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Search, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import Modal from './Modal'
@@ -21,6 +21,7 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
   const [variety, setVariety] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [conditions, setConditions] = useState<'soil' | 'greenhouse'>('soil')
+  const [sowingMethod, setSowingMethod] = useState<'seedling' | 'direct'>('direct')
   const [bedId, setBedId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -59,8 +60,13 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
     if (blurTimer.current) clearTimeout(blurTimer.current)
     setCropOpen(true)
   }
-  // Способ посадки по умолчанию: есть transplant_days → через рассаду (как в Android)
-  const sowingMethod = selectedCrop?.transplant_days ? 'seedling' : 'direct'
+  // Способ посадки по умолчанию: есть transplant_days → через рассаду (как в Android).
+  // Дефолт следует за выбранной культурой; пользователь может переопределить вручную —
+  // ручной выбор сохраняется, пока не сменить культуру.
+  useEffect(() => {
+    setSowingMethod(selectedCrop?.transplant_days ? 'seedling' : 'direct')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cropId])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -214,25 +220,19 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
             onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
           />
 
-          <label className="mt-2 text-sm font-bold text-muted">Условия</label>
+          <label className="mt-2 text-sm font-bold text-muted">Способ посадки</label>
           <div className="flex gap-2">
-            {(['soil', 'greenhouse'] as const).map((c) => (
+            {(['direct', 'seedling'] as const).map((m) => (
               <button
-                key={c}
+                key={m}
                 type="button"
-                className={`dacha-chip ${conditions === c ? 'dacha-chip-active' : ''}`}
-                onClick={() => setConditions(c)}
+                className={`dacha-chip ${sowingMethod === m ? 'dacha-chip-active' : ''}`}
+                onClick={() => setSowingMethod(m)}
               >
-                {c === 'soil' ? 'Грунт' : 'Теплица'}
+                {m === 'direct' ? 'Прямой посев' : 'Через рассаду'}
               </button>
             ))}
           </div>
-
-          {selectedCrop && (
-            <p className="text-sm font-semibold text-muted">
-              Способ: {sowingMethod === 'seedling' ? 'через рассаду' : 'прямой посев'}
-            </p>
-          )}
 
           {error && (
             <div className="flex flex-col gap-1">

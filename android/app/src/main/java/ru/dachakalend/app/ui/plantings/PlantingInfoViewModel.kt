@@ -187,6 +187,19 @@ class PlantingInfoViewModel @Inject constructor(
         }
     }
 
+    /** Изменить «Условия» (грунт/теплица) задним числом с карточки посадки. */
+    fun setConditions(value: String) {
+        val planting = _uiState.value.planting ?: return
+        if (planting.conditions == value) return
+        viewModelScope.launch {
+            when (val res = plantingsRepository.updateInfo(planting.id, UpdatePlantingInfoRequest(conditions = value))) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(planting = res.data, bedError = null)
+                is Result.Error -> _uiState.value = _uiState.value.copy(bedError = res.message)
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
     fun createAndSetBed(name: String, type: String) {
         val planting = _uiState.value.planting ?: return
         viewModelScope.launch {
