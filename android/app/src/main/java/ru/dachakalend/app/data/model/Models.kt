@@ -142,6 +142,25 @@ data class WeatherSnapshot(
     @Json(name = "fetched_at") val fetchedAt: String
 )
 
+// --- Moon calendar ---
+
+@JsonClass(generateAdapter = true)
+data class MoonDay(
+    val date: String,
+    @Json(name = "phaseFraction") val phaseFraction: Double, // 0..1, 0/1=новолуние, 0.5=полнолуние
+    val illumination: Double,
+    val favorable: Boolean,
+    val label: String?,       // не null только для новолуния/полнолуния — предупреждающая метка
+    val phaseLabel: String,   // общее название фазы (эмодзи + текст)
+    val message: String
+)
+
+@JsonClass(generateAdapter = true)
+data class MoonCalendarResponse(
+    val days: List<MoonDay>,
+    val today: MoonDay
+)
+
 // --- Recommendation ---
 
 @JsonClass(generateAdapter = true)

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NightlightRound
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material3.*
@@ -37,7 +38,7 @@ import java.util.Locale
 private val DAY_HEADERS = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
 
 @Composable
-fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
+fun CalendarScreen(onOpenMoonCalendar: () -> Unit = {}, viewModel: CalendarViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
 
     LazyColumn(
@@ -48,11 +49,13 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
-                    .padding(vertical = 8.dp)
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     "Календарь",
@@ -61,6 +64,9 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
                     fontSize = 28.sp,
                     color = MaterialTheme.colorScheme.onBackground
                 )
+                IconButton(onClick = onOpenMoonCalendar) {
+                    Icon(Icons.Default.NightlightRound, contentDescription = "Лунный календарь", tint = MaterialTheme.colorScheme.primary)
+                }
             }
         }
 

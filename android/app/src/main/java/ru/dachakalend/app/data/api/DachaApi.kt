@@ -204,6 +204,10 @@ interface DachaApi {
     @GET("today")
     suspend fun getToday(@Query("garden_id") gardenId: Int): TodayResponse
 
+    // Moon calendar
+    @GET("moon-calendar")
+    suspend fun getMoonCalendar(@Query("year") year: Int, @Query("month") month: Int): MoonCalendarResponse
+
     // Analytics
     @GET("analytics/summary")
     suspend fun getAnalyticsSummary(): AnalyticsSummary

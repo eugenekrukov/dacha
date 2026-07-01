@@ -16,6 +16,7 @@ import CropDetailScreen from './screens/CropDetailScreen'
 import GuideScreen from './screens/GuideScreen'
 import GuideDetailScreen from './screens/GuideDetailScreen'
 import CalendarScreen from './screens/CalendarScreen'
+import MoonCalendarScreen from './screens/MoonCalendarScreen'
 import JournalScreen from './screens/JournalScreen'
 import HarvestsScreen from './screens/HarvestsScreen'
 import ProfileScreen from './screens/ProfileScreen'
@@ -64,6 +65,7 @@ export default function App() {
             <Route path="/plantings" element={<PlantingsScreen />} />
             <Route path="/plantings/:id" element={<PlantingDetailScreen />} />
             <Route path="/calendar" element={<CalendarScreen />} />
+            <Route path="/moon-calendar" element={<MoonCalendarScreen />} />
             <Route path="/crops" element={<CropsScreen />} />
             <Route path="/crops/:id" element={<CropDetailScreen />} />
             <Route path="/guide" element={<GuideScreen />} />

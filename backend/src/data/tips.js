@@ -139,12 +139,28 @@ const WEATHER_TIPS = {
 }
 
 // ─── Лунный календарь ───────────────────────────────────────────────────────
+const LUNAR_CYCLE_DAYS = 29.53059
+const KNOWN_NEW_MOON = new Date('2000-01-06T18:14:00Z')
+
+// Возраст Луны в текущем цикле, 0..LUNAR_CYCLE_DAYS (0 = новолуние).
+function getMoonAge(date) {
+  const diffDays = (date - KNOWN_NEW_MOON) / (1000 * 60 * 60 * 24)
+  return ((diffDays % LUNAR_CYCLE_DAYS) + LUNAR_CYCLE_DAYS) % LUNAR_CYCLE_DAYS
+}
+
+// Непрерывная фаза 0..1 (0/1 = новолуние, 0.5 = полнолуние) — для отрисовки иконки диска.
+function getMoonPhaseFraction(date) {
+  return getMoonAge(date) / LUNAR_CYCLE_DAYS
+}
+
+// Доля освещённого диска 0..1.
+function getMoonIllumination(date) {
+  return (1 - Math.cos(getMoonPhaseFraction(date) * 2 * Math.PI)) / 2
+}
+
 // Фазы: 0–новолуние, 1–растущая, 2–полнолуние, 3–убывающая
 function getMoonPhase(date) {
-  const knownNewMoon = new Date('2000-01-06T18:14:00Z')
-  const CYCLE = 29.53059
-  const diffDays = (date - knownNewMoon) / (1000 * 60 * 60 * 24)
-  const phase = ((diffDays % CYCLE) + CYCLE) % CYCLE
+  const phase = getMoonAge(date)
   if (phase < 1.85)  return 0 // Новолуние
   if (phase < 14.77) return 1 // Растущая луна
   if (phase < 16.61) return 2 // Полнолуние
@@ -212,7 +228,12 @@ module.exports = {
   getStageTip,
   getLunarTip,
   getMoonPhase,
+  getMoonAge,
+  getMoonPhaseFraction,
+  getMoonIllumination,
   getDayOfYear,
   getZoneDayOffset,
   WEATHER_TIPS,
+  LUNAR_TIPS,
+  LUNAR_CYCLE_DAYS,
 }

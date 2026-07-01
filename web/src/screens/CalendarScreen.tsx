@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Moon } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { buildCalendarEvents, type CalendarEvent } from '../api/schedule'
 import { useGardens } from '../garden/GardenContext'
@@ -74,7 +76,12 @@ export default function CalendarScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-black">Календарь</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-black">Календарь</h1>
+        <Link to="/moon-calendar" className="dacha-chip flex items-center gap-1.5" aria-label="Лунный календарь">
+          <Moon size={16} aria-hidden /> Луна
+        </Link>
+      </div>
 
       {error && <ErrorCard message={error} />}
 

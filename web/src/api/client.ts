@@ -16,6 +16,7 @@ import type {
   GuideEntryDetail,
   GuideKind,
   Harvest,
+  MoonCalendarResponse,
   Planting,
   PlantingPhoto,
   PlantingStage,
@@ -248,4 +249,6 @@ export const api = {
   getToday: (gardenId: number) => request<TodayResponse>(`/today?garden_id=${gardenId}`),
   getRecommendations: (gardenId: number) =>
     request<Recommendation[]>(`/recommendations?garden_id=${gardenId}`),
+  getMoonCalendar: (year: number, month: number) =>
+    request<MoonCalendarResponse>(`/moon-calendar?year=${year}&month=${month}`),
 }

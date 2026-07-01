@@ -146,6 +146,21 @@ export interface Recommendation {
   message: string
 }
 
+export interface MoonDay {
+  date: string
+  phaseFraction: number // 0..1, 0/1=новолуние, 0.5=полнолуние
+  illumination: number // 0..1
+  favorable: boolean
+  label: string | null
+  phaseLabel: string
+  message: string
+}
+
+export interface MoonCalendarResponse {
+  days: MoonDay[]
+  today: MoonDay
+}
+
 export interface CareTask {
   name: string
   day_offset: number
