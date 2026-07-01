@@ -17,7 +17,7 @@
 - **Стек**: Node.js 20 + Fastify 4 + PostgreSQL · Android (Kotlin + Compose + Hilt) · Веб (React + Vite + TS + Tailwind).
 - **Бэкенд**: `https://dacha.studio1008.com/` · pm2 `dacha-api`.
 - **Веб**: `https://dacha.studio1008.com/app/` (папка `web/`, статика `/var/www/dacha-web`, nginx `location /app/`). Та же БД/API.
-- **Android**: package `ru.dachakalend.app` · minSdk 26 · compileSdk/targetSdk **36** (Android 16) · флейворы `rustore`/`gplay`/`samsung` (сборка `:app:compileGplayDebugKotlin` и т.п.).
+- **Android**: package `ru.dachakalend.app` · minSdk 26 · compileSdk/targetSdk **36** (Android 16) · флейворы `rustore`/`gplay` (samsung удалён 2026-06-30) (сборка `:app:compileGplayDebugKotlin` и т.п.).
 - **Справочник проблем растений**: в проде на всех платформах (~68 записей, 52/68 с фото). См. `docs/plant-guide-plan.md`.
 - **Бэкенд-тесты**: 398/398 (`npm test` → vitest run; **НЕ** jest).
 - **Лента «Мой участок»**: запись-центричная (`action`/`photo`/`milestone`), единый блок «действие+заметка+фото»
@@ -136,13 +136,11 @@ Backend `GET /feed` (UNION, пагинация, без миграции). Фун
 задачами. `GET /moon-calendar?year=&month=` (прод, health ok), веб пересобран (`/app/` 200). Тесты
 398/398 (+5). Хвост: on-device QA. Детали — `session-note.md` (2026-07-01 (2) и (3)).
 
-**Android versionCode 7→8 (1.0.4→1.0.5, 2026-07-01):** релиз накопил грядки+севооборот, унификацию
-«Убрать урожай», лунный календарь (все три — с последнего Google Play vc7). Сборка/подпись/публикация
-в Google Play и RuStore — вручную владельцем.
-⚠️ **RuStore отстаёт на две волны фич, не на одну**: подтверждено владельцем (2026-07-01), что
-опубликованная там vc6/1.0.3 ещё не содержит ленту «Мой участок», фото из камеры в действии и
-офлайн-режим «Сегодня» (фичи прошлого Google Play-релиза vc7). Release notes для RuStore при
-следующей публикации должны перечислять всё это ПЛЮС грядки/урожай/лунный календарь.
+**✅ Опубликовано 2026-07-01:** Google Play — **vc8/1.0.5** (грядки+севооборот, унификация «Убрать
+урожай», лунный календарь). RuStore — **vc7/1.0.4** (лента «Мой участок», фото из камеры в действии,
+офлайн-режим «Сегодня» — то, что раньше было только в Google Play). RuStore снова отстаёт всего на
+одну волну: грядки/урожай/лунный календарь туда ещё не попали — при следующей публикации (ожидаемо
+vc8/1.0.5) release notes для RuStore = тот же короткий список, что уже отдали Google Play.
 
 **⚠️ Полуготовые фичи (бэкенд без UI / в процессе):**
 - **Единое снуз/удаление задач дня** (`unified-task-dismiss`): миграция `054_today_task_dismissals.sql`
