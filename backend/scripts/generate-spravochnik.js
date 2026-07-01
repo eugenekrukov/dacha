@@ -246,3 +246,179 @@ function renderEntryBody(entry, affectedCrops) {
   html += `<a class="cta" href="/app/">🌱 Открыть Календарь дачника →</a>`
   return html
 }
+
+function writeSitemap(crops, entries) {
+  const today = new Date().toISOString().slice(0, 10)
+  const urls = [
+    { loc: `${SITE}/`, priority: '1.0', freq: 'monthly' },
+    { loc: `${SITE}/offer`, priority: '0.3', freq: 'yearly' },
+    { loc: `${SITE}/privacy`, priority: '0.3', freq: 'yearly' },
+    { loc: `${SITE}/account-deletion`, priority: '0.3', freq: 'yearly' },
+    { loc: `${SITE}/spravochnik/`, priority: '0.6', freq: 'monthly' },
+    { loc: `${SITE}/spravochnik/kultury/`, priority: '0.5', freq: 'monthly' },
+    { loc: `${SITE}/spravochnik/problemy/`, priority: '0.5', freq: 'monthly' },
+    ...crops.map(c => ({ loc: `${SITE}/spravochnik/kultury/${c.slug}/`, priority: '0.4', freq: 'yearly' })),
+    ...entries.map(e => ({ loc: `${SITE}/spravochnik/problemy/${e.slug}/`, priority: '0.4', freq: 'yearly' }))
+  ]
+  const body = urls.map(u => `  <url>
+    <loc>${u.loc}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${u.freq}</changefreq>
+    <priority>${u.priority}</priority>
+  </url>`).join('\n')
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${body}
+</urlset>
+`
+  fs.writeFileSync(SITEMAP_PATH, xml, 'utf8')
+}
+
+async function main() {
+  const pool = new Pool({
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT) || 5432,
+    database: process.env.DB_NAME || 'dacha_db',
+    user: process.env.DB_USER || 'dacha_user',
+    password: process.env.DB_PASSWORD || ''
+  })
+
+  const cropsRes = await pool.query(
+    `SELECT id, slug, name, category, family, sowing_start_day, sowing_end_day,
+            transplant_days, harvest_days, watering_freq_days, frost_sensitive,
+            companion_crops, notes
+     FROM crops ORDER BY name ASC`
+  )
+  const entriesRes = await pool.query(
+    `SELECT id, slug, name, kind, element, category, danger, description, symptoms,
+            conditions, treatment, prevention, season, image_url, image_credit
+     FROM guide_entries ORDER BY name ASC`
+  )
+  const linksRes = await pool.query(
+    'SELECT crop_id, entry_id, signs, image_url, image_credit FROM crop_guide_entries'
+  )
+  await pool.end()
+
+  // slug + коллизии
+  const cropSlugSeen = new Set()
+  const crops = []
+  for (const row of cropsRes.rows) {
+    let slug = row.slug
+    if (!slug) {
+      slug = translitToSlug(row.name) || `crop-${row.id}`
+      console.warn(`⚠️  Культура #${row.id} "${row.name}" без slug в БД — временный "${slug}" (запустите backfill-crop-slugs.js для стабильного URL).`)
+    }
+    if (cropSlugSeen.has(slug)) throw new Error(`Коллизия slug культуры: "${slug}" (#${row.id} "${row.name}")`)
+    cropSlugSeen.add(slug)
+    crops.push({ ...row, slug })
+  }
+
+  const entrySlugSeen = new Set()
+  for (const row of entriesRes.rows) {
+    if (entrySlugSeen.has(row.slug)) throw new Error(`Коллизия slug записи справочника: "${row.slug}"`)
+    entrySlugSeen.add(row.slug)
+  }
+  const entries = entriesRes.rows
+
+  cropsById = new Map(crops.map(c => [c.id, c]))
+  const entriesById = new Map(entries.map(e => [e.id, e]))
+  const cropToLinks = new Map()
+  const entryToLinks = new Map()
+  for (const link of linksRes.rows) {
+    if (!cropToLinks.has(link.crop_id)) cropToLinks.set(link.crop_id, [])
+    cropToLinks.get(link.crop_id).push(link)
+    if (!entryToLinks.has(link.entry_id)) entryToLinks.set(link.entry_id, [])
+    entryToLinks.get(link.entry_id).push(link)
+  }
+
+  // чистая пересборка каталога
+  fs.rmSync(OUT_DIR, { recursive: true, force: true })
+  fs.mkdirSync(path.join(OUT_DIR, 'kultury'), { recursive: true })
+  fs.mkdirSync(path.join(OUT_DIR, 'problemy'), { recursive: true })
+
+  writePage(path.join(OUT_DIR, 'index.html'), renderShell({
+    title: 'Справочник — Календарь дачника',
+    description: 'Сроки посадки культур и лечение проблем растений — открытый справочник приложения «Календарь дачника».',
+    canonical: `${SITE}/spravochnik/`,
+    breadcrumbs: '<a href="/">Главная</a> / Справочник',
+    bodyHtml: renderHub()
+  }))
+
+  writePage(path.join(OUT_DIR, 'kultury', 'index.html'), renderShell({
+    title: 'Справочник культур — когда сажать | Календарь дачника',
+    description: 'Сроки посева и высадки, полив и совместимость для 45+ культур — овощи, зелень, ягоды, цветы.',
+    canonical: `${SITE}/spravochnik/kultury/`,
+    breadcrumbs: '<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / Культуры',
+    bodyHtml: renderKulturyIndex(crops)
+  }))
+
+  for (const crop of crops) {
+    const links = (cropToLinks.get(crop.id) || [])
+      .map(l => entriesById.get(l.entry_id))
+      .filter(Boolean)
+    const dir = path.join(OUT_DIR, 'kultury', crop.slug)
+    fs.mkdirSync(dir, { recursive: true })
+    writePage(path.join(dir, 'index.html'), renderShell({
+      title: `${crop.name} — когда сажать и как ухаживать | Календарь дачника`,
+      description: `${crop.name}: сроки посева и высадки, полив, совместимость с другими культурами. Справочник «Календаря дачника».`,
+      canonical: `${SITE}/spravochnik/kultury/${crop.slug}/`,
+      breadcrumbs: `<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / <a href="/spravochnik/kultury/">Культуры</a> / ${esc(crop.name)}`,
+      bodyHtml: renderCropBody(crop, links),
+      jsonLdBlocks: [
+        articleJsonLd(crop.name, `${SITE}/spravochnik/kultury/${crop.slug}/`),
+        breadcrumbJsonLd([
+          { name: 'Главная', url: `${SITE}/` },
+          { name: 'Справочник', url: `${SITE}/spravochnik/` },
+          { name: 'Культуры', url: `${SITE}/spravochnik/kultury/` },
+          { name: crop.name, url: `${SITE}/spravochnik/kultury/${crop.slug}/` }
+        ])
+      ]
+    }))
+  }
+
+  writePage(path.join(OUT_DIR, 'problemy', 'index.html'), renderShell({
+    title: 'Справочник проблем растений — болезни, вредители, дефициты | Календарь дачника',
+    description: 'Признаки, причины и лечение болезней, вредителей и дефицитов микроэлементов у садовых культур.',
+    canonical: `${SITE}/spravochnik/problemy/`,
+    breadcrumbs: '<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / Проблемы',
+    bodyHtml: renderProblemyIndex(entries)
+  }))
+
+  for (const entry of entries) {
+    const affectedCrops = (entryToLinks.get(entry.id) || [])
+      .map(l => ({ crop: cropsById.get(l.crop_id), signs: l.signs, image_url: l.image_url, image_credit: l.image_credit }))
+      .filter(l => l.crop)
+    const dir = path.join(OUT_DIR, 'problemy', entry.slug)
+    fs.mkdirSync(dir, { recursive: true })
+    writePage(path.join(dir, 'index.html'), renderShell({
+      title: `${entry.name} — признаки и лечение | Календарь дачника`,
+      description: `${entry.name}: как распознать и что делать. ${(entry.description || '').slice(0, 100)}`,
+      canonical: `${SITE}/spravochnik/problemy/${entry.slug}/`,
+      breadcrumbs: `<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / <a href="/spravochnik/problemy/">Проблемы</a> / ${esc(entry.name)}`,
+      bodyHtml: renderEntryBody(entry, affectedCrops),
+      jsonLdBlocks: [
+        articleJsonLd(entry.name, `${SITE}/spravochnik/problemy/${entry.slug}/`),
+        breadcrumbJsonLd([
+          { name: 'Главная', url: `${SITE}/` },
+          { name: 'Справочник', url: `${SITE}/spravochnik/` },
+          { name: 'Проблемы', url: `${SITE}/spravochnik/problemy/` },
+          { name: entry.name, url: `${SITE}/spravochnik/problemy/${entry.slug}/` }
+        ])
+      ]
+    }))
+  }
+
+  writeSitemap(crops, entries)
+
+  const expectedFiles = 3 + crops.length + entries.length
+  const actualFiles = countHtmlFiles(OUT_DIR)
+  if (actualFiles !== expectedFiles) {
+    throw new Error(`Ожидалось ${expectedFiles} HTML-файлов, создано ${actualFiles} — проверьте лог выше.`)
+  }
+  console.log(`Готово: ${actualFiles} страниц в ${OUT_DIR}, sitemap.xml обновлён (${3 + crops.length + entries.length} URL).`)
+}
+
+main().catch(e => {
+  console.error('Ошибка генерации:', e.message)
+  process.exitCode = 1
+})
