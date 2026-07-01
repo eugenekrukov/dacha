@@ -130,11 +130,11 @@ Backend `GET /feed` (UNION, пагинация, без миграции). Фун
 из формы создания в карточку; на вебе добавлен выбор способа посадки. Планы:
 `docs/superpowers/plans/2026-06-30-garden-beds-{web,android}-ui.md`. Хвост: Android-релиз + on-device QA.
 
-**🆕 Лунный календарь (РЕАЛИЗОВАН 2026-07-01, backend+web+Android, НЕ ЗАДЕПЛОЕН):** новый экран
+**✅ Лунный календарь (РЕАЛИЗОВАН + ЗАДЕПЛОЕН 2026-07-01, backend+web; Android в `main`):** новый экран
 (иконка фазы Луны на каждый день месяца, карточка дня с советом, «Не сажать» на ново-/полнолуние).
-`GET /moon-calendar?year=&month=`, вход — иконка на «Календаре» (web+Android). Тесты 398/398 (+5).
-Хвост: прод-деплой backend, Android — в следующую сборку (versionCode bump), on-device QA. Детали —
-`session-note.md` (2026-07-01 (2)).
+`GET /moon-calendar?year=&month=` (прод `d9f3c7d`, health ok), веб пересобран (`/app/` 200). Вход —
+иконка на «Календаре» (web+Android). Тесты 398/398 (+5). Хвост: Android — в следующую сборку
+(versionCode bump), on-device QA. Детали — `session-note.md` (2026-07-01 (2)).
 
 **⚠️ Полуготовые фичи (бэкенд без UI / в процессе):**
 - **Единое снуз/удаление задач дня** (`unified-task-dismiss`): миграция `054_today_task_dismissals.sql`

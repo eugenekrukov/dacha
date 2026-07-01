@@ -38,10 +38,13 @@ Tailwind-стили в этом превью не применяются (изв
 Harvest). `:app:compileGplayDebugKotlin` + `:app:compileRustoreDebugKotlin` + `:app:testGplayDebugUnitTest`
 — BUILD SUCCESSFUL (offline, тёплый кэш).
 
+**Деплой (2026-07-01, коммит `d9f3c7d`):** push в `main` → VPS `fetch && reset --hard origin/main` →
+`pm2 restart dacha-api` (`/health` ok) → веб `npm ci && npm run build` → `/var/www/dacha-web`
+(`/app/` 200, `GET /moon-calendar` без токена → 401, т.е. роут живой). Миграций нет.
+
 **Не сделано / следующая сессия:**
-- Backend НЕ задеплоен на прод (только тесты локально) — деплой не выполнялся в этой сессии (не
-  спрашивали разрешения на прод-деплой).
-- Android — новый экран будет в следующей сборке (versionCode bump), on-device QA не проводился.
+- Android — новый экран в `main`, будет в следующей сборке (versionCode bump), on-device QA не
+  проводился.
 - Вход из «Лунного совета» на «Сегодня» (клик по карточке → лунный календарь) не сделан — только
   вход через иконку на «Календаре» (упрощение, чтобы не трогать большой `TodayScreen.kt`).
 
