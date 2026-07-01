@@ -139,6 +139,17 @@ node scripts/vk-autopost.js --text-file post.txt --image url --link <url> [--dry
 
 ## История
 
+- **2026-07-01** — фича «Грядки участка + севооборот» (web + Android). Бэкенд был задеплоен ранее
+  (миграции 052/053); в этот заход — миграция **055** `GRANT` на `garden_beds`+sequence для `dacha_user`
+  (без неё `GET /gardens/:id/beds` падал с `permission denied`, 42501). GRANT применён на проде inline
+  (`sudo -u postgres psql -d dacha_db -c 'GRANT SELECT,INSERT,UPDATE,DELETE ON garden_beds TO dacha_user;
+  GRANT USAGE,SELECT ON garden_beds_id_seq TO dacha_user;'`), файл миграции — для воспроизводимости.
+  Деплой: backend `reset --hard origin/main` + `pm2 restart` (JS не менялся), web пересобран
+  (`npm ci && npm run build` → `/var/www/dacha-web`). Проверено: `/app/` 200, `GET /gardens/12/beds` 200.
+  **Android** (поле «Место», пикер грядок, подсказка севооборота) влит в `main`, собран локально
+  (rustore debug APK + юнит-тесты зелёные) — **релиз в RuStore выкладывается вручную** (подпись +
+  консоль RuStore; RuStore копит версии, публикуется отдельно).
+
 - **2026-06-24 (2)** — фото в групповом действии при 1 культуре, фикс лейбла `transplanting`
   (`web/src/api/labels.ts` собран из `ACTION_CATALOG`), Яндекс.Метрика (id `110118201`) и
   cookie-уведомление на лендинге и в веб-версии. Деплой: backend без изменений, `web` пересобран
