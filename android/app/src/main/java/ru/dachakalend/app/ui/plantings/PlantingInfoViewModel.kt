@@ -30,6 +30,7 @@ data class PlantingInfoUiState(
     val recentActions: List<ActionLog> = emptyList(),
     val problems: List<GuideEntry> = emptyList(),
     val beds: List<GardenBed> = emptyList(),
+    val bedError: String? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
     // Фото-дневник
@@ -178,9 +179,10 @@ class PlantingInfoViewModel @Inject constructor(
     fun setBed(bed: GardenBed) {
         val planting = _uiState.value.planting ?: return
         viewModelScope.launch {
-            val res = plantingsRepository.updateInfo(planting.id, UpdatePlantingInfoRequest(bedId = bed.id, conditions = bed.type))
-            if (res is Result.Success) {
-                _uiState.value = _uiState.value.copy(planting = res.data)
+            when (val res = plantingsRepository.updateInfo(planting.id, UpdatePlantingInfoRequest(bedId = bed.id, conditions = bed.type))) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(planting = res.data, bedError = null)
+                is Result.Error -> _uiState.value = _uiState.value.copy(bedError = res.message)
+                is Result.Loading -> Unit
             }
         }
     }
@@ -190,10 +192,10 @@ class PlantingInfoViewModel @Inject constructor(
         viewModelScope.launch {
             when (val created = bedsRepository.createBed(planting.gardenId, name, type)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(beds = _uiState.value.beds + created.data)
+                    _uiState.value = _uiState.value.copy(beds = _uiState.value.beds + created.data, bedError = null)
                     setBed(created.data)
                 }
-                is Result.Error -> Unit
+                is Result.Error -> _uiState.value = _uiState.value.copy(bedError = created.message)
                 is Result.Loading -> Unit
             }
         }
@@ -204,7 +206,7 @@ class PlantingInfoViewModel @Inject constructor(
             when (val res = bedsRepository.updateBed(bed.id, name = name)) {
                 is Result.Success ->
                     _uiState.value = _uiState.value.copy(beds = _uiState.value.beds.map { if (it.id == res.data.id) res.data else it })
-                is Result.Error -> Unit
+                is Result.Error -> _uiState.value = _uiState.value.copy(bedError = res.message)
                 is Result.Loading -> Unit
             }
         }
@@ -212,7 +214,7 @@ class PlantingInfoViewModel @Inject constructor(
 
     fun deleteBed(bed: GardenBed) {
         viewModelScope.launch {
-            when (bedsRepository.deleteBed(bed.id)) {
+            when (val res = bedsRepository.deleteBed(bed.id)) {
                 is Result.Success -> {
                     val planting = _uiState.value.planting
                     _uiState.value = _uiState.value.copy(
@@ -221,7 +223,7 @@ class PlantingInfoViewModel @Inject constructor(
                         planting = if (planting?.bedId == bed.id) planting.copy(bedId = null) else planting
                     )
                 }
-                is Result.Error -> Unit
+                is Result.Error -> _uiState.value = _uiState.value.copy(bedError = res.message)
                 is Result.Loading -> Unit
             }
         }

@@ -242,6 +242,9 @@ private fun AboutTab(
                 onRename = onRenameBed,
                 onDelete = onDeleteBed,
             )
+            state.bedError?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
         }
 
         val planted = plantedDate(planting.sownAt)
