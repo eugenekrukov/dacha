@@ -91,7 +91,7 @@ function breadcrumbJsonLd(items) {
 
 function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jsonLdBlocks }) {
   const jsonLdHtml = (jsonLdBlocks || [])
-    .map(block => `<script type="application/ld+json">${JSON.stringify(block)}</script>`)
+    .map(block => `<script type="application/ld+json">${JSON.stringify(block).replace(/</g, '\\u003c')}</script>`)
     .join('\n')
   return `<!DOCTYPE html>
 <html lang="ru">
@@ -321,6 +321,15 @@ async function main() {
   const entries = entriesRes.rows
 
   cropsById = new Map(crops.map(c => [c.id, c]))
+
+  for (const crop of crops) {
+    for (const companionId of (crop.companion_crops || [])) {
+      if (!cropsById.has(companionId)) {
+        console.warn(`⚠️  Культура #${crop.id} "${crop.name}": companion_crops содержит несуществующий id ${companionId} — пропущено на странице.`)
+      }
+    }
+  }
+
   const entriesById = new Map(entries.map(e => [e.id, e]))
   const cropToLinks = new Map()
   const entryToLinks = new Map()
@@ -331,8 +340,9 @@ async function main() {
     entryToLinks.get(link.entry_id).push(link)
   }
 
-  // чистая пересборка каталога
-  fs.rmSync(OUT_DIR, { recursive: true, force: true })
+  // чистая пересборка каталога (только регенерируемые подпапки — assets/ и прочее в OUT_DIR не трогаем)
+  fs.rmSync(path.join(OUT_DIR, 'kultury'), { recursive: true, force: true })
+  fs.rmSync(path.join(OUT_DIR, 'problemy'), { recursive: true, force: true })
   fs.mkdirSync(path.join(OUT_DIR, 'kultury'), { recursive: true })
   fs.mkdirSync(path.join(OUT_DIR, 'problemy'), { recursive: true })
 
