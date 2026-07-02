@@ -39,6 +39,35 @@ function esc(s) {
   ))
 }
 
+// SEO: title >60 симв. обрезается в сниппете поиска (для кириллицы порог даже
+// чуть жёстче латиницы). Приоритет при переполнении — отбросить бренд-суффикс
+// (он и так виден в сниппете отдельной строкой домена), а не резать само
+// название культуры/проблемы — обрезка названия по буквам вводит в заблуждение.
+const TITLE_LIMIT = 60
+
+function buildCropTitle(name) {
+  const withBrand = `${name} — когда сажать и как ухаживать | Календарь дачника`
+  if (withBrand.length <= TITLE_LIMIT) return withBrand
+  return `${name} — когда сажать и как ухаживать`
+}
+
+function buildEntryTitle(name) {
+  const withBrand = `${name} — признаки и лечение | Календарь дачника`
+  if (withBrand.length <= TITLE_LIMIT) return withBrand
+  return `${name} — признаки и лечение`
+}
+
+// SEO: description >160 симв. обрезается в сниппете. Бюджет считаем от общей
+// длины строки (префикс + факт из БД), а не режем факт фиксированным куском —
+// иначе при длинном названии сумма всё равно могла перевалить за 160.
+const DESCRIPTION_LIMIT = 155
+
+function buildEntryDescription(entry) {
+  const prefix = `${entry.name}: как распознать и что делать. `
+  const budget = Math.max(0, DESCRIPTION_LIMIT - prefix.length)
+  return prefix + (entry.description || '').slice(0, budget)
+}
+
 function textToHtml(text) {
   if (!text) return ''
   return String(text)
@@ -369,7 +398,7 @@ async function main() {
     const dir = path.join(OUT_DIR, 'kultury', crop.slug)
     fs.mkdirSync(dir, { recursive: true })
     writePage(path.join(dir, 'index.html'), renderShell({
-      title: `${crop.name} — когда сажать и как ухаживать | Календарь дачника`,
+      title: buildCropTitle(crop.name),
       description: `${crop.name}: сроки посева и высадки, полив, совместимость с другими культурами. Справочник «Календаря дачника».`,
       canonical: `${SITE}/spravochnik/kultury/${crop.slug}/`,
       breadcrumbs: `<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / <a href="/spravochnik/kultury/">Культуры</a> / ${esc(crop.name)}`,
@@ -401,8 +430,8 @@ async function main() {
     const dir = path.join(OUT_DIR, 'problemy', entry.slug)
     fs.mkdirSync(dir, { recursive: true })
     writePage(path.join(dir, 'index.html'), renderShell({
-      title: `${entry.name} — признаки и лечение | Календарь дачника`,
-      description: `${entry.name}: как распознать и что делать. ${(entry.description || '').slice(0, 100)}`,
+      title: buildEntryTitle(entry.name),
+      description: buildEntryDescription(entry),
       canonical: `${SITE}/spravochnik/problemy/${entry.slug}/`,
       breadcrumbs: `<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / <a href="/spravochnik/problemy/">Проблемы</a> / ${esc(entry.name)}`,
       bodyHtml: renderEntryBody(entry, affectedCrops),
