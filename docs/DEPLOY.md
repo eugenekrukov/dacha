@@ -121,6 +121,25 @@ location /spravochnik/ {
 Затем `sudo nginx -t && sudo systemctl reload nginx`. Location-блок нужен один раз,
 дальше только перегенерация содержимого.
 
+### IndexNow (быстрая индексация Яндекс/Bing при добавлении страниц)
+
+Одноразовая настройка: сгенерировать ключ, положить файл-подтверждение `{ключ}.txt` в корень сайта
+(содержимое файла = сам ключ), добавить `INDEXNOW_KEY` в `.env` backend, добавить nginx-блок:
+
+```nginx
+location = /{ключ}.txt { root /var/www/dacha-landing; }
+```
+
+После каждой перегенерации `/spravochnik/`, если появились новые/удалённые страницы:
+
+```powershell
+ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/submit-indexnow.js'
+```
+
+Скрипт (`backend/scripts/submit-indexnow.js`) берёт все URL из `landing/sitemap.xml` и отправляет
+их одним POST-запросом на `https://yandex.com/indexnow` — по протоколу IndexNow это уведомляет и
+других участников (Bing и т.д.), не только Яндекс. Не гарантирует индексацию, только ускоряет обход.
+
 ---
 
 ## Автопостер ВК (маркетинг, `vk-queue`)
