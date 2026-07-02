@@ -18,7 +18,10 @@
 - **Бэкенд**: `https://dacha.studio1008.com/` · pm2 `dacha-api`.
 - **Веб**: `https://dacha.studio1008.com/app/` (папка `web/`, статика `/var/www/dacha-web`, nginx `location /app/`). Та же БД/API.
 - **Android**: package `ru.dachakalend.app` · minSdk 26 · compileSdk/targetSdk **36** (Android 16) · флейворы `rustore`/`gplay` (samsung удалён 2026-06-30) (сборка `:app:compileGplayDebugKotlin` и т.п.).
-- **Справочник проблем растений**: в проде на всех платформах (~68 записей, 52/68 с фото). См. `docs/plant-guide-plan.md`.
+- **Справочник проблем растений**: в проде на всех платформах (78 записей по факту на 2026-07-02, было
+  указано ~68 — актуализировано при аудите `/spravochnik/`). См. `docs/plant-guide-plan.md`.
+- **SEO-справочник `/spravochnik/`**: 133 публичные статические страницы (55 культур + 78 проблем),
+  в проде. См. «Актуальные открытые задачи» ниже + `session-note.md` (2026-07-02).
 - **Бэкенд-тесты**: 398/398 (`npm test` → vitest run; **НЕ** jest).
 - **Лента «Мой участок»**: запись-центричная (`action`/`photo`/`milestone`), единый блок «действие+заметка+фото»
   на ленте и в журнале посадки. В проде (`GET /feed`, без миграции). Android — vc6/1.0.3 (не опубликован).
@@ -141,6 +144,17 @@ Backend `GET /feed` (UNION, пагинация, без миграции). Фун
 офлайн-режим «Сегодня» — то, что раньше было только в Google Play). RuStore снова отстаёт всего на
 одну волну: грядки/урожай/лунный календарь туда ещё не попали — при следующей публикации (ожидаемо
 vc8/1.0.5) release notes для RuStore = тот же короткий список, что уже отдали Google Play.
+
+**✅ SEO-справочник `/spravochnik/` — ГОТОВО И В ПРОДЕ (2026-07-02):** статические страницы культур
+(`/spravochnik/kultury/{slug}/`, 55 шт.) и проблем растений (`/spravochnik/problemy/{slug}/`, 78 шт.)
+на базе публичных `/crops`+`/guide`, генератор `backend/scripts/generate-spravochnik.js` (запускать
+после `backfill-crop-slugs.js`). Title/description проверены и уложены в SEO-лимиты (60/160 симв.)
+реальным аудитом живых страниц, не только по дизайну. Ссылка «Справочник» в nav/footer лендинга.
+Файлы верификации Google Search Console + Яндекс.Вебмастер выложены в корень сайта — владельцу
+осталось подтвердить права в обоих сервисах и добавить sitemap.xml (140 URL) вручную. Детали,
+включая побочно найденный и исправленный баг с правами на таблицах Postgres (`care_alert_log`,
+`garden_beds`, `subscription_emails` принадлежали `postgres` вместо `dacha_user`) — `session-note.md`
+(2026-07-02). Деплой — `docs/DEPLOY.md` («Справочник /spravochnik/»).
 
 **⚠️ Полуготовые фичи (бэкенд без UI / в процессе):**
 - **Единое снуз/удаление задач дня** (`unified-task-dismiss`): миграция `054_today_task_dismissals.sql`
