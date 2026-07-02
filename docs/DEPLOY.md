@@ -97,6 +97,30 @@ ssh hetzner 'cp /var/www/dacha-api/landing/index.html /var/www/dacha-landing/ind
 Если правили `offer.html` или `privacy.html` — скопировать и их (команда выше их не трогает), а также
 **синхронизировать дублирующий текст в аккордеоне `#legal` внутри `index.html`** — см. `landing/README.md`.
 
+### Справочник `/spravochnik/` (SEO-страницы культур и проблем растений)
+
+Генерируется скриптом из БД, не редактируется руками. После изменения данных
+культур/справочника (или при первом деплое фичи):
+
+```powershell
+ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/backfill-crop-slugs.js && node scripts/generate-spravochnik.js'
+ssh hetzner 'rm -rf /var/www/dacha-landing/spravochnik && cp -r /var/www/dacha-api/landing/spravochnik /var/www/dacha-landing/spravochnik && cp /var/www/dacha-api/landing/sitemap.xml /var/www/dacha-landing/sitemap.xml'
+```
+
+Требуется миграция `056_crops_slug.sql` (накатывается обычным деплоем `dacha-api`,
+см. выше в этом файле) и один новый location-блок в nginx-конфиге сайта
+(`/etc/nginx/sites-available/dacha`), добавить ПЕРЕД проксирующим `location /`:
+
+```nginx
+location /spravochnik/ {
+    root /var/www/dacha-landing;
+    try_files $uri $uri/ =404;
+}
+```
+
+Затем `sudo nginx -t && sudo systemctl reload nginx`. Location-блок нужен один раз,
+дальше только перегенерация содержимого.
+
 ---
 
 ## Автопостер ВК (маркетинг, `vk-queue`)

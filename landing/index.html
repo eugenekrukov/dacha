@@ -330,7 +330,7 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       "inLanguage": "ru",
       "url": "https://dacha.studio1008.com/",
       "datePublished": "2026-06-06",
-      "dateModified": "2026-06-16",
+      "dateModified": "2026-07-01",
       "publisher": { "@id": "https://dacha.studio1008.com/#publisher" },
       "offers": [
         { "@type": "Offer", "name": "Дачник Про — месяц", "price": "299", "priceCurrency": "RUB" },
@@ -378,6 +378,11 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
           "@type": "Question",
           "name": "Сколько культур в базе?",
           "acceptedAnswer": { "@type": "Answer", "text": "Более 45 культур: овощи, зелень, ягоды и цветы — со сроками посадки, совместимостью и схемами ухода." }
+        },
+        {
+          "@type": "Question",
+          "name": "Помогает ли приложение с севооборотом?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Да. Можно отметить грядки и теплицы на участке — приложение подскажет, какое семейство культур сажалось там за последние 3 года, чтобы не повторять посадку на том же месте." }
         }
       ]
     }
@@ -439,6 +444,7 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       <a href="#how">Как работает</a>
       <a href="#pricing">Подписка</a>
       <a href="#faq">Вопросы</a>
+      <a href="/spravochnik/">Справочник</a>
       <a href="#legal">Документы</a>
       <a href="#contacts">Контакты</a>
     </nav>
@@ -527,7 +533,7 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       <p>Подскажет, когда сажать, чем подкормить и когда собирать урожай — с учётом лунного календаря, погоды и климатической зоны.</p>
     </div>
     <div class="bento">
-      <div class="card span2" data-reveal data-d="1">
+      <div class="card" data-reveal data-d="1">
         <div class="blob"></div>
         <div class="ico tint-o">📅</div>
         <h3>Задачи дня</h3>
@@ -547,15 +553,21 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       </div>
       <div class="card" data-reveal data-d="2">
         <div class="blob"></div>
-        <div class="ico tint-o">📊</div>
-        <h3>Урожай и аналитика</h3>
-        <p>Учёт собранного и сравнение сезонов.</p>
+        <div class="ico tint-o">🧩</div>
+        <h3>Грядки и севооборот</h3>
+        <p>Отмечайте грядки и теплицы на участке — подскажем, что нельзя сажать повторно на том же месте 3 года подряд.</p>
       </div>
       <div class="card" data-reveal data-d="3">
         <div class="blob"></div>
         <div class="ico tint-g">🔔</div>
         <h3>Лунный календарь и напоминания</h3>
         <p>Полив, подкормка, высадка рассады и благоприятные дни по лунному календарю — вовремя.</p>
+      </div>
+      <div class="card" data-reveal data-d="1">
+        <div class="blob"></div>
+        <div class="ico tint-s">📸</div>
+        <h3>Мой участок: лента и урожай</h3>
+        <p>Личная фотолента посадок по месяцам, вехи сезона и учёт собранного урожая — сравнивайте сезоны между собой.</p>
       </div>
     </div>
   </div>
@@ -696,6 +708,10 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
         <summary>Сколько культур в базе? <span class="chev">▾</span></summary>
         <div class="body"><p>Более 45 культур: овощи, зелень, ягоды и цветы — со сроками посадки, совместимостью и схемами ухода.</p></div>
       </details>
+      <details data-reveal>
+        <summary>Помогает ли приложение с севооборотом? <span class="chev">▾</span></summary>
+        <div class="body"><p>Да. Можно отметить грядки и теплицы на участке — приложение подскажет, какое семейство культур сажалось там за последние 3 года, чтобы не повторять посадку на том же месте.</p></div>
+      </details>
     </div>
   </div>
 </section>
@@ -791,12 +807,13 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       <a class="store" href="#download" aria-label="Как скачать «Календарь дачника» в Google Play">▶️ Google Play</a>
     </div>
     <div class="store-row" style="margin-top:4px">
+      <a class="store" href="/spravochnik/">Справочник</a>
       <a class="store" href="/offer">Оферта</a>
       <a class="store" href="/privacy">Политика конфиденциальности</a>
       <a class="store" href="/account-deletion">Удаление аккаунта</a>
     </div>
     <div>© 2026 «Календарь дачника». Все права защищены.</div>
-    <div class="fine">Дата последнего обновления: 16.06.2026</div>
+    <div class="fine">Дата последнего обновления: 01.07.2026</div>
   </div>
 </footer>
 
