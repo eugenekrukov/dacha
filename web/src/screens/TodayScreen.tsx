@@ -79,6 +79,7 @@ export default function TodayScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [logTask, setLogTask] = useState<TodayTask | null>(null)
+  const [recsExpanded, setRecsExpanded] = useState(false) // «Советы дня»: первые 3 + «показать ещё» (зеркало Android)
 
   const load = useCallback(() => {
     if (gardenId === -1) return
@@ -245,7 +246,7 @@ export default function TodayScreen() {
       {visibleRecs.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-black">Советы дня</h2>
-          {visibleRecs.map((r, i) => (
+          {(recsExpanded ? visibleRecs : visibleRecs.slice(0, 3)).map((r, i) => (
             <div key={i} className="dacha-card flex items-start justify-between gap-3 p-4">
               <div className="flex flex-col">
                 {r.crop_name && (
@@ -262,6 +263,14 @@ export default function TodayScreen() {
               </button>
             </div>
           ))}
+          {visibleRecs.length > 3 && (
+            <button
+              onClick={() => setRecsExpanded((e) => !e)}
+              className="text-link w-full py-2 text-sm font-bold"
+            >
+              {recsExpanded ? 'Свернуть' : `Показать ещё (${visibleRecs.length - 3})`}
+            </button>
+          )}
         </section>
       )}
 

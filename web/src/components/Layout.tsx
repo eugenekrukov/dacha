@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useModalA11y } from './Modal'
 import {
-  Sun,
+  Home,
   Sprout,
   CalendarDays,
   BookOpen,
@@ -18,11 +18,12 @@ import Sunflower from '../ui/Sunflower'
 
 type Item = { to: string; label: string; icon: LucideIcon }
 
-// Частые разделы — на виду (верхний ряд / нижний бар). Зеркало Android bottom-nav.
+// Частые разделы — на виду (верхний ряд / нижний бар). Зеркало Android bottom-nav
+// (Navigation.kt bottomNavItems): тот же порядок и та же метафора иконки «Сегодня».
 const PRIMARY: Item[] = [
-  { to: '/today', label: 'Сегодня', icon: Sun },
-  { to: '/plantings', label: 'Посадки', icon: Sprout },
+  { to: '/today', label: 'Сегодня', icon: Home },
   { to: '/calendar', label: 'Календарь', icon: CalendarDays },
+  { to: '/plantings', label: 'Посадки', icon: Sprout },
   { to: '/profile', label: 'Профиль', icon: User },
 ]
 // Редкие разделы — под «Ещё».
