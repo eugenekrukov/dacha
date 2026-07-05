@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { api } from '../api/client'
+import { api, ApiError } from '../api/client'
 import type { UserProfile } from '../api/types'
 import { tokenStore } from './storage'
 
@@ -29,7 +29,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api
       .me()
       .then(setUser)
-      .catch(() => tokenStore.clearAll())
+      .catch((err) => {
+        // Токен стираем только если бэкенд явно его отверг (401/403).
+        // Сетевой сбой или 5xx не разлогинивают: токен остаётся,
+        // профиль подтянется при следующей загрузке страницы.
+        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          tokenStore.clearAll()
+        }
+      })
       .finally(() => setLoading(false))
   }, [])
 
