@@ -49,18 +49,30 @@ module.exports = async function (fastify) {
 
     const recommendations = []
 
+    // Последний полив по каждой посадке — ОДИН запрос вместо N+1 (по запросу на посадку
+    // в цикле ниже). Нужен только для совета «после дождя».
+    const lastWateredMap = {}
+    const plantingIds = plantingsRes.rows.map(p => p.id)
+    if (plantingIds.length > 0) {
+      const wateredRes = await db.query(
+        `SELECT DISTINCT ON (planting_id) planting_id, logged_at
+         FROM action_logs
+         WHERE planting_id = ANY($1) AND action_type='watering'
+         ORDER BY planting_id, logged_at DESC`,
+        [plantingIds]
+      )
+      wateredRes.rows.forEach(r => { lastWateredMap[r.planting_id] = new Date(r.logged_at) })
+    }
+
     // ── РАЗДЕЛ 1: Контекстные советы по посадкам (НЕ дублируют задачи) ───────
 
     for (const planting of plantingsRes.rows) {
       const daysSincePlanting = Math.floor((now - new Date(planting.planted_at)) / 86400000)
 
       // Данные о поливе нужны только для совета «после дождя» (ниже).
-      const lastWatered = await db.query(
-        `SELECT logged_at FROM action_logs WHERE planting_id=$1 AND action_type='watering' ORDER BY logged_at DESC LIMIT 1`,
-        [planting.id]
-      )
-      const daysSinceWatered = lastWatered.rows[0]
-        ? Math.floor((now - new Date(lastWatered.rows[0].logged_at)) / 86400000)
+      const lastWatered = lastWateredMap[planting.id]
+      const daysSinceWatered = lastWatered
+        ? Math.floor((now - lastWatered) / 86400000)
         : daysSincePlanting
 
       const wateringFreq = planting.conditions === 'greenhouse'

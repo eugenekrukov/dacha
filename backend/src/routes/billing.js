@@ -69,6 +69,13 @@ module.exports = async function (fastify, opts) {
     let object = body.object
     if (!object || !object.id) return reply.code(200).send({ ok: true })
 
+    // object.id подставляется в путь запроса к ЮKassa (getPayment/getRefund). Тело вебхука
+    // непроверяемо (подпись не валидируем — доверяем перезапросу), поэтому id должен быть строго
+    // идентификатором ЮKassa (UUID-подобный), иначе можно попытаться увести запрос на другой путь API.
+    if (typeof object.id !== 'string' || !/^[a-z0-9_-]{1,64}$/i.test(object.id)) {
+      return reply.code(200).send({ ok: true })
+    }
+
     const db = fastify.db
 
     // --- Возврат средств: отзываем период, выданный исходным платежом ---

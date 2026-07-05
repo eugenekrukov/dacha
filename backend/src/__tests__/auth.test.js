@@ -149,6 +149,74 @@ describe('POST /auth/login', () => {
     expect(queriedEmail).toBe('u@test.com')
     await app.close()
   })
+
+  // H1: store — клиентское поле, а samsung даёт бесплатный доступ (рекламный магазин).
+  // Клиент НЕ должен уметь повысить себя до samsung через login (обход оплаты).
+  it('не повышает аккаунт до samsung через login (обход платного гейта)', async () => {
+    const hash = await bcrypt.hash('correct-password', 10)
+    let storeUpdatedTo = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('SELECT * FROM users')) {
+          return { rows: [{ id: 1, email: 'u@test.com', name: 'U', password_hash: hash, store: 'rustore' }] }
+        }
+        if (sql.includes('UPDATE users SET store')) { storeUpdatedTo = params[0]; return { rows: [] } }
+        return { rows: [] }
+      },
+    }))
+
+    const res = await supertest(app.server)
+      .post('/auth/login')
+      .send({ email: 'u@test.com', password: 'correct-password', store: 'samsung' })
+
+    expect(res.status).toBe(200)
+    expect(storeUpdatedTo).toBeNull()  // store НЕ обновлён на samsung
+    await app.close()
+  })
+
+  it('обновляет store при переключении между платными магазинами (rustore → gplay)', async () => {
+    const hash = await bcrypt.hash('correct-password', 10)
+    let storeUpdatedTo = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('SELECT * FROM users')) {
+          return { rows: [{ id: 1, email: 'u@test.com', name: 'U', password_hash: hash, store: 'rustore' }] }
+        }
+        if (sql.includes('UPDATE users SET store')) { storeUpdatedTo = params[0]; return { rows: [] } }
+        return { rows: [] }
+      },
+    }))
+
+    const res = await supertest(app.server)
+      .post('/auth/login')
+      .send({ email: 'u@test.com', password: 'correct-password', store: 'gplay' })
+
+    expect(res.status).toBe(200)
+    expect(storeUpdatedTo).toBe('gplay')
+    await app.close()
+  })
+
+  it('samsung-аккаунт может переключиться на другой магазин (понижение разрешено)', async () => {
+    const hash = await bcrypt.hash('correct-password', 10)
+    let storeUpdatedTo = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('SELECT * FROM users')) {
+          return { rows: [{ id: 1, email: 'u@test.com', name: 'U', password_hash: hash, store: 'samsung' }] }
+        }
+        if (sql.includes('UPDATE users SET store')) { storeUpdatedTo = params[0]; return { rows: [] } }
+        return { rows: [] }
+      },
+    }))
+
+    const res = await supertest(app.server)
+      .post('/auth/login')
+      .send({ email: 'u@test.com', password: 'correct-password', store: 'rustore' })
+
+    expect(res.status).toBe(200)
+    expect(storeUpdatedTo).toBe('rustore')
+    await app.close()
+  })
 })
 
 describe('GET /auth/me', () => {

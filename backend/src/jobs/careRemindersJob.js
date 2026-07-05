@@ -41,6 +41,32 @@ async function runCareReminders(db, push = pushService) {
       return
     }
 
+    // Последнее действие полива/подкормки по каждой посадке — ОДИН запрос на тип вместо
+    // N+1 (по запросу на посадку в цикле). Джоб проходит по всем активным посадкам всех
+    // пользователей, поэтому per-planting SELECT'ы масштабировались линейно по всей базе.
+    const plantingIds = result.rows.map(p => p.planting_id)
+    const lastWateredMap = {}
+    const lastFertilizedMap = {}
+    {
+      const wRes = await db.query(
+        `SELECT DISTINCT ON (planting_id) planting_id, logged_at
+         FROM action_logs
+         WHERE planting_id = ANY($1) AND action_type = 'watering'
+         ORDER BY planting_id, logged_at DESC`,
+        [plantingIds]
+      )
+      wRes.rows.forEach(r => { lastWateredMap[r.planting_id] = new Date(r.logged_at) })
+
+      const fRes = await db.query(
+        `SELECT DISTINCT ON (planting_id) planting_id, logged_at
+         FROM action_logs
+         WHERE planting_id = ANY($1) AND action_type = 'fertilizing'
+         ORDER BY planting_id, logged_at DESC`,
+        [plantingIds]
+      )
+      fRes.rows.forEach(r => { lastFertilizedMap[r.planting_id] = new Date(r.logged_at) })
+    }
+
     // Корзины по участку: один сводный пуш на тип вместо пуша на каждую посадку.
     // gardenId -> { watering: [{plantingId, cropName}], fertilizing: [...], transplant: [...] }
     const buckets = new Map()
@@ -59,14 +85,9 @@ async function runCareReminders(db, push = pushService) {
       // --- Полив --- (единый расчёт интервала с учётом теплицы — utils/todayLogic)
       const wateringFreq = wateringIntervalDays(planting.watering_freq_days, planting.conditions)
 
-      const lastWateredRow = await db.query(
-        `SELECT logged_at FROM action_logs
-         WHERE planting_id = $1 AND action_type = 'watering'
-         ORDER BY logged_at DESC LIMIT 1`,
-        [planting.planting_id]
-      )
-      const daysSinceWatered = lastWateredRow.rows[0]
-        ? Math.floor((Date.now() - new Date(lastWateredRow.rows[0].logged_at)) / 86400000)
+      const lastWatered = lastWateredMap[planting.planting_id]
+      const daysSinceWatered = lastWatered
+        ? Math.floor((Date.now() - lastWatered) / 86400000)
         : daysSincePlanting
 
       if (daysSinceWatered >= wateringFreq) {
@@ -81,14 +102,9 @@ async function runCareReminders(db, push = pushService) {
       const fertStage = planting.stage === 'transplanted' ? 'growing' : planting.stage
       const fertEntry = schedule.find(f => f.stage === fertStage)
       if (fertEntry) {
-        const lastFertilizedRow = await db.query(
-          `SELECT logged_at FROM action_logs
-           WHERE planting_id = $1 AND action_type = 'fertilizing'
-           ORDER BY logged_at DESC LIMIT 1`,
-          [planting.planting_id]
-        )
-        const daysSinceFertilized = lastFertilizedRow.rows[0]
-          ? Math.floor((Date.now() - new Date(lastFertilizedRow.rows[0].logged_at)) / 86400000)
+        const lastFertilized = lastFertilizedMap[planting.planting_id]
+        const daysSinceFertilized = lastFertilized
+          ? Math.floor((Date.now() - lastFertilized) / 86400000)
           : daysSincePlanting
 
         if (daysSinceFertilized > 14) {

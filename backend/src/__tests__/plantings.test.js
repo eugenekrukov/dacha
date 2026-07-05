@@ -160,6 +160,24 @@ describe('GET /plantings', () => {
     await app.close()
   })
 
+  it('возвращает expected_harvest_at = planted_at + harvest_days (для календаря клиентов)', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async () => ({ rows: [PLANTING] }),  // planted_at=сегодня, harvest_days=90
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .get('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.body[0]).toHaveProperty('expected_harvest_at')
+    const expected = new Date(new Date(PLANTING.planted_at).getTime() + 90 * 86400000)
+    const got = new Date(res.body[0].expected_harvest_at)
+    // ± сутки (сравниваем по дате, без точного совпадения миллисекунд)
+    expect(Math.abs(got - expected)).toBeLessThan(86400000)
+    await app.close()
+  })
+
   it('для завершённой посадки (stage=done) next_care_task — null, даже если есть будущая care-задача', async () => {
     const donePlanting = {
       ...PLANTING,

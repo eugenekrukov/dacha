@@ -109,3 +109,40 @@ ALTER TABLE <table_name> OWNER TO dacha_user;
 SELECT tablename, tableowner FROM pg_tables WHERE schemaname='public' AND tableowner <> 'dacha_user';
 ```
 После фикса — `npm run migrate` снова.
+
+---
+
+## 5. Гейт доступа НЕ выводить из клиентских полей (безопасность монетизации)
+
+**Правило**: право на платный доступ (`hasAccess` в `utils/access.js`) считается по серверным
+данным — триал (`trial_started_at`), подписка (`subscription_until`), промо (`promo_until`). Поле
+`store` — **клиентское** (приходит в теле `/auth/login` и `/auth/register`), поэтому оно НЕ должно
+напрямую давать entitlement.
+
+**Как нашли (2026-07-04, H1)**: `isAdSupportedStore('samsung')` → `hasAccess=true` без гейта, а
+`login` молча писал присланный `store` в БД. Любой клиент, прислав `store:'samsung'`, получал
+бесплатный доступ навсегда в обход оплаты.
+
+**Правило при правке `store`**: не давать клиенту повысить себя до ad-supported магазина через
+login/register. Разрешён `UPDATE users SET store`, только если новое значение НЕ ad-supported ЛИБО
+аккаунт уже был на ad-supported:
+```javascript
+if (store && store !== user.store && (!isAdSupportedStore(store) || isAdSupportedStore(user.store))) {
+  await db.query('UPDATE users SET store = $1 WHERE id = $2', [store, user.id])
+}
+```
+> ⚠️ Остаётся вектор: `register` со `store:'samsung'` создаёт бесплатный ad-аккаунт. Полное решение —
+> серверная верификация магазина установки, либо убрать store-based entitlement (samsung-флейвор
+> ретайрится). Открытая продуктовая развилка — см. Obsidian «10 Открытые развилки».
+
+---
+
+## 6. Батч вместо N+1: последние действия по посадкам
+
+**Правило**: когда нужны «последнее действие типа X по каждой посадке» для набора посадок — это ОДИН
+запрос `DISTINCT ON (planting_id) … WHERE planting_id = ANY($1) … ORDER BY planting_id, logged_at DESC`,
+а не `SELECT … LIMIT 1` в цикле по посадкам. Эталон — `routes/today.js` (`lastWateredMap` и др.).
+
+**Как нашли (2026-07-04, M1)**: `careRemindersJob.js` (проходит по всем активным посадкам всех
+пользователей) и `routes/recommendations.js` делали per-planting SELECT из `action_logs` в цикле —
+масштабировалось линейно по всей базе. Свёрнуто в батч по `ANY($1)`.

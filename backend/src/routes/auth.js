@@ -1,7 +1,7 @@
 'use strict'
 
 const bcrypt = require('bcrypt')
-const { trialInfo, isSubscribed, hasPromo, isLifetimePromo, SUBSCRIPTION_WINDOW_DAYS } = require('../utils/access')
+const { trialInfo, isSubscribed, hasPromo, isLifetimePromo, isAdSupportedStore, SUBSCRIPTION_WINDOW_DAYS } = require('../utils/access')
 const { generateCode, sendVerificationCode, sendPasswordResetCode } = require('../services/emailService')
 
 const CODE_TTL_MS = 15 * 60 * 1000  // коды подтверждения/сброса живут 15 минут
@@ -116,7 +116,12 @@ module.exports = async function (fastify) {
     }
 
     // Клиент сообщает магазин установки при каждом входе — фиксируем/обновляем для модели монетизации.
-    if (store && store !== user.store) {
+    // НО: право на бесплатный доступ выводится из store (samsung — рекламный магазин, доступ без
+    // гейта оплаты), а store — клиентское поле. Поэтому НЕ даём клиенту повысить себя до рекламного
+    // магазина через login: иначе любой аккаунт, прислав store:'samsung', получил бы бесплатный
+    // доступ в обход оплаты. Разрешаем менять store, только если новое значение НЕ даёт бесплатный
+    // доступ, либо аккаунт уже был на рекламном магазине (переключение между магазинами — ок).
+    if (store && store !== user.store && (!isAdSupportedStore(store) || isAdSupportedStore(user.store))) {
       await db.query('UPDATE users SET store = $1 WHERE id = $2', [store, user.id])
     }
 

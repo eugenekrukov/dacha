@@ -28,7 +28,10 @@ module.exports = async function (fastify) {
     return reply.code(201).send(result.rows[0])
   })
 
-  // GET /reminders
+  // GET /reminders — предстоящие (и только что наступившие) напоминания.
+  // Фильтр по remind_at: у напоминаний нет механизма «выполнено» (is_sent на сервере никто не
+  // выставляет), поэтому без ограничения по дате давно прошедшие копились бы в списке навсегда.
+  // Нижняя граница -1ч совпадает с окном GET /today, чтобы только что сработавшее ещё показывалось.
   fastify.get('/', auth, async (request) => {
     const result = await fastify.db.query(
       `SELECT r.*, p.id as planting_id, c.name as crop_name
@@ -36,6 +39,7 @@ module.exports = async function (fastify) {
        LEFT JOIN plantings p ON p.id = r.planting_id
        LEFT JOIN crops c ON c.id = p.crop_id
        WHERE r.user_id=$1 AND r.is_sent=false
+         AND r.remind_at >= NOW() - INTERVAL '1 hour'
        ORDER BY r.remind_at ASC`,
       [request.user.userId]
     )

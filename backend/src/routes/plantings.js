@@ -105,9 +105,15 @@ module.exports = async function (fastify) {
       const overdueCareTask = p.stage === 'done'
         ? null
         : getOverdueCareTask(p.care_tasks, new Date(p.planted_at), now, p.harvest_days, lastCareMap[p.id] || {}, todayCareMap[p.id] || [], p.is_perennial)
+      // Ожидаемая дата урожая = эффективная дата посадки + harvest_days (для многолетников —
+      // от текущего сезона, см. effectivePlantedAt). Клиенты (Android/web) показывают её в
+      // календаре; раньше поле не отдавалось, и на Android событие «Урожай» не появлялось.
+      const expectedHarvestAt = p.harvest_days
+        ? new Date(plantedAt.getTime() + p.harvest_days * 86400000).toISOString()
+        : null
       // Не передаём care_tasks клиенту — это внутренние данные
       const { care_tasks, ...rest } = p
-      return { ...rest, next_care_task: nextCareTask, overdue_care_task: overdueCareTask }
+      return { ...rest, next_care_task: nextCareTask, overdue_care_task: overdueCareTask, expected_harvest_at: expectedHarvestAt }
     })
 
     return rows
