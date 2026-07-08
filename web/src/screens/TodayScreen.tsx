@@ -114,8 +114,10 @@ export default function TodayScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="dacha-card bg-gradient-to-br from-primary to-[#FF9E3D] p-4 text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.30)]">
-        <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
+      <div className="dacha-card relative overflow-hidden bg-gradient-to-br from-primary to-[#FF9E3D] p-4 text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.30)]">
+        {/* Тёмный scrim: белый текст на светлом конце градиента иначе не проходит WCAG AA */}
+        <div className="pointer-events-none absolute inset-0 bg-black/25" aria-hidden />
+        <div className="relative flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-wide opacity-90">Сегодня · {todayLabel}</p>
             <h1 className="truncate text-2xl font-black leading-tight">{active?.name ?? 'Мой участок'}</h1>
@@ -198,7 +200,7 @@ export default function TodayScreen() {
         return (
           <>
             <section className="flex flex-col gap-2">
-              <h2 className="text-lg font-black">Задачи дня</h2>
+              <h2 className="text-lg font-black">Задачи на сегодня</h2>
               {currentTasks.length ? (
                 currentTasks.map((t, i) => <TaskCard key={i} t={t} onLog={setLogTask} />)
               ) : (

@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { api } from '../api/client'
+import { useGardens } from '../garden/GardenContext'
 import { useModalA11y } from './Modal'
 import {
   Home,
@@ -34,6 +36,24 @@ const MORE: Item[] = [
   { to: '/guide', label: 'Болезни и дефициты', icon: ShieldAlert },
   { to: '/settings', label: 'Настройки', icon: Settings },
 ]
+
+// Иконка навигации с опциональным красным бейджем-счётчиком (зеркало Android BadgedBox
+// на табе «Посадки»: число посадок, требующих ухода). Цвет = error/FrostRed (#D32F2F).
+function NavIcon({ icon: Icon, size, badge }: { icon: LucideIcon; size: number; badge?: number }) {
+  return (
+    <span className="relative inline-flex">
+      <Icon size={size} aria-hidden />
+      {badge != null && badge > 0 && (
+        <span
+          className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#D32F2F] px-1 text-[10px] font-black leading-none text-white"
+          aria-label={`${badge} требуют ухода`}
+        >
+          {badge}
+        </span>
+      )}
+    </span>
+  )
+}
 
 const bottomItem = (isActive: boolean) =>
   `mx-0.5 my-1.5 flex flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl text-[11px] font-bold transition ${
@@ -114,6 +134,31 @@ function MoreMenu({ dropUp = false }: { dropUp?: boolean }) {
 }
 
 export default function Layout() {
+  const { gardenId } = useGardens()
+  // Счётчик посадок, требующих ухода (overdue_care_task) — для бейджа на табе «Посадки».
+  // Обновляется при смене участка и при переходах между разделами (после лога действия
+  // просроченность спадает). Payload /plantings небольшой; отдельного стора не заводим.
+  const [careCount, setCareCount] = useState(0)
+  const { pathname } = useLocation()
+  useEffect(() => {
+    if (gardenId === -1) {
+      setCareCount(0)
+      return
+    }
+    let cancelled = false
+    api
+      .getPlantings(gardenId)
+      .then((ps) => {
+        if (!cancelled) setCareCount(ps.filter((p) => p.overdue_care_task).length)
+      })
+      .catch(() => {
+        if (!cancelled) setCareCount(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [gardenId, pathname])
+
   return (
     <div className="mx-auto flex h-dvh max-w-3xl flex-col">
       <header className="flex shrink-0 items-center justify-between gap-3 bg-background px-4 py-3">
@@ -132,7 +177,8 @@ export default function Layout() {
                   `dacha-chip flex items-center gap-1.5 ${isActive ? 'dacha-chip-active' : ''}`
                 }
               >
-                <Icon size={18} aria-hidden /> {n.label}
+                <NavIcon icon={Icon} size={18} badge={n.to === '/plantings' ? careCount : undefined} />{' '}
+                {n.label}
               </NavLink>
             )
           })}
@@ -149,7 +195,7 @@ export default function Layout() {
           const Icon = n.icon
           return (
             <NavLink key={n.to} to={n.to} className={({ isActive }) => bottomItem(isActive)}>
-              <Icon size={20} aria-hidden />
+              <NavIcon icon={Icon} size={20} badge={n.to === '/plantings' ? careCount : undefined} />
               <span>{n.label}</span>
             </NavLink>
           )
