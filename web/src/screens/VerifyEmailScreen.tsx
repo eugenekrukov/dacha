@@ -17,7 +17,7 @@ export default function VerifyEmailScreen() {
     try {
       await api.verifyEmail(code.trim())
       await refresh()
-      navigate('/settings', { replace: true })
+      navigate('/profile', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? 'Неверный или просроченный код' : 'Ошибка')
     } finally {

@@ -69,7 +69,7 @@ export default function EditGardenScreen() {
           }
       await api.updateGarden(active.id, body)
       await reload()
-      navigate('/settings', { replace: true })
+      navigate('/profile', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить участок')
     } finally {

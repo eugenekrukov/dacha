@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
   BookOpen,
@@ -10,18 +10,22 @@ import {
   X,
   Trash2,
   RefreshCw,
-  ShieldAlert,
+  MailWarning,
   type LucideIcon,
 } from 'lucide-react'
 import { api, ApiError } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { useGardens } from '../garden/GardenContext'
 import AuthImage from '../components/AuthImage'
 import EntryCard from '../components/EntryCard'
 import ErrorCard from '../components/ErrorCard'
+import ChangePasswordModal from '../components/ChangePasswordModal'
+import ChangeEmailModal from '../components/ChangeEmailModal'
+import DeleteAccountModal from '../components/DeleteAccountModal'
 import { useModalA11y } from '../components/Modal'
 import type { FeedItem, MilestoneKind } from '../api/types'
 
-type Tab = 'feed' | 'stats' | 'guide'
+type Tab = 'feed' | 'stats' | 'account'
 
 export default function ProfileScreen() {
   const { active } = useGardens()
@@ -39,12 +43,12 @@ export default function ProfileScreen() {
       <div className="flex gap-2">
         <TabChip active={tab === 'feed'} onClick={() => setTab('feed')}>Лента</TabChip>
         <TabChip active={tab === 'stats'} onClick={() => setTab('stats')}>Статистика</TabChip>
-        <TabChip active={tab === 'guide'} onClick={() => setTab('guide')}>Справочник</TabChip>
+        <TabChip active={tab === 'account'} onClick={() => setTab('account')}>Аккаунт</TabChip>
       </div>
 
       {tab === 'feed' && <FeedList />}
       {tab === 'stats' && <StatsTab />}
-      {tab === 'guide' && <GuideTab />}
+      {tab === 'account' && <AccountTab />}
     </div>
   )
 }
@@ -424,11 +428,69 @@ function StatsTab() {
   )
 }
 
-function GuideTab() {
+// --- Аккаунт: данные аккаунта + участок + выход (перенесено из «Настроек»,
+// чтобы «Профиль» соответствовал названию). Подписка/внешний вид остались в «Настройках». ---
+
+function AccountTab() {
+  const { user, logout, refresh } = useAuth()
+  const { active } = useGardens()
+  const navigate = useNavigate()
+  const [modal, setModal] = useState<null | 'password' | 'email' | 'delete'>(null)
+
   return (
-    <div className="flex flex-col gap-3">
-      <HubCard icon={BookOpen} title="Справочник культур" subtitle="Сроки, полив, болезни, соседство" to="/crops" />
-      <HubCard icon={ShieldAlert} title="Болезни и дефициты" subtitle="Дефициты микроэлементов, болезни, вредители" to="/guide" />
+    <div className="flex flex-col gap-4">
+      <section className="dacha-card flex flex-col gap-1 p-5">
+        <h2 className="font-black">Аккаунт</h2>
+        <p className="font-semibold text-muted">{user?.email}</p>
+        {user?.pending_email && (
+          <p className="text-sm font-semibold text-tertiary">Ожидает подтверждения: {user.pending_email}</p>
+        )}
+        {user && user.email_verified === false && (
+          <Link to="/verify-email" className="text-link mt-1 inline-flex items-center gap-1.5">
+            <MailWarning size={18} aria-hidden /> Подтвердите email →
+          </Link>
+        )}
+        <div className="mt-3 flex flex-col gap-2">
+          <button className="dacha-chip py-3" onClick={() => setModal('password')}>Сменить пароль</button>
+          <button className="dacha-chip py-3" onClick={() => setModal('email')}>Сменить email</button>
+          <button className="dacha-chip py-3 font-bold text-red-600" onClick={() => setModal('delete')}>
+            Удалить аккаунт
+          </button>
+        </div>
+      </section>
+
+      {active && (
+        <section className="dacha-card flex flex-col gap-1 p-5">
+          <h2 className="font-black">Участок</h2>
+          <p className="font-semibold">{active.name}</p>
+          {active.city && <p className="text-sm font-semibold text-muted">{active.city}</p>}
+          <Link to="/garden/edit" className="dacha-chip mt-3 py-3 text-center">
+            Редактировать участок
+          </Link>
+        </section>
+      )}
+
+      <button
+        className="dacha-chip py-3 font-bold text-red-600"
+        onClick={() => {
+          logout()
+          navigate('/login', { replace: true })
+        }}
+      >
+        Выйти из аккаунта
+      </button>
+
+      {modal === 'password' && <ChangePasswordModal onClose={() => setModal(null)} />}
+      {modal === 'email' && <ChangeEmailModal onClose={() => setModal(null)} onChanged={() => refresh()} />}
+      {modal === 'delete' && (
+        <DeleteAccountModal
+          onClose={() => setModal(null)}
+          onDeleted={() => {
+            logout()
+            navigate('/login', { replace: true })
+          }}
+        />
+      )}
     </div>
   )
 }

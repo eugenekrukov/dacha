@@ -10,8 +10,6 @@ import {
   BookOpen,
   User,
   MoreHorizontal,
-  NotebookPen,
-  BarChart3,
   ShieldAlert,
   Settings,
   type LucideIcon,
@@ -28,11 +26,9 @@ const PRIMARY: Item[] = [
   { to: '/plantings', label: 'Посадки', icon: Sprout },
   { to: '/profile', label: 'Профиль', icon: User },
 ]
-// Редкие разделы — под «Ещё».
+// Редкие разделы — под «Ещё». Журнал/Аналитика переехали в «Профиль» → «Статистика».
 const MORE: Item[] = [
   { to: '/crops', label: 'Справочник культур', icon: BookOpen },
-  { to: '/journal', label: 'Журнал действий', icon: NotebookPen },
-  { to: '/harvests', label: 'Аналитика', icon: BarChart3 },
   { to: '/guide', label: 'Болезни и дефициты', icon: ShieldAlert },
   { to: '/settings', label: 'Настройки', icon: Settings },
 ]
