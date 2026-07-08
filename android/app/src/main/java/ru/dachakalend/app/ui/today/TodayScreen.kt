@@ -573,6 +573,14 @@ private fun SunnyHero(
                 )
         )
 
+        // Тёмный scrim: поднимает контраст белого текста над оранжевым градиентом до WCAG AA
+        // (одна правка зеркалит web bg-black/25). text-shadow сам по себе WCAG не засчитывается.
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Black.copy(alpha = 0.22f))
+        )
+
         // Реальная дата в формате "ПОНЕДЕЛЬНИК · 2 ИЮНЯ"
         val today = remember { java.time.LocalDate.now() }
         val locale = java.util.Locale("ru")

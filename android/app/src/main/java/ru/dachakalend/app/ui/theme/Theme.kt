@@ -77,8 +77,10 @@ fun taskColor(type: String): Color = when (type) {
 }
 
 // ─── Hero gradient токены (использовать в TodayScreen) ────────────────────
+// Конец — тёплый амбер #FF9E3D (не бледный OrangeLight): бледный конец давал белому
+// тексту (темп/дата) контраст ниже WCAG AA. Значение зеркалит web-hero (to-[#FF9E3D]).
 val HeroGradientStart = OrangeDeep
-val HeroGradientEnd   = OrangeLight
+val HeroGradientEnd   = Color(0xFFFF9E3D)
 
 @Composable
 fun DachaCalendarTheme(
