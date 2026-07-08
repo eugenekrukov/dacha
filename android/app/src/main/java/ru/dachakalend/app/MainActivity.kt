@@ -51,6 +51,7 @@ import ru.dachakalend.app.ui.guide.GuideScreen
 import ru.dachakalend.app.ui.guide.GuideDetailScreen
 import ru.dachakalend.app.ui.plantings.PlantingInfoScreen
 import ru.dachakalend.app.ui.profile.ProfileScreen
+import ru.dachakalend.app.ui.more.MoreScreen
 import ru.dachakalend.app.ui.journal.JournalScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
 import ru.dachakalend.app.ui.settings.SettingsScreen
@@ -341,17 +342,7 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Settings.route) {
                             SettingsScreen(
                                 onBack = { navController.popBackStack() },
-                                onLogout = {
-                                    navController.navigate(Screen.Login.route) {
-                                        popUpTo(0) { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                },
-                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) },
-                                onOpenAnalytics = { navController.navigate(Screen.Analytics.route) },
-                                onVerifyEmail = { email ->
-                                    navController.navigate(Screen.VerifyEmail.route(email, fromRegister = false))
-                                }
+                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(Screen.Journal.route) {
@@ -364,7 +355,6 @@ class MainActivity : ComponentActivity() {
                                 coachMarkController = coachMarkController,
                                 showCoachMark       = showCoachMark,
                                 onEditGarden        = { navController.navigate(Screen.GardenEdit.route) },
-                                onOpenSettings      = { navController.navigate(Screen.Settings.route) },
                                 onOpenJournal       = { navController.navigate(Screen.Journal.route) },
                                 onAddPlanting       = { navController.navigate(Screen.Crops.route) },
                                 onOpenPaywall       = { navController.navigate(Screen.Paywall.route) }
@@ -382,7 +372,6 @@ class MainActivity : ComponentActivity() {
                                 coachMarkController = coachMarkController,
                                 showCoachMark       = showCoachMark,
                                 onEditGarden        = { navController.navigate(Screen.GardenEdit.route) },
-                                onOpenSettings      = { navController.navigate(Screen.Settings.route) },
                                 onOpenJournal       = { navController.navigate(Screen.Journal.route) },
                                 onAddPlanting       = { navController.navigate(Screen.Crops.route) },
                                 onOpenPaywall       = { navController.navigate(Screen.Paywall.route) }
@@ -418,10 +407,26 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.Profile.route) {
                             ProfileScreen(
-                                onOpenCrops     = { navController.navigate(Screen.Crops.route) },
-                                onOpenGuide     = { navController.navigate(Screen.Guide.route) },
                                 onOpenAnalytics = { navController.navigate(Screen.Analytics.route) },
-                                onOpenPlanting  = { id -> navController.navigate(Screen.PlantingInfo.route(id)) }
+                                onOpenJournal   = { navController.navigate(Screen.Journal.route) },
+                                onOpenPlanting  = { id -> navController.navigate(Screen.PlantingInfo.route(id)) },
+                                onEditGarden    = { navController.navigate(Screen.GardenEdit.route) },
+                                onLogout        = {
+                                    navController.navigate(Screen.Login.route) {
+                                        popUpTo(0) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                },
+                                onVerifyEmail   = { email ->
+                                    navController.navigate(Screen.VerifyEmail.route(email, fromRegister = false))
+                                }
+                            )
+                        }
+                        composable(Screen.More.route) {
+                            MoreScreen(
+                                onOpenCrops    = { navController.navigate(Screen.Crops.route) },
+                                onOpenGuide    = { navController.navigate(Screen.Guide.route) },
+                                onOpenSettings = { navController.navigate(Screen.Settings.route) },
                             )
                         }
                         // Справочник проблем — без фильтра (из «Информации»)

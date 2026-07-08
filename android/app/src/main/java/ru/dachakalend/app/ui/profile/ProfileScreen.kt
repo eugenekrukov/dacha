@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,6 +38,7 @@ import ru.dachakalend.app.ui.feed.FeedThumb
 import ru.dachakalend.app.ui.feed.MilestoneFeedRow
 import ru.dachakalend.app.ui.feed.PhotoActionsBar
 import ru.dachakalend.app.ui.feed.PhotoFeedRow
+import ru.dachakalend.app.ui.settings.AccountSection
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 // Ярлык действия для подписи фото — единый источник с шторкой записи действия.
@@ -57,15 +57,17 @@ private fun feedDateShort(iso: String): String = try {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    onOpenCrops: () -> Unit,
-    onOpenGuide: () -> Unit,
     onOpenAnalytics: () -> Unit,
+    onOpenJournal: () -> Unit,
     onOpenPlanting: (Int) -> Unit,
+    onEditGarden: () -> Unit,
+    onLogout: () -> Unit,
+    onVerifyEmail: (email: String?) -> Unit,
     viewModel: FeedViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Лента", "Статистика", "Справочник")
+    val tabs = listOf("Лента", "Статистика", "Аккаунт")
 
     // Рефреш ленты при входе/возврате на вкладку — новые фото/действия подхватываются без рестарта.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -99,13 +101,17 @@ fun ProfileScreen(
                     onReplace = { pid, photoId, actionId, bytes -> viewModel.replacePhoto(pid, photoId, actionId, bytes) },
                 )
                 1 -> HubTab(
-                    listOf(HubEntry(Icons.Default.Insights, "Статистика", "Серия дней, активность, экспорт в CSV", onOpenAnalytics))
-                )
-                2 -> HubTab(
                     listOf(
-                        HubEntry(Icons.AutoMirrored.Filled.MenuBook, "Справочник культур", "Сроки, полив, болезни, соседство", onOpenCrops),
-                        HubEntry(Icons.Default.HealthAndSafety, "Болезни и дефициты", "Дефициты микроэлементов, болезни, вредители", onOpenGuide),
+                        HubEntry(Icons.Default.Insights, "Статистика", "Серия дней, активность, экспорт в CSV", onOpenAnalytics),
+                        HubEntry(Icons.AutoMirrored.Filled.MenuBook, "Журнал действий", "История действий с заметками и фото", onOpenJournal),
                     )
+                )
+                2 -> AccountSection(
+                    gardenName = state.gardenName,
+                    gardenRegion = state.gardenRegion,
+                    onVerifyEmail = onVerifyEmail,
+                    onEditGarden = onEditGarden,
+                    onLogout = onLogout,
                 )
             }
         }

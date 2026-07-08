@@ -80,7 +80,6 @@ fun TodayScreen(
     coachMarkController: CoachMarkController? = null,
     showCoachMark: Boolean = false,
     onEditGarden: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
     onOpenJournal: () -> Unit = {},
     onAddPlanting: () -> Unit = {},
     onOpenPaywall: () -> Unit = {},
@@ -157,7 +156,6 @@ fun TodayScreen(
                     coachMarkController = coachMarkController,
                     onRefresh     = { viewModel.loadToday() },
                     onEditGarden  = onEditGarden,
-                    onOpenSettings = onOpenSettings,
                     onOpenJournal = onOpenJournal,
                     onAddPlanting = onAddPlanting
                 )
@@ -188,7 +186,6 @@ private fun TodayContent(
     coachMarkController: CoachMarkController? = null,
     onRefresh: () -> Unit,
     onEditGarden: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
     onOpenJournal: () -> Unit = {},
     onAddPlanting: () -> Unit = {}
 ) {
@@ -280,8 +277,7 @@ private fun TodayContent(
         // ── Hero ──
         SunnyHero(
             weather       = weather,
-            onEditGarden  = onEditGarden,
-            onOpenSettings = onOpenSettings
+            onEditGarden  = onEditGarden
         )
 
         // ── Остальное — скролируемый список ──
@@ -526,8 +522,7 @@ private fun plural(n: Int, one: String, few: String, many: String): String {
 @Composable
 private fun SunnyHero(
     weather: WeatherSummary?,
-    onEditGarden: () -> Unit,
-    onOpenSettings: () -> Unit
+    onEditGarden: () -> Unit
 ) {
     // Анимация подсолнуха — покачивание
     val infiniteTransition = rememberInfiniteTransition(label = "sunflower")
@@ -618,17 +613,10 @@ private fun SunnyHero(
                         )
                     )
                 )
-                Row {
-                    IconButton(onClick = onEditGarden, modifier = Modifier.size(44.dp)) {
-                        Icon(Icons.Default.Edit, "Изменить участок",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp))
-                    }
-                    IconButton(onClick = onOpenSettings, modifier = Modifier.size(44.dp)) {
-                        Icon(Icons.Default.Settings, "Настройки",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp))
-                    }
+                IconButton(onClick = onEditGarden, modifier = Modifier.size(44.dp)) {
+                    Icon(Icons.Default.Edit, "Изменить участок",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp))
                 }
             }
 
