@@ -61,6 +61,11 @@ describe('vkContent.parseContentFile', () => {
     expect(queueMessage({ body: 'текст', tags: '#дача' })).toBe('текст\n\n#дача')
     expect(queueMessage({ body: 'текст', tags: null })).toBe('текст')
   })
+
+  it('queueMessage: снимает markdown-разметку (### заголовки, **bold**, *italic*) — ВК её не рендерит', () => {
+    const body = '### Заголовок\nОбычный текст **жирным** и *курсивом*.'
+    expect(queueMessage({ body, tags: null })).toBe('Заголовок\nОбычный текст жирным и курсивом.')
+  })
 })
 
 describe('vkQueueJob', () => {

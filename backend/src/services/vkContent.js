@@ -42,9 +42,19 @@ function parseContentFile(md) {
   return posts
 }
 
+// ВК и Дзен не рендерят markdown — заголовки/жирный/курсив показываются буквально
+// (решёткой и звёздочками). Снимаем разметку перед публикацией, а не правкой каждого файла контента.
+function stripMarkdown(text) {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '$1')
+}
+
 // Текст поста для ВК: тело + теги в конце (ссылка идёт отдельным комментарием).
 function queueMessage(post) {
-  return post.tags ? `${post.body}\n\n${post.tags}` : post.body
+  const body = stripMarkdown(post.body)
+  return post.tags ? `${body}\n\n${post.tags}` : body
 }
 
 module.exports = { parseContentFile, queueMessage }
