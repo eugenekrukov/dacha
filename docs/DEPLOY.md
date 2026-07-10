@@ -66,6 +66,10 @@ ssh hetzner 'curl -s localhost:3002/health'        # {"status":"ok",...}
 - `npm install` — только если менялся `backend/package.json`.
 - Миграции (если есть): `ssh hetzner 'sudo -u postgres psql -d dacha_db -f /var/www/dacha-api/backend/src/db/migrations/0XX_*.sql'`
   (+ `ALTER TABLE <t> OWNER TO dacha_user;` если таблица создана под postgres).
+- **Новый батч ВК/Дзен (`docs/vk-content/*.md`)?** — загрузить в очередь, иначе `vkQueueJob`
+  тихо простаивает (очередь пуста → публикаций нет, без ошибок в логах):
+  `ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/vk-queue.js load ../docs/vk-content/<файл>.md'`
+  (детали — раздел «Автопостер ВК» ниже). Проверить: `vk-queue.js list`.
 - **Не `git pull`** (создаёт merge-коммит, разводит серверный main с origin).
 
 ## Веб-версия (SPA, `/app/`)
