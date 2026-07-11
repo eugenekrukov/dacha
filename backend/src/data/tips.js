@@ -210,8 +210,20 @@ function getSeasonalTip(date) {
   return tips[day % tips.length] || null
 }
 
-function getStageTip(stage) {
-  const tips = STAGE_TIPS[stage] || []
+// Прямой посев (sowing_method='direct') всю жизнь остаётся в БД-стадии 'sowing' — стадия
+// у него не меняется по пересадке (см. todayLogic.js). Советы STAGE_TIPS.sowing («накройте
+// плёнкой», «первые 3–5 дней не открывайте») — про рассаду под укрытием, для прямого посева
+// в грунт не подходят и иначе показывались бы бессрочно. После окна прорастания считаем
+// такую посадку выросшей; во время прорастания отдельных советов для прямого посева нет.
+const DIRECT_SOWING_GERMINATION_DAYS = 10
+
+function getStageTip(stage, sowingMethod, daysSincePlanting) {
+  let effectiveStage = stage
+  if (sowingMethod === 'direct' && stage === 'sowing') {
+    effectiveStage = daysSincePlanting >= DIRECT_SOWING_GERMINATION_DAYS ? 'growing' : null
+  }
+  if (!effectiveStage) return null
+  const tips = STAGE_TIPS[effectiveStage] || []
   if (tips.length === 0) return null
   const idx = new Date().getDate() % tips.length
   return tips[idx]

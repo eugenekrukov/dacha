@@ -109,7 +109,7 @@ module.exports = async function (fastify) {
 
       // Совет по стадии культуры (не чаще 1 раза на 2 посадки чтобы не перегружать)
       if (recommendations.filter(r => r.type === 'stage_tip').length < 2) {
-        const stageTip = getStageTip(planting.stage)
+        const stageTip = getStageTip(planting.stage, planting.sowing_method, daysSincePlanting)
         if (stageTip) {
           recommendations.push({
             type: 'stage_tip',
