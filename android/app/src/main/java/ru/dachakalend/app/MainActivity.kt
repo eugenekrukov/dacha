@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
@@ -188,7 +189,7 @@ class MainActivity : ComponentActivity() {
                                                 Icon(item.icon, contentDescription = item.label)
                                             }
                                         },
-                                        label = { Text(item.label) }
+                                        label = { Text(item.label, maxLines = 1, softWrap = false, overflow = TextOverflow.Visible) }
                                     )
                                 }
                             }
