@@ -209,6 +209,9 @@ interface DachaApi {
     suspend fun getMoonCalendar(@Query("year") year: Int, @Query("month") month: Int): MoonCalendarResponse
 
     // Analytics
+    @POST("analytics/first-open")
+    suspend fun trackFirstOpen(@Body body: Map<String, String>)
+
     @GET("analytics/summary")
     suspend fun getAnalyticsSummary(): AnalyticsSummary
 

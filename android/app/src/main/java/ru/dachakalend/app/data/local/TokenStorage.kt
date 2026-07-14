@@ -303,6 +303,10 @@ class TokenStorage @Inject constructor(
     fun isIntroDone(): Boolean = prefs.getBoolean(KEY_INTRO_DONE, false)
     fun setIntroDone()         = prefs.edit { putBoolean(KEY_INTRO_DONE, true) }
 
+    // Отправлен ли на бэкенд аналитический "первый запуск" (реальная установка, см. install_events).
+    fun isFirstOpenSent(): Boolean = prefs.getBoolean(KEY_FIRST_OPEN_SENT, false)
+    fun setFirstOpenSent()         = prefs.edit { putBoolean(KEY_FIRST_OPEN_SENT, true) }
+
     fun isCoachDone(): Boolean = prefs.getBoolean(KEY_COACH_DONE, false)
     fun setCoachDone()         = prefs.edit { putBoolean(KEY_COACH_DONE, true) }
 
@@ -335,6 +339,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_FIRST_LAUNCH    = "first_launch_date"
         private const val KEY_REVIEW_REQUESTED = "review_requested"
         private const val KEY_INTRO_DONE      = "intro_done"
+        private const val KEY_FIRST_OPEN_SENT = "first_open_sent"
         private const val KEY_COACH_DONE      = "coach_done"
         private const val KEY_NOTIF_PERM_ASKED = "notif_permission_asked"
         private const val KEY_LARGE_FONT       = "large_font"

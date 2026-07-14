@@ -3,6 +3,33 @@
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
+  // POST /analytics/first-open — фиксирует первый запуск приложения на устройстве. Публичный
+  // (без auth) — на этот момент пользователь мог ещё не зарегистрироваться. device_id
+  // уникален, повторные вызовы с того же устройства (переустановка, повтор сети) не плодят строки.
+  fastify.post('/first-open', {
+    config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+    schema: {
+      body: {
+        type: 'object',
+        required: ['device_id'],
+        properties: {
+          device_id:   { type: 'string', minLength: 8, maxLength: 128 },
+          store:       { type: 'string', enum: ['rustore', 'gplay', 'samsung', 'web'] },
+          app_version: { type: 'string', maxLength: 32 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { device_id, store, app_version } = request.body
+    await fastify.db.query(
+      `INSERT INTO install_events (device_id, store, app_version)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (device_id) DO NOTHING`,
+      [device_id, store ?? null, app_version ?? null]
+    )
+    reply.code(204).send()
+  })
+
   // GET /analytics/summary — метрики для экрана аналитики
   // Возвращает:
   //   streak          — текущая серия активных дней подряд

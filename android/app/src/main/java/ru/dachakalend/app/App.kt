@@ -16,6 +16,7 @@ class App : Application(), Configuration.Provider, ImageLoaderFactory {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var connectivityObserver: ru.dachakalend.app.data.sync.ConnectivityObserver
+    @Inject lateinit var installTracker: ru.dachakalend.app.data.sync.InstallTracker
 
     // Приватные фото (/photos/file/:id) требуют Bearer — Coil по умолчанию использует свой
     // OkHttp без AuthInterceptor и получил бы 401. Отдаём ему app-овский клиент с интерсептором.
@@ -44,5 +45,6 @@ class App : Application(), Configuration.Provider, ImageLoaderFactory {
         // Биллинг — прямые платежи ЮKassa (см. SubscriptionManager/BillingRepository), SDK не нужен.
 
         connectivityObserver.start()
+        installTracker.track()
     }
 }

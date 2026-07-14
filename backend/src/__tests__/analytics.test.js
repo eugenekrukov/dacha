@@ -18,6 +18,30 @@ function makeMockDb({ activityRows = [], allDaysRows = [], totals = {}, onboardi
   }
 }
 
+describe('POST /analytics/first-open', () => {
+  it('пишет device_id без auth, 204', async () => {
+    const queries = []
+    const mockDb = { query: async (sql, params) => { queries.push({ sql, params }); return { rows: [] } } }
+    const app = await buildApp(mockDb)
+
+    const res = await supertest(app.server)
+      .post('/analytics/first-open')
+      .send({ device_id: 'abcd1234', store: 'rustore', app_version: '1.0.7' })
+
+    expect(res.status).toBe(204)
+    expect(queries[0].sql).toMatch(/INSERT INTO install_events/)
+    expect(queries[0].params).toEqual(['abcd1234', 'rustore', '1.0.7'])
+    await app.close()
+  })
+
+  it('без device_id → 400', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server).post('/analytics/first-open').send({})
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+})
+
 describe('GET /analytics/summary', () => {
   it('возвращает структуру с обязательными полями', async () => {
     const app = await buildApp(makeMockDb())

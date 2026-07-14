@@ -1,6 +1,37 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-07-11
+**Дата последней сессии**: 2026-07-14
+
+## Сессия 2026-07-14 — Фикс favicon на лендинге (Яндекс.Вебмастер не видел иконку)
+
+Владелец сообщил: Яндекс.Вебмастер не находит фавикон на `dacha.studio1008.com`. Причина — иконка была
+подключена как data-URI SVG-эмодзи (`<link rel="icon" href="data:image/svg+xml,...🌻...">`), без
+реального файла `/favicon.ico`; краулер такую иконку не распознаёт, а `/favicon.ico` отдавал 404
+(JSON от Fastify — запрос проваливался в catch-all `proxy_pass`, т.к. в nginx не было под него location).
+
+- Сделана векторная иконка `landing/favicon.svg` (цветок+лист в фирменных цветах, без зависимости от
+  эмодзи-шрифта) → растеризована в `favicon.ico` (16/32/48), `favicon-192.png`, `apple-touch-icon.png`.
+- `<link rel="icon">`/`apple-touch-icon` обновлены во всех страницах лендинга: `index.html`, `offer.html`,
+  `privacy.html`, `account-deletion.html`, `return.html`.
+- **nginx** (`/etc/nginx/sites-available/dacha`): добавлен location-блок (после `location = /`, перед
+  `/billing/return`):
+  ```nginx
+  location ~ ^/(favicon\.ico|favicon\.svg|favicon-192\.png|apple-touch-icon\.png)$ {
+      root /var/www/dacha-landing;
+  }
+  ```
+  Без него файлы физически лежат в `/var/www/dacha-landing`, но nginx их не отдаёт — уходят в
+  proxy_pass на API (404). Бэкап конфига — `dacha.bak.favicon` на сервере.
+- Деплой — прямой `scp` файлов лендинга в `/var/www/dacha-landing/` (без прохода через git/`dacha-api`,
+  как обычно для лендинга — см. `docs/DEPLOY.md`). **Файлы не закоммичены в git** — сделать
+  `git add landing/favicon.* landing/apple-touch-icon.png landing/*.html && git commit && git push`.
+- Грабли по пути: один `scp` index.html не долетел (хеш на сервере не совпал с локальным) — перезалили
+  повторно, совпало. И PowerShell here-string со вложенным `sed`+экранированием `\n`/`\.` сломался
+  («invalid option») — обошли, доставив конфиг-сниппет и Python-скрипт как обычные файлы (`scp` +
+  `python3 /tmp/patch_nginx_favicon.py`) вместо inline-строки с кавычками.
+- Проверено: `/favicon.ico` (image/x-icon), `/favicon.svg`, `/favicon-192.png`, `/apple-touch-icon.png` —
+  все 200; `/`, `/og.png`, `/privacy`, `/billing/return` не задеты, тоже 200.
+- **Дальше от владельца**: закоммитить `landing/*` в git; в Яндекс.Вебмастере запросить переобход главной.
 
 ## Сессия 2026-07-11 (2) — Android versionCode bump 8→9 (1.0.5→1.0.6) + тексты «Что нового»
 
