@@ -184,6 +184,30 @@ node scripts/vk-autopost.js --text-file post.txt --image url --link <url> [--dry
 
 ---
 
+## Автопостер Telegram (маркетинг, тот же `vk-queue`)
+
+Агент-автопостер: cron-джоб `jobs/telegramQueueJob.js` (`*/10`) публикует «созревшие» посты из
+той же таблицы `vk_post_queue` (миграция **058**, колонки `telegram_*`) в Telegram-канал через
+Bot API. Очередь наполняется тем же CLI, что и для ВК (`scripts/vk-queue.js load <файл>`) —
+отдельного скрипта загрузки не нужно. Без env (`TELEGRAM_BOT_TOKEN`+`TELEGRAM_CHANNEL_ID`) джоб
+idle — деплоить безопасно.
+
+**Деплой:** обычный backend (`reset --hard` + `pm2 restart`); миграция один раз:
+`sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/058_telegram_queue_columns.sql`
+(как и остальные миграции на VPS — `dacha_user` не имеет прав DDL).
+
+**`.env` (Hetzner):**
+```
+TELEGRAM_BOT_TOKEN=8333482648:AAFY...        # токен от BotFather, бот @calendacha_bot
+TELEGRAM_CHANNEL_ID=@calendacha              # публичный канал → username вместо числового chat_id
+TELEGRAM_POST_LINK=https://dacha.studio1008.com   # опц., деф. = лендинг
+```
+Канал должен быть публичным (с `@username`) — тогда `chat_id` для Bot API это сам username, не
+нужно вычислять числовой id через `getUpdates`. Бот должен быть добавлен в канал администратором
+с правом «Публикация сообщений» — без этого `sendMessage`/`sendPhoto` вернёт 403.
+
+---
+
 ## История
 
 - **2026-07-01 (2)** — UX-правки грядок: «Условия» (грунт/теплица) убраны из формы создания
