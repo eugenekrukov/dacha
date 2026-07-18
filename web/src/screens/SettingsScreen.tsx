@@ -108,6 +108,9 @@ export default function SettingsScreen() {
           Удаление аккаунта и данных
         </a>
         <a className="text-link" href="mailto:dacha@studio1008.com">Поддержка: dacha@studio1008.com</a>
+        <a className="text-link" href="https://vk.ru/calendacha" target="_blank" rel="noopener">
+          Мы в ВКонтакте
+        </a>
       </section>
     </div>
   )

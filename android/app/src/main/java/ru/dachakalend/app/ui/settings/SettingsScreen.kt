@@ -202,6 +202,8 @@ fun SettingsScreen(
             SettingsActionRow("Удаление аккаунта и данных") { openUrl("https://dacha.studio1008.com/account-deletion") }
             HorizontalDivider()
             SettingsActionRow("Поддержка: dacha@studio1008.com") { openUrl("mailto:dacha@studio1008.com") }
+            HorizontalDivider()
+            SettingsActionRow("Мы в ВКонтакте") { openUrl("https://vk.ru/calendacha") }
 
             Spacer(Modifier.height(24.dp))
         }
