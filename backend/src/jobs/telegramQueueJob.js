@@ -42,8 +42,8 @@ async function runTelegramQueue(db, { tg: tgSvc = telegramService, env = process
   for (const row of due.rows) {
     try {
       const link = row.link || defaultLink(env)
-      const text = `${queueMessage({ body: row.body, tags: row.tags })}\n\n${link}`
-      const { messageId } = await tgSvc.sendPost({ token, channelId, text, photoUrl: row.image_url || undefined })
+      const body = queueMessage({ body: row.body, tags: row.tags })
+      const { messageId } = await tgSvc.sendPost({ token, channelId, body, link, photoUrl: row.image_url || undefined })
       const url = tgSvc.postUrl(channelId, messageId)
       await db.query(
         "UPDATE vk_post_queue SET telegram_status='posted', telegram_post_url=$1, telegram_posted_at=NOW(), telegram_error=NULL WHERE id=$2",

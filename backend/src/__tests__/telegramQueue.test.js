@@ -38,7 +38,8 @@ describe('telegramQueueJob', () => {
     const r = await runTelegramQueue(db, { tg, env: ENV })
     expect(r.posted).toBe(1)
     const call = tg.calls.sendPost[0]
-    expect(call.text).toBe(queueMessage({ body: 'текст', tags: '#дача' }) + '\n\nhttps://dacha.studio1008.com')
+    expect(call.body).toBe(queueMessage({ body: 'текст', tags: '#дача' }))
+    expect(call.link).toBe('https://dacha.studio1008.com')
     expect(call.photoUrl).toBe('https://img/x.jpg')
     const upd = db.updates.find((u) => /telegram_status='posted'/.test(u.sql))
     expect(upd.args).toEqual(['https://t.me/calendacha/42', 1])

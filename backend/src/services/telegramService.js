@@ -1,8 +1,8 @@
 'use strict'
 
-// Постинг в Telegram-канал через Bot API: sendMessage (без фото) или sendPhoto (с caption).
-// В отличие от ВК, ссылка в теле поста не режет охват в Telegram — текст и ссылка идут одним
-// сообщением, без трюка «ссылка первым комментарием».
+// Постинг в Telegram-канал через Bot API: одно сообщение на пост — sendMessage (без фото) или
+// sendPhoto с caption (с фото). В отличие от ВК, ссылка в теле поста не режет охват в Telegram —
+// текст и ссылка идут одним сообщением, без трюка «ссылка первым комментарием».
 //
 // Требует Node 18+/20+ (глобальный fetch) — внешних зависимостей нет.
 
@@ -25,18 +25,25 @@ async function callApi(token, method, body, fetchImpl) {
   return { messageId: json.result.message_id }
 }
 
-async function sendPost({ token, channelId, text, photoUrl }, fetchImpl = fetch) {
+// Обрезает body так, чтобы `${body}\n\n${link}` уложилось в лимит подписи — ссылка (важный CTA)
+// сохраняется всегда целиком. Режет по границе пробела, если она рядом (не рвать слово посередине).
+function fitCaption(body, link) {
+  const suffix = `\n\n${link}`
+  const ellipsis = '…'
+  const budget = Math.max(CAPTION_LIMIT - suffix.length - ellipsis.length, 0)
+  let cut = body.slice(0, budget)
+  const lastSpace = cut.lastIndexOf(' ')
+  if (lastSpace > budget - 40) cut = cut.slice(0, lastSpace)
+  return `${cut.trimEnd()}${ellipsis}${suffix}`
+}
+
+async function sendPost({ token, channelId, body, link, photoUrl }, fetchImpl = fetch) {
+  const full = `${body}\n\n${link}`
   if (!photoUrl) {
-    return callApi(token, 'sendMessage', { chat_id: channelId, text }, fetchImpl)
+    return callApi(token, 'sendMessage', { chat_id: channelId, text: full }, fetchImpl)
   }
-  if (text.length <= CAPTION_LIMIT) {
-    return callApi(token, 'sendPhoto', { chat_id: channelId, photo: photoUrl, caption: text }, fetchImpl)
-  }
-  // Текст не помещается в подпись к фото — публикуем фото без подписи, текст отдельным
-  // сообщением следом (сохраняем в messageId именно фото — это первое, что видно в канале).
-  const photo = await callApi(token, 'sendPhoto', { chat_id: channelId, photo: photoUrl }, fetchImpl)
-  await callApi(token, 'sendMessage', { chat_id: channelId, text }, fetchImpl)
-  return photo
+  const caption = full.length <= CAPTION_LIMIT ? full : fitCaption(body, link)
+  return callApi(token, 'sendPhoto', { chat_id: channelId, photo: photoUrl, caption }, fetchImpl)
 }
 
 // Публичный канал — username в chat_id совпадает с частью ссылки на пост.
