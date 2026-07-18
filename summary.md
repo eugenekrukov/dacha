@@ -27,6 +27,9 @@
   на ленте и в журнале посадки. В проде (`GET /feed`, без миграции). Android — vc6/1.0.3 (не опубликован).
 - **Автопостер ВК** (маркетинг): очередь с расписанием `vk_post_queue` (миграция 048) + cron `vkQueueJob`,
   публикует посты из md-файла контента в сообщество `calendacha`. Нужен ПОЛЬЗОВАТЕЛЬСКИЙ VK-токен. Ops — `docs/DEPLOY.md`.
+- **Автопостер Telegram** (маркетинг, 2026-07-18): та же очередь `vk_post_queue` (миграция 058,
+  колонки `telegram_*`) + cron `telegramQueueJob`, публикует в канал `@calendacha` через бота
+  `@calendacha_bot` (Bot API). Независимый статус публикации от ВК. Ops — `docs/DEPLOY.md`.
 - ✅ **E3 исправлен (2026-06-25)**: Android JVM unit-тесты теперь запускаются в этом окружении.
   Корень — Gradle-тест-воркер на Windows не грузил классы из `build/`-каталога с кириллическим путём
   (`ClassNotFoundException`, native-кодировка classpath-argfile, баг JVM/Gradle gradle/gradle#30304).

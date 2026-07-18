@@ -1,6 +1,31 @@
 ﻿# Протокол рабочей сессии разработчика
 
-**Дата последней сессии**: 2026-07-14
+**Дата последней сессии**: 2026-07-18
+
+## Сессия 2026-07-18 — Автопостер Telegram (@calendacha_bot → канал @calendacha)
+
+Владелец создал бота (`@calendacha_bot`, токен через BotFather) и попросил подключить его для
+распространения — Telegram-канал ещё не существовал, придуманы имя/описание для создания.
+
+- Дизайн/план: `docs/superpowers/specs/2026-07-18-telegram-autopost-design.md`,
+  `docs/superpowers/plans/2026-07-18-telegram-autopost.md`.
+- Переиспользована очередь ВК-автопостера, а не отдельная инфраструктура: миграция **058**
+  добавляет колонки `telegram_status/telegram_post_url/telegram_error/telegram_attempts/
+  telegram_posted_at` в `vk_post_queue` — статус независим от `status` (ВК), чтобы сбой одного
+  канала не блокировал/не дублировал публикацию в другом.
+- `backend/src/services/telegramService.js` — Bot API (`sendMessage`/`sendPhoto`), без новых
+  зависимостей. `backend/src/jobs/telegramQueueJob.js` — cron `*/10` по образцу `vkQueueJob.js`,
+  включается только при `TELEGRAM_BOT_TOKEN`+`TELEGRAM_CHANNEL_ID`. Wiring в `app.js`.
+  9 новых тестов (`telegramService.test.js`, `telegramQueue.test.js`), весь сьют 427/427 зелёный.
+- Канал создан владельцем: имя «Календарь дачника 🌻», `@calendacha`, бот добавлен админом.
+- Деплой: push → `origin/main` (f573581) → VPS `reset --hard` + миграция 058 (`sudo -u postgres
+  psql`, дефолтная schema/грант не нужны — обычный `ALTER TABLE` на уже принадлежащей `dacha_user`
+  таблице) → `.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHANNEL_ID=@calendacha`) → `pm2 restart
+  dacha-api`. Проверено в логе: `[telegram-queue] автопостер Telegram запущен`. Очередь на момент
+  деплоя вся `pending` (следующий созревший пост в `vk_post_queue` уйдёт в оба канала по расписанию).
+- **Вне рамок (не сделано)**: ссылки на канал в футере лендинга/приложения/писем — как уже сделано
+  для группы ВК (`emailService.js`→`lifecycleHtml`, веб/Android-настройки). Отдельная небольшая
+  задача на будущее.
 
 ## Сессия 2026-07-14 — Фикс favicon на лендинге (Яндекс.Вебмастер не видел иконку)
 
