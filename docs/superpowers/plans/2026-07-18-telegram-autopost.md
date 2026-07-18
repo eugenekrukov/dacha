@@ -451,7 +451,7 @@ Expected: `ALTER TABLE` x5 + `CREATE INDEX` без ошибок.
 ```powershell
 ssh hetzner "cat >> /var/www/dacha-api/backend/.env << 'EOF'
 
-TELEGRAM_BOT_TOKEN=8333482648:AAFYwIxMCtmy7di_pibh92tvlfklMeBKleA
+TELEGRAM_BOT_TOKEN=<токен от BotFather>
 TELEGRAM_CHANNEL_ID=@calendacha
 EOF"
 ```
