@@ -1,7 +1,7 @@
 'use strict'
 
 const bcrypt = require('bcrypt')
-const { trialInfo, isSubscribed, hasPromo, isLifetimePromo, isAdSupportedStore, SUBSCRIPTION_WINDOW_DAYS } = require('../utils/access')
+const { isSubscribed, hasPromo, isLifetimePromo, isAdSupportedStore, SUBSCRIPTION_WINDOW_DAYS, FREE_PLANTING_LIMIT } = require('../utils/access')
 const { generateCode, sendVerificationCode, sendPasswordResetCode } = require('../services/emailService')
 
 const CODE_TTL_MS = 15 * 60 * 1000  // коды подтверждения/сброса живут 15 минут
@@ -61,7 +61,7 @@ module.exports = async function (fastify) {
 
     const passwordHash = await bcrypt.hash(password, 10)
     const result = await db.query(
-      'INSERT INTO users (email, password_hash, name, store) VALUES ($1, $2, $3, $4) RETURNING id, email, name, created_at, trial_started_at, email_verified',
+      'INSERT INTO users (email, password_hash, name, store) VALUES ($1, $2, $3, $4) RETURNING id, email, name, created_at, email_verified',
       [email, passwordHash, name ?? null, store ?? null]
     )
 
@@ -78,7 +78,7 @@ module.exports = async function (fastify) {
       fastify.log.warn(`[auth] issueCode (verify) failed: ${e.message}`)
     }
 
-    return reply.code(201).send({ token, user: { ...user, ...trialInfo(user.trial_started_at) } })
+    return reply.code(201).send({ token, user: { ...user, plantings_limit: FREE_PLANTING_LIMIT } })
   })
 
   // POST /auth/login
@@ -133,7 +133,7 @@ module.exports = async function (fastify) {
   // GET /auth/me
   fastify.get('/me', { onRequest: [fastify.authenticate] }, async (request) => {
     const result = await fastify.db.query(
-      'SELECT id, email, name, push_token, notification_settings, created_at, trial_started_at, subscription_until, promo_until, email_verified, auto_renew, plan, payment_method_id, pending_email FROM users WHERE id = $1',
+      'SELECT id, email, name, push_token, notification_settings, created_at, subscription_until, promo_until, email_verified, auto_renew, plan, payment_method_id, pending_email FROM users WHERE id = $1',
       [request.user.userId]
     )
     const user = result.rows[0]
@@ -142,14 +142,14 @@ module.exports = async function (fastify) {
     const { payment_method_id, ...safe } = user
     return {
       ...safe,
-      ...trialInfo(user.trial_started_at),
       subscribed: isSubscribed(user.subscription_until),
       subscription_until: isSubscribed(user.subscription_until) ? user.subscription_until : null,
       auto_renew: !!user.auto_renew,
       has_saved_card: !!payment_method_id,
       promo_active: hasPromo(user.promo_until),
       promo_lifetime: isLifetimePromo(user.promo_until),
-      promo_until: hasPromo(user.promo_until) ? user.promo_until : null
+      promo_until: hasPromo(user.promo_until) ? user.promo_until : null,
+      plantings_limit: FREE_PLANTING_LIMIT
     }
   })
 

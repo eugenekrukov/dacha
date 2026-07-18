@@ -11,8 +11,7 @@ export interface UserProfile {
   email: string
   name?: string | null
   email_verified?: boolean
-  trial_active?: boolean
-  trial_days_left?: number
+  plantings_limit?: number
   subscribed?: boolean
   subscription_until?: string | null
   auto_renew?: boolean

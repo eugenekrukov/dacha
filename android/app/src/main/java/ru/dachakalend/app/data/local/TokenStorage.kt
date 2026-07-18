@@ -262,7 +262,7 @@ class TokenStorage @Inject constructor(
     fun getDeletedTasks(): Set<String> =
         prefs.getStringSet(KEY_DELETED_TASKS, emptySet()) ?: emptySet()
 
-    // ─── First launch date (для 7-дневного триала) ───────────────────────────────
+    // ─── First launch date (для отсчёта запроса оценки) ───────────────────────────
 
     fun getFirstLaunchDate(): Long {
         val stored = prefs.getLong(KEY_FIRST_LAUNCH, 0L)
@@ -274,22 +274,9 @@ class TokenStorage @Inject constructor(
         return stored
     }
 
-    fun isTrialActive(): Boolean {
-        val firstLaunch = getFirstLaunchDate()
-        val daysSince = (System.currentTimeMillis() - firstLaunch) / 86_400_000L
-        return daysSince < TRIAL_DAYS
-    }
-
-    fun trialDaysLeft(): Int {
-        val firstLaunch = getFirstLaunchDate()
-        val daysSince = (System.currentTimeMillis() - firstLaunch) / 86_400_000L
-        return maxOf(0, (TRIAL_DAYS - daysSince).toInt())
-    }
-
     // ─── Запрос оценки в RuStore (на 6-й день после первого запуска) ──────────────
     // Показываем нативную форму оценки один раз, на REVIEW_AFTER_DAYS-й день использования —
-    // пользователь уже распробовал приложение, но ещё в активной фазе (до конца триала).
-    // Дату первого запуска переиспользуем из триала (KEY_FIRST_LAUNCH).
+    // пользователь уже распробовал приложение и, скорее всего, успел завести посадки.
 
     fun isReviewDue(): Boolean {
         if (prefs.getBoolean(KEY_REVIEW_REQUESTED, false)) return false
@@ -344,7 +331,6 @@ class TokenStorage @Inject constructor(
         private const val KEY_NOTIF_PERM_ASKED = "notif_permission_asked"
         private const val KEY_LARGE_FONT       = "large_font"
         private const val KEY_DATES_NEED_CHECK = "planting_dates_need_check"
-        const val TRIAL_DAYS                  = 7L
         const val REVIEW_AFTER_DAYS           = 6L
 
         const val NOTIF_FROST      = "frost_alert"

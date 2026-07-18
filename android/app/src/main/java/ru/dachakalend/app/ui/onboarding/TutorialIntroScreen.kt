@@ -354,7 +354,7 @@ private fun Slide4Content(onLogin: () -> Unit) {
         Modifier.fillMaxSize().padding(top = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // Free trial badge
+        // Free-tier badge
         Row(
             Modifier
                 .clip(RoundedCornerShape(20.dp))
@@ -366,7 +366,7 @@ private fun Slide4Content(onLogin: () -> Unit) {
             Icon(Icons.Default.CardGiftcard, contentDescription = null,
                 tint = Color(0xFF2E7D32), modifier = Modifier.size(14.dp))
             Text(
-                "7 дней бесплатно",
+                "Бесплатно навсегда",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize   = 13.sp,

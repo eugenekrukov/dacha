@@ -70,6 +70,9 @@ class OnboardingCropsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true)
             val today = LocalDate.now().toString()
+            // ponytail: если выбрано больше free-лимита посадок, лишние тихо не создадутся (сервер
+            // вернёт 402) — экран онбординга не показывает предупреждение (уходит на done сразу).
+            // Апгрейд: показать snackbar с числом добавленных/пропущенных, если это станет частой жалобой.
             var allOk = true
             for (cropId in selected) {
                 val result = plantingsRepository.createPlanting(

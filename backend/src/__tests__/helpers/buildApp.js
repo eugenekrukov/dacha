@@ -34,16 +34,6 @@ async function buildApp(mockDb, billingOpts = {}) {
     }
   })
 
-  // Гейт доступа: в общих тестах — мягкий (только jwtVerify), чтобы не требовать
-  // подставлять триал в каждый мок. Логика доступа покрыта в access.test.js.
-  fastify.decorate('requireAccess', async function (request, reply) {
-    try {
-      await request.jwtVerify()
-    } catch (err) {
-      reply.send(err)
-    }
-  })
-
   // Admin guard — зеркало app.js: пускает только request.user.email === ADMIN_EMAIL.
   fastify.decorate('requireAdmin', async function (request, reply) {
     try {

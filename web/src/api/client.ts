@@ -40,10 +40,12 @@ export class ApiError extends Error {
   }
 }
 
-// Единое сообщение для 402 — раньше каждый экран показывал «как есть» код ошибки
-// от бэкенда (`subscription_required`), что выглядело как сырой текст ошибки.
-export const SUBSCRIPTION_REQUIRED_MESSAGE =
-  'Пробный период закончился или подписка не активна. Оформите подписку, чтобы продолжить.'
+// Сообщения для 402 — раньше каждый экран показывал «как есть» код ошибки от бэкенда,
+// что выглядело как сырой текст ошибки. Два варианта: нет подписки вовсе (subscription_required,
+// напр. фото сверх лимита) и free-лимит посадок исчерпан (plan_limit_reached, POST /plantings).
+export const SUBSCRIPTION_REQUIRED_MESSAGE = 'Нужна подписка «Дачник Про», чтобы продолжить.'
+export const PLAN_LIMIT_MESSAGE =
+  'Бесплатно доступно 3 посадки одновременно. Оформите «Дачник Про» для безлимита.'
 
 type Json = Record<string, unknown>
 
@@ -84,7 +86,9 @@ async function request<T>(
   if (!res.ok) {
     const d = (data ?? {}) as { error?: string; message?: string }
     if (res.status === 402) {
-      throw new ApiError(402, SUBSCRIPTION_REQUIRED_MESSAGE, d.error || 'subscription_required')
+      const code = d.error || 'subscription_required'
+      const message = code === 'plan_limit_reached' ? PLAN_LIMIT_MESSAGE : SUBSCRIPTION_REQUIRED_MESSAGE
+      throw new ApiError(402, message, code)
     }
     throw new ApiError(res.status, d.error || d.message || `HTTP ${res.status}`, d.error)
   }

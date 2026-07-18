@@ -18,7 +18,7 @@ sealed class Result<out T> {
 }
 
 const val SUBSCRIPTION_REQUIRED_MESSAGE =
-    "Пробный период закончился или подписка не активна. Оформите подписку, чтобы продолжить."
+    "Бесплатно доступны 1 сад и до 3 посадок одновременно. Оформите «Дачник Про» для безлимита."
 
 /** Классификация исключения: отсутствие связи (IOException) → isNetwork=true; HTTP 402 → isSubscriptionRequired=true. */
 fun errorResult(e: Throwable, fallback: String): Result.Error =

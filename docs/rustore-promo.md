@@ -82,7 +82,7 @@
 > - Триггер в `MainActivity` (LaunchedEffect): если залогинен + есть участок +
 >   `TokenStorage.isReviewDue()` → `AppReview.request(...)`, по завершении `setReviewRequested()`.
 > - Логика дня — в `TokenStorage`: `REVIEW_AFTER_DAYS = 6`, дата первого запуска
->   переиспользована из триала (`KEY_FIRST_LAUNCH`), флаг `KEY_REVIEW_REQUESTED`.
+>   хранится отдельно от гейта подписки (`KEY_FIRST_LAUNCH`), флаг `KEY_REVIEW_REQUESTED`.
 >
 > Заметки на будущее:
 > - Момент показа можно сместить с «старта на 6-й день» на позитивное действие (после

@@ -1,6 +1,7 @@
 'use strict'
 
 const { getNextCareTask, getOverdueCareTask, effectivePlantedAt } = require('../utils/todayLogic')
+const { hasAccess, FREE_PLANTING_LIMIT } = require('../utils/access')
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
@@ -14,8 +15,9 @@ module.exports = async function (fastify) {
     return res.rows.length > 0
   }
 
-  // POST /plantings — платное действие: гейт по триалу/подписке
-  fastify.post('/', { onRequest: [fastify.authenticate, fastify.requireAccess] }, async (request, reply) => {
+  // POST /plantings — free-тариф: до FREE_PLANTING_LIMIT активных (stage<>'done') посадок,
+  // без ограничения по времени. Выше лимита — только «Дачник Про» (402).
+  fastify.post('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
     const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes, sowing_method = 'seedling', variety, bed_id } = request.body
     const method = sowing_method === 'direct' ? 'direct' : 'seedling'
     const varietyVal = typeof variety === 'string' && variety.trim() ? variety.trim().slice(0, 120) : null
@@ -23,6 +25,22 @@ module.exports = async function (fastify) {
     // Защита от IDOR: нельзя создать посадку в чужом участке
     if (!garden_id || !(await userOwnsGarden(garden_id, request.user.userId))) {
       return reply.code(403).send({ error: 'Garden not found or not yours' })
+    }
+
+    const userRes = await fastify.db.query(
+      'SELECT subscription_until, promo_until, store FROM users WHERE id = $1',
+      [request.user.userId]
+    )
+    if (!hasAccess(userRes.rows[0])) {
+      const countRes = await fastify.db.query(
+        `SELECT COUNT(*) FROM plantings p
+         JOIN gardens g ON g.id = p.garden_id
+         WHERE g.user_id = $1 AND p.stage <> 'done'`,
+        [request.user.userId]
+      )
+      if (parseInt(countRes.rows[0].count, 10) >= FREE_PLANTING_LIMIT) {
+        return reply.code(402).send({ error: 'plan_limit_reached', limit: FREE_PLANTING_LIMIT })
+      }
     }
 
     // Грядка (если указана) должна принадлежать тому же участку — иначе подсказка севооборота

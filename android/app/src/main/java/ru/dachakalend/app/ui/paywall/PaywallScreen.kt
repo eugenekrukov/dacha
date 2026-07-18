@@ -135,7 +135,7 @@ fun PaywallScreen(
             Spacer(Modifier.height(8.dp))
 
             Text(
-                text = "Полный доступ ко всем функциям\nприложения без ограничений",
+                text = "Без ограничения на число посадок\nи с расширенным лимитом фото",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,
@@ -144,7 +144,7 @@ fun PaywallScreen(
                 lineHeight = 22.sp
             )
 
-            // U7 ценностный блок — что пользователь уже сделал за триал (не теряйте сезон).
+            // U7 ценностный блок — прогресс остаётся с вами и на бесплатном тарифе.
             if (uiState.plantingsCount > 0 || uiState.actionsCount > 0) {
                 Spacer(Modifier.height(16.dp))
                 Box(
@@ -156,8 +156,11 @@ fun PaywallScreen(
                 ) {
                     Text(
                         text = "Вы уже добавили ${plural(uiState.plantingsCount, "посадку", "посадки", "посадок")} " +
-                            "и записали ${plural(uiState.actionsCount, "действие", "действия", "действий")}. " +
-                            "С «Дачник Про» весь ваш сезон останется с вами.",
+                            "и записали ${plural(uiState.actionsCount, "действие", "действия", "действий")} " +
+                            "— всё это остаётся с вами и на бесплатном тарифе." +
+                            if (uiState.plantingsCount >= uiState.status.plantingsLimit)
+                                " Достигнут лимит одновременных посадок — «Дачник Про» снимает его."
+                            else "",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
@@ -188,8 +191,8 @@ fun PaywallScreen(
                         color = Color.White
                     )
                 }
-            } else if (uiState.status.isTrialActive) {
-                // Триал-бейдж
+            } else if (!uiState.status.isSubscribed) {
+                // Бейдж бесплатного тарифа (бессрочно, лимит по числу посадок)
                 Spacer(Modifier.height(16.dp))
                 Box(
                     modifier = Modifier
@@ -198,7 +201,7 @@ fun PaywallScreen(
                         .padding(horizontal = 16.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = "Осталось ${uiState.status.trialDaysLeft} дн. бесплатного периода",
+                        text = "Бесплатно навсегда: 1 сад, до ${uiState.status.plantingsLimit} посадок",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
@@ -209,14 +212,11 @@ fun PaywallScreen(
 
             Spacer(Modifier.height(28.dp))
 
-            // Фичи
+            // Фичи — сверх бесплатного тарифа
             val features = listOf(
-                "Аналитика урожая по сезонам",
-                "Журнал всех действий",
-                "Рекомендации агронома",
-                "Умные уведомления о поливе",
-                "Экспорт данных в CSV",
-                "До 3 участков"
+                "Неограниченное число посадок",
+                "До 30 фото на посадку вместо 3",
+                "Поддержка развития приложения"
             )
             features.forEach { feature ->
                 Row(

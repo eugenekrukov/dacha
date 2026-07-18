@@ -23,9 +23,8 @@ data class UserProfile(
     val id: Int,
     val name: String? = null,   // имя больше не собирается при регистрации; старые записи могут содержать
     val email: String,
-    // Серверный триал (источник правды). login отдаёт без них → дефолты.
-    @Json(name = "trial_active") val trialActive: Boolean = false,
-    @Json(name = "trial_days_left") val trialDaysLeft: Int = 0,
+    // Лимит бесплатного тарифа (1 сад / N посадок одновременно, без ограничения по времени).
+    @Json(name = "plantings_limit") val plantingsLimit: Int = 3,
     // Промо-доступ (только /auth/me). promoActive — активен сейчас, promoLifetime — навсегда,
     // promoUntil — ISO-дата окончания доступа (null если промо нет или оно вечное).
     @Json(name = "promo_active") val promoActive: Boolean = false,

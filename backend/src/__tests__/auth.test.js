@@ -23,7 +23,7 @@ describe('POST /auth/register', () => {
       query: async (sql) => {
         if (sql.includes('SELECT id FROM users')) return { rows: [] }  // email свободен
         if (sql.includes('INSERT INTO users'))
-          return { rows: [{ id: 1, email: 'new@test.com', name: 'Test', trial_started_at: new Date().toISOString() }] }
+          return { rows: [{ id: 1, email: 'new@test.com', name: 'Test' }] }
         return { rows: [] }
       },
     }))
@@ -39,8 +39,7 @@ describe('POST /auth/register', () => {
     expect(res.status).toBe(201)
     expect(res.body).toHaveProperty('token')
     expect(res.body.user).toMatchObject({ email: 'new@test.com', name: 'Test' })
-    expect(res.body.user.trial_active).toBe(true)
-    expect(res.body.user.trial_days_left).toBe(7)
+    expect(res.body.user.plantings_limit).toBe(3)
   })
 
   it('регистрация без имени возвращает 201 (name опционально)', async () => {
@@ -243,9 +242,9 @@ describe('GET /auth/me', () => {
     await app.close()
   })
 
-  it('свежий триал → trial_active=true, trial_days_left=7', async () => {
+  it('возвращает plantings_limit free-тарифа', async () => {
     const app = await buildApp(makeMockDb({
-      query: async () => ({ rows: [{ id: 1, email: 'me@test.com', name: 'Me', trial_started_at: new Date().toISOString() }] }),
+      query: async () => ({ rows: [{ id: 1, email: 'me@test.com', name: 'Me' }] }),
     }))
     const token = makeToken(app)
 
@@ -254,25 +253,7 @@ describe('GET /auth/me', () => {
       .set('Authorization', `Bearer ${token}`)
 
     expect(res.status).toBe(200)
-    expect(res.body.trial_active).toBe(true)
-    expect(res.body.trial_days_left).toBe(7)
-    await app.close()
-  })
-
-  it('триал старше 7 дней → trial_active=false, trial_days_left=0', async () => {
-    const eightDaysAgo = new Date(Date.now() - 8 * 86_400_000).toISOString()
-    const app = await buildApp(makeMockDb({
-      query: async () => ({ rows: [{ id: 1, email: 'me@test.com', name: 'Me', trial_started_at: eightDaysAgo }] }),
-    }))
-    const token = makeToken(app)
-
-    const res = await supertest(app.server)
-      .get('/auth/me')
-      .set('Authorization', `Bearer ${token}`)
-
-    expect(res.status).toBe(200)
-    expect(res.body.trial_active).toBe(false)
-    expect(res.body.trial_days_left).toBe(0)
+    expect(res.body.plantings_limit).toBe(3)
     await app.close()
   })
 })

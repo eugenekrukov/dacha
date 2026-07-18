@@ -70,29 +70,6 @@ app.decorate('requireAdmin', async function (request, reply) {
   }
 })
 
-// Access guard: платные действия доступны при активном триале ИЛИ активной подписке.
-// Триал — серверный (users.trial_started_at); подписка — серверное окно (users.subscription_until),
-// которое клиент продлевает синхронизацией POST /auth/subscription. 402 при отсутствии доступа.
-const { hasAccess } = require('./utils/access')
-app.decorate('requireAccess', async function (request, reply) {
-  try {
-    await request.jwtVerify()
-  } catch (err) {
-    return reply.send(err)
-  }
-  const res = await app.db.query(
-    'SELECT trial_started_at, subscription_until, promo_until, store FROM users WHERE id = $1',
-    [request.user.userId]
-  )
-  // Токен может пережить удаление аккаунта (живёт до 30 дней) — это ошибка
-  // аутентификации, а не отсутствие подписки, иначе клиент решит, что нужно платить.
-  if (!res.rows[0]) {
-    return reply.code(401).send({ error: 'user_not_found' })
-  }
-  if (!hasAccess(res.rows[0])) {
-    return reply.code(402).send({ error: 'subscription_required' })
-  }
-})
 // Routes
 app.register(require('./routes/auth'), { prefix: '/auth' })
 app.register(require('./routes/promo'), { prefix: '/promo' })

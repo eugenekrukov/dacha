@@ -27,7 +27,7 @@ function makeDb({ owns = true, photoCount = 0, accountCount = 0, user = {}, acti
       if (/FROM action_logs WHERE id/i.test(sql)) {
         return { rows: actionMatch ? [{ '?column?': 1 }] : [] }
       }
-      if (/SELECT trial_started_at, subscription_until/i.test(sql)) {
+      if (/SELECT subscription_until, promo_until, store FROM users/i.test(sql)) {
         return { rows: [user] }
       }
       if (/COUNT\(\*\).*FROM planting_photos pp\s+JOIN/i.test(sql)) {
@@ -49,7 +49,7 @@ function makeDb({ owns = true, photoCount = 0, accountCount = 0, user = {}, acti
 describe('POST /photos', () => {
   it('happy path: 201, файл обработан, строка вставлена', async () => {
     const img = fakeImageService()
-    const db = makeDb({ photoCount: 0, user: { subscription_until: null, trial_started_at: new Date() } })
+    const db = makeDb({ photoCount: 0, user: { subscription_until: null } })
     const app = await buildApp(db, { imageService: img })
     const res = await supertest(app.server)
       .post('/photos')
@@ -78,7 +78,7 @@ describe('POST /photos', () => {
 
   it('квота free (3-е есть → 4-е) → 409 photo_limit_reached', async () => {
     const img = fakeImageService()
-    const db = makeDb({ photoCount: 3, user: { subscription_until: null, trial_started_at: new Date() } })
+    const db = makeDb({ photoCount: 3, user: { subscription_until: null } })
     const app = await buildApp(db, { imageService: img })
     const res = await supertest(app.server)
       .post('/photos')

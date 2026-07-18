@@ -21,9 +21,7 @@ export default function SettingsScreen() {
       ? user.promo_lifetime
         ? 'Промокод активен (навсегда)'
         : `Промокод активен${user.promo_until ? ` до ${formatDate(user.promo_until)}` : ''}`
-      : user?.trial_active
-        ? `Пробный период: осталось ${user.trial_days_left ?? 0} дн.`
-        : 'Доступ неактивен'
+      : `Бесплатный тариф: 1 сад, до ${user?.plantings_limit ?? 3} посадок`
 
   const cancelAutoRenew = async () => {
     setBusy(true)
@@ -48,7 +46,7 @@ export default function SettingsScreen() {
         {error && <p className="text-sm font-bold text-red-600">{error}</p>}
         {!user?.subscribed && (
           <Link to="/paywall" className="dacha-btn flex items-center justify-center">
-            {user?.trial_active || user?.promo_active ? 'Оформить подписку' : 'Продлить доступ'}
+            Оформить «Дачник Про»
           </Link>
         )}
         {user?.subscribed && user?.auto_renew && (

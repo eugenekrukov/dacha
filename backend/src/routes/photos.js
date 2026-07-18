@@ -51,7 +51,7 @@ module.exports = async function (fastify, opts) {
     }
 
     const accessRes = await fastify.db.query(
-      'SELECT trial_started_at, subscription_until, promo_until, store FROM users WHERE id = $1', [userId])
+      'SELECT subscription_until, promo_until, store FROM users WHERE id = $1', [userId])
     const limit = isPaidTier(accessRes.rows[0]) ? PHOTO_LIMIT_PAID : PHOTO_LIMIT_FREE
 
     const perPlanting = await fastify.db.query('SELECT COUNT(*) FROM planting_photos WHERE planting_id = $1', [plantingId])

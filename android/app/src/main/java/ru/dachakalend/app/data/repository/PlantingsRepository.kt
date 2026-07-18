@@ -25,7 +25,9 @@ class PlantingsRepository @Inject constructor(private val api: DachaApi) {
     suspend fun createPlanting(request: CreatePlantingRequest): Result<Planting> = try {
         Result.Success(api.createPlanting(request))
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Ошибка создания посадки")
+        // 402 здесь — free-лимит посадок (plan_limit_reached) либо истёкшая подписка;
+        // errorResult даёт понятное сообщение вместо сырого текста исключения.
+        errorResult(e, "Ошибка создания посадки")
     }
 
     suspend fun updateStage(plantingId: Int, stage: String): Result<Planting> = try {

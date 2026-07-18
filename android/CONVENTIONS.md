@@ -127,7 +127,7 @@ if (gardenId == -1) return Result.Error("Участок не выбран")
 | `TodayRepository` | `getToday()` | `Result<TodayResponse>` |
 | `AuthRepository` | `login(email, password)` | `Result<UserProfile>` |
 | `AuthRepository` | `register(name, email, password)` | `Result<UserProfile>` |
-| `AuthRepository` | `me()` | `Result<UserProfile>` (профиль + серверный триал/подписка + `emailVerified`) |
+| `AuthRepository` | `me()` | `Result<UserProfile>` (профиль + подписка/промо + `plantingsLimit` + `emailVerified`) |
 | `AuthRepository` | `syncSubscription(active)` | `Unit` (⚠️ депрекейт — подписка теперь из вебхука ЮKassa, не вызывается) |
 | `BillingRepository` | `createPayment(plan)` | `Result<String>` (confirmation_url для Custom Tab; `plan`=monthly/yearly) |
 | `BillingRepository` | `cancelAutoRenew()` | `Result<Unit>` (отключение автопродления) |
@@ -474,7 +474,7 @@ RuStore Billing **удалён** (RuStore не подключает монети
 4. По `ON_RESUME` `PaywallViewModel.checkAfterPayment()` опрашивает `/auth/me` (8×1.5с) → `accessGranted`.
 
 **Источник истины по доступу — сервер** (`/auth/me`): `SubscriptionManager.refresh()` читает
-`subscribed`/`subscription_until`/`auto_renew`/`plan` + триал/промо. Клиент НЕ обращается к платёжному
+`subscribed`/`subscription_until`/`auto_renew`/`plan` + промо + `plantingsLimit`. Клиент НЕ обращается к платёжному
 провайдеру напрямую — только через `SubscriptionManager`/`BillingRepository`. Подписка приходит
 из вебхука (не синком клиента) — старый `AuthRepository.syncSubscription`/`POST /auth/subscription`
 оставлен на переходный период, но не вызывается.
@@ -483,10 +483,14 @@ RuStore Billing **удалён** (RuStore не подключает монети
 В Настройках — тоггл (выключить → `BillingRepository.cancelAutoRenew` → `POST /billing/cancel-autorenew`);
 включить обратно — только новой оплатой (карта привязывается при платеже).
 
-**Триал** — 7 дней с первого запуска (`TokenStorage`), не сбрасывается при выходе. Промокоды — без изменений.
+**Free-тариф (с 2026-07-18)** — бессрочный, без 7-дневного триала: 1 сад и до `FREE_PLANTING_LIMIT`
+(бэкенд `utils/access.js`, сейчас 3) активных посадок одновременно. Гейт — только на сервере
+(`POST /plantings` → 402 `plan_limit_reached` сверх лимита); клиент не хранит и не считает лимит
+локально. Промокоды — без изменений.
 
-**Paywall** открывается: (1) автоматически при старте если `!subscriptionManager.isAccessAllowed()`;
-(2) из Настроек кнопкой «Купить» (скрыта при активной подписке).
+**Paywall** открывается: (1) из Настроек кнопкой «Купить» (скрыта при активной подписке);
+(2) по месту, где экран поймал 402 (`Result.Error.isSubscriptionRequired`, см. `TodayRepository.errorResult`).
+**Не** открывается автоматически при старте — free-тариф не блокирует запуск приложения.
 
 > **E5 (план)**: для GP/Samsung оплата невозможна → флейворы + реклама РСЯ. См. `summary.md` блок E5.
 
@@ -577,10 +581,11 @@ ModalBottomSheet(
 
 ## 17. Паттерны сессии 2026-06-03
 
-- **Серверный триал/подписка/гейт**: `/auth/me` отдаёт `trialActive`/`trialDaysLeft`/`subscribed`.
-  `SubscriptionManager.refresh()` берёт триал с сервера (фолбэк — TokenStorage) и синкает подписку
-  (`syncSubscription(active)`). Backend гейтит POST `/actions`,`/plantings`,`/harvests` → **402**
-  `subscription_required` при истёкшем триале без подписки. 402 = нет доступа (не путать с IDOR 403).
+- **Free-тариф/подписка/гейт (обновлено 2026-07-18)**: `/auth/me` отдаёт `subscribed`/`plantingsLimit`.
+  `SubscriptionManager.refresh()` берёт статус с сервера и синкает подписку (`syncSubscription(active)`).
+  Backend гейтит только `POST /plantings` → **402** `plan_limit_reached` сверх free-лимита (1 сад,
+  `FREE_PLANTING_LIMIT` посадок, бессрочно); `POST /actions`/`/harvests` свободны в рамках уже
+  созданных посадок. 402 = лимит/нет подписки (не путать с IDOR 403).
 - **Иконки действий**: единый `ui/actions/ActionVisuals.kt actionIcon(type)` (Material Icons) —
   использовать и в журнале, и в селекторе. Эмодзи в UI действий не добавлять.
 - **Автодополнение (город)**: `ExposedDropdownMenuBox` + `ExposedDropdownMenu` + `Modifier.menuAnchor()`
@@ -636,7 +641,7 @@ ModalBottomSheet(
   Коды одноразовые, генерируются вручную: `node scripts/gen-promo.js <lifetime|month> [count]`.
 - **Серверный источник истины — отдельная колонка `users.promo_until`** (НЕ `subscription_until`):
   синхронизация подписки RuStore (`POST /auth/subscription active=false`) обнуляет `subscription_until`,
-  и если бы промо лежало там — затёрлось бы. `hasAccess` = триал ИЛИ подписка ИЛИ `hasPromo(promo_until)`.
+  и если бы промо лежало там — затёрлось бы. `hasAccess` (доступ «Дачник Про») = подписка ИЛИ `hasPromo(promo_until)`.
   lifetime = `promo_until` в далёком будущем (`LIFETIME_UNTIL` 2999), порог lifetime — `2900`.
 - **Погашение** `POST /promo/redeem {code}`: атомарный claim
   `UPDATE promo_codes SET redeemed_by=$user WHERE code=$1 AND redeemed_by IS NULL RETURNING type`
@@ -644,10 +649,11 @@ ModalBottomSheet(
   `/auth/me` отдаёт `promo_active`/`promo_lifetime` → `UserProfile`. Код нормализуется `trim().uppercase()`.
 - **Android**: поле ввода на `PaywallScreen` → `PaywallViewModel.redeemPromo` →
   `SubscriptionManager.redeemPromo` (возвращает `PromoRedeemResponse`; после успеха `refresh()`).
-  `SubscriptionStatus.isAccessAllowed` включает `isPromo`; в Настройках приоритет
-  `подписка → промо → триал`, кнопка «Купить» скрыта при `isSubscribed || isPromo`.
+  `SubscriptionStatus.isAccessAllowed` = `isSubscribed || isPromo` (free-тариф в это не входит —
+  он не «доступ включён/выключен», а лимит по числу посадок); в Настройках приоритет
+  `подписка → промо → free-тариф`, кнопка «Купить» скрыта при `isSubscribed || isPromo`.
 - **Навигация Paywall — по явному событию `accessGranted`, НЕ по ambient-статусу.** Иначе экран,
-  открытый из настроек при активном доступе (триал/промо/подписка), моментально закрывался бы.
+  открытый из настроек при активном доступе (промо/подписка), моментально закрывался бы.
   Покупка/восстановление/промокод выставляют `accessGranted=true`; промо ещё показывает Toast-подтверждение.
 - **Поле ввода в скролле + клавиатура**: на прокручиваемой колонке Paywall — `Modifier.imePadding()`
   (манифест уже `windowSoftInputMode=adjustResize`), иначе клавиатура перекрывает поле промокода.

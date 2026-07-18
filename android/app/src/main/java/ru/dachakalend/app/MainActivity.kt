@@ -105,17 +105,13 @@ class MainActivity : ComponentActivity() {
                     tokenStorage.isLoggedIn() && tokenStorage.hasGarden() && !tokenStorage.isCoachDone()
                 }
 
-                // При старте проверяем доступ (триал или подписка) — гейт по PAYMENTS_ENABLED.
-                // Сейчас все сборки платные (rustore, gplay), флаг оставлен для ясности/будущего.
+                // При старте подтягиваем статус подписки (для бейджей в Настройках/Paywall).
+                // Free-тариф бессрочный (1 сад / N посадок) — паравок больше НЕ открывается
+                // автоматически при старте; сервер сам вернёт 402 на POST /plantings сверх лимита,
+                // и экран-инициатор откроет Paywall по месту (см. errorResult/isSubscriptionRequired).
                 LaunchedEffect(Unit) {
                     if (BuildConfig.PAYMENTS_ENABLED && tokenStorage.isLoggedIn() && tokenStorage.hasGarden()) {
                         subscriptionManager.refresh()
-                        if (!subscriptionManager.isAccessAllowed()) {
-                            navController.navigate(Screen.Paywall.route) {
-                                popUpTo(Screen.Today.route) { inclusive = true }
-                                launchSingleTop = true
-                            }
-                        }
                     }
                 }
 

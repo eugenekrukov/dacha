@@ -14,10 +14,23 @@ function makeMockDb(overrides = {}) {
   return { query: async () => ({ rows: [] }), ...overrides }
 }
 
+// Ответ на гейт free-лимита: free-пользователь (нет подписки/промо), COUNT ниже лимита по умолчанию.
+function gateQuery(sql, { subscribed = false, plantingCount = 0 } = {}) {
+  if (sql.includes('SELECT subscription_until, promo_until, store FROM users')) {
+    return { rows: [{ subscription_until: subscribed ? new Date(Date.now() + 86400000) : null, promo_until: null, store: null }] }
+  }
+  if (sql.includes('COUNT(*) FROM plantings')) {
+    return { rows: [{ count: String(plantingCount) }] }
+  }
+  return null
+}
+
 describe('POST /plantings', () => {
   it('создаёт посадку со stage=sowing и возвращает 201', async () => {
     const app = await buildApp(makeMockDb({
       query: async (sql) => {
+        const gated = gateQuery(sql)
+        if (gated) return gated
         // Проверка владельца участка проходит
         if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
         if (sql.includes('INSERT INTO plantings')) return { rows: [PLANTING] }
@@ -33,6 +46,48 @@ describe('POST /plantings', () => {
 
     expect(res.status).toBe(201)
     expect(res.body.stage).toBe('sowing')
+    await app.close()
+  })
+
+  it('free-пользователь на лимите (3 активных посадки) → 402 plan_limit_reached', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        const gated = gateQuery(sql, { plantingCount: 3 })
+        if (gated) return gated
+        if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ garden_id: 1, crop_id: 1 })
+
+    expect(res.status).toBe(402)
+    expect(res.body.error).toBe('plan_limit_reached')
+    await app.close()
+  })
+
+  it('подписчик «Дачник Про» создаёт посадку сверх лимита свободно', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        const gated = gateQuery(sql, { subscribed: true, plantingCount: 10 })
+        if (gated) return gated
+        if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
+        if (sql.includes('INSERT INTO plantings')) return { rows: [PLANTING] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ garden_id: 1, crop_id: 1 })
+
+    expect(res.status).toBe(201)
     await app.close()
   })
 
@@ -62,6 +117,8 @@ describe('POST /plantings', () => {
   it('принимает bed_id и проверяет, что грядка принадлежит тому же участку', async () => {
     const app = await buildApp(makeMockDb({
       query: async (sql) => {
+        const gated = gateQuery(sql)
+        if (gated) return gated
         if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
         if (sql.includes('FROM garden_beds')) return { rows: [{ ok: 1 }] }
         if (sql.includes('INSERT INTO plantings')) return { rows: [{ ...PLANTING, bed_id: 10 }] }
@@ -83,6 +140,8 @@ describe('POST /plantings', () => {
   it('400 если bed_id не принадлежит указанному участку', async () => {
     const app = await buildApp(makeMockDb({
       query: async (sql) => {
+        const gated = gateQuery(sql)
+        if (gated) return gated
         if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
         if (sql.includes('FROM garden_beds')) return { rows: [] }
         return { rows: [] }

@@ -19,17 +19,18 @@ object SubscriptionProduct {
 
 data class SubscriptionStatus(
     val isSubscribed: Boolean = false,
-    val isTrialActive: Boolean = false,
-    val trialDaysLeft: Int = 0,
     val isPromo: Boolean = false,          // активен промо-доступ (по коду)
     val isPromoLifetime: Boolean = false,  // промо «навсегда»
     val promoUntil: String? = null,        // ISO-дата окончания промо-доступа (null = нет/вечно)
     val subscriptionUntil: String? = null, // ISO-дата окончания подписки (null = нет)
     val autoRenew: Boolean = false,        // включено ли автопродление
     val plan: String? = null,              // текущий тариф (monthly/yearly)
+    val plantingsLimit: Int = 3,           // лимит free-тарифа (1 сад / N посадок, без ограничения по времени)
     val isLoading: Boolean = false
 ) {
-    val isAccessAllowed: Boolean get() = isSubscribed || isTrialActive || isPromo
+    // Free-тариф бессрочный (лимит по числу посадок, не по времени) — доступ к самому приложению
+    // есть всегда; isAccessAllowed отражает только «Дачник Про» (снят лимит посадок).
+    val isAccessAllowed: Boolean get() = isSubscribed || isPromo
 }
 
 /**
@@ -43,16 +44,10 @@ class SubscriptionManager @Inject constructor(
     private val authRepository: AuthRepository,
     private val billingRepository: BillingRepository
 ) {
-    private val _status = MutableStateFlow(
-        SubscriptionStatus(
-            isTrialActive = tokenStorage.isTrialActive(),
-            trialDaysLeft = tokenStorage.trialDaysLeft(),
-            isLoading     = true
-        )
-    )
+    private val _status = MutableStateFlow(SubscriptionStatus(isLoading = true))
     val status: StateFlow<SubscriptionStatus> = _status.asStateFlow()
 
-    /** Перечитывает статус доступа с сервера (триал/подписка/промо). Офлайн → фолбэк на TokenStorage. */
+    /** Перечитывает статус доступа с сервера (подписка/промо/лимит free-тарифа). */
     suspend fun refresh() {
         _status.value = _status.value.copy(isLoading = true)
         when (val me = authRepository.me()) {
@@ -60,24 +55,19 @@ class SubscriptionManager @Inject constructor(
                 val d = me.data
                 _status.value = SubscriptionStatus(
                     isSubscribed      = d.subscribed,
-                    isTrialActive     = d.trialActive,
-                    trialDaysLeft     = d.trialDaysLeft,
                     isPromo           = d.promoActive,
                     isPromoLifetime   = d.promoLifetime,
                     promoUntil        = d.promoUntil,
                     subscriptionUntil = d.subscriptionUntil,
                     autoRenew         = d.autoRenew,
                     plan              = d.plan,
+                    plantingsLimit    = d.plantingsLimit,
                     isLoading         = false
                 )
             }
             else -> {
-                // Сетевая ошибка: триал из локального хранилища, остальное оставляем как было.
-                _status.value = _status.value.copy(
-                    isTrialActive = tokenStorage.isTrialActive(),
-                    trialDaysLeft = tokenStorage.trialDaysLeft(),
-                    isLoading     = false
-                )
+                // Сетевая ошибка: оставляем статус как был, снимаем только isLoading.
+                _status.value = _status.value.copy(isLoading = false)
             }
         }
     }

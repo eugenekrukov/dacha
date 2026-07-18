@@ -20,13 +20,11 @@ const PLANS: { id: BillingPlan; title: string; price: string; note: string; badg
   { id: 'monthly', title: 'Месяц', price: '299 ₽', note: 'оплата ежемесячно' },
 ]
 
-// Что входит в «Дачник Про» (доступ к записи/планированию; без подписки — только просмотр).
+// Что входит в «Дачник Про» сверх бесплатного тарифа (1 сад, до 3 посадок — без ограничения по времени).
 const BENEFITS = [
-  'Неограниченные посадки и грядки',
-  'Запись ухода и журнал действий',
-  'Умные напоминания: полив, подкормка, заморозки',
-  'Учёт урожая и аналитика по сезонам',
-  'Полный справочник культур, болезней и вредителей',
+  'Неограниченное число посадок',
+  'До 30 фото на посадку вместо 3',
+  'Поддержка развития приложения',
 ]
 
 export default function PaywallScreen() {
@@ -86,7 +84,8 @@ export default function PaywallScreen() {
     }
   }
 
-  const hasAccess = user?.subscribed || user?.promo_active || user?.trial_active
+  const hasAccess = user?.subscribed || user?.promo_active
+  const plantingsLimit = user?.plantings_limit ?? 3
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
@@ -96,25 +95,26 @@ export default function PaywallScreen() {
         <div className="dacha-card p-4 font-semibold text-tertiary">
           {user?.subscribed
             ? `Подписка активна${user.subscription_until ? ` до ${formatDate(user.subscription_until)}` : ''}`
-            : user?.promo_active
-              ? 'Доступ по промокоду активен'
-              : `Пробный период: осталось ${user?.trial_days_left ?? 0} дн.`}
+            : 'Доступ по промокоду активен'}
         </div>
       )}
 
       {!hasAccess && (
         <div className="dacha-card flex items-center gap-2 bg-tertiary/10 p-4 font-bold text-tertiary">
           <Sparkles size={20} aria-hidden className="shrink-0" />
-          Первые 7 дней — бесплатно. Оплата позже, автосписаний нет.
+          Бесплатно навсегда: 1 сад и до {plantingsLimit} посадок одновременно.
         </div>
       )}
 
-      {/* U7: ценностный блок — не теряйте набранный сезон */}
+      {/* U7: ценностный блок — прогресс остаётся с вами и на бесплатном тарифе */}
       {progress && (progress.plantings > 0 || progress.actions > 0) && (
         <div className="dacha-card bg-primary/10 p-4 font-semibold">
           Вы уже добавили {plural(progress.plantings, 'посадку', 'посадки', 'посадок')} и записали{' '}
-          {plural(progress.actions, 'действие', 'действия', 'действий')}.
-          {' '}С «Дачник Про» весь ваш сезон останется с вами — не теряйте набранный темп.
+          {plural(progress.actions, 'действие', 'действия', 'действий')} — всё это остаётся с вами
+          и на бесплатном тарифе.
+          {progress.plantings >= plantingsLimit
+            ? ' Достигнут лимит одновременных посадок — «Дачник Про» снимает его.'
+            : ''}
         </div>
       )}
 

@@ -16,8 +16,8 @@ module.exports = async function (fastify, opts) {
     return res.rows.length > 0
   }
 
-  // POST /actions — платное действие: гейт по триалу/подписке
-  fastify.post('/', { onRequest: [fastify.authenticate, fastify.requireAccess] }, async (request, reply) => {
+  // POST /actions — свободно в рамках free-лимита посадок (гейт — на создании посадки, POST /plantings)
+  fastify.post('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
     const { planting_id, notes } = request.body
     const action_type = request.body.action_type ?? request.body.type
     const auto = request.body.auto === true // заметка подставлена автоматически (не введена юзером)

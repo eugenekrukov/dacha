@@ -1,8 +1,5 @@
 'use strict'
 
-// Длительность пробного периода (дней). Сервер — источник правды по триалу.
-const TRIAL_DAYS = 7
-
 // Сколько держим подписку «подтверждённой» после синхронизации с клиента.
 // Клиент синхронизирует статус при каждом запуске; если перестал (отписка/удаление) —
 // окно истекает и доступ закрывается. Подписка валидируется в RuStore на клиенте.
@@ -15,13 +12,10 @@ const LIFETIME_UNTIL = '2999-12-31T00:00:00.000Z'
 // Порог, выше которого promo_until трактуется как «навсегда» (для отображения на клиенте).
 const LIFETIME_THRESHOLD = new Date('2900-01-01T00:00:00.000Z').getTime()
 
-/** { trial_active, trial_days_left } по дате старта триала. */
-function trialInfo(trialStartedAt) {
-  if (!trialStartedAt) return { trial_active: false, trial_days_left: 0 }
-  const daysSince = Math.floor((Date.now() - new Date(trialStartedAt).getTime()) / 86_400_000)
-  const daysLeft = Math.max(0, TRIAL_DAYS - daysSince)
-  return { trial_active: daysLeft > 0, trial_days_left: daysLeft }
-}
+// Free-тариф (бессрочно, без триала, с 2026-07-18): 1 сад (и так гейтится POST /gardens
+// идемпотентностью) + до FREE_PLANTING_LIMIT одновременно активных посадок (stage <> 'done').
+// Выше лимита — только «Дачник Про» (requireAccess/hasAccess).
+const FREE_PLANTING_LIMIT = 3
 
 /** Активна ли подписка по серверной отметке. */
 function isSubscribed(subscriptionUntil) {
@@ -48,12 +42,11 @@ function isAdSupportedStore(store) {
 }
 
 /**
- * Есть ли доступ к платным действиям: рекламный магазин (всегда) ИЛИ активный триал ИЛИ
- * подписка ИЛИ промо-доступ.
+ * Есть ли доступ «Дачник Про» (сверх free-лимита): рекламный магазин (всегда) ИЛИ
+ * активная подписка ИЛИ промо-доступ.
  */
 function hasAccess(user) {
   return isAdSupportedStore(user && user.store) ||
-    trialInfo(user && user.trial_started_at).trial_active ||
     isSubscribed(user && user.subscription_until) ||
     hasPromo(user && user.promo_until)
 }
@@ -79,7 +72,7 @@ function revokeSubscription(currentUntil, days) {
 }
 
 module.exports = {
-  TRIAL_DAYS, SUBSCRIPTION_WINDOW_DAYS, PROMO_MONTH_DAYS, LIFETIME_UNTIL,
-  trialInfo, isSubscribed, hasPromo, isLifetimePromo, hasAccess, extendSubscription,
+  SUBSCRIPTION_WINDOW_DAYS, PROMO_MONTH_DAYS, LIFETIME_UNTIL, FREE_PLANTING_LIMIT,
+  isSubscribed, hasPromo, isLifetimePromo, hasAccess, extendSubscription,
   revokeSubscription, isAdSupportedStore
 }
