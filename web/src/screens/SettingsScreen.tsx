@@ -109,6 +109,15 @@ export default function SettingsScreen() {
         <a className="text-link" href="https://vk.ru/calendacha" target="_blank" rel="noopener">
           Мы в ВКонтакте
         </a>
+        <a className="text-link" href="https://t.me/calendacha" target="_blank" rel="noopener">
+          Мы в Telegram
+        </a>
+        <a className="text-link" href="https://dzen.ru/calendacha" target="_blank" rel="noopener">
+          Мы в Дзене
+        </a>
+        <a className="text-link" href="https://ok.ru/group/70000052629058" target="_blank" rel="noopener">
+          Мы в Одноклассниках
+        </a>
       </section>
     </div>
   )

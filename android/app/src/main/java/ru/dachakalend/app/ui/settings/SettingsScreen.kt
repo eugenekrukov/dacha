@@ -201,6 +201,12 @@ fun SettingsScreen(
             SettingsActionRow("Поддержка: dacha@studio1008.com") { openUrl("mailto:dacha@studio1008.com") }
             HorizontalDivider()
             SettingsActionRow("Мы в ВКонтакте") { openUrl("https://vk.ru/calendacha") }
+            HorizontalDivider()
+            SettingsActionRow("Мы в Telegram") { openUrl("https://t.me/calendacha") }
+            HorizontalDivider()
+            SettingsActionRow("Мы в Дзене") { openUrl("https://dzen.ru/calendacha") }
+            HorizontalDivider()
+            SettingsActionRow("Мы в Одноклассниках") { openUrl("https://ok.ru/group/70000052629058") }
 
             Spacer(Modifier.height(24.dp))
         }

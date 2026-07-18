@@ -125,6 +125,38 @@ location /spravochnik/ {
 Затем `sudo nginx -t && sudo systemctl reload nginx`. Location-блок нужен один раз,
 дальше только перегенерация содержимого.
 
+### Блог `/blog/` (статьи из контент-плана ВК/Telegram/Дзен)
+
+Генерируется из файлов `docs/vk-content/*.md` (тот же формат, что грузится в очередь
+автопостера, см. «Автопостер ВК» ниже) — НЕ из БД, парсер общий с `vk-queue.js`
+(`src/services/vkContent.js`). **В блог не идут статьи, уже опубликованные в ВК** — только
+те, что появятся «с завтра» (уточнение владельца 2026-07-18). Фильтр — по дате поста
+(`scheduledAt > сегодня` на момент запуска), а не по файлу: можно безопасно гонять
+любой файл контент-плана, включая текущий батч — уже прошедшие даты внутри него
+просто пропускаются каждый раз.
+
+```powershell
+ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/generate-blog.js ../docs/vk-content/<файл>.md'
+ssh hetzner 'rm -rf /var/www/dacha-landing/blog && cp -r /var/www/dacha-api/landing/blog /var/www/dacha-landing/blog && cp /var/www/dacha-api/landing/sitemap.xml /var/www/dacha-landing/sitemap.xml'
+```
+
+Идемпотентно — повторный прогон того же файла не плодит дублей (состояние в
+`backend/scripts/.blog-manifest.json`, не в git, живёт на VPS постоянно — `git reset --hard`
+его не трогает, т.к. файл untracked). Требуется свой location-блок в nginx (один раз,
+как для `/spravochnik/` выше):
+
+```nginx
+location /blog/ {
+    root /var/www/dacha-landing;
+    try_files $uri $uri/ =404;
+}
+```
+
+Затем `sudo nginx -t && sudo systemctl reload nginx`. `sitemap.xml` общий со `/spravochnik/` —
+оба генератора мержат файл по своей зоне URL (`lib/seoPage.js` `mergeSitemapUrls`), не
+затирая записи друг друга — порядок прогона `generate-spravochnik.js`/`generate-blog.js`
+не важен.
+
 ### IndexNow (быстрая индексация Яндекс/Bing при добавлении страниц)
 
 Одноразовая настройка: сгенерировать ключ, положить файл-подтверждение `{ключ}.txt` в корень сайта
@@ -134,7 +166,8 @@ location /spravochnik/ {
 location = /{ключ}.txt { root /var/www/dacha-landing; }
 ```
 
-После каждой перегенерации `/spravochnik/`, если появились новые/удалённые страницы:
+После каждой перегенерации `/spravochnik/` или `/blog/`, если появились новые/удалённые страницы
+(скрипт берёт URL из общего `sitemap.xml`, платформу не различает):
 
 ```powershell
 ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/submit-indexnow.js'

@@ -213,7 +213,10 @@ function lifecycleHtml(heading, bodyHtml, ctaLabel, ctaUrl) {
          padding:12px 22px;border-radius:12px;font-weight:bold;display:inline-block">${ctaLabel}</a>
     </p>
     <p style="color:#888;font-size:12px">Вы получаете это письмо, потому что зарегистрировались в «${APP_NAME()}».
-      Мы в <a href="https://vk.ru/calendacha" style="color:#888">ВКонтакте</a>.</p>
+      Мы в <a href="https://vk.ru/calendacha" style="color:#888">ВКонтакте</a>,
+      <a href="https://t.me/calendacha" style="color:#888">Telegram</a>,
+      <a href="https://dzen.ru/calendacha" style="color:#888">Дзене</a> и
+      <a href="https://ok.ru/group/70000052629058" style="color:#888">Одноклассниках</a>.</p>
   </div>`
 }
 

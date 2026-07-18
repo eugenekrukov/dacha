@@ -19,10 +19,16 @@ const fs = require('fs')
 const path = require('path')
 const { translitToSlug } = require('../src/utils/translit')
 const { dayOfYearToDateLabel } = require('../src/utils/dayOfYear')
+const {
+  esc, writePage, countHtmlFiles, articleJsonLd, breadcrumbJsonLd, renderShell, mergeSitemapUrls
+} = require('./lib/seoPage')
 
 const SITE = 'https://dacha.studio1008.com'
 const OUT_DIR = path.join(__dirname, '..', '..', 'landing', 'spravochnik')
 const SITEMAP_PATH = path.join(__dirname, '..', '..', 'landing', 'sitemap.xml')
+// Страницы вне /spravochnik/, которые этот генератор тоже считает «своими» в sitemap.xml
+// (перезаписывает каждый прогон) — см. mergeSitemapUrls в lib/seoPage.js.
+const STATIC_PAGES = [`${SITE}/`, `${SITE}/offer`, `${SITE}/privacy`, `${SITE}/account-deletion`]
 
 const CATEGORY_LABELS = {
   vegetable: 'Овощи', berry: 'Ягоды', fruit: 'Фрукты', herb: 'Зелень', flower: 'Цветы'
@@ -32,12 +38,6 @@ const KIND_LABELS = {
 }
 
 let cropsById = new Map()
-
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ))
-}
 
 // SEO: title >60 симв. обрезается в сниппете поиска (для кириллицы порог даже
 // чуть жёстче латиницы). Приоритет при переполнении — отбросить бренд-суффикс
@@ -74,90 +74,6 @@ function textToHtml(text) {
     .split(/\n\s*\n/)
     .map(block => `<p>${esc(block).replace(/\n/g, '<br>')}</p>`)
     .join('\n')
-}
-
-function writePage(filePath, html) {
-  fs.writeFileSync(filePath, html, 'utf8')
-}
-
-function countHtmlFiles(dir) {
-  let count = 0
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) count += countHtmlFiles(full)
-    else if (entry.name.endsWith('.html')) count += 1
-  }
-  return count
-}
-
-function articleJsonLd(name, url) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: name,
-    url,
-    inLanguage: 'ru',
-    publisher: {
-      '@type': 'Person',
-      name: 'Крюков Евгений Владимирович',
-      email: 'dacha@studio1008.com'
-    }
-  }
-}
-
-function breadcrumbJsonLd(items) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: items.map((it, i) => ({
-      '@type': 'ListItem',
-      position: i + 1,
-      name: it.name,
-      item: it.url
-    }))
-  }
-}
-
-function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jsonLdBlocks }) {
-  const jsonLdHtml = (jsonLdBlocks || [])
-    .map(block => `<script type="application/ld+json">${JSON.stringify(block).replace(/</g, '\\u003c')}</script>`)
-    .join('\n')
-  return `<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${esc(title)}</title>
-<meta name="description" content="${esc(description)}">
-<link rel="canonical" href="${canonical}">
-<meta name="theme-color" content="#FF7B00">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="Календарь дачника">
-<meta property="og:title" content="${esc(title)}">
-<meta property="og:description" content="${esc(description)}">
-<meta property="og:url" content="${canonical}">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/spravochnik/assets/style.css">
-${jsonLdHtml}
-</head>
-<body>
-<header><div class="wrap"><a class="brand" href="/">🌻 Календарь дачника</a></div></header>
-<main><div class="wrap">
-<div class="breadcrumbs">${breadcrumbs}</div>
-${bodyHtml}
-</div></main>
-<footer><div class="wrap">
-<a href="/offer">Оферта</a> · <a href="/privacy">Политика конфиденциальности</a> · <a href="/">На главную</a>
-<div>© 2026 «Календарь дачника»</div>
-</div></footer>
-</body>
-</html>`
 }
 
 function renderHub() {
@@ -281,7 +197,6 @@ function renderEntryBody(entry, affectedCrops) {
 }
 
 function writeSitemap(crops, entries) {
-  const today = new Date().toISOString().slice(0, 10)
   const urls = [
     { loc: `${SITE}/`, priority: '1.0', freq: 'monthly' },
     { loc: `${SITE}/offer`, priority: '0.3', freq: 'yearly' },
@@ -293,18 +208,9 @@ function writeSitemap(crops, entries) {
     ...crops.map(c => ({ loc: `${SITE}/spravochnik/kultury/${c.slug}/`, priority: '0.4', freq: 'yearly' })),
     ...entries.map(e => ({ loc: `${SITE}/spravochnik/problemy/${e.slug}/`, priority: '0.4', freq: 'yearly' }))
   ]
-  const body = urls.map(u => `  <url>
-    <loc>${u.loc}</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>${u.freq}</changefreq>
-    <priority>${u.priority}</priority>
-  </url>`).join('\n')
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${body}
-</urlset>
-`
-  fs.writeFileSync(SITEMAP_PATH, xml, 'utf8')
+  // isOwned: статические страницы верхнего уровня + всё /spravochnik/* — остальное (например,
+  // записи блога от generate-blog.js) сохраняется как есть, не затирается этим прогоном.
+  mergeSitemapUrls(SITEMAP_PATH, (loc) => STATIC_PAGES.includes(loc) || loc.startsWith(`${SITE}/spravochnik/`), urls)
 }
 
 async function main() {
