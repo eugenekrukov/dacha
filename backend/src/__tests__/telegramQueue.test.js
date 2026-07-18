@@ -7,10 +7,12 @@ const ENV = { TELEGRAM_BOT_TOKEN: 'tok', TELEGRAM_CHANNEL_ID: '@calendacha' }
 
 function fakeDb(dueRows = []) {
   const updates = []
+  const selects = []
   return {
     updates,
+    selects,
     query: async (sql, args) => {
-      if (/SELECT[\s\S]*FROM vk_post_queue/i.test(sql)) return { rows: dueRows }
+      if (/SELECT[\s\S]*FROM vk_post_queue/i.test(sql)) { selects.push(sql); return { rows: dueRows } }
       if (/^\s*UPDATE vk_post_queue/i.test(sql)) { updates.push({ sql, args }); return { rows: [] } }
       return { rows: [] }
     }
@@ -46,7 +48,13 @@ describe('telegramQueueJob', () => {
     expect(upd.args).toEqual(['https://t.me/calendacha/42', 1])
   })
 
-  it('пост ещё не опубликован в ВК (vk_post_url пуст) → continueUrl = фолбэк-ссылка на лендинг', async () => {
+  it('выборка требует status=posted (ВК) — в Telegram уходит только после публикации в ВК', async () => {
+    const db = fakeDb([])
+    await runTelegramQueue(db, { tg: fakeTgSvc(), env: ENV })
+    expect(db.selects[0]).toMatch(/status\s*=\s*'posted'/)
+  })
+
+  it('vk_post_url пуст (рассинхрон, редкий случай) → continueUrl = фолбэк-ссылка на лендинг', async () => {
     const db = fakeDb([{ id: 3, body: 'текст', tags: null, image_url: null, vk_post_url: null, telegram_attempts: 0 }])
     const tg = fakeTgSvc(44)
     const r = await runTelegramQueue(db, { tg, env: ENV })

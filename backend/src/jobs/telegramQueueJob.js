@@ -2,8 +2,12 @@
 
 // Агент-автопостер Telegram: фоновый джоб публикует «созревшие» посты из той же очереди, что
 // наполняется для ВК (vk_post_queue, backend/scripts/vk-queue.js load <file>), в Telegram-канал.
-// Статус независим от `status` (ВК) — колонки telegram_* (миграция 058). Движок постинга —
-// services/telegramService.js. Включается заданием TELEGRAM_BOT_TOKEN + TELEGRAM_CHANNEL_ID.
+// Статус публикации независим от `status` (ВК) — колонки telegram_* (миграция 058), но
+// ПОРЯДОК важен: пост уходит в Telegram только ПОСЛЕ того, как опубликован в ВК (status='posted'),
+// потому что ссылка «Читать далее в ВК» в Telegram-посте — это как раз vk_post_url. Пост со
+// scheduled_at в прошлом, но ещё не опубликованный в ВК, просто ждёт следующего прогона.
+// Движок постинга — services/telegramService.js. Включается заданием TELEGRAM_BOT_TOKEN +
+// TELEGRAM_CHANNEL_ID.
 
 const cron = require('node-cron')
 const telegramService = require('../services/telegramService')
@@ -11,10 +15,6 @@ const { queueMessage } = require('../services/vkContent')
 
 const MAX_ATTEMPTS = 3
 const BATCH = 2 // постов за прогон — мягко к лимитам Bot API
-
-// Фолбэк для «читать полностью», если пост ещё не опубликован в ВК (vk_post_url пуст) — редкий
-// краевой случай, обе очереди читают одно и то же расписание, но порядок прогона не гарантирован.
-const fallbackContinueUrl = (env) => env.TELEGRAM_POST_LINK || 'https://dacha.studio1008.com'
 
 function isEnabled(env = process.env) {
   return !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHANNEL_ID)
@@ -33,7 +33,7 @@ async function runTelegramQueue(db, { tg: tgSvc = telegramService, env = process
   const due = await db.query(
     `SELECT id, title, body, tags, image_url, vk_post_url, telegram_attempts
        FROM vk_post_queue
-      WHERE telegram_status = 'pending' AND scheduled_at <= NOW()
+      WHERE telegram_status = 'pending' AND status = 'posted' AND scheduled_at <= NOW()
       ORDER BY scheduled_at
       LIMIT ${BATCH}`
   )
@@ -43,7 +43,9 @@ async function runTelegramQueue(db, { tg: tgSvc = telegramService, env = process
   let failed = 0
   for (const row of due.rows) {
     try {
-      const continueUrl = row.vk_post_url || fallbackContinueUrl(env)
+      // status='posted' в WHERE выше гарантирует vk_post_url — но на случай рассинхрона (пост
+      // отметили posted вручную без URL) не валим публикацию, а подстраховываемся лендингом.
+      const continueUrl = row.vk_post_url || env.TELEGRAM_POST_LINK || 'https://dacha.studio1008.com'
       const body = queueMessage({ body: row.body, tags: row.tags })
       const { messageId } = await tgSvc.sendPost({ token, channelId, title: row.title, body, continueUrl, photoUrl: row.image_url || undefined })
       const url = tgSvc.postUrl(channelId, messageId)
