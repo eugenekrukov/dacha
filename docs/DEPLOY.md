@@ -203,6 +203,11 @@ idle — деплоить безопасно.
 `sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/058_telegram_queue_columns.sql`
 (как и остальные миграции на VPS — `dacha_user` не имеет прав DDL).
 
+**Еженедельный промо-пост** (`jobs/telegramWeeklyPromoJob.js`) — единственное место, где в канале
+всё же появляется ссылка на лендинг: фиксированный текст, по понедельникам в 10:00 МСК (cron с
+явной `timezone: 'Europe/Moscow'`, сервер сам в UTC). Включается тем же env, что и очередь.
+Текст поста — константа `PROMO_TEXT` в файле джоба, править прямо там.
+
 **`.env` (Hetzner):**
 ```
 TELEGRAM_BOT_TOKEN=8333482648:AAFY...        # токен от BotFather, бот @calendacha_bot

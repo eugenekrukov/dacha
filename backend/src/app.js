@@ -129,6 +129,7 @@ const { startSubscriptionEmailsJob } = require('./jobs/subscriptionEmailsJob')
 const { startPhotoSweepJob } = require('./jobs/photoSweepJob')
 const { startVkQueueJob } = require('./jobs/vkQueueJob')
 const { startTelegramQueueJob } = require('./jobs/telegramQueueJob')
+const { startTelegramWeeklyPromoJob } = require('./jobs/telegramWeeklyPromoJob')
 app.addHook('onReady', async () => {
   startWeatherJob(app.db)
   startCareRemindersJob(app.db)
@@ -139,6 +140,7 @@ app.addHook('onReady', async () => {
   startPhotoSweepJob(app.db)
   startVkQueueJob(app.db)
   startTelegramQueueJob(app.db)
+  startTelegramWeeklyPromoJob()
 })
 
 // Start
