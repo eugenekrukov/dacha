@@ -42,4 +42,32 @@ class ReminderScheduler @Inject constructor(private val context: Context) {
     fun cancel(reminderId: Int) {
         WorkManager.getInstance(context).cancelUniqueWork("reminder_$reminderId")
     }
+
+    // ponytail: локальный периодический пуш через WorkManager, без backend-таблицы reminders —
+    // та рассчитана на разовые remind_at, а не на повторяющийся интервал. Если понадобится синк
+    // между устройствами — переносить на сервер (интервал в таблице + джоб по образцу careRemindersJob).
+    fun scheduleRecurring(plantingId: Int, title: String, message: String, intervalDays: Long) {
+        val data = workDataOf(
+            ReminderWorker.KEY_TITLE to title,
+            ReminderWorker.KEY_MESSAGE to message,
+            ReminderWorker.KEY_ID to plantingId
+        )
+        val request = PeriodicWorkRequestBuilder<ReminderWorker>(intervalDays, TimeUnit.DAYS)
+            .setInitialDelay(intervalDays, TimeUnit.DAYS)
+            .setInputData(data)
+            .addTag(recurringWorkName(plantingId))
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            recurringWorkName(plantingId),
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request
+        )
+    }
+
+    fun cancelRecurring(plantingId: Int) {
+        WorkManager.getInstance(context).cancelUniqueWork(recurringWorkName(plantingId))
+    }
+
+    private fun recurringWorkName(plantingId: Int) = "reminder_recurring_$plantingId"
 }

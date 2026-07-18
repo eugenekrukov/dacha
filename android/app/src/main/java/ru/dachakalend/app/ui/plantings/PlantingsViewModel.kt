@@ -18,6 +18,7 @@ import ru.dachakalend.app.data.repository.CropsRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.navigation.Screen
+import ru.dachakalend.app.notification.ReminderScheduler
 import ru.dachakalend.app.ui.actions.careTaskActionType
 import javax.inject.Inject
 
@@ -37,6 +38,7 @@ data class PlantingsUiState(
     val showInfoSheet: Planting? = null,
     val confirmDeletePlanting: Planting? = null,
     val confirmFinishSeason: Planting? = null,
+    val reminderPlanting: Planting? = null,
     val pendingTasks: Map<Int, TokenStorage.PendingTaskInfo> = emptyMap(),
     val snoozedTaskKeys: Set<String> = emptySet(),
     val datesNeedCheck: Boolean = false
@@ -81,6 +83,7 @@ class PlantingsViewModel @Inject constructor(
     private val cropsRepository: CropsRepository,
     private val bedsRepository: BedsRepository,
     private val tokenStorage: TokenStorage,
+    private val reminderScheduler: ReminderScheduler,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -359,6 +362,29 @@ class PlantingsViewModel @Inject constructor(
             snoozedTaskKeys = tokenStorage.getSnoozedTasksForToday()
         )
         loadPlantings(silent = true)
+    }
+
+    fun requestReminder(planting: Planting) {
+        _uiState.value = _uiState.value.copy(reminderPlanting = planting)
+    }
+
+    fun dismissReminder() {
+        _uiState.value = _uiState.value.copy(reminderPlanting = null)
+    }
+
+    fun setBedReminder(plantingId: Int, cropName: String?, intervalDays: Long) {
+        reminderScheduler.scheduleRecurring(
+            plantingId = plantingId,
+            title = "Осмотр грядки",
+            message = "Проверьте ${cropName ?: "грядку"} — самое время для осмотра",
+            intervalDays = intervalDays
+        )
+        _uiState.value = _uiState.value.copy(reminderPlanting = null, successMessage = "Напоминание поставлено")
+    }
+
+    fun cancelBedReminder(plantingId: Int) {
+        reminderScheduler.cancelRecurring(plantingId)
+        _uiState.value = _uiState.value.copy(successMessage = "Напоминание отключено")
     }
 
     fun clearMessage() {

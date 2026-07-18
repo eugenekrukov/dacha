@@ -261,7 +261,9 @@ fun PlantingsScreen(
                         onEditInfo       = { viewModel.openEditSheet(planting) },
                         onDelete         = { viewModel.requestDelete(planting) },
                         onFinishSeason = { viewModel.requestFinishSeason(planting) },
-                        onInfo         = { onOpenPlantingInfo(planting.id) }
+                        onInfo         = { onOpenPlantingInfo(planting.id) },
+                        onSetReminder    = { viewModel.requestReminder(planting) },
+                        onCancelReminder = { viewModel.cancelBedReminder(planting.id) }
                     )
                 }
             }
@@ -374,6 +376,43 @@ fun PlantingsScreen(
         )
     }
 
+    // Диалог выбора интервала напоминания об осмотре грядки
+    state.reminderPlanting?.let { planting ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissReminder() },
+            title = {
+                Text(
+                    "Напоминать об осмотре",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "«${planting.cropName ?: "Посадка"}»: как часто напоминать проверить грядку?",
+                        fontFamily = NunitoFamily
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    listOf(1L to "Каждый день", 2L to "Раз в 2 дня", 3L to "Раз в 3 дня").forEach { (days, label) ->
+                        TextButton(
+                            onClick = { viewModel.setBedReminder(planting.id, planting.cropName, days) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(label, fontFamily = NunitoFamily, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissReminder() }) {
+                    Text("Отмена", fontFamily = NunitoFamily)
+                }
+            }
+        )
+    }
+
     // Шторка редактирования существующей посадки
     state.editingPlanting?.let { planting ->
         PlantingEditBottomSheet(
@@ -460,7 +499,9 @@ private fun PlantingCard(
     onEditInfo: () -> Unit,
     onDelete: () -> Unit,
     onFinishSeason: () -> Unit,
-    onInfo: () -> Unit
+    onInfo: () -> Unit,
+    onSetReminder: () -> Unit,
+    onCancelReminder: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -653,6 +694,14 @@ private fun PlantingCard(
                             DropdownMenuItem(
                                 text = { Text("Редактировать информацию", fontFamily = NunitoFamily) },
                                 onClick = { menuExpanded = false; onEditInfo() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Напоминание об осмотре", fontFamily = NunitoFamily) },
+                                onClick = { menuExpanded = false; onSetReminder() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Отключить напоминание", fontFamily = NunitoFamily) },
+                                onClick = { menuExpanded = false; onCancelReminder() }
                             )
                             DropdownMenuItem(
                                 text = { Text("Завершить сезон", fontFamily = NunitoFamily) },
