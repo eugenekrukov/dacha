@@ -32,12 +32,13 @@ describe('telegramQueueJob', () => {
     expect(isEnabled(ENV)).toBe(true)
   })
 
-  it('публикует созревший пост (фото + теги), continueUrl = пост в ВК, и помечает telegram_status=posted', async () => {
-    const db = fakeDb([{ id: 1, body: 'текст', tags: '#дача', image_url: 'https://img/x.jpg', vk_post_url: 'https://vk.com/wall-1_5', telegram_attempts: 0 }])
+  it('публикует созревший пост (заголовок + фото + теги), continueUrl = пост в ВК, и помечает telegram_status=posted', async () => {
+    const db = fakeDb([{ id: 1, title: 'Полив в жару', body: 'текст', tags: '#дача', image_url: 'https://img/x.jpg', vk_post_url: 'https://vk.com/wall-1_5', telegram_attempts: 0 }])
     const tg = fakeTgSvc(42)
     const r = await runTelegramQueue(db, { tg, env: ENV })
     expect(r.posted).toBe(1)
     const call = tg.calls.sendPost[0]
+    expect(call.title).toBe('Полив в жару')
     expect(call.body).toBe(queueMessage({ body: 'текст', tags: '#дача' }))
     expect(call.continueUrl).toBe('https://vk.com/wall-1_5')
     expect(call.photoUrl).toBe('https://img/x.jpg')

@@ -1,24 +1,27 @@
 'use strict'
 
 // Постинг в Telegram-канал через Bot API: одно сообщение на пост — sendMessage (без фото) или
-// sendPhoto с caption (с фото). Никакой ссылки на лендинг в каждом посте (это отдельная рекламная
-// история, не контентная) — только `continueUrl` (пост в ВК с полным текстом), и то лишь когда
-// текст не влезает в лимит подписи и его пришлось обрезать.
+// sendPhoto с caption (с фото). HTML-форматирование (parse_mode: 'HTML'): заголовок жирным,
+// ссылка «читать далее» — как кликабельный текст, а не голый URL. Никакой ссылки на лендинг в
+// каждом посте (это отдельная рекламная история) — только `continueUrl` (пост в ВК с полным
+// текстом), и то лишь когда текст не влезает в лимит и его пришлось обрезать.
 //
 // Требует Node 18+/20+ (глобальный fetch) — внешних зависимостей нет.
 
 const API = 'https://api.telegram.org/bot'
-// Лимит подписи к фото у Bot API — 1024 символа (у обычного sendMessage — 4096, у ВК такого
+// Лимиты Bot API считаются «after entities parsing» — по видимому тексту, теги разметки в счёт
+// не идут. Лимит подписи к фото — 1024 символа, у обычного sendMessage — 4096 (у ВК такого
 // ограничения на постах вообще нет). ponytail: считаем по .length (UTF-16 code units), не по
 // точным правилам Telegram (эмодзи/суррогатные пары) — для текста постов достаточно.
 const CAPTION_LIMIT = 1024
 const MESSAGE_LIMIT = 4096
+const READ_MORE_TEXT = 'Читать далее в ВК'
 
 async function callApi(token, method, body, fetchImpl) {
   const res = await fetchImpl(`${API}${token}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ ...body, parse_mode: 'HTML' })
   })
   const json = await res.json()
   if (!json.ok) {
@@ -27,22 +30,35 @@ async function callApi(token, method, body, fetchImpl) {
   return { messageId: json.result.message_id }
 }
 
-// Обрезает body под лимит `limit`, добавляя «Читать полностью: {continueUrl}» — так читатель
-// всегда знает, где продолжение, вместо обрыва посреди слова. Режет по границе пробела, если она
-// рядом (не рвать слово посередине).
-function fitText(body, continueUrl, limit) {
-  const suffix = `\n\nЧитать полностью: ${continueUrl}`
+// Экранирование для HTML-режима Bot API — обязательно для текста между тегами.
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// Собирает HTML-текст поста: <b>заголовок</b> + тело. Если видимая длина (заголовок+тело)
+// превышает лимит — обрезает тело по границе пробела (не рвать слово посередине) и добавляет
+// кликабельную ссылку «Читать далее в ВК» вместо голого URL.
+function buildText({ title, body, continueUrl, limit }) {
+  const titleHtml = title ? `<b>${escapeHtml(title)}</b>\n\n` : ''
+  const titleVisibleLen = title ? title.length + 2 : 0
+
+  if (titleVisibleLen + body.length <= limit) {
+    return `${titleHtml}${escapeHtml(body)}`
+  }
+
+  const linkHtml = `<a href="${continueUrl}">${READ_MORE_TEXT}</a>`
   const ellipsis = '…'
-  const budget = Math.max(limit - suffix.length - ellipsis.length, 0)
+  const suffixVisibleLen = 2 + READ_MORE_TEXT.length // "\n\n" + видимый текст ссылки
+  const budget = Math.max(limit - titleVisibleLen - suffixVisibleLen - ellipsis.length, 0)
   let cut = body.slice(0, budget)
   const lastSpace = cut.lastIndexOf(' ')
   if (lastSpace > budget - 40) cut = cut.slice(0, lastSpace)
-  return `${cut.trimEnd()}${ellipsis}${suffix}`
+  return `${titleHtml}${escapeHtml(cut.trimEnd())}${ellipsis}\n\n${linkHtml}`
 }
 
-async function sendPost({ token, channelId, body, continueUrl, photoUrl }, fetchImpl = fetch) {
+async function sendPost({ token, channelId, title, body, continueUrl, photoUrl }, fetchImpl = fetch) {
   const limit = photoUrl ? CAPTION_LIMIT : MESSAGE_LIMIT
-  const text = body.length <= limit ? body : fitText(body, continueUrl, limit)
+  const text = buildText({ title, body, continueUrl, limit })
   if (!photoUrl) {
     return callApi(token, 'sendMessage', { chat_id: channelId, text }, fetchImpl)
   }

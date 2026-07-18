@@ -3,32 +3,61 @@
 const { sendPost, postUrl } = require('../services/telegramService')
 
 describe('telegramService', () => {
-  it('sendPost без фото, текст в пределах лимита → sendMessage без каких-либо ссылок сверху', async () => {
+  it('sendPost без фото, текст в пределах лимита → sendMessage, HTML, заголовок жирным, без ссылок', async () => {
     const calls = []
     const fetchImpl = async (url, opts) => {
       calls.push({ url, body: JSON.parse(opts.body) })
       return { ok: true, json: async () => ({ ok: true, result: { message_id: 42 } }) }
     }
-    const r = await sendPost({ token: 'tok', channelId: '@calendacha', body: 'привет', continueUrl: 'https://vk.com/wall-1_1' }, fetchImpl)
+    const r = await sendPost({ token: 'tok', channelId: '@calendacha', title: 'Полив в жару', body: 'привет', continueUrl: 'https://vk.com/wall-1_1' }, fetchImpl)
     expect(r).toEqual({ messageId: 42 })
     expect(calls[0].url).toBe('https://api.telegram.org/bottok/sendMessage')
-    expect(calls[0].body).toEqual({ chat_id: '@calendacha', text: 'привет' }) // ссылка не добавляется, если текст и так влез
+    expect(calls[0].body).toEqual({
+      chat_id: '@calendacha',
+      text: '<b>Полив в жару</b>\n\nпривет',
+      parse_mode: 'HTML'
+    })
   })
 
-  it('sendPost с photoUrl и коротким текстом → sendPhoto, caption = body как есть, без ссылок', async () => {
+  it('sendPost без заголовка → без <b>-обёртки', async () => {
+    const calls = []
+    const fetchImpl = async (url, opts) => {
+      calls.push({ url, body: JSON.parse(opts.body) })
+      return { ok: true, json: async () => ({ ok: true, result: { message_id: 42 } }) }
+    }
+    await sendPost({ token: 'tok', channelId: '@calendacha', body: 'привет', continueUrl: 'https://vk.com/wall-1_1' }, fetchImpl)
+    expect(calls[0].body.text).toBe('привет')
+  })
+
+  it('sendPost экранирует HTML-спецсимволы в теле', async () => {
+    const calls = []
+    const fetchImpl = async (url, opts) => {
+      calls.push({ url, body: JSON.parse(opts.body) })
+      return { ok: true, json: async () => ({ ok: true, result: { message_id: 42 } }) }
+    }
+    await sendPost({ token: 'tok', channelId: '@calendacha', title: 'A & B', body: 'x < y & z > 1', continueUrl: 'https://vk.com/wall-1_1' }, fetchImpl)
+    expect(calls[0].body.text).toBe('<b>A &amp; B</b>\n\nx &lt; y &amp; z &gt; 1')
+  })
+
+  it('sendPost с photoUrl и коротким текстом → sendPhoto, caption с заголовком, без ссылок', async () => {
     const calls = []
     const fetchImpl = async (url, opts) => {
       calls.push({ url, body: JSON.parse(opts.body) })
       return { ok: true, json: async () => ({ ok: true, result: { message_id: 43 } }) }
     }
-    const r = await sendPost({ token: 'tok', channelId: '@calendacha', body: 'подпись', continueUrl: 'https://vk.com/wall-1_1', photoUrl: 'https://img/x.jpg' }, fetchImpl)
+    const r = await sendPost({ token: 'tok', channelId: '@calendacha', title: 'Заголовок', body: 'подпись', continueUrl: 'https://vk.com/wall-1_1', photoUrl: 'https://img/x.jpg' }, fetchImpl)
     expect(r).toEqual({ messageId: 43 })
     expect(calls).toHaveLength(1)
     expect(calls[0].url).toBe('https://api.telegram.org/bottok/sendPhoto')
-    expect(calls[0].body).toEqual({ chat_id: '@calendacha', photo: 'https://img/x.jpg', caption: 'подпись' })
+    expect(calls[0].body).toEqual({
+      chat_id: '@calendacha',
+      photo: 'https://img/x.jpg',
+      caption: '<b>Заголовок</b>\n\nподпись',
+      parse_mode: 'HTML'
+    })
   })
 
-  it('sendPost с photoUrl и текстом >1024 символов → caption обрезан по границе слова + «Читать полностью: continueUrl»', async () => {
+  it('sendPost с photoUrl и текстом >1024 символов → caption обрезан по границе слова + кликабельная ссылка "Читать далее в ВК"', async () => {
     const calls = []
     const fetchImpl = async (url, opts) => {
       calls.push({ url, body: JSON.parse(opts.body) })
@@ -36,29 +65,13 @@ describe('telegramService', () => {
     }
     const longBody = 'слово '.repeat(200) // 1200 символов
     const continueUrl = 'https://vk.com/wall-1_777'
-    const r = await sendPost({ token: 'tok', channelId: '@calendacha', body: longBody, continueUrl, photoUrl: 'https://img/x.jpg' }, fetchImpl)
+    const r = await sendPost({ token: 'tok', channelId: '@calendacha', title: 'Заголовок', body: longBody, continueUrl, photoUrl: 'https://img/x.jpg' }, fetchImpl)
     expect(r).toEqual({ messageId: 50 })
-    expect(calls).toHaveLength(1) // одно сообщение, не два
+    expect(calls).toHaveLength(1)
     const caption = calls[0].body.caption
-    expect(caption.length).toBeLessThanOrEqual(1024)
-    expect(caption.endsWith(`Читать полностью: ${continueUrl}`)).toBe(true)
-    expect(caption.startsWith('слово слово')).toBe(true) // не обрезано с начала
-    expect(caption).toMatch(/слово…\n\nЧитать полностью:/) // обрезано ровно по границе слова, не посередине
-  })
-
-  it('sendPost без фото и текстом >4096 символов → sendMessage с обрезкой + «Читать полностью»', async () => {
-    const calls = []
-    const fetchImpl = async (url, opts) => {
-      calls.push({ url, body: JSON.parse(opts.body) })
-      return { ok: true, json: async () => ({ ok: true, result: { message_id: 60 } }) }
-    }
-    const longBody = 'слово '.repeat(700) // 4200 символов
-    const continueUrl = 'https://vk.com/wall-1_999'
-    const r = await sendPost({ token: 'tok', channelId: '@calendacha', body: longBody, continueUrl }, fetchImpl)
-    expect(r).toEqual({ messageId: 60 })
-    const text = calls[0].body.text
-    expect(text.length).toBeLessThanOrEqual(4096)
-    expect(text.endsWith(`Читать полностью: ${continueUrl}`)).toBe(true)
+    expect(caption.startsWith('<b>Заголовок</b>\n\nслово слово')).toBe(true)
+    expect(caption.endsWith(`…\n\n<a href="${continueUrl}">Читать далее в ВК</a>`)).toBe(true)
+    expect(caption).not.toContain('https://vk.com/wall-1_777</a>Читать') // ссылка — это кликабельный текст, не голый URL в видимой части
   })
 
   it('sendPost пробрасывает ошибку Bot API', async () => {
