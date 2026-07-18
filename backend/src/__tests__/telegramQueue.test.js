@@ -32,17 +32,25 @@ describe('telegramQueueJob', () => {
     expect(isEnabled(ENV)).toBe(true)
   })
 
-  it('публикует созревший пост (фото + теги) и помечает telegram_status=posted', async () => {
-    const db = fakeDb([{ id: 1, body: 'текст', tags: '#дача', image_url: 'https://img/x.jpg', link: 'https://dacha.studio1008.com', telegram_attempts: 0 }])
+  it('публикует созревший пост (фото + теги), continueUrl = пост в ВК, и помечает telegram_status=posted', async () => {
+    const db = fakeDb([{ id: 1, body: 'текст', tags: '#дача', image_url: 'https://img/x.jpg', vk_post_url: 'https://vk.com/wall-1_5', telegram_attempts: 0 }])
     const tg = fakeTgSvc(42)
     const r = await runTelegramQueue(db, { tg, env: ENV })
     expect(r.posted).toBe(1)
     const call = tg.calls.sendPost[0]
     expect(call.body).toBe(queueMessage({ body: 'текст', tags: '#дача' }))
-    expect(call.link).toBe('https://dacha.studio1008.com')
+    expect(call.continueUrl).toBe('https://vk.com/wall-1_5')
     expect(call.photoUrl).toBe('https://img/x.jpg')
     const upd = db.updates.find((u) => /telegram_status='posted'/.test(u.sql))
     expect(upd.args).toEqual(['https://t.me/calendacha/42', 1])
+  })
+
+  it('пост ещё не опубликован в ВК (vk_post_url пуст) → continueUrl = фолбэк-ссылка на лендинг', async () => {
+    const db = fakeDb([{ id: 3, body: 'текст', tags: null, image_url: null, vk_post_url: null, telegram_attempts: 0 }])
+    const tg = fakeTgSvc(44)
+    const r = await runTelegramQueue(db, { tg, env: ENV })
+    expect(r.posted).toBe(1)
+    expect(tg.calls.sendPost[0].continueUrl).toBe('https://dacha.studio1008.com')
   })
 
   it('нет созревших — ничего не постит', async () => {

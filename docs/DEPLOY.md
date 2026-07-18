@@ -192,6 +192,13 @@ Bot API. Очередь наполняется тем же CLI, что и для
 отдельного скрипта загрузки не нужно. Без env (`TELEGRAM_BOT_TOKEN`+`TELEGRAM_CHANNEL_ID`) джоб
 idle — деплоить безопасно.
 
+Пост — всегда одно сообщение (фото+текст вместе, не разбивается на два). Ссылка на лендинг в
+каждом посте **не** ставится (решили, что это выглядит как спам) — вместо неё, если текст не
+влезает в лимит подписи к фото (1024 симв.), он аккуратно обрезается по границе слова и в конец
+добавляется «Читать полностью: {ссылка на этот же пост в ВК}» (`vk_post_url` из той же строки
+очереди). `TELEGRAM_POST_LINK` — только фолбэк на случай, если пост ещё не опубликован в ВК
+(`vk_post_url` пуст).
+
 **Деплой:** обычный backend (`reset --hard` + `pm2 restart`); миграция один раз:
 `sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/058_telegram_queue_columns.sql`
 (как и остальные миграции на VPS — `dacha_user` не имеет прав DDL).
@@ -200,7 +207,7 @@ idle — деплоить безопасно.
 ```
 TELEGRAM_BOT_TOKEN=8333482648:AAFY...        # токен от BotFather, бот @calendacha_bot
 TELEGRAM_CHANNEL_ID=@calendacha              # публичный канал → username вместо числового chat_id
-TELEGRAM_POST_LINK=https://dacha.studio1008.com   # опц., деф. = лендинг
+TELEGRAM_POST_LINK=https://dacha.studio1008.com   # опц., фолбэк «читать полностью» если vk_post_url ещё пуст
 ```
 Канал должен быть публичным (с `@username`) — тогда `chat_id` для Bot API это сам username, не
 нужно вычислять числовой id через `getUpdates`. Бот должен быть добавлен в канал администратором
