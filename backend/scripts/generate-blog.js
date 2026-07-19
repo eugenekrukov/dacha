@@ -36,6 +36,7 @@ const MANIFEST_PATH = path.join(__dirname, '.blog-manifest.json')
 const TITLE_LIMIT = 60
 const DESCRIPTION_LIMIT = 155
 const SLUG_LIMIT = 60
+const PAGE_SIZE = 12
 
 function loadManifest() {
   if (!fs.existsSync(MANIFEST_PATH)) return {}
@@ -111,12 +112,46 @@ function renderPostBody(post) {
   return html
 }
 
-function renderIndex(posts) {
+// Плейсхолдер для постов без картинки (parseContentFile.image может быть null) —
+// чтобы сетка не «прыгала» из-за карточек разной формы.
+function renderCardMedia(post) {
+  return post.image
+    ? `<img src="${esc(post.image)}" alt="${esc(post.title)}" loading="lazy">`
+    : `<div class="blog-card-media-fallback">🌱</div>`
+}
+
+function pageUrl(page) {
+  return page <= 1 ? '/blog/' : `/blog/page/${page}/`
+}
+
+function renderPagination(page, totalPages) {
+  if (totalPages <= 1) return ''
+  let html = '<nav class="pagination" aria-label="Страницы блога">'
+  if (page > 1) html += `<a href="${pageUrl(page - 1)}" aria-label="Предыдущая страница">‹</a>`
+  for (let p = 1; p <= totalPages; p++) {
+    html += p === page
+      ? `<span class="current" aria-current="page">${p}</span>`
+      : `<a href="${pageUrl(p)}">${p}</a>`
+  }
+  if (page < totalPages) html += `<a href="${pageUrl(page + 1)}" aria-label="Следующая страница">›</a>`
+  html += '</nav>'
+  return html
+}
+
+function renderIndex(pagePosts, page, totalPages) {
   let html = '<h1>Блог «Календаря дачника»</h1>'
   html += '<p>Разборы конкретных ситуаций на грядке — что делать и почему именно так.</p>'
-  html += '<div class="grid">'
-  html += posts.map(p => `<a href="/blog/${p.slug}/">${esc(p.dateLabel)} — ${esc(p.title)}</a>`).join('')
+  html += '<div class="blog-grid">'
+  html += pagePosts.map(p => `
+    <a class="blog-card" href="/blog/${p.slug}/">
+      ${renderCardMedia(p)}
+      <div class="blog-card-body">
+        <div class="blog-card-title">${esc(p.title)}</div>
+        <div class="blog-card-date">${esc(p.dateLabel)}</div>
+      </div>
+    </a>`).join('')
   html += '</div>'
+  html += renderPagination(page, totalPages)
   return html
 }
 
@@ -168,7 +203,10 @@ function main() {
       ]
     }))
 
-    manifest[slug] = { title: post.title, scheduledAt: post.scheduledAt, dateLabel, sourceFile: path.basename(file) }
+    manifest[slug] = {
+      title: post.title, scheduledAt: post.scheduledAt, dateLabel, image: post.image || null,
+      sourceFile: path.basename(file)
+    }
   }
 
   saveManifest(manifest)
@@ -177,17 +215,30 @@ function main() {
     .map(([slug, p]) => ({ slug, ...p }))
     .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt))
 
-  writePage(path.join(OUT_DIR, 'index.html'), renderShell({
-    title: 'Блог — Календарь дачника',
-    description: 'Разборы садовых и огородных вопросов от «Календаря дачника»: что делать и почему.',
-    canonical: `${SITE}/blog/`,
-    breadcrumbs: '<a href="/">Главная</a> / Блог',
-    bodyHtml: renderIndex(allPosts)
-  }))
+  // Пагинация — по PAGE_SIZE статей. Старые страницы пагинации, которых больше не должно
+  // существовать (список статей уменьшился — редкость, но не будет висеть мёртвых html),
+  // подчищаем перед повторной записью.
+  fs.rmSync(path.join(OUT_DIR, 'page'), { recursive: true, force: true })
+  const totalPages = Math.max(1, Math.ceil(allPosts.length / PAGE_SIZE))
+  for (let page = 1; page <= totalPages; page++) {
+    const pagePosts = allPosts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    const dir = page === 1 ? OUT_DIR : path.join(OUT_DIR, 'page', String(page))
+    fs.mkdirSync(dir, { recursive: true })
+    writePage(path.join(dir, 'index.html'), renderShell({
+      title: page === 1 ? 'Блог — Календарь дачника' : `Блог — страница ${page} — Календарь дачника`,
+      description: 'Разборы садовых и огородных вопросов от «Календаря дачника»: что делать и почему.',
+      canonical: `${SITE}${pageUrl(page)}`,
+      breadcrumbs: '<a href="/">Главная</a> / Блог',
+      bodyHtml: renderIndex(pagePosts, page, totalPages)
+    }))
+  }
 
   // isOwned: только /blog/* — записи spravochnik/статики от другого генератора не трогаем.
   const urls = [
     { loc: `${SITE}/blog/`, priority: '0.5', freq: 'weekly' },
+    ...Array.from({ length: totalPages - 1 }, (_, i) => ({
+      loc: `${SITE}${pageUrl(i + 2)}`, priority: '0.3', freq: 'weekly'
+    })),
     ...allPosts.map(p => ({ loc: `${SITE}/blog/${p.slug}/`, priority: '0.4', freq: 'yearly' }))
   ]
   mergeSitemapUrls(SITEMAP_PATH, (loc) => loc.startsWith(`${SITE}/blog/`), urls)
