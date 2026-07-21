@@ -102,12 +102,19 @@ function buildDescription(body) {
 
 function renderPostBody(post) {
   let html = `<h1>${esc(post.title)}</h1>`
-  html += `<div><span class="badge">${esc(post.dateLabel)}</span></div>`
+  html += `<div><time class="badge" datetime="${esc(post.scheduledAt)}">${esc(post.dateLabel)}</time></div>`
   if (post.image) html += `<img class="photo" src="${esc(post.image)}" alt="${esc(post.title)}" loading="lazy">`
+  html += '<article class="article-body">'
+  let leadDone = false
   for (const s of mdBodyToSections(post.body)) {
-    const body = s.paragraphs.map(p => `<p>${inlineMd(p).replace(/\n/g, '<br>')}</p>`).join('')
-    html += s.heading ? `<div class="card"><h2>${inlineMd(s.heading)}</h2>${body}</div>` : body
+    const body = s.paragraphs.map(p => {
+      const cls = leadDone ? '' : ' class="lead"'
+      leadDone = true
+      return `<p${cls}>${inlineMd(p).replace(/\n/g, '<br>')}</p>`
+    }).join('')
+    html += s.heading ? `<h2>${inlineMd(s.heading)}</h2>${body}` : body
   }
+  html += '</article>'
   html += `<a class="cta" href="/app/">🌱 Открыть «Календарь дачника» →</a>`
   return html
 }
@@ -157,8 +164,9 @@ function renderIndex(pagePosts, page, totalPages) {
 
 function main() {
   const file = process.argv[2]
+  const force = process.argv.includes('--force')
   if (!file) {
-    console.error('Использование: node scripts/generate-blog.js <file.md>')
+    console.error('Использование: node scripts/generate-blog.js <file.md> [--force]')
     process.exit(1)
   }
   const md = fs.readFileSync(file, 'utf8')
@@ -168,15 +176,22 @@ function main() {
     process.exit(1)
   }
 
+  const manifest = loadManifest()
+  fs.mkdirSync(OUT_DIR, { recursive: true })
+
   // В блог — только то, что ещё не опубликовано в ВК ("появится с завтра"), а не весь файл:
   // дата поста строго позже сегодняшней на момент запуска. Уже прошедшие/сегодняшние посты
   // из того же батча пропускаются молча (это ожидаемо при повторном запуске на старом файле).
+  // --force: дополнительно перегенерировать уже опубликованные посты этого файла (те, что уже
+  // есть в манифесте) — например, после правки шаблона (renderPostBody/CSS). Новых прошедших
+  // постов, которых ещё нет в манифесте, --force не добавляет — правило "не публикуем прошедшее"
+  // остаётся в силе, флаг только освежает то, что уже вышло.
+  const alreadyPublished = new Set(Object.values(manifest).map(p => p.title))
   const todayStr = new Date().toISOString().slice(0, 10)
-  const eligible = parsed.filter(p => p.scheduledAt.slice(0, 10) > todayStr)
+  const eligible = parsed.filter(p =>
+    p.scheduledAt.slice(0, 10) > todayStr || (force && alreadyPublished.has(p.title))
+  )
   const skipped = parsed.length - eligible.length
-
-  const manifest = loadManifest()
-  fs.mkdirSync(OUT_DIR, { recursive: true })
 
   for (const post of eligible) {
     const slug = buildSlug(post.title, manifest)
@@ -194,7 +209,16 @@ function main() {
       breadcrumbs: `<a href="/">Главная</a> / <a href="/blog/">Блог</a> / ${esc(post.title)}`,
       bodyHtml: renderPostBody({ ...post, dateLabel }),
       jsonLdBlocks: [
-        articleJsonLd(post.title, canonical, { datePublished: post.scheduledAt }),
+        articleJsonLd(post.title, canonical, {
+          '@type': 'BlogPosting',
+          description: buildDescription(post.body),
+          datePublished: post.scheduledAt,
+          dateModified: post.scheduledAt,
+          image: post.image ? [post.image] : undefined,
+          author: { '@type': 'Person', name: 'Крюков Евгений Владимирович' },
+          mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
+          speakable: { '@type': 'SpeakableSpecification', cssSelector: ['h1', '.lead'] }
+        }),
         breadcrumbJsonLd([
           { name: 'Главная', url: `${SITE}/` },
           { name: 'Блог', url: `${SITE}/blog/` },
