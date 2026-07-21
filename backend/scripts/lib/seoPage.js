@@ -59,10 +59,11 @@ function breadcrumbJsonLd(items) {
   }
 }
 
-function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jsonLdBlocks, stylesheet }) {
+function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jsonLdBlocks, stylesheet, activeNav }) {
   const jsonLdHtml = (jsonLdBlocks || [])
     .map(block => `<script type="application/ld+json">${JSON.stringify(block).replace(/</g, '\\u003c')}</script>`)
     .join('\n')
+  const navLink = (href, key, label) => `<a href="${href}"${activeNav === key ? ' class="active"' : ''}>${label}</a>`
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -88,7 +89,15 @@ function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jso
 ${jsonLdHtml}
 </head>
 <body>
-<header><div class="wrap"><a class="brand" href="/">🌻 Календарь дачника</a></div></header>
+<header><div class="wrap nav">
+<a class="brand" href="/">🌻 Календарь дачника</a>
+<nav class="nav-links">
+${navLink('/', 'home', 'Главная')}
+${navLink('/spravochnik/', 'spravochnik', 'Справочник')}
+${navLink('/blog/', 'blog', 'Блог')}
+</nav>
+<a class="nav-cta" href="/app/">Войти</a>
+</div></header>
 <main><div class="wrap">
 <div class="breadcrumbs">${breadcrumbs}</div>
 ${bodyHtml}

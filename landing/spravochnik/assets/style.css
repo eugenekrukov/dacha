@@ -10,7 +10,19 @@ a:hover{text-decoration:underline}
 .wrap{max-width:900px;margin:0 auto;padding:0 22px}
 h1,h2,h3{font-family:'Nunito',sans-serif;font-weight:900;letter-spacing:-.5px}
 header{background:rgba(255,248,235,.9);border-bottom:1px solid var(--line);padding:16px 0}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
 .brand{font-weight:900;font-size:18px;color:var(--ink)}
+.nav-links{display:flex;gap:16px;font-weight:800;font-size:14px}
+.nav-links a{position:relative;color:var(--ink);opacity:.72;transition:opacity .2s,color .2s;padding:4px 0;white-space:nowrap}
+.nav-links a::after{content:"";position:absolute;left:0;right:100%;bottom:-2px;height:2px;
+  border-radius:2px;background:var(--orange);transition:right .25s ease}
+.nav-links a:hover{opacity:1;text-decoration:none}
+.nav-links a:hover::after,.nav-links a.active::after{right:0}
+.nav-links a.active{opacity:1;color:var(--orange-deep)}
+.nav-cta{background:var(--ink);color:#fff;padding:9px 18px;border-radius:100px;font-weight:900;font-size:14px;
+  transition:transform .18s,box-shadow .18s;flex:0 0 auto}
+.nav-cta:hover{text-decoration:none;transform:translateY(-1px);box-shadow:0 10px 20px -10px rgba(58,38,21,.7)}
+.nav-cta:active{transform:translateY(0) scale(.97)}
 .breadcrumbs{font-size:13px;font-weight:700;color:var(--muted);margin:20px 0}
 .breadcrumbs a{color:var(--muted)}
 .breadcrumbs a:hover{color:var(--orange-deep)}

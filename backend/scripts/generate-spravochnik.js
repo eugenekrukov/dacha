@@ -290,7 +290,8 @@ async function main() {
     description: 'Сроки посадки культур и лечение проблем растений — открытый справочник приложения «Календарь дачника».',
     canonical: `${SITE}/spravochnik/`,
     breadcrumbs: '<a href="/">Главная</a> / Справочник',
-    bodyHtml: renderHub()
+    bodyHtml: renderHub(),
+    activeNav: 'spravochnik'
   }))
 
   writePage(path.join(OUT_DIR, 'kultury', 'index.html'), renderShell({
@@ -298,7 +299,8 @@ async function main() {
     description: 'Сроки посева и высадки, полив и совместимость для 45+ культур — овощи, зелень, ягоды, цветы.',
     canonical: `${SITE}/spravochnik/kultury/`,
     breadcrumbs: '<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / Культуры',
-    bodyHtml: renderKulturyIndex(crops)
+    bodyHtml: renderKulturyIndex(crops),
+    activeNav: 'spravochnik'
   }))
 
   for (const crop of crops) {
@@ -313,6 +315,7 @@ async function main() {
       canonical: `${SITE}/spravochnik/kultury/${crop.slug}/`,
       breadcrumbs: `<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / <a href="/spravochnik/kultury/">Культуры</a> / ${esc(crop.name)}`,
       bodyHtml: renderCropBody(crop, links),
+      activeNav: 'spravochnik',
       jsonLdBlocks: [
         articleJsonLd(crop.name, `${SITE}/spravochnik/kultury/${crop.slug}/`),
         breadcrumbJsonLd([
@@ -330,7 +333,8 @@ async function main() {
     description: 'Признаки, причины и лечение болезней, вредителей и дефицитов микроэлементов у садовых культур.',
     canonical: `${SITE}/spravochnik/problemy/`,
     breadcrumbs: '<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / Проблемы',
-    bodyHtml: renderProblemyIndex(entries)
+    bodyHtml: renderProblemyIndex(entries),
+    activeNav: 'spravochnik'
   }))
 
   for (const entry of entries) {
@@ -345,6 +349,7 @@ async function main() {
       canonical: `${SITE}/spravochnik/problemy/${entry.slug}/`,
       breadcrumbs: `<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / <a href="/spravochnik/problemy/">Проблемы</a> / ${esc(entry.name)}`,
       bodyHtml: renderEntryBody(entry, affectedCrops),
+      activeNav: 'spravochnik',
       jsonLdBlocks: [
         articleJsonLd(entry.name, `${SITE}/spravochnik/problemy/${entry.slug}/`),
         breadcrumbJsonLd([

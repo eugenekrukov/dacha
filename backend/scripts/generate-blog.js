@@ -208,6 +208,7 @@ function main() {
       canonical,
       breadcrumbs: `<a href="/">Главная</a> / <a href="/blog/">Блог</a> / ${esc(post.title)}`,
       bodyHtml: renderPostBody({ ...post, dateLabel }),
+      activeNav: 'blog',
       jsonLdBlocks: [
         articleJsonLd(post.title, canonical, {
           '@type': 'BlogPosting',
@@ -253,7 +254,8 @@ function main() {
       description: 'Разборы садовых и огородных вопросов от «Календаря дачника»: что делать и почему.',
       canonical: `${SITE}${pageUrl(page)}`,
       breadcrumbs: '<a href="/">Главная</a> / Блог',
-      bodyHtml: renderIndex(pagePosts, page, totalPages)
+      bodyHtml: renderIndex(pagePosts, page, totalPages),
+      activeNav: 'blog'
     }))
   }
 
