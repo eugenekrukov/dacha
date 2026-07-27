@@ -5,12 +5,14 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -92,7 +94,23 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val largeFont by tokenStorage.largeFont.collectAsState()
-            DachaCalendarTheme(largeFont = largeFont) {
+            val themeMode by tokenStorage.themeMode.collectAsState()
+            val systemDark = isSystemInDarkTheme()
+            val isDark = when (themeMode) {
+                TokenStorage.THEME_DARK  -> true
+                TokenStorage.THEME_LIGHT -> false
+                else                     -> systemDark
+            }
+            // enableEdgeToEdge() выбирает стиль иконок статус-бара один раз при первом вызове
+            // (в onCreate, по системной теме) — перевызываем его при смене isDark, иначе
+            // ручной выбор темы в Настройках разъедется с цветом иконок статус-бара.
+            LaunchedEffect(isDark) {
+                enableEdgeToEdge(
+                    statusBarStyle = if (isDark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                                      else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                )
+            }
+            DachaCalendarTheme(largeFont = largeFont, darkTheme = isDark) {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route

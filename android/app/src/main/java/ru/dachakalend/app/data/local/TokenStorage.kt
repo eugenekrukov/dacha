@@ -30,6 +30,11 @@ class TokenStorage @Inject constructor(
     private val _largeFont = MutableStateFlow(false)
     val largeFont: StateFlow<Boolean> = _largeFont.asStateFlow()
 
+    // Реактивная тема оформления: THEME_SYSTEM (по умолчанию, следует системной) /
+    // THEME_LIGHT / THEME_DARK. Применяется в DachaCalendarTheme. Тумблер — в Настройках.
+    private val _themeMode = MutableStateFlow(THEME_SYSTEM)
+    val themeMode: StateFlow<String> = _themeMode.asStateFlow()
+
     // Реактивный флаг «нужно проверить даты посадки». Ставится после онбординга, где культуры
     // создаются с датой = сегодня без явного выбора. На экране «Посадки» по нему показывается
     // баннер-подсказка; снимается, когда пользователь его закрывает.
@@ -39,6 +44,7 @@ class TokenStorage @Inject constructor(
     init {
         _pendingCount.value = prefs.getInt(KEY_ATTENTION_COUNT, 0)
         _largeFont.value = prefs.getBoolean(KEY_LARGE_FONT, false)
+        _themeMode.value = prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
         _plantingDatesNeedCheck.value = prefs.getBoolean(KEY_DATES_NEED_CHECK, false)
     }
 
@@ -51,6 +57,11 @@ class TokenStorage @Inject constructor(
     fun setLargeFont(enabled: Boolean) {
         prefs.edit { putBoolean(KEY_LARGE_FONT, enabled) }
         _largeFont.value = enabled
+    }
+
+    fun setThemeMode(mode: String) {
+        prefs.edit { putString(KEY_THEME_MODE, mode) }
+        _themeMode.value = mode
     }
 
     /** Явно выставить счётчик бейджа (считается во ViewModel). Персистится между запусками. */
@@ -305,13 +316,18 @@ class TokenStorage @Inject constructor(
     /** Полный выход — очищает все данные приложения (включая зашифрованный токен) */
     fun logout() {
         val keepLargeFont = _largeFont.value   // настройка доступности переживает выход
+        val keepThemeMode = _themeMode.value   // тема оформления тоже переживает выход
         prefs.edit { clear() }
         if (tokenPrefs !== prefs) tokenPrefs.edit { clear() }
         _pendingCount.value = 0
         if (keepLargeFont) prefs.edit { putBoolean(KEY_LARGE_FONT, true) }
+        if (keepThemeMode != THEME_SYSTEM) prefs.edit { putString(KEY_THEME_MODE, keepThemeMode) }
     }
 
     companion object {
+        const val THEME_SYSTEM = "system"
+        const val THEME_LIGHT  = "light"
+        const val THEME_DARK   = "dark"
         private const val KEY_TOKEN           = "auth_token"
         private const val KEY_GARDEN_ID       = "garden_id"
         private const val KEY_CLIMATE_ZONE    = "climate_zone"
@@ -330,6 +346,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_COACH_DONE      = "coach_done"
         private const val KEY_NOTIF_PERM_ASKED = "notif_permission_asked"
         private const val KEY_LARGE_FONT       = "large_font"
+        private const val KEY_THEME_MODE       = "theme_mode"
         private const val KEY_DATES_NEED_CHECK = "planting_dates_need_check"
         const val REVIEW_AFTER_DAYS           = 6L
 

@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.BuildConfig
+import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 /** ISO-дата ("2026-07-04T00:00:00.000Z") → "04.07.2026". null/ошибка → null. */
@@ -47,6 +48,7 @@ fun SettingsScreen(
     val settings  by viewModel.settings.collectAsState()
     val subStatus by viewModel.subscriptionStatus.collectAsState()
     val largeFont by viewModel.largeFont.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
@@ -169,6 +171,19 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(vertical = 8.dp))
             NotificationToggle("Крупный шрифт", "Увеличивает текст по всему приложению", largeFont, viewModel::setLargeFont)
 
+            Spacer(Modifier.height(12.dp))
+
+            Text("Тема оформления", fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onBackground)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ThemeModeChip("Система", TokenStorage.THEME_SYSTEM, themeMode, viewModel::setThemeMode)
+                ThemeModeChip("Светлая", TokenStorage.THEME_LIGHT, themeMode, viewModel::setThemeMode)
+                ThemeModeChip("Тёмная", TokenStorage.THEME_DARK, themeMode, viewModel::setThemeMode)
+            }
+
             Spacer(Modifier.height(16.dp))
 
             Text("УВЕДОМЛЕНИЯ", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp,
@@ -232,6 +247,20 @@ private fun NotificationToggle(
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
+}
+
+@Composable
+private fun ThemeModeChip(label: String, mode: String, selectedMode: String, onSelect: (String) -> Unit) {
+    FilterChip(
+        selected = selectedMode == mode,
+        onClick = { onSelect(mode) },
+        shape = RoundedCornerShape(100.dp),
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = androidx.compose.ui.graphics.Color.White
+        ),
+        label = { Text(label, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+    )
 }
 
 @Composable

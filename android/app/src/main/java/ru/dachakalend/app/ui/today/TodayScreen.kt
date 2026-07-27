@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -793,7 +794,7 @@ private fun WeatherDetailsCard(
     Card(
         modifier  = modifier.fillMaxWidth(),
         shape     = RoundedCornerShape(22.dp),
-        colors    = CardDefaults.cardColors(containerColor = Color.White),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1071,14 +1072,15 @@ private fun SwipeActionsBox(
 
 @Composable
 private fun SunnyTaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
-    val color = taskColor(task.type)
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val color = taskColor(task.type, isDark)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape  = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Row(
@@ -1157,6 +1159,8 @@ private fun SunnyTaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
 private fun SunnyRecommendationCard(rec: Recommendation) {
     data class Style(val bg: Color, val border: Color, val icon: ImageVector, val tint: Color)
 
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
     val style = when (rec.type) {
         "frost_alert"                -> Style(Color(0xFFE3F2FD), Color(0xFF1565C0).copy(.18f), Icons.Default.AcUnit,          Color(0xFF1565C0))
         "watering"                   -> Style(Color(0xFFE3F2FD), Color(0xFF1E88E5).copy(.18f), Icons.Default.WaterDrop,       Color(0xFF1E88E5))
@@ -1173,11 +1177,16 @@ private fun SunnyRecommendationCard(rec: Recommendation) {
         else                         -> Style(Color(0xFFFFF8EB), Color(0xFFFF7B00).copy(.15f), Icons.Default.Lightbulb,       Color(0xFFFF7B00))
     }
 
+    // В тёмной теме пастельный фон (style.bg) даёт почти нечитаемый контраст со светлым
+    // onBackground-текстом ниже — держим фон на поверхности темы, акцент оставляем в tint.
+    val cardBg     = if (isDark) MaterialTheme.colorScheme.surfaceVariant else style.bg
+    val cardBorder = if (isDark) style.tint.copy(alpha = .35f) else style.border
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape    = RoundedCornerShape(20.dp),
-        color    = style.bg,
-        border   = BorderStroke(1.5.dp, style.border)
+        color    = cardBg,
+        border   = BorderStroke(1.5.dp, cardBorder)
     ) {
         Row(
             modifier          = Modifier.padding(14.dp),

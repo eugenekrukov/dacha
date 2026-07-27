@@ -63,6 +63,10 @@ class SettingsViewModel @Inject constructor(
     val largeFont: StateFlow<Boolean> = tokenStorage.largeFont
     fun setLargeFont(enabled: Boolean) = tokenStorage.setLargeFont(enabled)
 
+    // Внешний вид: тема оформления (система/светлая/тёмная)
+    val themeMode: StateFlow<String> = tokenStorage.themeMode
+    fun setThemeMode(mode: String) = tokenStorage.setThemeMode(mode)
+
     init {
         viewModelScope.launch { subscriptionManager.refresh() }
         loadProfile()
