@@ -35,6 +35,12 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+// telegram_body пишется с **жирным** в markdown-стиле (человекочитаемо в файле контента) —
+// конвертируем в <b> после экранирования, звёздочки не задеты escapeHtml.
+function mdBoldToHtml(escaped) {
+  return escaped.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+}
+
 // Собирает HTML-текст поста: <b>заголовок</b> + тело. Если видимая длина (заголовок+тело)
 // превышает лимит — обрезает тело по границе пробела (не рвать слово посередине) и добавляет
 // кликабельную ссылку «Читать далее в ВК» вместо голого URL.
@@ -43,7 +49,7 @@ function buildText({ title, body, continueUrl, limit }) {
   const titleVisibleLen = title ? title.length + 2 : 0
 
   if (titleVisibleLen + body.length <= limit) {
-    return `${titleHtml}${escapeHtml(body)}`
+    return `${titleHtml}${mdBoldToHtml(escapeHtml(body))}`
   }
 
   const linkHtml = `<a href="${continueUrl}">${READ_MORE_TEXT}</a>`
@@ -53,7 +59,7 @@ function buildText({ title, body, continueUrl, limit }) {
   let cut = body.slice(0, budget)
   const lastSpace = cut.lastIndexOf(' ')
   if (lastSpace > budget - 40) cut = cut.slice(0, lastSpace)
-  return `${titleHtml}${escapeHtml(cut.trimEnd())}${ellipsis}\n\n${linkHtml}`
+  return `${titleHtml}${mdBoldToHtml(escapeHtml(cut.trimEnd()))}${ellipsis}\n\n${linkHtml}`
 }
 
 async function sendPost({ token, channelId, title, body, continueUrl, photoUrl }, fetchImpl = fetch) {

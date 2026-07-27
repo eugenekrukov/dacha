@@ -74,6 +74,16 @@ describe('telegramService', () => {
     expect(caption).not.toContain('https://vk.com/wall-1_777</a>Читать') // ссылка — это кликабельный текст, не голый URL в видимой части
   })
 
+  it('sendPost конвертирует **markdown bold** в <b> (telegram_body пишется в markdown-стиле)', async () => {
+    const calls = []
+    const fetchImpl = async (url, opts) => {
+      calls.push({ url, body: JSON.parse(opts.body) })
+      return { ok: true, json: async () => ({ ok: true, result: { message_id: 42 } }) }
+    }
+    await sendPost({ token: 'tok', channelId: '@calendacha', body: '**жирный** обычный', continueUrl: 'https://vk.com/wall-1_1' }, fetchImpl)
+    expect(calls[0].body.text).toBe('<b>жирный</b> обычный')
+  })
+
   it('sendPost пробрасывает ошибку Bot API', async () => {
     const fetchImpl = async () => ({ ok: true, json: async () => ({ ok: false, error_code: 403, description: 'bot is not a member' }) })
     await expect(sendPost({ token: 'tok', channelId: '@calendacha', body: 'x', continueUrl: 'https://vk.com/wall-1_1' }, fetchImpl))

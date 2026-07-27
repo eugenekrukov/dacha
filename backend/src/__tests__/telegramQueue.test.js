@@ -48,6 +48,13 @@ describe('telegramQueueJob', () => {
     expect(upd.args).toEqual(['https://t.me/calendacha/42', 1])
   })
 
+  it('telegram_body заполнен → уходит он (без stripMarkdown/тегов), а не общий body', async () => {
+    const db = fakeDb([{ id: 5, title: 'Лук', body: 'лонгрид для ВК', telegram_body: '🧅 короткая версия\n\n#лук', tags: '#дача', image_url: null, vk_post_url: 'https://vk.com/wall-1_9', telegram_attempts: 0 }])
+    const tg = fakeTgSvc(43)
+    await runTelegramQueue(db, { tg, env: ENV })
+    expect(tg.calls.sendPost[0].body).toBe('🧅 короткая версия\n\n#лук')
+  })
+
   it('выборка требует status=posted (ВК) — в Telegram уходит только после публикации в ВК', async () => {
     const db = fakeDb([])
     await runTelegramQueue(db, { tg: fakeTgSvc(), env: ENV })

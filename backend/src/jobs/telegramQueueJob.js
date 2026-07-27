@@ -31,7 +31,7 @@ async function runTelegramQueue(db, { tg: tgSvc = telegramService, env = process
   // Тот же расчёт на один инстанс pm2, что и у vkQueueJob (см. его комментарий) — строки не
   // клеймятся FOR UPDATE SKIP LOCKED, sendMessage/sendPhoto не идемпотентны.
   const due = await db.query(
-    `SELECT id, title, body, tags, image_url, vk_post_url, telegram_attempts
+    `SELECT id, title, body, telegram_body, tags, image_url, vk_post_url, telegram_attempts
        FROM vk_post_queue
       WHERE telegram_status = 'pending' AND status = 'posted' AND scheduled_at <= NOW()
       ORDER BY scheduled_at
@@ -46,7 +46,9 @@ async function runTelegramQueue(db, { tg: tgSvc = telegramService, env = process
       // status='posted' в WHERE выше гарантирует vk_post_url — но на случай рассинхрона (пост
       // отметили posted вручную без URL) не валим публикацию, а подстраховываемся лендингом.
       const continueUrl = row.vk_post_url || env.TELEGRAM_POST_LINK || 'https://dacha.studio1008.com'
-      const body = queueMessage({ body: row.body, tags: row.tags })
+      // telegram_body — короткая версия под формат канала (см. vkContent.js); без неё, как и
+      // раньше, публикуем общий лонгрид-body.
+      const body = row.telegram_body ? row.telegram_body.trim() : queueMessage({ body: row.body, tags: row.tags })
       const { messageId } = await tgSvc.sendPost({ token, channelId, title: row.title, body, continueUrl, photoUrl: row.image_url || undefined })
       const url = tgSvc.postUrl(channelId, messageId)
       await db.query(

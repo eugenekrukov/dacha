@@ -7,6 +7,10 @@
 //
 //   Тело поста. Любое число строк и абзацев.
 //
+//   Telegram:
+//   Короткая версия для Telegram-канала (необязательно). Хук, эмодзи, короткие абзацы —
+//   без markdown-заголовков. Если секции нет — в Telegram уйдёт общий body (см. telegramQueueJob.js).
+//
 //   Теги: #дача #огород #полив
 //   Картинка: https://images.pexels.com/...
 //
@@ -24,17 +28,21 @@ function parseContentFile(md) {
 
     let tags = null
     let image = null
+    let section = 'body' // 'body' | 'telegram' — переключается маркером "Telegram:"
     const bodyLines = []
+    const tgLines = []
     for (const ln of lines.slice(1)) {
       const t = ln.trim()
       if (/^Теги:/i.test(t)) { tags = t.replace(/^Теги:\s*/i, '').trim() || null; continue }
       if (/^Картинка:/i.test(t)) { image = t.replace(/^Картинка:\s*/i, '').trim() || null; continue }
-      bodyLines.push(ln)
+      if (/^Telegram:\s*$/i.test(t)) { section = 'telegram'; continue }
+      ;(section === 'telegram' ? tgLines : bodyLines).push(ln)
     }
     posts.push({
       scheduledAt: `${date}T${time}:00+03:00`, // МСК
       title: title.trim(),
       body: bodyLines.join('\n').trim(),
+      telegramBody: tgLines.join('\n').trim() || null,
       tags,
       image
     })

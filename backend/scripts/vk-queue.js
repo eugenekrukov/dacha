@@ -36,7 +36,7 @@ async function load(file, dry) {
     console.warn(`⚠ Распознано ${posts.length} из ${headerCount} блоков "## " — проверьте формат заголовков (дата, время, тире).`)
   }
   if (dry) {
-    posts.forEach((p) => console.log(`${p.scheduledAt}  ${p.title}  [фото:${p.image ? 'да' : 'нет'}] [${p.tags || 'без тегов'}]`))
+    posts.forEach((p) => console.log(`${p.scheduledAt}  ${p.title}  [фото:${p.image ? 'да' : 'нет'}] [tg:${p.telegramBody ? 'да' : 'нет'}] [${p.tags || 'без тегов'}]`))
     console.log(`\n[dry] распознано постов: ${posts.length} (в БД не записаны)`)
     return
   }
@@ -44,9 +44,9 @@ async function load(file, dry) {
   let n = 0
   for (const p of posts) {
     await db.query(
-      `INSERT INTO vk_post_queue (scheduled_at, title, body, tags, image_url, link)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [p.scheduledAt, p.title, p.body, p.tags, p.image, LINK]
+      `INSERT INTO vk_post_queue (scheduled_at, title, body, tags, image_url, link, telegram_body)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [p.scheduledAt, p.title, p.body, p.tags, p.image, LINK, p.telegramBody]
     )
     n++
   }

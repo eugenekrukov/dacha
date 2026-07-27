@@ -35,6 +35,9 @@ describe('vkContent.parseContentFile', () => {
 Поливайте под корень утром.
 Вторая строка тела.
 
+Telegram:
+🚿 короткая версия для канала
+
 Теги: #дача #огород
 Картинка: https://img/x.jpg
 
@@ -43,17 +46,18 @@ describe('vkContent.parseContentFile', () => {
 Дайте калий.
 Теги: #подкормка`
 
-  it('разбирает посты: дата (МСК), заголовок, тело, теги, картинка', () => {
+  it('разбирает посты: дата (МСК), заголовок, тело, telegram-версия, теги, картинка', () => {
     const posts = parseContentFile(SAMPLE)
     expect(posts).toHaveLength(2)
     expect(posts[0]).toEqual({
       scheduledAt: '2026-06-25T10:00:00+03:00',
       title: 'Полив в жару',
       body: 'Поливайте под корень утром.\nВторая строка тела.',
+      telegramBody: '🚿 короткая версия для канала',
       tags: '#дача #огород',
       image: 'https://img/x.jpg'
     })
-    expect(posts[1]).toMatchObject({ title: 'Подкормка', tags: '#подкормка', image: null })
+    expect(posts[1]).toMatchObject({ title: 'Подкормка', tags: '#подкормка', image: null, telegramBody: null })
     expect(posts[1].body).toBe('Дайте калий.')
   })
 
