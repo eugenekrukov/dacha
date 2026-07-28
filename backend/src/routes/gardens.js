@@ -152,6 +152,7 @@ module.exports = async function (fastify) {
       `SELECT b.id, b.name, b.type,
               COALESCE((
                 SELECT json_agg(json_build_object(
+                         'planting_id', p.id,
                          'crop_name', c.name, 'family', c.family,
                          'year', EXTRACT(YEAR FROM p.planted_at)::int
                        ) ORDER BY p.planted_at DESC)

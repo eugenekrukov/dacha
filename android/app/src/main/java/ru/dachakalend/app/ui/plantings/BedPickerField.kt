@@ -21,11 +21,15 @@ import ru.dachakalend.app.ui.theme.NunitoFamily
  * Подсказка севооборота: совпало ли семейство выбранной культуры с семейством в истории
  * грядки за 3 года (история приходит вместе с грядкой). Возвращает текст предупреждения или null.
  * Чистая функция — покрыта юнит-тестом (RotationWarningTest).
+ *
+ * [excludePlantingId] — посадка, для которой считаем подсказку: она сама входит в историю своей
+ * грядки и без исключения предупреждала бы о конфликте с самой собой («тут рос горох, не сажай
+ * горох» на карточке этого же гороха). При создании новой посадки — null.
  */
-fun rotationWarning(bed: GardenBed?, cropFamily: String?): String? {
+fun rotationWarning(bed: GardenBed?, cropFamily: String?, excludePlantingId: Int? = null): String? {
     if (bed == null || cropFamily.isNullOrBlank()) return null
     val match = bed.history
-        .filter { it.family == cropFamily }
+        .filter { it.family == cropFamily && (excludePlantingId == null || it.plantingId != excludePlantingId) }
         .maxByOrNull { it.year } ?: return null
     return "На грядке «${bed.name}» в ${match.year} росла культура семейства " +
         "«$cropFamily» (${match.cropName}) — для этого семейства рекомендуют перерыв 3–4 года."
@@ -41,6 +45,8 @@ fun BedPickerField(
     selectedBedId: Int?,
     cropFamily: String?,
     allowClear: Boolean,
+    /** id редактируемой/просматриваемой посадки — исключается из истории грядки (см. rotationWarning). */
+    excludePlantingId: Int? = null,
     onSelect: (GardenBed?) -> Unit,
     onCreate: (name: String, type: String) -> Unit,
     onRename: (bed: GardenBed, name: String) -> Unit,
@@ -193,7 +199,7 @@ fun BedPickerField(
             }
         }
 
-        rotationWarning(selectedBed, cropFamily)?.let { warn ->
+        rotationWarning(selectedBed, cropFamily, excludePlantingId)?.let { warn ->
             Text(
                 warn,
                 fontFamily = NunitoFamily,

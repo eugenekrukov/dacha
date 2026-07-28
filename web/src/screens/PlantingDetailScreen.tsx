@@ -125,6 +125,7 @@ export default function PlantingDetailScreen() {
             gardenId={planting.garden_id}
             value={planting.bed_id ?? null}
             cropFamily={crop?.family}
+            excludePlantingId={planting.id}
             onSelect={async (bed) => {
               setEditingBed(false)
               try {

@@ -196,6 +196,23 @@ describe('GET /gardens/:id/beds', () => {
     await app.close()
   })
 
+  it('история содержит planting_id — клиент исключает саму посадку из подсказки севооборота', async () => {
+    let bedsSql = ''
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('SELECT id FROM gardens')) return { rows: [{ id: 1 }] }
+        if (sql.includes('FROM garden_beds')) { bedsSql = sql; return { rows: [] } }
+        return { rows: [] }
+      },
+    }))
+    await supertest(app.server)
+      .get('/gardens/1/beds')
+      .set('Authorization', `Bearer ${makeToken(app)}`)
+
+    expect(bedsSql).toContain("'planting_id', p.id")
+    await app.close()
+  })
+
   it('404 для чужого участка', async () => {
     const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
     const token = makeToken(app)

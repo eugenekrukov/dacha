@@ -602,7 +602,9 @@ data class UpdateGardenRequest(
 data class BedHistoryEntry(
     @Json(name = "crop_name") val cropName: String,
     val family: String? = null,
-    val year: Int
+    val year: Int,
+    // Нужен, чтобы посадка не предупреждала о севообороте сама на себя (см. rotationWarning).
+    @Json(name = "planting_id") val plantingId: Int? = null
 )
 
 @JsonClass(generateAdapter = true)

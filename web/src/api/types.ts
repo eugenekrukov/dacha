@@ -35,6 +35,8 @@ export interface Garden {
 }
 
 export interface BedHistoryEntry {
+  // Нужен, чтобы посадка не предупреждала о севообороте сама на себя (см. rotationWarning).
+  planting_id?: number | null
   crop_name: string
   family: string | null
   year: number

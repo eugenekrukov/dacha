@@ -994,6 +994,7 @@ private fun PlantingEditBottomSheet(
                 selectedBedId = bedId,
                 cropFamily = cropFamily,
                 allowClear = false,
+                excludePlantingId = planting.id,
                 onSelect = { bed ->
                     bedId = bed?.id
                     if (bed != null) conditions = bed.type

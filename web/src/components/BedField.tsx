@@ -7,12 +7,14 @@ interface Props {
   gardenId: number
   value: number | null
   cropFamily?: string | null
+  /** id редактируемой посадки — исключается из истории грядки (см. rotationWarning). */
+  excludePlantingId?: number | null
   onSelect: (bed: GardenBed | null) => void
 }
 
 // Грядка — просто именованное место (см. design 2026-06-27), без визуальной карты участка.
 // Пикер открывается инлайн в той же форме/секции — отдельного экрана управления грядками нет.
-export default function BedField({ gardenId, value, cropFamily, onSelect }: Props) {
+export default function BedField({ gardenId, value, cropFamily, excludePlantingId, onSelect }: Props) {
   const [beds, setBeds] = useState<GardenBed[]>([])
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,7 +89,7 @@ export default function BedField({ gardenId, value, cropFamily, onSelect }: Prop
     }
   }
 
-  const warning = rotationWarning(selectedBed, cropFamily)
+  const warning = rotationWarning(selectedBed, cropFamily, excludePlantingId)
 
   return (
     <div className="relative">
@@ -227,10 +229,16 @@ export default function BedField({ gardenId, value, cropFamily, onSelect }: Prop
 }
 
 // Сравнение по семейству за 3 года истории грядки (история уже приходит с грядкой одним запросом).
-function rotationWarning(bed: GardenBed | null, cropFamily?: string | null): string | null {
+// excludePlantingId — посадка, для которой считаем подсказку: она сама входит в историю своей грядки
+// и без исключения предупреждала бы о конфликте с самой собой. При создании новой посадки — undefined.
+function rotationWarning(
+  bed: GardenBed | null,
+  cropFamily?: string | null,
+  excludePlantingId?: number | null,
+): string | null {
   if (!bed || !cropFamily) return null
   const match = [...bed.history]
-    .filter((h) => h.family === cropFamily)
+    .filter((h) => h.family === cropFamily && (excludePlantingId == null || h.planting_id !== excludePlantingId))
     .sort((a, b) => b.year - a.year)[0]
   if (!match) return null
   return `На грядке «${bed.name}» в ${match.year} росла культура семейства «${cropFamily}» (${match.crop_name}) — для этого семейства рекомендуют перерыв 3–4 года.`

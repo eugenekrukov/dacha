@@ -239,6 +239,7 @@ private fun AboutTab(
                 selectedBedId = planting.bedId,
                 cropFamily = state.crop?.family,
                 allowClear = false,
+                excludePlantingId = planting.id,
                 onSelect = { bed -> bed?.let { onSelectBed(it) } },
                 onCreate = onCreateBed,
                 onRename = onRenameBed,
