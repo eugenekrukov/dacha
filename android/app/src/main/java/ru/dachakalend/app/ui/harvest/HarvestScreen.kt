@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.model.Harvest
 import ru.dachakalend.app.data.model.Planting
+import ru.dachakalend.app.ui.common.formatIsoDate
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -360,7 +361,7 @@ private fun HarvestCard(harvest: Harvest) {
                 }
             }
             Text(
-                text = harvest.harvestedAt.take(10),
+                text = formatIsoDate(harvest.harvestedAt),
                 fontFamily = NunitoFamily,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
