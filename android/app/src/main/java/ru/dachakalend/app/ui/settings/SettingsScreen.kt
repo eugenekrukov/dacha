@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,12 +83,18 @@ fun SettingsScreen(
             Text("ПОДПИСКА", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(vertical = 8.dp))
 
+            // Пастельный фон карточки — только для светлой темы; в тёмной он остаётся светлым,
+            // а текст на нём светлеет вместе с темой (см. фикс карточек 2026-07-27).
+            val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (subStatus.isSubscribed || subStatus.isPromo) androidx.compose.ui.graphics.Color(0xFFE8F5E9)
-                                     else androidx.compose.ui.graphics.Color(0xFFFFF3E0)
+                    containerColor = when {
+                        isDark -> MaterialTheme.colorScheme.surfaceVariant
+                        subStatus.isSubscribed || subStatus.isPromo -> androidx.compose.ui.graphics.Color(0xFFE8F5E9)
+                        else -> androidx.compose.ui.graphics.Color(0xFFFFF3E0)
+                    }
                 ),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
@@ -103,7 +110,8 @@ fun SettingsScreen(
                                 subStatus.isPromo       -> "Дачник Про"
                                 else                    -> "Бесплатный тариф"
                             },
-                            fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 15.sp
+                            fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = when {
@@ -121,10 +129,10 @@ fun SettingsScreen(
                     if (!subStatus.isSubscribed) {
                         TextButton(onClick = { onOpenPaywall?.invoke() }) {
                             Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp),
-                                tint = androidx.compose.ui.graphics.Color(0xFFFF7B00))
+                                tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(4.dp))
                             Text("Купить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black,
-                                color = androidx.compose.ui.graphics.Color(0xFFFF7B00))
+                                color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -158,7 +166,7 @@ fun SettingsScreen(
                     } else {
                         TextButton(onClick = { onOpenPaywall?.invoke() }) {
                             Text("Продлить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black,
-                                color = androidx.compose.ui.graphics.Color(0xFFFF7B00))
+                                color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
