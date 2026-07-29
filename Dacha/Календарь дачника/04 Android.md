@@ -2,7 +2,7 @@
 tags: [dacha, android]
 ---
 
-> обновлено: 2026-07-01, commit `945b12e`
+> обновлено: 2026-07-29
 
 
 # Android
@@ -16,7 +16,8 @@ android/app/src/main/java/ru/dachakalend/app/
 ├── data/{api,local,model,repository}/
 ├── navigation/Navigation.kt
 ├── notification/DachaPushService.kt
-└── ui/{auth,garden,today,calendar,crops,plantings,actions,harvest,analytics,theme}/
+└── ui/{auth,garden,today,calendar,crops,plantings,actions,harvest,analytics,
+     feed,guide,journal,more,onboarding,paywall,profile,settings,splash,common,theme}/
 ```
 
 ## Паттерны кода
@@ -41,3 +42,24 @@ RuStore Push (флейвор rustore) / FCM (gplay). Дедупликация м
 
 ## Связано
 [[01 Архитектура]] · [[02 Backend]] · [[08 Статус и бэклог]]
+
+## Версии и релизы
+- В магазинах (Google Play и RuStore одновременно): **vc10 / 1.0.7** — free+premium вместо триала,
+  напоминание об осмотре посадки, фикс переноса лейбла в нижнем меню.
+- Готовится **vc11 / 1.0.8**: тёмная тема + фиксы (карточка подписки в тёмной теме, севооборот,
+  формат дат на «Урожае»).
+- Площадки на одной волне — отдельные тексты «Что нового» на два магазина больше не нужны.
+
+## Добавлено позже (2026-07-08 … 07-29)
+- **Пятый таб «Ещё»** (`ui/more/MoreScreen.kt`): справочник культур, болезни, настройки.
+  «Профиль» перестроен на вкладки Лента / Статистика / Аккаунт.
+- **Тёмная тема**: тумблер Система/Светлая/Тёмная в настройках (`TokenStorage.themeMode`),
+  статус-бар синхронизируется с выбором. Грабли темы: карточки, хардкодившие светлый фон
+  (`Color.White`, пастель), становились нечитаемы — проверять `MaterialTheme.colorScheme`,
+  а не хардкод; для цвета акцента брать `colorScheme.primary` (тема задаёт его раздельно
+  для светлой и тёмной).
+- **Напоминание об осмотре посадки**: периодический локальный пуш через WorkManager
+  (раз в день / 2 / 3 дня), backend не участвует.
+- **Запрос оценки**: `AppReview.kt` во флейворе rustore зовёт нативный флоу RuStore
+  (`requestReviewFlow`/`launchReviewFlow`) на 6-й день использования, один раз.
+  В gplay — заглушка no-op: Google Play In-App Review подключим после публикации там.
