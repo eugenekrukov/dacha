@@ -164,6 +164,26 @@ interface DachaApi {
     @DELETE("photos/{id}")
     suspend fun deletePhoto(@Path("id") id: Int)
 
+    // Инвентарь семян
+    @GET("seeds")
+    suspend fun getSeeds(): List<Seed>
+
+    @POST("seeds")
+    suspend fun createSeed(@Body request: CreateSeedRequest): Seed
+
+    @PATCH("seeds/{id}")
+    suspend fun updateSeed(@Path("id") id: Int, @Body request: UpdateSeedRequest): Seed
+
+    @HTTP(method = "DELETE", path = "seeds/{id}", hasBody = false)
+    suspend fun deleteSeed(@Path("id") id: Int)
+
+    @Multipart
+    @POST("seeds/{id}/photo")
+    suspend fun uploadSeedPhoto(
+        @Path("id") id: Int,
+        @Part file: okhttp3.MultipartBody.Part
+    ): Seed
+
     // Лента «Мой участок»
     @GET("feed")
     suspend fun getFeed(

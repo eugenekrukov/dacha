@@ -412,3 +412,17 @@ export interface CreatePaymentResponse {
   confirmation_url: string
   status: string
 }
+
+// --- Инвентарь семян (GET /seeds) ---
+
+export interface Seed {
+  id: number
+  crop_name: string
+  variety: string | null
+  expires_on: string | null   // YYYY-MM-DD, срок с пакетика (месяц нормализован в последний день)
+  created_at: string
+  expired: boolean
+  expires_this_year: boolean
+  photo_url: string | null    // /seeds/:id/photo
+  thumb_url: string | null    // /seeds/:id/photo?thumb=1
+}

@@ -157,6 +157,11 @@ if (gardenId == -1) return Result.Error("Участок не выбран")
 | `HarvestRepository` | `addHarvest(plantingId, weightKg?, quantity?, notes?)` | `Result<Harvest>` |
 | `AnalyticsRepository` | `getSummary()` | `Result<AnalyticsSummary>` |
 | `AnalyticsRepository` | `exportActionsIntent()` | `Result<Intent>` (Share chooser) |
+| `SeedsRepository` | `getSeeds()` | `Result<List<Seed>>` (инвентарь семян, флаги `expired`/`expiresThisYear` считает бэкенд) |
+| `SeedsRepository` | `createSeed(cropName, variety?, expiresOn?)` | `Result<Seed>` (`expiresOn` = "YYYY-MM" либо "YYYY-MM-DD") |
+| `SeedsRepository` | `updateSeed(id, cropName?, variety?, expiresOn?)` | `Result<Seed>` (⚠️ `null` = «не трогать поле» — Moshi не шлёт null; `""` = снять значение) |
+| `SeedsRepository` | `deleteSeed(id)` | `Result<Unit>` |
+| `SeedsRepository` | `uploadPhoto(id, bytes)` | `Result<Seed>` (одно фото на пакетик, повторная загрузка заменяет) |
 
 > `AnalyticsRepository` требует `@ApplicationContext` — использует `FileProvider` для CSV-экспорта.
 

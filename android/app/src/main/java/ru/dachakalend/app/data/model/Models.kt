@@ -628,3 +628,34 @@ data class UpdateBedRequest(
     val name: String? = null,
     val type: String? = null
 )
+
+// --- Инвентарь семян (GET /seeds) ---
+
+@JsonClass(generateAdapter = true)
+data class Seed(
+    val id: Int,
+    @Json(name = "crop_name") val cropName: String,
+    val variety: String? = null,
+    @Json(name = "expires_on") val expiresOn: String? = null,     // YYYY-MM-DD (месяц с пакетика → последний день)
+    @Json(name = "created_at") val createdAt: String,
+    val expired: Boolean = false,
+    @Json(name = "expires_this_year") val expiresThisYear: Boolean = false,
+    @Json(name = "photo_url") val photoUrl: String? = null,       // /seeds/:id/photo
+    @Json(name = "thumb_url") val thumbUrl: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateSeedRequest(
+    @Json(name = "crop_name") val cropName: String,
+    val variety: String? = null,
+    @Json(name = "expires_on") val expiresOn: String? = null      // "YYYY-MM" или "YYYY-MM-DD"
+)
+
+// Moshi не сериализует null-поля, поэтому null здесь = «не трогать поле».
+// Чтобы СНЯТЬ срок годности, шлём пустую строку — бэкенд трактует её как null.
+@JsonClass(generateAdapter = true)
+data class UpdateSeedRequest(
+    @Json(name = "crop_name") val cropName: String? = null,
+    val variety: String? = null,
+    @Json(name = "expires_on") val expiresOn: String? = null
+)

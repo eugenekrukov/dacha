@@ -10,6 +10,7 @@ import {
   BookOpen,
   User,
   MoreHorizontal,
+  Package,
   ShieldAlert,
   Settings,
   type LucideIcon,
@@ -28,6 +29,7 @@ const PRIMARY: Item[] = [
 ]
 // Редкие разделы — под «Ещё». Журнал/Аналитика переехали в «Профиль» → «Статистика».
 const MORE: Item[] = [
+  { to: '/seeds', label: 'Мои семена', icon: Package },
   { to: '/crops', label: 'Справочник культур', icon: BookOpen },
   { to: '/guide', label: 'Болезни и дефициты', icon: ShieldAlert },
   { to: '/settings', label: 'Настройки', icon: Settings },

@@ -64,6 +64,9 @@ sealed class Screen(val route: String) {
     // Таб «Ещё»: справочник культур + болезни + настройки (зеркало web-меню «Ещё»)
     object More : Screen("more")
 
+    // Инвентарь семян (что уже лежит в коробке с пакетиками)
+    object Seeds : Screen("seeds")
+
     // Монетизация
     object Paywall : Screen("paywall")
 
@@ -130,5 +133,6 @@ val screensWithoutBottomBar = setOf(
     Screen.PlantingInfo.route,
     Screen.Paywall.route,
     Screen.Analytics.route,
-    Screen.Harvest.route
+    Screen.Harvest.route,
+    Screen.Seeds.route
 )

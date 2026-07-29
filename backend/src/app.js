@@ -90,6 +90,7 @@ app.register(require('./routes/analytics'), { prefix: '/analytics' })
 app.register(require('./routes/geocode'), { prefix: '/geocode' })
 app.register(require('./routes/unsubscribe'), { prefix: '/unsubscribe' })
 app.register(require('./routes/photos'), { prefix: '/photos' })
+app.register(require('./routes/seeds'), { prefix: '/seeds' })
 app.register(require('./routes/feed'), { prefix: '/feed' })
 app.register(require('./routes/moon-calendar'), { prefix: '/moon-calendar' })
 

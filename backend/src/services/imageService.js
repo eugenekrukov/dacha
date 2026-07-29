@@ -22,10 +22,12 @@ function thumbPath(filePath) {
 /**
  * Обработать загруженное фото: авто-ориентация, resize 1600px, webp q80, thumbnail 400px,
  * срез всего EXIF (включая GPS). Дату съёмки берём из EXIF DateTimeOriginal до среза.
+ * Каталог: по умолчанию `plantings/<plantingId>`, либо явный `dir` (инвентарь семян —
+ * `seeds/<userId>`; photoSweepJob чистит только `plantings/`, чужие каталоги не трогает).
  * Возвращает { file_path (относительный), width, height, bytes, taken_at|null }.
  */
-async function processImage(buffer, { plantingId, baseDir = DEFAULT_BASE }) {
-  const rel = path.posix.join('plantings', String(plantingId), `${crypto.randomUUID()}.webp`)
+async function processImage(buffer, { plantingId, dir, baseDir = DEFAULT_BASE }) {
+  const rel = path.posix.join(dir || path.posix.join('plantings', String(plantingId)), `${crypto.randomUUID()}.webp`)
   const full = path.join(baseDir, rel)
   fs.mkdirSync(path.dirname(full), { recursive: true })
 

@@ -21,6 +21,7 @@ import type {
   PlantingPhoto,
   PlantingStage,
   Recommendation,
+  Seed,
   TodayResponse,
   UpdatePlantingInfoRequest,
   UserProfile,
@@ -197,6 +198,26 @@ export const api = {
   // Удаление записи действия вместе с привязанными фото (FK: фото удаляются на бэкенде).
   deleteAction: (id: number) =>
     request<{ deleted: boolean }>(`/actions/${id}`, { method: 'DELETE' }),
+
+  // --- инвентарь семян ---
+  getSeeds: () => request<Seed[]>('/seeds'),
+  createSeed: (body: { crop_name: string; variety?: string | null; expires_on?: string | null }) =>
+    request<Seed>('/seeds', { method: 'POST', body }),
+  updateSeed: (id: number, body: { crop_name?: string; variety?: string | null; expires_on?: string | null }) =>
+    request<Seed>(`/seeds/${id}`, { method: 'PATCH', body }),
+  deleteSeed: (id: number) => request<void>(`/seeds/${id}`, { method: 'DELETE' }),
+  uploadSeedPhoto: async (id: number, file: File): Promise<Seed> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const token = tokenStore.getToken()
+    const res = await fetch(`${BASE}/seeds/${id}/photo`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd, // НЕ ставим Content-Type — браузер сам выставит boundary
+    })
+    if (!res.ok) throw new ApiError(res.status, 'Не удалось загрузить фото')
+    return res.json()
+  },
 
   // --- персональная лента «Мой участок» (P1) ---
   getFeed: (limit = 30, offset = 0) =>

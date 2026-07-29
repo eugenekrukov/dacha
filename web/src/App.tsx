@@ -19,6 +19,7 @@ import CalendarScreen from './screens/CalendarScreen'
 import JournalScreen from './screens/JournalScreen'
 import HarvestsScreen from './screens/HarvestsScreen'
 import ProfileScreen from './screens/ProfileScreen'
+import SeedsScreen from './screens/SeedsScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import PaywallScreen from './screens/PaywallScreen'
 import VerifyEmailScreen from './screens/VerifyEmailScreen'
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="/guide/:slug" element={<GuideDetailScreen />} />
             <Route path="/journal" element={<JournalScreen />} />
             <Route path="/harvests" element={<HarvestsScreen />} />
+            <Route path="/seeds" element={<SeedsScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="/paywall" element={<PaywallScreen />} />
             <Route path="/verify-email" element={<VerifyEmailScreen />} />

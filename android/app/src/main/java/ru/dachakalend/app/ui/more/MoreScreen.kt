@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -28,6 +29,7 @@ import ru.dachakalend.app.ui.theme.NunitoFamily
  */
 @Composable
 fun MoreScreen(
+    onOpenSeeds: () -> Unit,
     onOpenCrops: () -> Unit,
     onOpenGuide: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -48,6 +50,7 @@ fun MoreScreen(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            MoreCard(Icons.Default.Inventory2, "Мои семена", "Что уже куплено и у чего вышел срок", onOpenSeeds)
             MoreCard(Icons.AutoMirrored.Filled.MenuBook, "Справочник культур", "Сроки, полив, болезни, соседство", onOpenCrops)
             MoreCard(Icons.Default.HealthAndSafety, "Болезни и дефициты", "Дефициты микроэлементов, болезни, вредители", onOpenGuide)
             MoreCard(Icons.Default.Settings, "Настройки", "Подписка, уведомления, внешний вид", onOpenSettings)

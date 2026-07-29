@@ -55,6 +55,7 @@ import ru.dachakalend.app.ui.guide.GuideDetailScreen
 import ru.dachakalend.app.ui.plantings.PlantingInfoScreen
 import ru.dachakalend.app.ui.profile.ProfileScreen
 import ru.dachakalend.app.ui.more.MoreScreen
+import ru.dachakalend.app.ui.seeds.SeedsScreen
 import ru.dachakalend.app.ui.journal.JournalScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
 import ru.dachakalend.app.ui.settings.SettingsScreen
@@ -437,8 +438,12 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                        composable(Screen.Seeds.route) {
+                            SeedsScreen(onBack = { navController.popBackStack() })
+                        }
                         composable(Screen.More.route) {
                             MoreScreen(
+                                onOpenSeeds    = { navController.navigate(Screen.Seeds.route) },
                                 onOpenCrops    = { navController.navigate(Screen.Crops.route) },
                                 onOpenGuide    = { navController.navigate(Screen.Guide.route) },
                                 onOpenSettings = { navController.navigate(Screen.Settings.route) },
