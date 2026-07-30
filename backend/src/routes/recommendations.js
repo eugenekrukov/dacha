@@ -1,6 +1,6 @@
 'use strict'
 
-const { getDailyLifehack, getSeasonalTip, getStageTip, getLunarTip, getDayOfYear, getZoneDayOffset, WEATHER_TIPS } = require('../data/tips')
+const { getDailyLifehack, getSeasonalTip, getStageTip, getCropStageTip, getLunarTip, getDayOfYear, getZoneDayOffset, WEATHER_TIPS } = require('../data/tips')
 
 const STAGE_LABELS = {
   sowing: 'Посев', sprouted: 'Всходы', transplanted: 'Высажено в грунт',
@@ -34,7 +34,8 @@ module.exports = async function (fastify) {
     // 2. Активные посадки с данными культур
     const plantingsRes = await db.query(
       `SELECT p.*, c.name as crop_name, c.watering_freq_days, c.frost_sensitive,
-              c.harvest_days, c.fertilizing_schedule, c.good_neighbors, c.bad_neighbors
+              c.harvest_days, c.fertilizing_schedule, c.good_neighbors, c.bad_neighbors,
+              c.watering_details, c.diseases, c.pests
        FROM plantings p JOIN crops c ON c.id=p.crop_id
        WHERE p.garden_id=$1 AND p.stage NOT IN ('done')`,
       [garden_id]
@@ -107,9 +108,14 @@ module.exports = async function (fastify) {
         }
       }
 
-      // Совет по стадии культуры (не чаще 1 раза на 2 посадки чтобы не перегружать)
+      // Совет по стадии культуры (не чаще 1 раза на 2 посадки чтобы не перегружать).
+      // Сначала пробуем совет про саму культуру (агрономия из `crops`), и только если её
+      // нет в справочнике данных — общий нейтральный по стадии. Совет показывается
+      // подписанным именем культуры, поэтому порядок именно такой.
       if (recommendations.filter(r => r.type === 'stage_tip').length < 2) {
-        const stageTip = getStageTip(planting.stage, planting.sowing_method, daysSincePlanting, planting.id)
+        const stageTip =
+          getCropStageTip(planting, planting.stage, planting.sowing_method, daysSincePlanting, planting.id) ||
+          getStageTip(planting.stage, planting.sowing_method, daysSincePlanting, planting.id)
         if (stageTip) {
           recommendations.push({
             type: 'stage_tip',
