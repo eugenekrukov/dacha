@@ -32,6 +32,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import ru.dachakalend.app.data.api.mediaUrl
 import ru.dachakalend.app.data.model.Seed
+import ru.dachakalend.app.ui.common.FullScreenPhotoDialog
 import ru.dachakalend.app.ui.common.rememberPhotoPickers
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
@@ -181,6 +182,19 @@ private fun EmptySeeds(modifier: Modifier = Modifier) {
 @Composable
 private fun SeedCard(seed: Seed, onClick: () -> Unit, onDelete: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
+    // Тап по миниатюре открывает фото на весь экран, а не форму правки: на пакетике
+    // мелким шрифтом напечатано то, ради чего его и снимали (сорт, производитель, срок),
+    // и в 64 dp это не прочесть. Остальная карточка по-прежнему ведёт в редактирование.
+    var showPhoto by remember { mutableStateOf(false) }
+
+    if (showPhoto && seed.photoUrl != null) {
+        FullScreenPhotoDialog(
+            relativePath = seed.photoUrl,
+            contentDescription = "Пакетик: ${seed.cropName}",
+            caption = listOfNotNull(seed.cropName, seed.variety).joinToString(" · "),
+            onDismiss = { showPhoto = false }
+        )
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
@@ -195,9 +209,12 @@ private fun SeedCard(seed: Seed, onClick: () -> Unit, onDelete: () -> Unit) {
             if (seed.thumbUrl != null) {
                 AsyncImage(
                     model = mediaUrl(seed.thumbUrl),
-                    contentDescription = "Пакетик: ${seed.cropName}",
+                    contentDescription = "Пакетик: ${seed.cropName} — открыть фото",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(14.dp))
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable(enabled = seed.photoUrl != null) { showPhoto = true }
                 )
             } else {
                 Box(
