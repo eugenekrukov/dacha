@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError } from '../api/client'
 import AuthImage from '../components/AuthImage'
-import { Camera, Trash2 } from 'lucide-react'
+import Modal from '../components/Modal'
+import { Camera, Pencil, Trash2, X } from 'lucide-react'
 import type { Crop, Seed } from '../api/types'
 
 // Пакетик пишет срок месяцем («годен до 12.2027»), бэкенд хранит датой.
@@ -29,6 +30,8 @@ export default function SeedsScreen() {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const fileInput = useRef<HTMLInputElement | null>(null)
+  const [editing, setEditing] = useState<Seed | null>(null)
+  const [viewing, setViewing] = useState<Seed | null>(null)
 
   const load = async () => {
     try {
@@ -74,13 +77,17 @@ export default function SeedsScreen() {
     }
   }
 
-  const changeExpiry = async (seed: Seed, month: string) => {
+  // Правка всех полей пакетика, а не только срока: PATCH /seeds/:id принимал crop_name
+  // и variety с самого начала, но в вебе редактировать их было нечем — единственным
+  // изменяемым полем было «годен до» в карточке (замечание владельца 2026-07-30).
+  const saveEdit = async (id: number, patch: { crop_name: string; variety: string | null; expires_on: string | null }) => {
     setError(null)
     try {
-      const updated = await api.updateSeed(seed.id, { expires_on: month || null })
-      setSeeds((prev) => prev.map((s) => (s.id === seed.id ? updated : s)))
+      const updated = await api.updateSeed(id, patch)
+      setSeeds((prev) => prev.map((s) => (s.id === id ? updated : s)))
+      setEditing(null)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось изменить срок')
+      setError(err instanceof ApiError ? err.message : 'Не удалось сохранить изменения')
     }
   }
 
@@ -172,11 +179,20 @@ export default function SeedsScreen() {
           {seeds.map((seed) => (
             <li key={seed.id} className="dacha-card flex items-start gap-3 p-4">
               {seed.thumb_url ? (
-                <AuthImage
-                  path={seed.thumb_url}
-                  alt={`Пакетик: ${seed.crop_name}`}
-                  className="h-20 w-20 shrink-0 rounded-btn object-cover"
-                />
+                // Тап по миниатюре открывает фото целиком: на пакетике мелким шрифтом
+                // напечатано ровно то, ради чего его снимали (сорт, производитель, срок).
+                <button
+                  type="button"
+                  onClick={() => setViewing(seed)}
+                  aria-label={`Открыть фото: ${seed.crop_name}`}
+                  className="shrink-0"
+                >
+                  <AuthImage
+                    path={seed.thumb_url}
+                    alt={`Пакетик: ${seed.crop_name}`}
+                    className="h-20 w-20 rounded-btn object-cover"
+                  />
+                </button>
               ) : (
                 <label className="flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-btn border border-dashed border-black/20 text-[10px] font-bold text-muted">
                   <Camera size={18} aria-hidden />
@@ -207,26 +223,128 @@ export default function SeedsScreen() {
                       ? `Использовать в этом сезоне — ${formatExpiry(seed.expires_on)}`
                       : formatExpiry(seed.expires_on)}
                 </span>
-                <input
-                  className="mt-1 h-9 w-[150px] rounded-btn border border-black/10 px-2 text-sm font-semibold outline-none focus:border-primary"
-                  type="month"
-                  aria-label={`Срок годности: ${seed.crop_name}`}
-                  value={toMonthInput(seed.expires_on)}
-                  onChange={(e) => changeExpiry(seed, e.target.value)}
-                />
               </div>
 
-              <button
-                onClick={() => remove(seed)}
-                aria-label={`Удалить ${seed.crop_name}`}
-                className="shrink-0 rounded-btn p-2 text-muted transition hover:bg-black/5"
-              >
-                <Trash2 size={18} aria-hidden />
-              </button>
+              <div className="flex shrink-0 flex-col gap-1">
+                <button
+                  onClick={() => setEditing(seed)}
+                  aria-label={`Изменить ${seed.crop_name}`}
+                  className="rounded-btn p-2 text-muted transition hover:bg-black/5"
+                >
+                  <Pencil size={18} aria-hidden />
+                </button>
+                <button
+                  onClick={() => remove(seed)}
+                  aria-label={`Удалить ${seed.crop_name}`}
+                  className="rounded-btn p-2 text-muted transition hover:bg-black/5"
+                >
+                  <Trash2 size={18} aria-hidden />
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       )}
+
+      {editing && (
+        <EditSeedModal
+          seed={editing}
+          crops={crops}
+          onClose={() => setEditing(null)}
+          onSave={saveEdit}
+        />
+      )}
+
+      {viewing?.photo_url && (
+        // ponytail: свой оверлей, а не общий компонент — у PhotoDiary просмотрщик со своим
+        // удалением и датой съёмки, объединять две штуки ради 10 строк разметки незачем.
+        // Появится третий — выносить в components/PhotoLightbox.tsx.
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-black/90"
+          onClick={() => setViewing(null)}
+        >
+          <div className="flex justify-end p-4">
+            <button type="button" aria-label="Закрыть" onClick={() => setViewing(null)} className="text-white">
+              <X size={28} aria-hidden />
+            </button>
+          </div>
+          <div className="flex flex-1 items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
+            <AuthImage
+              path={viewing.photo_url}
+              alt={`Пакетик: ${viewing.crop_name}`}
+              className="max-h-full max-w-full rounded-lg object-contain"
+            />
+          </div>
+          <p className="p-4 font-bold text-white" onClick={(e) => e.stopPropagation()}>
+            {[viewing.crop_name, viewing.variety].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+      )}
     </div>
+  )
+}
+
+function EditSeedModal({
+  seed,
+  crops,
+  onClose,
+  onSave,
+}: {
+  seed: Seed
+  crops: Crop[]
+  onClose: () => void
+  onSave: (id: number, patch: { crop_name: string; variety: string | null; expires_on: string | null }) => void
+}) {
+  const [cropName, setCropName] = useState(seed.crop_name)
+  const [variety, setVariety] = useState(seed.variety ?? '')
+  const [expires, setExpires] = useState(toMonthInput(seed.expires_on))
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!cropName.trim()) return
+    onSave(seed.id, {
+      crop_name: cropName.trim(),
+      variety: variety.trim() || null,
+      expires_on: expires || null,
+    })
+  }
+
+  return (
+    <Modal onClose={onClose} className="flex w-full max-w-md flex-col gap-3 p-5">
+      <h2 className="text-lg font-black">Пакетик</h2>
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <input
+          className="dacha-input"
+          list="crops-list-edit"
+          placeholder="Культура"
+          value={cropName}
+          onChange={(e) => setCropName(e.target.value)}
+        />
+        <datalist id="crops-list-edit">
+          {crops.map((c) => (
+            <option key={c.id} value={c.name} />
+          ))}
+        </datalist>
+        <input
+          className="dacha-input"
+          placeholder="Сорт"
+          value={variety}
+          onChange={(e) => setVariety(e.target.value)}
+        />
+        <label className="flex flex-col gap-1 text-sm font-bold text-muted">
+          Годен до (месяц с пакетика)
+          <input
+            className="dacha-input"
+            type="month"
+            value={expires}
+            onChange={(e) => setExpires(e.target.value)}
+          />
+        </label>
+        <div className="flex gap-2">
+          <button type="submit" className="dacha-btn flex-1">Сохранить</button>
+          <button type="button" onClick={onClose} className="dacha-chip flex-1 py-3">Отмена</button>
+        </div>
+      </form>
+    </Modal>
   )
 }
