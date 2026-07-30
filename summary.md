@@ -9,6 +9,7 @@
 > - Активные планы фич — `docs/superpowers/plans/` + `specs/` (сейчас: offline-today, unified-task-dismiss). Завершённые → `docs/archive/`.
 > - Архитектура — `ARCHITECTURE.md`; конвенции — `android/CONVENTIONS.md`, `backend/CONVENTIONS.md`; деплой/ops — `docs/DEPLOY.md`; тесты — `TESTING.md`; инструкции AI — `CLAUDE.md`.
 > - Маркетинг/ASO — `docs/promo-plan-first-paying.md`, `docs/gtm-strategy-ru.md`, `docs/aso-*.md`, `docs/master-plan-2026.md`.
+> - Конкуренты и позиционирование — `docs/competitors.md` (что подчёркивать на витрине и чего сознательно не делаем).
 > - База знаний Obsidian (`Dacha/`) — навигация поверх репо; источник истины всегда репо.
 
 ## Текущий статус
