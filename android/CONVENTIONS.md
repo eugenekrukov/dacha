@@ -378,6 +378,40 @@ Button(
 }
 ```
 
+### ModalBottomSheet с полями ввода — обязательный каркас
+
+Любая шторка с текстовыми полями пишется **только так**. Оба элемента обязательны и работают
+в паре: без `skipPartiallyExpanded` лист открывается на половину экрана и нижние элементы
+(обычно кнопка «Сохранить») просто обрезаются, без `verticalScroll` до них не добраться при
+поднятой клавиатуре — `imePadding()` сжимает лист, а не прокручивает его.
+
+```kotlin
+ModalBottomSheet(
+    onDismissRequest = onDismiss,
+    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    containerColor = MaterialTheme.colorScheme.surface,
+    windowInsets = WindowInsets(0)          // insets применяем сами, ниже
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+            .navigationBarsPadding()        // не уехать под системные кнопки
+            .imePadding()                   // не уехать под клавиатуру
+            .padding(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) { /* поля */ }
+}
+```
+
+Порядок модификаторов важен: `verticalScroll` до паддингов, `navigationBarsPadding` до
+`imePadding`. Образец — `ui/actions/ActionLogBottomSheet.kt`.
+
+> **История (2026-07-30):** дефект был в `AddHarvestSheet` и `SeedsScreen` — оба забыли обе
+> строки. Проявлялось как «клавиатура закрывает поля» и «кнопка уехала под системные кнопки»,
+> хотя `navigationBarsPadding` там стоял: обрезал не inset, а половинная высота листа.
+
 ### FilterChip (пилюля)
 
 ```kotlin

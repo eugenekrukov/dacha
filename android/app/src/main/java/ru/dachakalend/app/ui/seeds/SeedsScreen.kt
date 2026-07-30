@@ -5,8 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -292,14 +294,20 @@ private fun SeedSheet(
     val pickers = rememberPhotoPickers(onBytes = { photoBytes = it })
     val expiryParsed = parseMonthInput(expiryText)
 
+    // skipPartiallyExpanded + verticalScroll обязательны в паре: без первого лист открывается
+    // на половину экрана и обрезает кнопку «Сохранить», без второго до неё не добраться при
+    // поднятой клавиатуре (imePadding сжимает лист, а не прокручивает). Жалоба владельца
+    // 2026-07-30, тот же дефект был в AddHarvestSheet.
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface,
         windowInsets = WindowInsets(0)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
                 .imePadding()

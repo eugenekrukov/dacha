@@ -1,8 +1,10 @@
 package ru.dachakalend.app.ui.harvest
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,14 +37,19 @@ fun AddHarvestSheet(
     var finishSeason by remember { mutableStateOf(false) }
     var dropdownExpanded by remember { mutableStateOf(false) }
 
+    // skipPartiallyExpanded + verticalScroll обязательны в паре: без первого лист открывается
+    // на половину экрана и обрезает нижние поля, без второго до них не добраться при поднятой
+    // клавиатуре (imePadding сжимает лист, а не прокручивает). Жалоба владельца 2026-07-30.
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface,
         windowInsets = WindowInsets(0)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
                 .imePadding()
