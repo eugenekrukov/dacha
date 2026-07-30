@@ -362,10 +362,19 @@ Text(text = "...", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
 Card(
     modifier = Modifier.fillMaxWidth(),
     shape    = RoundedCornerShape(22.dp),
-    colors   = CardDefaults.cardColors(containerColor = Color.White), // явно White!
+    colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
 )
 ```
+
+> ⚠️ **Никаких `Color.White` в фоне карточек.** До появления тёмной темы (2026-07-27) здесь
+> было предписано `containerColor = Color.White` «явно White!» — в светлой теме это совпадало
+> с `surface` и выглядело правильно. В тёмной теме такая карточка остаётся белой, а текст на
+> ней рисуется светлым `onBackground` → нечитаемо. Правило переписано 2026-07-30 после того,
+> как `SeedsScreen` честно последовал устаревшей конвенции и получил ровно этот баг.
+> Цвет текста внутри карточки — тоже из темы (`onSurface` / `onBackground`), не литерал.
+> Исключение — контентные цвета поверх заведомо цветной подложки (например `Color.White`
+> на кнопке с `primary`-фоном): там литерал корректен в обеих темах.
 
 ### Кнопки
 

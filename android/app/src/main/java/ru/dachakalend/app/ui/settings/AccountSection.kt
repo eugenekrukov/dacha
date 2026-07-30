@@ -181,7 +181,9 @@ fun AccountSection(
             Card(
                 modifier = Modifier.fillMaxWidth().clickable { onVerifyEmail(email) },
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                // Акцентная плашка-нудж: контейнер и текст берём парой из темы, иначе в тёмной
+                // теме светлый литерал остаётся светлым, а onBackground становится светлым тоже.
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -190,12 +192,12 @@ fun AccountSection(
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Подтвердите email", fontFamily = NunitoFamily, fontWeight = FontWeight.Black,
-                            fontSize = 15.sp, color = MaterialTheme.colorScheme.onBackground)
+                            fontSize = 15.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         Text("Нужно для восстановления доступа к аккаунту", fontFamily = NunitoFamily,
-                            fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
             Spacer(Modifier.height(8.dp))
