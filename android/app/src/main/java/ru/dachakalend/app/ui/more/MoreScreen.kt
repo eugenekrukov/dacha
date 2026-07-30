@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -17,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +36,7 @@ fun MoreScreen(
     onOpenGuide: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -54,6 +57,22 @@ fun MoreScreen(
             MoreCard(Icons.AutoMirrored.Filled.MenuBook, "Справочник культур", "Сроки, полив, болезни, соседство", onOpenCrops)
             MoreCard(Icons.Default.HealthAndSafety, "Болезни и дефициты", "Дефициты микроэлементов, болезни, вредители", onOpenGuide)
             MoreCard(Icons.Default.Settings, "Настройки", "Подписка, уведомления, внешний вид", onOpenSettings)
+            // Веб-версия — то, о чём иначе не узнают: в магазине она заявлена как преимущество,
+            // а в самом приложении ссылки на неё не было вовсе (замечание владельца 2026-07-30).
+            // Открываем в браузере: на телефоне это подтверждает, что вход тот же, а планировать
+            // сезон человек потом пойдёт с компьютера.
+            MoreCard(
+                Icons.Default.Computer,
+                "Веб-версия",
+                "Тот же аккаунт в браузере — удобно планировать с компьютера"
+            ) {
+                context.startActivity(
+                    android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://dacha.studio1008.com/app/")
+                    )
+                )
+            }
         }
     }
 }
