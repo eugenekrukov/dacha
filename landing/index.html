@@ -238,11 +238,7 @@ section{position:relative;padding:74px 0}
 .store-btn{position:relative;display:inline-flex;align-items:center;gap:10px;border-radius:16px;
   padding:14px 24px;font-weight:900;font-size:15px;background:var(--ink);color:#fff;
   transition:transform .18s,box-shadow .18s}
-.store-btn:not([aria-disabled]):hover{transform:translateY(-3px);box-shadow:0 14px 24px -12px rgba(58,38,21,.7);text-decoration:none}
-.store-btn[aria-disabled="true"]{background:#EFE2CE;color:#a88f72;cursor:default;pointer-events:none}
-.store-btn .soon{position:absolute;top:-10px;right:-8px;background:var(--green);color:#fff;font-size:10px;
-  font-weight:900;letter-spacing:.6px;padding:3px 9px;border-radius:100px;text-transform:uppercase;
-  box-shadow:0 6px 12px -5px rgba(46,125,50,.7)}
+.store-btn:hover{transform:translateY(-3px);box-shadow:0 14px 24px -12px rgba(58,38,21,.7);text-decoration:none}
 .start-hint{text-align:center;color:var(--muted);font-weight:700;font-size:13.5px;margin-top:18px}
 
 /* legal */
@@ -621,12 +617,12 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
     <div class="cta-row" data-reveal style="justify-content:center;margin:8px 0 22px">
       <a class="btn btn-primary" href="/app/">🌱 Открыть веб-версию</a>
     </div>
-    <p class="start-lead" data-reveal style="margin-top:6px"><b>Мобильное приложение для Android</b> — уже в RuStore, скоро в Google Play:</p>
+    <p class="start-lead" data-reveal style="margin-top:6px"><b>Мобильное приложение для Android</b> — в RuStore и Google Play:</p>
     <div class="stores" data-reveal>
       <a class="store-btn" href="https://www.rustore.ru/catalog/app/ru.dachakalend.app" target="_blank" rel="noopener" aria-label="Скачать «Календарь дачника» в RuStore">📲 RuStore</a>
-      <span class="store-btn" aria-disabled="true">▶️ Google Play<span class="soon">Скоро</span></span>
+      <a class="store-btn" href="https://play.google.com/store/apps/details?id=ru.dachakalend.app" target="_blank" rel="noopener" aria-label="Скачать «Календарь дачника» в Google Play">▶️ Google Play</a>
     </div>
-    <p class="start-hint" data-reveal>Условия везде одинаковые — в веб-версии, Google Play и RuStore: 1 сад и 3 посадки бесплатно навсегда, «Дачник Про» — когда нужно больше. Без рекламы. Веб-версия доступна уже сейчас.</p>
+    <p class="start-hint" data-reveal>Условия везде одинаковые — в веб-версии, Google Play и RuStore: 1 сад и 3 посадки бесплатно навсегда, «Дачник Про» — когда нужно больше. Без рекламы. Аккаунт общий: начните на телефоне, продолжите за компьютером.</p>
   </div>
 </section>
 
@@ -812,7 +808,7 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
     <div class="store-row">
       <a class="store" href="/app/" aria-label="Открыть веб-версию «Календарь дачника»">🌱 Веб-версия</a>
       <a class="store" href="https://www.rustore.ru/catalog/app/ru.dachakalend.app" target="_blank" rel="noopener" aria-label="Скачать «Календарь дачника» в RuStore">📲 RuStore</a>
-      <a class="store" href="#download" aria-label="Как скачать «Календарь дачника» в Google Play">▶️ Google Play</a>
+      <a class="store" href="https://play.google.com/store/apps/details?id=ru.dachakalend.app" target="_blank" rel="noopener" aria-label="Скачать «Календарь дачника» в Google Play">▶️ Google Play</a>
     </div>
     <div class="store-row" style="margin-top:4px">
       <a class="store" href="/spravochnik/">Справочник</a>
