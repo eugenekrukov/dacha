@@ -100,6 +100,18 @@
   .yn .ok li::before{ content:"✓"; position:absolute; left:0; color:var(--green); font-weight:900; }
   .yn .no li::before{ content:"✕"; position:absolute; left:0; color:#B3261E; font-weight:900; }
 
+  /* Плотная версия — когда на слайде два ряда карточек и подпись снизу (портрет аудитории). */
+  .compact .cards{ margin-top:16px; gap:14px; }
+  .compact .card{ padding:16px 18px; }
+  .compact .card p{ font-size:13.5px; line-height:1.4; }
+  .compact .card h3{ font-size:15.5px; margin:8px 0 5px; }
+  .compact .card .ic{ font-size:22px; }
+  .compact ul.feat{ margin-top:10px; gap:9px; }
+  .compact ul.feat li{ font-size:14.5px; padding-left:28px; }
+  .compact ul.feat li::before{ width:13px; height:13px; top:5px; }
+  .compact ul.feat li span{ font-size:13px; }
+  .compact .note{ margin-top:14px; padding:13px 18px; font-size:13.5px; }
+
   .note{ margin-top:22px; background:var(--cream-2); border-radius:14px; padding:16px 20px; font-size:14.5px;
     line-height:1.5; font-weight:700; color:var(--ink-2); }
   .note b{ color:var(--orange-d); }
@@ -152,7 +164,54 @@
   <div class="num">2</div>
 </section>
 
-<!-- 3. ПЛАТФОРМЫ -->
+<!-- 3. ПОРТРЕТ АУДИТОРИИ -->
+<section class="slide">
+  <div class="full compact">
+    <div class="kicker">Для кого снимаем</div>
+    <h2>Зритель, который <em>дойдёт до установки</em></h2>
+    <div class="cards c3">
+      <div class="card">
+        <div class="ic">👩‍🌾</div>
+        <h3>Ядро — 40–65 лет</h3>
+        <p>Свой участок или дача выходного дня. Телефон на Android, средний уровень уверенности с приложениями: ставит сама, но не любит разбираться. Сезон ведёт «в голове» и в тетрадке.</p>
+      </div>
+      <div class="card">
+        <div class="ic">🌱</div>
+        <h3>Второй круг — 30–45</h3>
+        <p>Начинающие: первая рассада на подоконнике, первые грядки у нового дома. Им нужнее всего подсказка «когда сеять» — своего опыта ещё нет, а советы в интернете противоречат друг другу.</p>
+      </div>
+      <div class="card">
+        <div class="ic">🏡</div>
+        <h3>Пересечение с вашим каналом</h3>
+        <p>Дом и дача — одна и та же аудитория: люди, которые обустраивают своё пространство. Кто закончил ремонт, следующим летом выходит на участок. Заход «дача как продолжение дома» здесь работает.</p>
+      </div>
+    </div>
+    <div class="cards c2">
+      <div class="card">
+        <h3 style="margin-top:0">Что у них болит — говорите об этом их словами</h3>
+        <ul class="feat">
+          <li><b>«Проспала заморозки — рассада погибла»</b><span>Самая живая боль: потерянный труд за одну ночь</span></li>
+          <li><b>«Не помню, что где росло в прошлом году»</b><span>Севооборот знают все, соблюдают единицы</span></li>
+          <li><b>«Что это за пятна на листьях?»</b><span>Ищут в поиске по картинкам и в чужих комментариях</span></li>
+          <li><b>«Когда пасынковать, когда подкормить»</b><span>Сроки разные у каждой культуры, держать их в голове невозможно</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Что их отталкивает в других приложениях</h3>
+        <ul class="feat">
+          <li><b>Реклама поверх грядок</b><span>Главная претензия к бесплатным аналогам</span></li>
+          <li><b>«Совет только за деньги»</b><span>Платный доступ включается на второй минуте</span></li>
+          <li><b>Зарубежные приложения</b><span>Сроки под другой климат, английский язык, оплата не проходит</span></li>
+          <li><b>Мелкий интерфейс</b><span>Для 55+ это причина удалить сразу</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="note"><b>Отсюда главный аргумент ролика:</b> без рекламы, бесплатный тариф без срока и крупный читаемый интерфейс — то есть ровно то, чего им не хватало в предыдущих трёх приложениях.</div>
+  </div>
+  <div class="num">3</div>
+</section>
+
+<!-- 4. ПЛАТФОРМЫ -->
 <section class="slide">
   <div class="split">
     <div>
@@ -169,7 +228,7 @@
     </div>
     <div class="phones"><img class="ph big" src="img/01-today-hero.jpg" alt="Главный экран"></div>
   </div>
-  <div class="num">3</div>
+  <div class="num">4</div>
 </section>
 
 <!-- 4. СЕГОДНЯ -->
@@ -191,7 +250,7 @@
       </ul>
     </div>
   </div>
-  <div class="num">4</div>
+  <div class="num">5</div>
 </section>
 
 <!-- 5. ПОГОДА -->
@@ -212,7 +271,7 @@
     </div>
     <div class="phones"><img class="ph big" src="img/03-weather.jpg" alt="Погода"></div>
   </div>
-  <div class="num">5</div>
+  <div class="num">6</div>
 </section>
 
 <!-- 6. ПОСАДКИ -->
@@ -235,7 +294,7 @@
       </ul>
     </div>
   </div>
-  <div class="num">6</div>
+  <div class="num">7</div>
 </section>
 
 <!-- 7. КАЛЕНДАРЬ + ЛУНА -->
@@ -258,7 +317,7 @@
       <img class="ph" src="img/06b-calendar-light.jpg" alt="Календарь светлая тема">
     </div>
   </div>
-  <div class="num">7</div>
+  <div class="num">8</div>
 </section>
 
 <!-- 8. СПРАВОЧНИК -->
@@ -281,7 +340,7 @@
       </ul>
     </div>
   </div>
-  <div class="num">8</div>
+  <div class="num">9</div>
 </section>
 
 <!-- 9. РАЗБОР ПРОБЛЕМЫ -->
@@ -302,7 +361,7 @@
     </div>
     <div class="phones"><img class="ph big" src="img/08-problem-detail.jpg" alt="Разбор болезни"></div>
   </div>
-  <div class="num">9</div>
+  <div class="num">10</div>
 </section>
 
 <!-- 10. ГРЯДКИ И СЕВООБОРОТ -->
@@ -325,7 +384,7 @@
       <div class="note"><b>Почему это ценно:</b> севооборот — то, что дачники знают, но не соблюдают, потому что не помнят. Здесь помнить не нужно.</div>
     </div>
   </div>
-  <div class="num">10</div>
+  <div class="num">11</div>
 </section>
 
 <!-- 11. УРОЖАЙ, ЛЕНТА, СТАТИСТИКА -->
@@ -348,7 +407,7 @@
       <img class="ph" src="img/v2-07-profile-feed.jpg" alt="Лента участка">
     </div>
   </div>
-  <div class="num">11</div>
+  <div class="num">12</div>
 </section>
 
 <!-- 12. СЕМЕНА + МЕЛОЧИ -->
@@ -381,7 +440,7 @@
       <div class="card"><h3 style="margin-top:0">Удаление аккаунта</h3><p>В два касания, вместе со всеми данными</p></div>
     </div>
   </div>
-  <div class="num">12</div>
+  <div class="num">13</div>
 </section>
 
 <!-- 13. ТЁМНАЯ ТЕМА КАДР -->
@@ -402,7 +461,7 @@
       </ul>
     </div>
   </div>
-  <div class="num">13</div>
+  <div class="num">14</div>
 </section>
 
 <!-- 14. УСЛОВИЯ -->
@@ -431,7 +490,7 @@
     </div>
     <div class="note" style="margin-top:24px"><b>Формулировка для кадра:</b> «Реклама в приложении отсутствует полностью — ни в бесплатной версии, ни в платной. И подписка не списывается сама: оплатил период — и всё».</div>
   </div>
-  <div class="num">14</div>
+  <div class="num">15</div>
 </section>
 
 <!-- 15. СЦЕНАРИИ -->
@@ -463,7 +522,7 @@
     </div>
     <div class="note" style="margin-top:22px"><b>Что снимать удобнее всего:</b> запись экрана телефона + отдельно живые кадры участка. Интерфейс крупный, контрастный, читается даже в вертикальном формате.</div>
   </div>
-  <div class="num">15</div>
+  <div class="num">16</div>
 </section>
 
 <!-- 16. ЧТО ГОВОРИТЬ / ЧЕГО НЕ ОБЕЩАТЬ -->
@@ -499,7 +558,7 @@
     </div>
     <div class="note" style="margin-top:22px"><b>Если спросят про айфон:</b> честный ответ — «мобильного приложения под iOS нет, но веб-версия открывается в Safari, и её можно добавить на домашний экран как обычное приложение».</div>
   </div>
-  <div class="num">16</div>
+  <div class="num">17</div>
 </section>
 
 <!-- 17. ССЫЛКИ -->
@@ -533,7 +592,7 @@
       в этом наборе нет: фича вышла позже съёмки, снимать нужно с живого телефона.
     </div>
   </div>
-  <div class="num">17</div>
+  <div class="num">18</div>
 </section>
 
 </body>
