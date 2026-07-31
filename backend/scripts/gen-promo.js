@@ -13,12 +13,15 @@
  * Опции:
  *   count           — сколько кодов сгенерировать (позиционный, по умолчанию 1, максимум 1000)
  *   --expires=DATE  — дедлайн АКТИВАЦИИ кода (YYYY-MM-DD). После него код не погасить.
+ *   --max-uses=N    — сколько раз код можно погасить (по умолчанию 1). N>1 = мультиключ:
+ *                     один код на много человек (промо у блогера), но по разу на пользователя.
  *
  * Примеры:
  *   node scripts/gen-promo.js lifetime
  *   node scripts/gen-promo.js month 20
  *   node scripts/gen-promo.js days 90 50
  *   node scripts/gen-promo.js days 90 50 --expires=2026-09-01
+ *   node scripts/gen-promo.js days 60 1 --max-uses=300 --expires=2026-09-30   # мультиключ
  *
  * Коды печатаются в stdout (по одному на строку). Использует .env backend
  * (DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD).
@@ -39,7 +42,7 @@ function randomCode() {
 
 function usage(msg) {
   if (msg) console.error('Ошибка: ' + msg)
-  console.error('Usage: node scripts/gen-promo.js <lifetime|month|days N> [count] [--expires=YYYY-MM-DD]')
+  console.error('Usage: node scripts/gen-promo.js <lifetime|month|days N> [count] [--expires=YYYY-MM-DD] [--max-uses=N]')
   process.exit(1)
 }
 
@@ -72,6 +75,10 @@ function main() {
 
   if (!Number.isInteger(count) || count < 1 || count > 1000) usage('count должен быть 1..1000')
 
+  // Сколько раз можно погасить каждый код (1 = одноразовый, больше = мультиключ)
+  const maxUses = parseInt(flags['max-uses'] || '1', 10)
+  if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 100000) usage('--max-uses должен быть 1..100000')
+
   // Дедлайн активации (опционально)
   let expiresAt = null
   if (flags.expires) {
@@ -88,13 +95,13 @@ function main() {
     password: process.env.DB_PASSWORD || ''
   })
 
-  run(pool, { type, durationDays, count, expiresAt }).catch(e => {
+  run(pool, { type, durationDays, count, expiresAt, maxUses }).catch(e => {
     console.error('Ошибка генерации:', e.message)
     process.exit(1)
   })
 }
 
-async function run(pool, { type, durationDays, count, expiresAt }) {
+async function run(pool, { type, durationDays, count, expiresAt, maxUses }) {
   const created = []
   try {
     for (let i = 0; i < count; i++) {
@@ -103,8 +110,8 @@ async function run(pool, { type, durationDays, count, expiresAt }) {
         const code = randomCode()
         try {
           await pool.query(
-            'INSERT INTO promo_codes (code, type, duration_days, expires_at) VALUES ($1, $2, $3, $4)',
-            [code, type, durationDays, expiresAt]
+            'INSERT INTO promo_codes (code, type, duration_days, expires_at, max_uses) VALUES ($1, $2, $3, $4, $5)',
+            [code, type, durationDays, expiresAt, maxUses]
           )
           created.push(code)
           break
@@ -120,7 +127,8 @@ async function run(pool, { type, durationDays, count, expiresAt }) {
 
   const dur = durationDays == null ? 'навсегда' : `${durationDays} дн.`
   const exp = expiresAt ? `, активировать до ${expiresAt.slice(0, 10)}` : ''
-  console.error(`Создано ${created.length} кодов (${type}, доступ: ${dur}${exp}):`)
+  const uses = maxUses > 1 ? `, мультиключ на ${maxUses} активаций` : ''
+  console.error(`Создано ${created.length} кодов (${type}, доступ: ${dur}${exp}${uses}):`)
   created.forEach(c => console.log(c))
 }
 

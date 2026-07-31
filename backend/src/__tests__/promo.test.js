@@ -9,6 +9,12 @@ const { isLifetimePromo } = require('../utils/access')
  * и реагирует на конкретные SQL-запросы роута (по подстроке).
  */
 function makeMockDb({ codes = {}, users = {} } = {}) {
+  // Нормализуем поля мультиключа: по умолчанию код одноразовый
+  for (const c of Object.values(codes)) {
+    c.max_uses = c.max_uses ?? 1
+    c.uses = c.uses ?? (c.redeemed_by ? 1 : 0)
+    c.redemptions = c.redemptions ?? new Set(c.redeemed_by ? [c.redeemed_by] : [])
+  }
   return {
     state: { codes, users },
     async query(sql, params) {
@@ -19,18 +25,28 @@ function makeMockDb({ codes = {}, users = {} } = {}) {
           rows: c ? [{
             type: c.type,
             duration_days: c.duration_days ?? null,
-            expires_at: c.expires_at ?? null,
-            redeemed_by: c.redeemed_by
+            expires_at: c.expires_at ?? null
           }] : []
         }
       }
-      if (sql.includes('UPDATE promo_codes SET redeemed_by')) {
+      if (sql.includes('SET uses = uses + 1')) {
         const [userId, code] = params
         const c = s.codes[code]
-        if (!c || c.redeemed_by) return { rows: [] }
-        c.redeemed_by = userId
-        c.redeemed_at = new Date()
+        if (!c || c.uses >= c.max_uses) return { rows: [] }
+        c.uses += 1
+        if (c.redeemed_by == null) { c.redeemed_by = userId; c.redeemed_at = new Date() }
         return { rows: [{ type: c.type, duration_days: c.duration_days ?? null }] }
+      }
+      if (sql.includes('INSERT INTO promo_redemptions')) {
+        const [code, userId] = params
+        const c = s.codes[code]
+        if (c.redemptions.has(userId)) return { rows: [] }
+        c.redemptions.add(userId)
+        return { rows: [{ '?column?': 1 }] }
+      }
+      if (sql.includes('SET uses = uses - 1')) {
+        s.codes[params[0]].uses -= 1
+        return { rows: [] }
       }
       if (sql.includes('SELECT promo_until FROM users')) {
         const u = s.users[params[0]] || {}
@@ -154,6 +170,52 @@ describe('POST /promo/redeem', () => {
     const res = await supertest(app.server)
       .post('/promo/redeem').set('Authorization', `Bearer ${token}`).send({ code: 'DACHA-FUTR-CODE' })
     expect(res.status).toBe(200)
+    await app.close()
+  })
+
+  it('мультиключ: разные пользователи гасят один код, пока не исчерпан лимит', async () => {
+    const db = makeMockDb({
+      codes: { 'DACHA-BLOG-2MON': { type: 'days', duration_days: 60, redeemed_by: null, max_uses: 2 } }
+    })
+    const app = await buildApp(db)
+
+    for (const userId of [1, 2]) {
+      const res = await supertest(app.server)
+        .post('/promo/redeem').set('Authorization', `Bearer ${makeToken(app, userId)}`)
+        .send({ code: 'DACHA-BLOG-2MON' })
+      expect(res.status).toBe(200)
+      const days = (new Date(res.body.promo_until).getTime() - Date.now()) / 86_400_000
+      expect(days).toBeGreaterThan(59)
+      expect(days).toBeLessThan(61)
+    }
+
+    // третий пользователь — лимит исчерпан
+    const res3 = await supertest(app.server)
+      .post('/promo/redeem').set('Authorization', `Bearer ${makeToken(app, 3)}`)
+      .send({ code: 'DACHA-BLOG-2MON' })
+    expect(res3.status).toBe(409)
+    expect(res3.body.error).toBe('code_already_used')
+    expect(db.state.codes['DACHA-BLOG-2MON'].uses).toBe(2)
+    expect(db.state.codes['DACHA-BLOG-2MON'].redeemed_by).toBe(1)   // первый погасивший
+    await app.close()
+  })
+
+  it('мультиключ: повторное погашение тем же пользователем → 409 и активация не тратится', async () => {
+    const db = makeMockDb({
+      codes: { 'DACHA-BLOG-REPT': { type: 'days', duration_days: 60, redeemed_by: null, max_uses: 10 } }
+    })
+    const app = await buildApp(db)
+    const token = makeToken(app, 1)
+
+    const first = await supertest(app.server)
+      .post('/promo/redeem').set('Authorization', `Bearer ${token}`).send({ code: 'DACHA-BLOG-REPT' })
+    expect(first.status).toBe(200)
+
+    const second = await supertest(app.server)
+      .post('/promo/redeem').set('Authorization', `Bearer ${token}`).send({ code: 'DACHA-BLOG-REPT' })
+    expect(second.status).toBe(409)
+    expect(second.body.error).toBe('code_already_used')
+    expect(db.state.codes['DACHA-BLOG-REPT'].uses).toBe(1)
     await app.close()
   })
 
