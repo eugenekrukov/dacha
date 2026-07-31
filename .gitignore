@@ -63,3 +63,4 @@ Dacha/Tender/Корень репозитория/
 # Каталоги остаются на диске, PROMPT.md и раскадровка (текст) — в git.
 docs/store-assets/screenshots-raw/
 docs/store-assets/rustore-promo/*.png
+docs/store-assets/presentation/fonts.css

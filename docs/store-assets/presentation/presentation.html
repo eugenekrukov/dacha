@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Календарь дачника — презентация функций</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+  @page { size: 33.87cm 19.05cm; margin: 0; }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  :root{
+    --orange:#FF7B00; --orange-d:#C2410C; --cream:#FFF8EB; --cream-2:#FBEFD8;
+    --ink:#1F2937; --ink-2:#4B5563; --muted:#8A7A63;
+    --green:#2E7D32; --line:#E8DCC4; --dark:#2A1D0E;
+  }
+  html,body{ font-family:'Nunito',sans-serif; color:var(--ink); }
+  .slide{
+    width:1280px; height:720px; position:relative; overflow:hidden;
+    background:var(--cream); page-break-after:always; display:flex; flex-direction:column;
+  }
+  .slide:last-child{ page-break-after:auto; }
+
+  /* — служебное — */
+  .num{ position:absolute; right:34px; bottom:26px; font-size:13px; font-weight:700; color:var(--muted); }
+  .kicker{ font-size:13px; font-weight:900; letter-spacing:2.2px; text-transform:uppercase; color:var(--orange-d); }
+  h2{ font-size:44px; font-weight:900; line-height:1.06; letter-spacing:-.8px; margin:14px 0 0; }
+  h2 em{ font-style:normal; color:var(--orange-d); }
+  .lead{ font-size:19px; line-height:1.5; color:var(--ink-2); font-weight:600; margin-top:16px; }
+
+  /* — раскладка «текст + телефон» — */
+  .split{ flex:1; display:grid; grid-template-columns:1fr 420px; gap:52px; padding:52px 64px 44px; align-items:center; }
+  .split.rev{ grid-template-columns:420px 1fr; }
+  .phones{ display:flex; gap:18px; justify-content:center; align-items:center; }
+  .ph{ width:190px; border-radius:20px; border:6px solid var(--dark); box-shadow:0 18px 40px -18px rgba(42,29,14,.55); display:block; }
+  .ph.big{ width:250px; }
+
+  /* — список фич — */
+  ul.feat{ list-style:none; margin-top:26px; display:flex; flex-direction:column; gap:14px; }
+  ul.feat li{ position:relative; padding-left:34px; font-size:17px; line-height:1.45; font-weight:600; color:var(--ink); }
+  ul.feat li::before{
+    content:""; position:absolute; left:0; top:7px; width:16px; height:16px; border-radius:5px;
+    background:var(--orange); box-shadow:0 3px 8px -2px rgba(255,123,0,.6);
+  }
+  ul.feat li b{ font-weight:900; }
+  ul.feat li span{ display:block; font-size:14.5px; font-weight:600; color:var(--muted); margin-top:2px; }
+
+  /* — карточки — */
+  .cards{ display:grid; gap:18px; margin-top:26px; }
+  .cards.c3{ grid-template-columns:repeat(3,1fr); }
+  .cards.c4{ grid-template-columns:repeat(4,1fr); }
+  .cards.c2{ grid-template-columns:repeat(2,1fr); }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:22px 20px; box-shadow:0 6px 18px -12px rgba(42,29,14,.4); }
+  .card .ic{ font-size:26px; line-height:1; }
+  .card h3{ font-size:17px; font-weight:900; margin:12px 0 7px; color:var(--orange-d); }
+  .card p{ font-size:14.5px; line-height:1.45; color:var(--ink-2); font-weight:600; }
+
+  /* — цифры — */
+  .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:30px; }
+  .stat{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:20px; text-align:center; }
+  .stat .n{ font-size:38px; font-weight:900; color:var(--orange-d); line-height:1; }
+  .stat .l{ font-size:13.5px; font-weight:700; color:var(--muted); margin-top:8px; line-height:1.3; }
+
+  /* — обложка — */
+  .cover{ background:linear-gradient(135deg,#C2410C 0%,#FF7B00 100%); color:#fff; justify-content:center; padding:0 84px; }
+  .cover::after{ content:""; position:absolute; right:-160px; top:-160px; width:620px; height:620px; border-radius:50%;
+    background:radial-gradient(circle,rgba(255,255,255,.22),transparent 62%); }
+  .cover h1{ font-size:78px; font-weight:900; letter-spacing:-2px; line-height:1; position:relative; z-index:2; }
+  .cover .tag{ font-size:24px; font-weight:700; margin-top:20px; opacity:.95; position:relative; z-index:2; }
+  .cover .who{ margin-top:44px; font-size:17px; font-weight:700; line-height:1.6; position:relative; z-index:2;
+    border-left:4px solid rgba(255,255,255,.5); padding-left:20px; }
+  .cover .sun{ position:absolute; right:96px; top:50%; transform:translateY(-50%); font-size:210px; z-index:2; }
+
+  /* — тёмный слайд — */
+  .dark{ background:var(--dark); color:var(--cream); }
+  .dark h2{ color:var(--cream); }
+  .dark h2 em{ color:#FFB566; }
+  .dark .lead{ color:#D8C9B0; }
+  .dark .kicker{ color:#FFB566; }
+  .dark .card{ background:#3A2A16; border-color:#4A381F; }
+  .dark .card p{ color:#D8C9B0; }
+  .dark .card h3{ color:#FFB566; }
+  .dark ul.feat li{ color:var(--cream); }
+  .dark ul.feat li span{ color:#B5A386; }
+
+  /* — сценарии — */
+  .scene{ background:#fff; border:1px solid var(--line); border-left:5px solid var(--orange); border-radius:14px; padding:18px 22px; }
+  .scene h3{ font-size:17px; font-weight:900; color:var(--ink); }
+  .scene .time{ font-size:12.5px; font-weight:900; color:var(--orange-d); letter-spacing:1.2px; text-transform:uppercase; }
+  .scene p{ font-size:14px; line-height:1.5; color:var(--ink-2); font-weight:600; margin-top:8px; }
+  .scene p b{ color:var(--ink); font-weight:900; }
+
+  /* — да/нет — */
+  .yn{ display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:26px; }
+  .yn .box{ border-radius:18px; padding:24px 26px; }
+  .yn .ok{ background:#EAF6EC; border:1px solid #C6E3CB; }
+  .yn .no{ background:#FDECEA; border:1px solid #F3C9C3; }
+  .yn h3{ font-size:19px; font-weight:900; margin-bottom:14px; }
+  .yn .ok h3{ color:var(--green); }
+  .yn .no h3{ color:#B3261E; }
+  .yn li{ list-style:none; font-size:15px; line-height:1.45; font-weight:600; margin-bottom:11px; padding-left:24px; position:relative; }
+  .yn .ok li::before{ content:"✓"; position:absolute; left:0; color:var(--green); font-weight:900; }
+  .yn .no li::before{ content:"✕"; position:absolute; left:0; color:#B3261E; font-weight:900; }
+
+  .note{ margin-top:22px; background:var(--cream-2); border-radius:14px; padding:16px 20px; font-size:14.5px;
+    line-height:1.5; font-weight:700; color:var(--ink-2); }
+  .note b{ color:var(--orange-d); }
+  .full{ flex:1; padding:52px 64px 44px; display:flex; flex-direction:column; }
+  a{ color:inherit; }
+</style>
+</head>
+<body>
+
+<!-- 1. ОБЛОЖКА -->
+<section class="slide cover">
+  <div class="sun">🌻</div>
+  <h1>Календарь<br>дачника</h1>
+  <div class="tag">Приложение, которое говорит, что делать на участке именно сегодня</div>
+  <div class="who">
+    Материалы для съёмки · для Remontyula<br>
+    Все функции, сценарии для видео и факты, которые можно называть в кадре
+  </div>
+</section>
+
+<!-- 2. СУТЬ -->
+<section class="slide">
+  <div class="full">
+    <div class="kicker">Суть за 30 секунд</div>
+    <h2>Дачник держит весь сезон <em>в голове</em>.<br>Приложение забирает это на себя.</h2>
+    <div class="cards c3">
+      <div class="card">
+        <div class="ic">😵‍💫</div>
+        <h3>Как сейчас</h3>
+        <p>Когда сеять перец? Пора ли подкормить? Чем эти пятна на листьях? Что росло тут прошлым летом? Записи — в тетрадке, в заметках телефона или нигде.</p>
+      </div>
+      <div class="card">
+        <div class="ic">🌱</div>
+        <h3>Что делает приложение</h3>
+        <p>Знает ваши культуры, ваш регион и погоду за окном. Само считает сроки и утром показывает список дел на сегодня — с учётом того, что уже сделано.</p>
+      </div>
+      <div class="card">
+        <div class="ic">📔</div>
+        <h3>Что остаётся у человека</h3>
+        <p>История участка: что сажали, чем болело, сколько собрали. К следующему сезону это уже не память, а данные — и подсказка по севообороту.</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n">55</div><div class="l">культур в справочнике</div></div>
+      <div class="stat"><div class="n">78</div><div class="l">разборов болезней<br>и вредителей</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">рекламы<br>в приложении</div></div>
+      <div class="stat"><div class="n">∞</div><div class="l">бесплатный тариф<br>без срока</div></div>
+    </div>
+  </div>
+  <div class="num">2</div>
+</section>
+
+<!-- 3. ПЛАТФОРМЫ -->
+<section class="slide">
+  <div class="split">
+    <div>
+      <div class="kicker">Где работает — важно для видео</div>
+      <h2>Android и браузер.<br><em>iPhone пока нет.</em></h2>
+      <p class="lead">Это первое, о чём спросят в комментариях. Лучше сказать прямо в ролике, чем отвечать сотню раз потом.</p>
+      <ul class="feat">
+        <li><b>Android — Google Play и RuStore</b><span>Одно и то же приложение, одинаковые условия в обоих магазинах</span></li>
+        <li><b>Веб-версия — любой браузер</b><span>dacha.studio1008.com/app — работает и на iPhone, и на компьютере, ставить ничего не нужно</span></li>
+        <li><b>Аккаунт общий</b><span>Записали полив с телефона на грядке — вечером это же видно на компьютере</span></li>
+        <li><b>Приложения для iOS нет</b><span>Владельцам iPhone предлагаем веб-версию: открывается в Safari, можно вынести на домашний экран</span></li>
+      </ul>
+      <div class="note"><b>Формулировка для кадра:</b> «Приложение — для Android. Если у вас айфон, заходите через браузер, там всё то же самое».</div>
+    </div>
+    <div class="phones"><img class="ph big" src="img/01-today-hero.jpg" alt="Главный экран"></div>
+  </div>
+  <div class="num">3</div>
+</section>
+
+<!-- 4. СЕГОДНЯ -->
+<section class="slide">
+  <div class="split rev">
+    <div class="phones">
+      <img class="ph" src="img/01-today-hero.jpg" alt="Сегодня — шапка">
+      <img class="ph" src="img/02-today-tasks.jpg" alt="Сегодня — задачи">
+    </div>
+    <div>
+      <div class="kicker">Экран 1 из 5 · главный</div>
+      <h2>«Сегодня» — <em>единственный экран</em>, который нужен утром</h2>
+      <p class="lead">Открыл, посмотрел, пошёл делать. Ничего не нужно настраивать и вспоминать.</p>
+      <ul class="feat">
+        <li><b>Шапка</b><span>Дата, температура днём и ночью, влажность, температура почвы, вероятность дождя</span></li>
+        <li><b>Задачи на сегодня</b><span>Полив, подкормка, прополка, пасынкование, обработка — по каждой культуре отдельно. Красная метка «+20д» = просрочено на 20 дней</span></li>
+        <li><b>Одна задача на несколько грядок сразу</b><span>«Прополка: Перец, Морковь, Кабачок» — отметить можно одним касанием, приложение запишет всем трём</span></li>
+        <li><b>Советы дня</b><span>Подсказка под конкретную культуру и её стадию: у томата про полив тёплой водой, у гороха про подкормку</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="num">4</div>
+</section>
+
+<!-- 5. ПОГОДА -->
+<section class="slide">
+  <div class="split">
+    <div>
+      <div class="kicker">Экран 2 из 5</div>
+      <h2>Погода <em>именно на вашем участке</em></h2>
+      <p class="lead">Не «по области», а по координатам конкретной дачи — их можно указать городом или взять с GPS прямо на месте.</p>
+      <ul class="feat">
+        <li><b>Прогноз на 7 дней</b><span>Температура, осадки, вероятность дождя</span></li>
+        <li><b>Предупреждение о заморозках</b><span>Приходит уведомлением заранее: успеть накрыть рассаду — это и есть спасённый урожай</span></li>
+        <li><b>Предупреждение о жаре</b><span>Выше +35 °C приложение напоминает поливать вечером, а не днём</span></li>
+        <li><b>Температура почвы</b><span>По ней приложение понимает, можно ли уже сеять, и предупреждает: «почва холодная»</span></li>
+        <li><b>Дождь отменяет полив</b><span>Прошёл дождь — задача на полив не появится, приложение это учитывает</span></li>
+      </ul>
+      <div class="note"><b>Сильный кадр:</b> уведомление о заморозках на экране блокировки. Это то, ради чего приложение держат установленным.</div>
+    </div>
+    <div class="phones"><img class="ph big" src="img/03-weather.jpg" alt="Погода"></div>
+  </div>
+  <div class="num">5</div>
+</section>
+
+<!-- 6. ПОСАДКИ -->
+<section class="slide">
+  <div class="split rev">
+    <div class="phones">
+      <img class="ph" src="img/04-plantings.jpg" alt="Список посадок">
+      <img class="ph" src="img/05-planting-schedule.jpg" alt="Расписание работ">
+    </div>
+    <div>
+      <div class="kicker">Экран 3 из 5 · ядро продукта</div>
+      <h2>Посадки: <em>расписание работ</em> на весь сезон вперёд</h2>
+      <p class="lead">Добавили томат — приложение сразу расписало, что и когда с ним делать до самого сбора урожая.</p>
+      <ul class="feat">
+        <li><b>План по датам</b><span>Пересадка, полив каждые 3 дня, прополка каждые 21, пасынкование каждые 10, обработка от фитофторы, прищипка, сбор урожая</span></li>
+        <li><b>Цветом видно состояние</b><span>Зелёное — сделано, красное — просрочено, серое — впереди</span></li>
+        <li><b>Четыре вкладки на культуру</b><span>О посадке · Уход · Болезни · Вредители — справка ровно по тому, что растёт у вас</span></li>
+        <li><b>Журнал с фотографиями</b><span>Каждое действие можно записать и снять на камеру: получается фотодневник грядки по месяцам</span></li>
+        <li><b>Своё напоминание об осмотре</b><span>Раз в день, в два или в три — для любой посадки отдельно</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="num">6</div>
+</section>
+
+<!-- 7. КАЛЕНДАРЬ + ЛУНА -->
+<section class="slide dark">
+  <div class="split">
+    <div>
+      <div class="kicker">Экран 4 из 5</div>
+      <h2>Календарь работ <em>и лунные фазы</em> — в одном месте</h2>
+      <p class="lead">Лунный календарь не вынесен отдельным разделом: фаза стоит прямо в клетке дня, рядом с задачами. Кто в это верит — увидит, кто нет — не заметит.</p>
+      <ul class="feat">
+        <li><b>Месяц целиком</b><span>В каждом дне — иконка фазы Луны и точка, если на этот день есть работы</span></li>
+        <li><b>Совет по фазе</b><span>«Растущая луна — лучшее время для посева надземных культур», «Полнолуние — отдохните от посевных»</span></li>
+        <li><b>Задачи дня рядом</b><span>Нажали на дату — под календарём и фаза, и список дел на этот день</span></li>
+        <li><b>Светлая и тёмная тема</b><span>Переключается в настройках: как в системе, светлая или тёмная</span></li>
+      </ul>
+      <div class="note" style="background:#3A2A16;color:#D8C9B0"><b style="color:#FFB566">Кадр:</b> тёмная тема на этом экране выглядит выигрышнее всего — луна на тёмном фоне.</div>
+    </div>
+    <div class="phones">
+      <img class="ph" src="img/06-calendar-moon-dark.jpg" alt="Календарь тёмная тема">
+      <img class="ph" src="img/06b-calendar-light.jpg" alt="Календарь светлая тема">
+    </div>
+  </div>
+  <div class="num">7</div>
+</section>
+
+<!-- 8. СПРАВОЧНИК -->
+<section class="slide">
+  <div class="split rev">
+    <div class="phones">
+      <img class="ph" src="img/07-crops-guide.jpg" alt="Справочник культур">
+      <img class="ph" src="img/08b-problems-list.jpg" alt="Болезни и вредители">
+    </div>
+    <div>
+      <div class="kicker">Экран 5 из 5</div>
+      <h2>Справочник: <em>55 культур</em> и 78 разборов проблем</h2>
+      <p class="lead">Не энциклопедия ради объёма, а то, что нужно в момент вопроса «что с ним не так».</p>
+      <ul class="feat">
+        <li><b>55 культур</b><span>Овощи, зелень, ягоды, кусты и деревья: сроки посева, полив, подкормки, совместимость соседей</span></li>
+        <li><b>78 болезней, вредителей и дефицитов</b><span>Фитофтора, мучнистая роса, тля, колорадский жук, нехватка азота или калия</span></li>
+        <li><b>С фотографиями</b><span>Видно, как проблема выглядит на листе — сравнил со своим и понял</span></li>
+        <li><b>Каждый разбор одинаковой структуры</b><span>Описание · Симптомы · Условия · Лечение · Профилактика</span></li>
+        <li><b>Поиск и фильтр по категориям</b><span>Не листать весь список, а сразу найти нужное</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="num">8</div>
+</section>
+
+<!-- 9. РАЗБОР ПРОБЛЕМЫ -->
+<section class="slide">
+  <div class="split">
+    <div>
+      <div class="kicker">Как это выглядит внутри</div>
+      <h2>Определить по фото <em>и понять, чем лечить</em></h2>
+      <p class="lead">Пример: коккомикоз вишни. Так устроен каждый из 78 разборов.</p>
+      <ul class="feat">
+        <li><b>Фотография проблемы</b><span>Крупно, с указанием автора снимка</span></li>
+        <li><b>Когда бывает</b><span>«Июнь — август»: если сейчас не сезон болезни, скорее всего дело в другом</span></li>
+        <li><b>Симптомы словами дачника</b><span>«Мелкие красновато-бурые пятна сверху, розовый налёт снизу, листья опадают в июле»</span></li>
+        <li><b>Условия появления</b><span>Тёплая влажная погода, загущение посадок — понятно, что изменить на будущее</span></li>
+        <li><b>Лечение и профилактика</b><span>Конкретные препараты и агроприёмы, без «обработайте фунгицидом»</span></li>
+      </ul>
+      <div class="note"><b>Честно про ограничение:</b> приложение <b>не</b> распознаёт болезнь по вашему снимку автоматически. Сравнивает человек — глазами, по фото в справочнике.</div>
+    </div>
+    <div class="phones"><img class="ph big" src="img/08-problem-detail.jpg" alt="Разбор болезни"></div>
+  </div>
+  <div class="num">9</div>
+</section>
+
+<!-- 10. ГРЯДКИ И СЕВООБОРОТ -->
+<section class="slide">
+  <div class="split rev">
+    <div class="phones">
+      <img class="ph" src="img/v2-05-bed-rotation.jpg" alt="Грядки и севооборот">
+      <img class="ph" src="img/v2-03-plantings.jpg" alt="Посадки">
+    </div>
+    <div>
+      <div class="kicker">Фича, которой нет у большинства</div>
+      <h2>Грядки и <em>севооборот за три года</em></h2>
+      <p class="lead">Приложение помнит, что росло на каждой грядке, и предупреждает, когда сажаете туда родственную культуру.</p>
+      <ul class="feat">
+        <li><b>Свои грядки и теплицы</b><span>Создаются прямо при добавлении посадки: «Грядка 1», «Теплица», «У забора»</span></li>
+        <li><b>Подсказка по семейству</b><span>«Здесь два года назад были томаты — паслёновые, лучше посадить в другом месте»</span></li>
+        <li><b>История места</b><span>Видно, что где росло раньше, без тетрадки и памяти</span></li>
+        <li><b>Условия выращивания</b><span>Грунт или теплица — от этого меняется частота полива в расписании</span></li>
+      </ul>
+      <div class="note"><b>Почему это ценно:</b> севооборот — то, что дачники знают, но не соблюдают, потому что не помнят. Здесь помнить не нужно.</div>
+    </div>
+  </div>
+  <div class="num">10</div>
+</section>
+
+<!-- 11. УРОЖАЙ, ЛЕНТА, СТАТИСТИКА -->
+<section class="slide">
+  <div class="split">
+    <div>
+      <div class="kicker">Итог сезона</div>
+      <h2>Дневник урожая <em>и лента участка</em></h2>
+      <p class="lead">То, что превращает приложение из напоминалки в историю вашего огорода.</p>
+      <ul class="feat">
+        <li><b>Сколько собрали</b><span>Килограммы или штуки по каждой культуре, с датой. «Это весь урожай» — закрывает сезон для посадки</span></li>
+        <li><b>Лента «Мой участок»</b><span>Все фото и события по месяцам: посев, высадка, первый урожай, завершение сезона</span></li>
+        <li><b>Статистика</b><span>Сколько посадок, сколько действий, что собрано за сезон</span></li>
+        <li><b>Экспорт журнала</b><span>Записи можно выгрузить — данные остаются вашими</span></li>
+      </ul>
+      <div class="note"><b>Кадр для эмоции:</b> лента с фотографиями одной грядки от всходов до урожая. Это то, что хочется показать другим.</div>
+    </div>
+    <div class="phones">
+      <img class="ph" src="img/v2-04-harvest.jpg" alt="Урожай">
+      <img class="ph" src="img/v2-07-profile-feed.jpg" alt="Лента участка">
+    </div>
+  </div>
+  <div class="num">11</div>
+</section>
+
+<!-- 12. СЕМЕНА + МЕЛОЧИ -->
+<section class="slide">
+  <div class="full">
+    <div class="kicker">Что появилось в свежей версии 1.0.8</div>
+    <h2>Мои семена, тёмная тема <em>и работа без интернета</em></h2>
+    <div class="cards c3">
+      <div class="card">
+        <div class="ic">🌰</div>
+        <h3>Мои семена</h3>
+        <p>Коробка с пакетиками, которую никто не помнит наизусть. Культура, сорт, <b>фото пакетика</b> и срок годности. Просроченные сами поднимаются наверх списка, «истекает в этом сезоне» — отдельным цветом.</p>
+        <p style="margin-top:10px;color:var(--orange-d)"><b>Снимать с экрана телефона:</b> скриншота в этом наборе нет, фича вышла позже съёмки.</p>
+      </div>
+      <div class="card">
+        <div class="ic">🌙</div>
+        <h3>Тёмная тема</h3>
+        <p>Три режима: как в системе, всегда светлая, всегда тёмная. Переключается в «Настройки → Тема оформления». Плюс режим крупного шрифта — увеличивает текст по всему приложению.</p>
+      </div>
+      <div class="card">
+        <div class="ic">📴</div>
+        <h3>Работает без интернета</h3>
+        <p>На даче связь ловит не везде. Задачи на сегодня открываются офлайн, а записи об уходе сохраняются в телефоне и уходят на сервер сами, когда сеть появится.</p>
+      </div>
+    </div>
+    <div class="cards c4" style="margin-top:20px">
+      <div class="card"><h3 style="margin-top:0">Уведомления</h3><p>Заморозки, жара, полив, подкормка — каждый тип включается отдельно</p></div>
+      <div class="card"><h3 style="margin-top:0">Несколько участков</h3><p>Дача и огород у дома ведутся раздельно</p></div>
+      <div class="card"><h3 style="margin-top:0">Фото к записям</h3><p>3 снимка на посадку бесплатно, 30 — в подписке</p></div>
+      <div class="card"><h3 style="margin-top:0">Удаление аккаунта</h3><p>В два касания, вместе со всеми данными</p></div>
+    </div>
+  </div>
+  <div class="num">12</div>
+</section>
+
+<!-- 13. ТЁМНАЯ ТЕМА КАДР -->
+<section class="slide dark">
+  <div class="split rev">
+    <div class="phones">
+      <img class="ph" src="img/10-today-dark.jpg" alt="Тёмная тема">
+      <img class="ph" src="img/v2-02-today-tips.jpg" alt="Советы дня">
+    </div>
+    <div>
+      <div class="kicker">Совет по съёмке</div>
+      <h2>Одно и то же приложение <em>в двух настроениях</em></h2>
+      <p class="lead">Переключение темы прямо в кадре — приём, который хорошо смотрится в коротком видео: одно движение, а картинка меняется целиком.</p>
+      <ul class="feat">
+        <li><b>Светлая тема</b><span>Тёплая, «дачная», лучше читается на солнце — на неё смотрит основная аудитория</span></li>
+        <li><b>Тёмная тема</b><span>Вечером и в помещении; выигрышнее всего выглядит календарь с фазами Луны</span></li>
+        <li><b>Фирменный стиль</b><span>Оранжевый, кремовый фон, подсолнух — приложение узнаваемо в кадре даже мельком</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="num">13</div>
+</section>
+
+<!-- 14. УСЛОВИЯ -->
+<section class="slide">
+  <div class="full">
+    <div class="kicker">Деньги — говорить об этом можно спокойно</div>
+    <h2>Бесплатно навсегда, <em>без рекламы и автосписаний</em></h2>
+    <p class="lead">Здесь нет подвоха, который придётся оправдывать в комментариях. Это можно проговорить прямо.</p>
+    <div class="cards c2" style="margin-top:24px">
+      <div class="card">
+        <h3 style="margin-top:0">Бесплатный тариф — без срока</h3>
+        <ul class="feat" style="margin-top:14px">
+          <li><b>1 участок и 3 посадки одновременно</b><span>Не «7 дней пробного периода», а навсегда</span></li>
+          <li><b>Всё остальное без ограничений</b><span>Напоминания, погода, заморозки, справочник, лунный календарь, урожай</span></li>
+          <li><b>Карта не нужна</b><span>Регистрация по почте, платёжные данные не спрашиваются</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">«Дачник Про» — 299 ₽ в месяц или 1990 ₽ в год</h3>
+        <ul class="feat" style="margin-top:14px">
+          <li><b>Сколько угодно посадок</b><span>Весь сад целиком, а не три грядки</span></li>
+          <li><b>30 фотографий на посадку вместо 3</b><span>Полноценный фотодневник сезона</span></li>
+          <li><b>Оплата разовая</b><span>Автопродления нет вообще: закончился период — доступ просто вернулся к бесплатному</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="note" style="margin-top:24px"><b>Формулировка для кадра:</b> «Реклама в приложении отсутствует полностью — ни в бесплатной версии, ни в платной. И подписка не списывается сама: оплатил период — и всё».</div>
+  </div>
+  <div class="num">14</div>
+</section>
+
+<!-- 15. СЦЕНАРИИ -->
+<section class="slide">
+  <div class="full">
+    <div class="kicker">Готовые сюжеты</div>
+    <h2>Четыре сценария <em>под разный формат</em></h2>
+    <div class="cards c2" style="margin-top:22px">
+      <div class="scene">
+        <div class="time">Вертикальное видео · 30–45 сек</div>
+        <h3>«Утро дачника»</h3>
+        <p>Кадр 1: чашка кофе, телефон, экран «Сегодня». Кадр 2: палец листает задачи — полив, прополка, обработка. Кадр 3: идёте на грядку и отмечаете сделанное. <b>Финал:</b> «Список сам появляется каждое утро — я больше ничего не держу в голове».</p>
+      </div>
+      <div class="scene">
+        <div class="time">Вертикальное видео · 30 сек</div>
+        <h3>«Что это за пятна?»</h3>
+        <p>Кадр 1: больной лист крупно, вопрос в лоб. Кадр 2: открываете справочник, листаете фотографии, находите похожее. Кадр 3: читаете «чем лечить». <b>Финал:</b> «78 разборов с фотографиями — сравниваешь и понимаешь».</p>
+      </div>
+      <div class="scene">
+        <div class="time">Обзор · 3–5 минут</div>
+        <h3>«Веду сезон в приложении»</h3>
+        <p>Добавляете реальную посадку → показываете расписание работ до осени → журнал с фото → лента участка за месяц → урожай в килограммах. <b>Мысль ролика:</b> сезон превращается в историю, которая останется на следующий год.</p>
+      </div>
+      <div class="scene">
+        <div class="time">Короткий ролик · 20 сек</div>
+        <h3>«Заморозки ночью»</h3>
+        <p>Вечер, уведомление на экране блокировки: возможны заморозки. Вы идёте накрывать рассаду. <b>Финал:</b> «Предупредило заранее — рассада цела». Самый эмоциональный сюжет, попадает в живую боль.</p>
+      </div>
+    </div>
+    <div class="note" style="margin-top:22px"><b>Что снимать удобнее всего:</b> запись экрана телефона + отдельно живые кадры участка. Интерфейс крупный, контрастный, читается даже в вертикальном формате.</div>
+  </div>
+  <div class="num">15</div>
+</section>
+
+<!-- 16. ЧТО ГОВОРИТЬ / ЧЕГО НЕ ОБЕЩАТЬ -->
+<section class="slide">
+  <div class="full">
+    <div class="kicker">Чтобы не пришлось оправдываться в комментариях</div>
+    <h2>Что можно обещать <em>и чего в приложении нет</em></h2>
+    <div class="yn">
+      <div class="box ok">
+        <h3>Говорим смело — это правда</h3>
+        <ul>
+          <li>Список дел на сегодня с учётом культуры, региона и погоды</li>
+          <li>Предупреждения о заморозках и жаре</li>
+          <li>55 культур и 78 разборов болезней с фотографиями</li>
+          <li>Севооборот: помнит, что росло на грядке три года</li>
+          <li>Лунный календарь встроен в календарь работ</li>
+          <li>Работает без интернета, синхронизируется потом</li>
+          <li>Есть веб-версия с тем же аккаунтом</li>
+          <li>Бесплатный тариф без срока, рекламы нет, автосписаний нет</li>
+        </ul>
+      </div>
+      <div class="box no">
+        <h3>Этого нет — обещать нельзя</h3>
+        <ul>
+          <li><b>Нет приложения для iPhone</b> — только Android и браузер</li>
+          <li><b>Не определяет болезнь по вашему фото</b> — сравнение делает человек по справочнику</li>
+          <li><b>Нет фотографий у карточек культур</b> — фото есть у болезней и вредителей</li>
+          <li><b>Нет карты участка</b> — грядки списком, не схемой с перетаскиванием</li>
+          <li><b>Нет чата и сообщества</b> — это личный дневник, не соцсеть</li>
+          <li><b>Не заказывает семена и удобрения</b> — это не магазин</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note" style="margin-top:22px"><b>Если спросят про айфон:</b> честный ответ — «мобильного приложения под iOS нет, но веб-версия открывается в Safari, и её можно добавить на домашний экран как обычное приложение».</div>
+  </div>
+  <div class="num">16</div>
+</section>
+
+<!-- 17. ССЫЛКИ -->
+<section class="slide dark">
+  <div class="full">
+    <div class="kicker">Ссылки и материалы</div>
+    <h2>Что дать зрителю <em>под роликом</em></h2>
+    <div class="cards c2" style="margin-top:24px">
+      <div class="card">
+        <h3 style="margin-top:0">Ссылки</h3>
+        <ul class="feat" style="margin-top:14px">
+          <li><b>Google Play</b><span>play.google.com/store/apps/details?id=ru.dachakalend.app</span></li>
+          <li><b>RuStore</b><span>rustore.ru/catalog/app/ru.dachakalend.app</span></li>
+          <li><b>Веб-версия и сайт</b><span>dacha.studio1008.com</span></li>
+          <li><b>Справочник и блог — можно ссылаться отдельно</b><span>dacha.studio1008.com/spravochnik · /blog</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Соцсети приложения</h3>
+        <ul class="feat" style="margin-top:14px">
+          <li><b>ВКонтакте</b><span>vk.ru/calendacha</span></li>
+          <li><b>Telegram</b><span>t.me/calendacha</span></li>
+          <li><b>Дзен</b><span>dzen.ru/calendacha</span></li>
+          <li><b>Почта для вопросов</b><span>dacha@studio1008.com</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="note" style="background:#3A2A16;color:#D8C9B0;margin-top:26px">
+      <b style="color:#FFB566">О чём стоит договориться отдельно:</b> в приложении есть механика промокодов —
+      можно выпустить код для зрителей канала и разыграть месяцы «Дачник Про». Скриншотов экрана «Мои семена»
+      в этом наборе нет: фича вышла позже съёмки, снимать нужно с живого телефона.
+    </div>
+  </div>
+  <div class="num">17</div>
+</section>
+
+</body>
+</html>
