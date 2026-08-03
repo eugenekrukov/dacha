@@ -144,6 +144,7 @@ fun TodayScreen(
                         val key = taskSnoozeKey(task)
                         key in snoozedTasks || key in deletedTasks
                     },
+                    tasksHidden   = state.data.today.tasksHidden,
                     recommendations = state.data.recommendations.filterNot {
                         recKey(it) in hiddenRecKeys
                     },
@@ -173,6 +174,7 @@ private fun TodayContent(
     weather: WeatherSummary?,
     forecast: List<ForecastDay> = emptyList(),
     tasks: List<TodayTask>,
+    tasksHidden: Int = 0,
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
     todayActions: List<ActionLog> = emptyList(),
@@ -247,13 +249,14 @@ private fun TodayContent(
     // Compute stable LazyColumn indices for coach mark scroll targets
     val weatherVisible = weather != null || forecast.isNotEmpty()
     val recsVisible    = recommendations.isNotEmpty()
-    val coachScrollIdx = remember(weatherVisible, currentTasks.size, upcomingTasks.size, recsVisible) {
+    val coachScrollIdx = remember(weatherVisible, currentTasks.size, upcomingTasks.size, recsVisible, tasksHidden) {
         var i = 0
         buildMap {
             if (weatherVisible) { put("weather", i); i++ }
             if (currentTasks.isNotEmpty()) {
                 put("tasks", i)
                 i += 1 + currentTasks.size
+                if (tasksHidden > 0) i++   // строка «Ещё задач: N»
             } else if (plantings.isEmpty()) i++   // empty card
             if (upcomingTasks.isNotEmpty()) i += 1 + upcomingTasks.size
             if (recsVisible) { put("recs", i) }
@@ -353,6 +356,17 @@ private fun TodayContent(
                                 }
                             )
                         }
+                    }
+                }
+                // Список срезан сервером — без этой строки срез выглядит как «дел больше нет».
+                if (tasksHidden > 0) {
+                    item {
+                        Text(
+                            text  = "Ещё задач: $tasksHidden — покажем, когда закроете текущие",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                        )
                     }
                 }
             } else if (plantings.isEmpty()) {
@@ -1120,8 +1134,11 @@ private fun SunnyTaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
                     fontWeight = FontWeight.Bold,
                     fontSize   = 12.sp,
                     color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
+                    // 2 строки: бэкенд дописывает в description подсказку «сколько/когда/чем»
+                    // (норма л/м², вечерний полив в жару, «дождь смоет») — в одну не влезает.
+                    maxLines   = 2,
+                    overflow   = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
                 )
             }
             // Overdue badge

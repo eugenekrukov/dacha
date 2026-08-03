@@ -2,7 +2,7 @@
 
 const cron = require('node-cron')
 const pushService = require('../services/pushService')
-const { wateringIntervalDays } = require('../utils/todayLogic')
+const { wateringStatus, RAIN_AS_WATERING_MM } = require('../utils/todayLogic')
 
 function startCareRemindersJob(db) {
   cron.schedule('0 9 * * *', () => {
@@ -27,6 +27,7 @@ async function runCareReminders(db, push = pushService) {
         p.sowing_method,
         c.name          AS crop_name,
         c.watering_freq_days,
+        c.watering_details,
         c.fertilizing_schedule,
         c.transplant_days,
         g.user_id
@@ -67,6 +68,27 @@ async function runCareReminders(db, push = pushService) {
       fRes.rows.forEach(r => { lastFertilizedMap[r.planting_id] = new Date(r.logged_at) })
     }
 
+    // Погода и последний дождь по участкам — теми же правилами, что на экране «Сегодня».
+    // Без этого пуш в 09:00 зовёт поливать под дождём, а экран задачу уже не показывает.
+    const weatherByGarden = {}
+    const lastRainByGarden = {}
+    {
+      const wRes = await db.query(
+        `SELECT DISTINCT ON (garden_id) * FROM weather_snapshots
+         WHERE fetched_at > NOW() - INTERVAL '24 hours'
+         ORDER BY garden_id, fetched_at DESC`
+      )
+      wRes.rows.forEach(r => { weatherByGarden[r.garden_id] = r })
+
+      const rRes = await db.query(
+        `SELECT garden_id, MAX(fetched_at) AS rained_at FROM weather_snapshots
+         WHERE precip_mm >= $1 AND fetched_at > NOW() - INTERVAL '7 days'
+         GROUP BY garden_id`,
+        [RAIN_AS_WATERING_MM]
+      )
+      rRes.rows.forEach(r => { lastRainByGarden[r.garden_id] = new Date(r.rained_at) })
+    }
+
     // Корзины по участку: один сводный пуш на тип вместо пуша на каждую посадку.
     // gardenId -> { watering: [{plantingId, cropName}], fertilizing: [...], transplant: [...] }
     const buckets = new Map()
@@ -82,15 +104,17 @@ async function runCareReminders(db, push = pushService) {
         (Date.now() - new Date(planting.planted_at)) / 86400000
       )
 
-      // --- Полив --- (единый расчёт интервала с учётом теплицы — utils/todayLogic)
-      const wateringFreq = wateringIntervalDays(planting.watering_freq_days, planting.conditions)
+      // --- Полив --- (единый расчёт с экраном «Сегодня» — utils/todayLogic.wateringStatus:
+      // стадия, теплица, испарение, зачёт дождя и отмена по прогнозу)
+      const water = wateringStatus(
+        planting,
+        weatherByGarden[planting.garden_id] || null,
+        lastWateredMap[planting.planting_id] || new Date(planting.planted_at),
+        lastRainByGarden[planting.garden_id] || null,
+        new Date()
+      )
 
-      const lastWatered = lastWateredMap[planting.planting_id]
-      const daysSinceWatered = lastWatered
-        ? Math.floor((Date.now() - lastWatered) / 86400000)
-        : daysSincePlanting
-
-      if (daysSinceWatered >= wateringFreq) {
+      if (water.due) {
         if (!await wasAlertSentToday(db, planting.planting_id, 'watering_due')) {
           bucketFor(planting.garden_id).watering.push(planting)
         }

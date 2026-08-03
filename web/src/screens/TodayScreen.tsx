@@ -208,6 +208,12 @@ export default function TodayScreen() {
                   <CircleCheck size={20} aria-hidden className="text-tertiary" /> На сегодня задач нет
                 </div>
               )}
+              {/* Список срезан сервером — без этой строки срез выглядит как «дел больше нет». */}
+              {(today.tasks_hidden ?? 0) > 0 && (
+                <p className="px-1 text-sm font-semibold text-muted">
+                  Ещё задач: {today.tasks_hidden} — покажем, когда закроете текущие
+                </p>
+              )}
             </section>
             {upcomingTasks.length > 0 && (
               <section className="flex flex-col gap-2">

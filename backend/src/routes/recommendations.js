@@ -1,6 +1,7 @@
 'use strict'
 
 const { getDailyLifehack, getSeasonalTip, getStageTip, getCropStageTip, getLunarTip, getDayOfYear, getZoneDayOffset, WEATHER_TIPS } = require('../data/tips')
+const { wateringIntervalDays } = require('../utils/todayLogic')
 
 const STAGE_LABELS = {
   sowing: 'Посев', sprouted: 'Всходы', transplanted: 'Высажено в грунт',
@@ -67,6 +68,9 @@ module.exports = async function (fastify) {
 
     // ── РАЗДЕЛ 1: Контекстные советы по посадкам (НЕ дублируют задачи) ───────
 
+    const hadRecentRain = weather && parseFloat(weather.precip_mm) > 3
+    let rainSkipCandidate = null
+
     for (const planting of plantingsRes.rows) {
       const daysSincePlanting = Math.floor((now - new Date(planting.planted_at)) / 86400000)
 
@@ -76,23 +80,9 @@ module.exports = async function (fastify) {
         ? Math.floor((now - lastWatered) / 86400000)
         : daysSincePlanting
 
-      const wateringFreq = planting.conditions === 'greenhouse'
-        ? Math.ceil((planting.watering_freq_days || 3) * 1.3)
-        : (planting.watering_freq_days || 3)
-
-      const hadRecentRain = weather && weather.precip_mm > 3
-
-      // Жара — совет по поливу вечером (нет соответствующей задачи, не дубль)
-      if (weather && weather.heat_risk) {
-        recommendations.push({
-          type: 'heat_stress',
-          priority: 'medium',
-          planting_id: planting.id,
-          crop_name: planting.crop_name,
-          message: `Жара ${weather.max_temp_c}°C — поливайте ${planting.crop_name} только вечером после 19:00, иначе листья получат ожог`
-        })
-        break // Один раз на участок достаточно
-      }
+      // Интервал полива — та же функция, что в задачах и пушах. Раньше здесь была своя
+      // формула теплицы (×1.3), прямо противоположная расчёту в todayLogic (×0.8).
+      const wateringFreq = wateringIntervalDays(planting.watering_freq_days, planting.conditions, weather)
 
       // Урожай скоро (за 5 дней) — подготовительный совет, задачи ещё нет
       if (planting.harvest_days) {
@@ -127,17 +117,31 @@ module.exports = async function (fastify) {
         }
       }
 
-      // Дождь — напоминание, что полив можно пропустить
-      if (hadRecentRain && daysSinceWatered >= wateringFreq) {
-        recommendations.push({
-          type: 'weather_tip',
-          priority: 'info',
-          planting_id: planting.id,
-          crop_name: planting.crop_name,
-          message: WEATHER_TIPS.after_rain
-        })
-        break // Один раз достаточно
-      }
+      // Дождь прошёл, а посадка «просрочена» по календарю — кандидат на совет «полив
+      // можно пропустить». Сам совет пушим ОДИН раз после цикла: раньше здесь стоял break,
+      // и участок терял все советы по остальным посадкам.
+      if (hadRecentRain && daysSinceWatered >= wateringFreq) rainSkipCandidate = planting
+    }
+
+    // Жара и «после дождя» — советы на участок, а не на посадку: один раз, после цикла.
+    if (weather && weather.heat_risk) {
+      const anyPlanting = plantingsRes.rows[0]
+      recommendations.push({
+        type: 'heat_stress',
+        priority: 'medium',
+        planting_id: anyPlanting?.id ?? null,
+        crop_name: anyPlanting?.crop_name ?? null,
+        message: `Жара ${weather.max_temp_c}°C — поливайте только вечером после 19:00, иначе листья получат ожог`
+      })
+    }
+    if (rainSkipCandidate) {
+      recommendations.push({
+        type: 'weather_tip',
+        priority: 'info',
+        planting_id: rainSkipCandidate.id,
+        crop_name: rainSkipCandidate.crop_name,
+        message: WEATHER_TIPS.after_rain
+      })
     }
 
     // ── РАЗДЕЛ 2: Информационные рекомендации (не зависят от посадок) ───────

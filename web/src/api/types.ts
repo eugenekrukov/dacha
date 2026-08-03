@@ -133,6 +133,9 @@ export interface ForecastDay {
 
 export interface TodayResponse {
   tasks: TodayTask[]
+  // Всего задач до среза и сколько не поместилось (экран показывает «и ещё N»).
+  tasks_total?: number
+  tasks_hidden?: number
   weather: WeatherInfo | null
   forecast: ForecastDay[]
   garden_name?: string

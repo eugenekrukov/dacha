@@ -721,10 +721,16 @@ ModalBottomSheet(
 
 ## 21. Параметры посадки: тип (грунт/теплица) и количество (сессия 2026-06-04)
 
-- **Полив — единый источник правды** `wateringIntervalDays(freqDays, conditions)` в
-  `backend/utils/todayLogic.js`. Теплица → интервал КОРОЧЕ (×0.8 = поливать чаще), мин. 1 день,
-  `Math.round`. Используется в `today.js`, `careRemindersJob.js`. **Android-зеркало** —
-  `CalendarViewModel.kt` (та же формула ×0.8). Меняешь коэффициент — правь оба места.
+- **Полив — единый источник правды** `wateringStatus(planting, weather, lastWatered, lastRain, today)`
+  в `backend/utils/todayLogic.js` (внутри — `wateringIntervalDays(freqDays, conditions, weather)`).
+  Учитывает: теплицу (интервал КОРОЧЕ, ×0.8 = поливать чаще), испарение (жара/сухость/ветер,
+  пол множителя 0.5), частоту и норму по стадии из `crops.watering_details`, зачёт прошедшего
+  ливня вместо полива и отмену по прогнозу. Используется в `today.js`, `careRemindersJob.js`,
+  `recommendations.js` — все три обязаны звать её, а не считать свою формулу (в `recommendations.js`
+  жила своя ×1.3, противоположная по знаку). **Android-зеркало** — `CalendarViewModel.kt`
+  (только ×0.8: календарь строит будущие даты, где погоды ещё нет). Меняешь коэффициент — правь оба места.
+- **Дождь**: отменяет полив только в открытом грунте и только если это пролив (вероятность ≥70%
+  И объём ≥3 мм); завтрашний дождь отменяет полив лишь у непросроченной посадки.
 - **Теплица защищает от заморозков**: per-посадочный `frost_alert` в `buildTasks` пропускается для
   `conditions==='greenhouse'`. Пуш заморозков на участок (`weatherJob`/`pushService`) — общий, остаётся.
 - **`conditions`** задаётся чипами в `PlantingSetupBottomSheet`/`PlantingEditBottomSheet` (`soil`/`greenhouse`).

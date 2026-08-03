@@ -29,6 +29,11 @@ const WMO_CODES = {
   99: 'Сильная гроза с градом'
 }
 
+// Пороги риска. FROST_MIN_TEMP_C продублирован в utils/todayLogic (там он нужен для
+// предупреждения о заморозках по прогнозу) — держать в синхроне.
+const FROST_MIN_TEMP_C = 2
+const HEAT_MAX_TEMP_C  = 30
+
 /**
  * Запрашивает текущую погоду и дневной прогноз из Open-Meteo.
  * Open-Meteo — бесплатный, без API-ключа, работает глобально.
@@ -84,10 +89,12 @@ function parseWeatherData(data) {
   const precipitation = daily.precipitation_sum?.[0] ?? 0
   const weatherCode  = current.weather_code ?? 0
 
-  // Вероятность осадков завтра (индекс 1)
+  // Вероятность осадков СЕГОДНЯ (индекс 0). Раньше сюда клали завтрашнюю: карточка погоды
+  // показывала не тот день, а полив отменялся сегодня из-за завтрашнего дождя. Завтрашний
+  // день берётся из forecast_json[1] — там есть и вероятность, и объём.
   const precipProbToday    = daily.precipitation_probability_max?.[0] ?? null
   const precipProbTomorrow = daily.precipitation_probability_max?.[1] ?? null
-  const precipProb = precipProbTomorrow ?? precipProbToday ?? null
+  const precipProb = precipProbToday ?? precipProbTomorrow ?? null
 
   // Температура почвы — берём ближайший час
   let soilTemp = null
@@ -134,8 +141,10 @@ function parseWeatherData(data) {
     precip_mm:      precipitation,
     condition:      conditionCategory,
     condition_text: WMO_CODES[weatherCode] ?? 'Неизвестно',
-    frost_risk:     minTemp !== null && minTemp <= 2,
-    heat_risk:      maxTemp !== null && maxTemp >= 35,
+    frost_risk:     minTemp !== null && minTemp <= FROST_MIN_TEMP_C,
+    // 35°C — южный порог, в средней полосе он не срабатывает почти никогда, а растения
+    // страдают уже с 30: полив днём даёт ожог, грунт пересыхает вдвое быстрее.
+    heat_risk:      maxTemp !== null && maxTemp >= HEAT_MAX_TEMP_C,
     precip_prob_pct: precipProb,
     soil_temp_c:    soilTemp,
     forecast_json:  forecast,

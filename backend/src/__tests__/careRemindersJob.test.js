@@ -32,12 +32,15 @@ function planting(over = {}) {
 }
 
 // Мок-БД: маршрутизация по тексту SQL. alertSent — управляет дедупом care_alert_log.
-function makeDb({ plantings, alertSent = false }) {
+function makeDb({ plantings, alertSent = false, weather = null, lastRainAt = null }) {
   const inserts = []
   return {
     inserts,
     query: async (sql, params) => {
       if (sql.includes('FROM plantings p')) return { rows: plantings }
+      // Погода участка и последний дождь — те же правила, что на экране «Сегодня».
+      if (sql.includes('MAX(fetched_at)')) return { rows: lastRainAt ? [{ garden_id: 1, rained_at: lastRainAt }] : [] }
+      if (sql.includes('FROM weather_snapshots')) return { rows: weather ? [{ garden_id: 1, ...weather }] : [] }
       if (sql.includes("action_type = 'watering'")) return { rows: [] }
       if (sql.includes("action_type = 'fertilizing'")) return { rows: [] }
       if (sql.includes('FROM care_alert_log')) return { rows: alertSent ? [{ '?column?': 1 }] : [] }
@@ -64,6 +67,30 @@ describe('careRemindersJob — сводный дайджест', () => {
     expect(push.sendTransplantDigest).not.toHaveBeenCalled()
     // Каждая посадка помечена в care_alert_log (дедуп на день).
     expect(db.inserts).toHaveLength(2)
+  })
+
+  // Пуш и экран «Сегодня» считают полив одной функцией (todayLogic.wateringStatus):
+  // иначе утренний пуш зовёт поливать под дождём, а в приложении задачи уже нет.
+  it('дождь сегодня — пуша про полив нет', async () => {
+    const db = makeDb({
+      plantings: [planting({ planting_id: 1 })],
+      weather: { forecast_json: [{ precip_prob_pct: 90, precip_mm: 8 }, { precip_prob_pct: 10, precip_mm: 0 }] },
+    })
+
+    await runCareReminders(db, push)
+
+    expect(push.sendWateringDigest).not.toHaveBeenCalled()
+  })
+
+  it('прошедший ливень засчитан как полив — пуша нет', async () => {
+    const db = makeDb({
+      plantings: [planting({ planting_id: 1 })],
+      lastRainAt: daysAgo(1),
+    })
+
+    await runCareReminders(db, push)
+
+    expect(push.sendWateringDigest).not.toHaveBeenCalled()
   })
 
   it('если уже уведомляли сегодня — пуш не шлётся', async () => {

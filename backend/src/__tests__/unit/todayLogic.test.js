@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt } = require('../../utils/todayLogic')
+const { buildTasks, formatTasks, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt, TASK_LIMIT } = require('../../utils/todayLogic')
 
 // ─── Фабрики тестовых данных ─────────────────────────────────────────────────
 
@@ -168,6 +168,191 @@ describe('watering_due', () => {
   })
 })
 
+// ─── Дождь: отмена полива и зачёт вместо полива ───────────────────────────────
+
+describe('дождь и полив', () => {
+  // Посадка без прочих задач: изолируем полив
+  const wet = (overrides = {}) => makePlanting({
+    id: 1, watering_freq_days: 3, frost_sensitive: false,
+    transplant_days: null, harvest_days: 200, planted_at: daysAgo(10, TODAY), ...overrides,
+  })
+  const lastWatered = { 1: new Date(daysAgo(5, TODAY)) }
+  // forecast_json: [сегодня, завтра]
+  const forecast = (today, tomorrow) => makeWeather({ forecast_json: [today, tomorrow] })
+  const rainyDay   = { precip_prob_pct: 80, precip_mm: 6 }
+  const drizzleDay = { precip_prob_pct: 80, precip_mm: 0.4 } // вероятность есть, воды нет
+  const dryDay     = { precip_prob_pct: 5, precip_mm: 0 }
+
+  it('дождь сегодня отменяет полив в открытом грунте', () => {
+    const tasks = buildTasks([wet()], forecast(rainyDay, dryDay), lastWatered, {}, [], TODAY)
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(false)
+  })
+
+  it('дождь НЕ отменяет полив в теплице (под укрытие не попадает)', () => {
+    const tasks = buildTasks([wet({ conditions: 'greenhouse' })], forecast(rainyDay, dryDay), lastWatered, {}, [], TODAY)
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(true)
+  })
+
+  it('морось с высокой вероятностью, но без объёма, полив НЕ отменяет', () => {
+    const tasks = buildTasks([wet()], forecast(drizzleDay, dryDay), lastWatered, {}, [], TODAY)
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(true)
+  })
+
+  it('завтрашний дождь отменяет полив, если посадка ещё не просрочена', () => {
+    // интервал 3 дня, полив ровно 3 дня назад → overdue = 0, можно подождать сутки
+    const tasks = buildTasks([wet()], forecast(dryDay, rainyDay), { 1: new Date(daysAgo(3, TODAY)) }, {}, [], TODAY)
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(false)
+  })
+
+  it('завтрашний дождь НЕ отменяет полив у просроченной посадки', () => {
+    // полив 8 дней назад при интервале 3 — ждать сутки нельзя
+    const tasks = buildTasks([wet()], forecast(dryDay, rainyDay), { 1: new Date(daysAgo(8, TODAY)) }, {}, [], TODAY)
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(true)
+  })
+
+  it('прошедший ливень засчитывается как полив', () => {
+    // поливали 8 дней назад, но вчера был настоящий дождь → задачи быть не должно
+    const tasks = buildTasks([wet()], forecast(dryDay, dryDay), { 1: new Date(daysAgo(8, TODAY)) },
+      {}, [], TODAY, {}, null, {}, {}, { lastRainAt: new Date(daysAgo(1, TODAY)) })
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(false)
+  })
+
+  it('прошедший ливень НЕ засчитывается в теплице', () => {
+    const tasks = buildTasks([wet({ conditions: 'greenhouse' })], forecast(dryDay, dryDay), { 1: new Date(daysAgo(8, TODAY)) },
+      {}, [], TODAY, {}, null, {}, {}, { lastRainAt: new Date(daysAgo(1, TODAY)) })
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(true)
+  })
+
+  it('старый дождь (давнее интервала) полив не отменяет', () => {
+    const tasks = buildTasks([wet()], forecast(dryDay, dryDay), { 1: new Date(daysAgo(8, TODAY)) },
+      {}, [], TODAY, {}, null, {}, {}, { lastRainAt: new Date(daysAgo(6, TODAY)) })
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(true)
+  })
+
+  it('без прогноза работает фолбэк на вероятность из снимка (на сегодня)', () => {
+    const tasks = buildTasks([wet()], makeWeather(), lastWatered, {}, [], TODAY, {}, 80)
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(false)
+  })
+})
+
+// ─── Испарение и стадия ───────────────────────────────────────────────────────
+
+describe('интервал полива: испарение и стадия', () => {
+  it('жара сокращает интервал', () => {
+    expect(wateringIntervalDays(6, 'soil', { max_temp_c: 31 })).toBe(4)  // ×0.6 → 3.6
+    expect(wateringIntervalDays(6, 'soil', { max_temp_c: 27 })).toBe(5)  // ×0.75 → 4.5
+    expect(wateringIntervalDays(6, 'soil', { max_temp_c: 18 })).toBe(6)  // без изменений
+  })
+
+  it('numeric-поля из pg приходят строками и всё равно учитываются', () => {
+    expect(wateringIntervalDays(6, 'soil', { max_temp_c: '31.0' })).toBe(4)
+  })
+
+  it('сухой воздух и ветер сокращают интервал, но не больше чем вдвое', () => {
+    expect(wateringIntervalDays(10, 'soil', { humidity_pct: 30 })).toBe(9)
+    expect(wateringIntervalDays(10, 'soil', { wind_ms: 8 })).toBe(9)
+    // жара + сухость + ветер + теплица: множитель упёрся в пол 0.5
+    expect(wateringIntervalDays(10, 'greenhouse', { max_temp_c: 35, humidity_pct: 20, wind_ms: 12 })).toBe(5)
+  })
+
+  it('ветер не влияет на теплицу', () => {
+    expect(wateringIntervalDays(10, 'greenhouse', { wind_ms: 12 })).toBe(8) // только ×0.8
+  })
+
+  it('частота берётся из watering_details по стадии, а не из общей watering_freq_days', () => {
+    const p = makePlanting({
+      id: 1, stage: 'flowering', watering_freq_days: 10, frost_sensitive: false,
+      transplant_days: null, harvest_days: 200, planted_at: daysAgo(10, TODAY),
+      watering_details: { flowering: { freq_days: 2, amount_l_m2: 8 } },
+    })
+    // 3 дня без воды: по общей частоте (10) ещё рано, по стадии цветения (2) — пора
+    const tasks = buildTasks([p], makeWeather(), { 1: new Date(daysAgo(3, TODAY)) }, {}, [], TODAY)
+    expect(tasks.some(t => t.type === 'watering_due')).toBe(true)
+  })
+
+  it('норма л/м² и вечерний полив в жару попадают в описание задачи', () => {
+    const p = makePlanting({
+      id: 1, stage: 'growing', watering_freq_days: 3, frost_sensitive: false,
+      transplant_days: null, harvest_days: 200, planted_at: daysAgo(10, TODAY),
+      watering_details: { growing: { freq_days: 3, amount_l_m2: 6 } },
+    })
+    const tasks = formatTasks(buildTasks([p], makeWeather({ max_temp_c: 31 }), { 1: new Date(daysAgo(5, TODAY)) }, {}, [], TODAY))
+    const t = tasks.find(t => t.type === 'watering_due')
+    expect(t.description).toContain('6 л/м²')
+    expect(t.description).toContain('после 19:00')
+  })
+})
+
+// ─── Заморозки по прогнозу ────────────────────────────────────────────────────
+
+describe('заморозки с упреждением', () => {
+  const tender = makePlanting({ id: 1, frost_sensitive: true, watering_freq_days: null, transplant_days: null, harvest_days: 200 })
+
+  it('предупреждает о заморозке завтра по прогнозу', () => {
+    const w = makeWeather({ frost_risk: false, forecast_json: [{ min_temp_c: 8 }, { min_temp_c: -1 }] })
+    const t = buildTasks([tender], w, {}, {}, [], TODAY).find(t => t.type === 'frost_alert')
+    expect(t.days_until).toBe(1)
+    expect(t.message).toContain('завтра')
+  })
+
+  it('предупреждает за 2 дня', () => {
+    const w = makeWeather({ frost_risk: false, forecast_json: [{ min_temp_c: 8 }, { min_temp_c: 6 }, { min_temp_c: 1 }] })
+    const t = buildTasks([tender], w, {}, {}, [], TODAY).find(t => t.type === 'frost_alert')
+    expect(t.days_until).toBe(2)
+  })
+
+  it('сегодняшний заморозок важнее прогноза и не дублируется', () => {
+    const w = makeWeather({ frost_risk: true, min_temp_c: 0, forecast_json: [{ min_temp_c: 0 }, { min_temp_c: -2 }] })
+    const alerts = buildTasks([tender], w, {}, {}, [], TODAY).filter(t => t.type === 'frost_alert')
+    expect(alerts).toHaveLength(1)
+    expect(alerts[0].days_until).toBe(0)
+  })
+
+  it('тёплый прогноз алерт не даёт', () => {
+    const w = makeWeather({ frost_risk: false, forecast_json: [{ min_temp_c: 12 }, { min_temp_c: 10 }] })
+    expect(buildTasks([tender], w, {}, {}, [], TODAY).some(t => t.type === 'frost_alert')).toBe(false)
+  })
+
+  it('предупреждение остаётся в «Сегодня» (days_until не отдаётся клиенту)', () => {
+    const w = makeWeather({ frost_risk: false, forecast_json: [{ min_temp_c: 8 }, { min_temp_c: -1 }] })
+    const t = formatTasks(buildTasks([tender], w, {}, {}, [], TODAY)).find(t => t.type === 'frost_alert')
+    expect(t.days_until).toBeNull()
+    expect(t.title).toContain('завтра')
+  })
+})
+
+// ─── Обработки и дождь ────────────────────────────────────────────────────────
+
+describe('обработка перед дождём', () => {
+  const sprayed = makePlanting({
+    id: 1, watering_freq_days: null, transplant_days: null, harvest_days: 200,
+    frost_sensitive: false, planted_at: daysAgo(10, TODAY),
+    care_tasks: [{ name: 'Обработка от фитофторы', day_offset: 5 }],
+  })
+
+  it('предупреждает, что дождь смоет препарат', () => {
+    const w = makeWeather({ forecast_json: [{ precip_prob_pct: 5, precip_mm: 0 }, { precip_prob_pct: 90, precip_mm: 8 }] })
+    const t = formatTasks(buildTasks([sprayed], w, {}, {}, [], TODAY)).find(t => t.type === 'care_task_due')
+    expect(t.description).toContain('смоет')
+  })
+
+  it('в сухую погоду советует не опрыскивать по солнцу', () => {
+    const w = makeWeather({ forecast_json: [{ precip_prob_pct: 5, precip_mm: 0 }, { precip_prob_pct: 5, precip_mm: 0 }] })
+    const t = formatTasks(buildTasks([sprayed], w, {}, {}, [], TODAY)).find(t => t.type === 'care_task_due')
+    expect(t.description).toContain('утром или вечером')
+  })
+
+  it('обычная care-задача подсказки про опрыскивание не получает', () => {
+    const weeded = makePlanting({
+      id: 1, watering_freq_days: null, transplant_days: null, harvest_days: 200,
+      frost_sensitive: false, planted_at: daysAgo(10, TODAY),
+      care_tasks: [{ name: 'Прополка', day_offset: 5 }],
+    })
+    const t = formatTasks(buildTasks([weeded], makeWeather(), {}, {}, [], TODAY)).find(t => t.type === 'care_task_due')
+    expect(t.description).not.toContain('утром или вечером')
+  })
+})
+
 // ─── Пересадка ────────────────────────────────────────────────────────────────
 
 describe('transplant_due', () => {
@@ -278,7 +463,7 @@ describe('сортировка и лимит', () => {
     expect(tasks[0].type).toBe('frost_alert')
   })
 
-  it('возвращает не более 7 задач', () => {
+  it('возвращает ВСЕ задачи (срез до TASK_LIMIT делает routes/today.js)', () => {
     const plantings = Array.from({ length: 10 }, (_, i) =>
       makePlanting({ id: i + 1, frost_sensitive: true, watering_freq_days: 1 })
     )
@@ -287,7 +472,27 @@ describe('сортировка и лимит', () => {
       return acc
     }, {})
     const tasks = buildTasks(plantings, makeWeather({ frost_risk: true }), lastWatered, {}, [], TODAY)
-    expect(tasks.length).toBeLessThanOrEqual(7)
+    // 10 заморозков + 1 групповой полив: до среза список полный, tasks_total не врёт
+    expect(tasks.length).toBeGreaterThan(TASK_LIMIT)
+    expect(TASK_LIMIT).toBe(7)
+  })
+
+  it('просроченный полив идёт выше care-задачи «через 3 дня»', () => {
+    const p = makePlanting({
+      id: 1, watering_freq_days: 3, frost_sensitive: false, transplant_days: null, harvest_days: 200,
+      planted_at: daysAgo(10, TODAY), care_tasks: [{ name: 'Прополка', day_offset: 13 }],
+    })
+    const tasks = buildTasks([p], makeWeather(), { 1: new Date(daysAgo(10, TODAY)) }, {}, [], TODAY)
+    expect(tasks[0].type).toBe('watering_due')
+  })
+
+  it('ещё не наступившая care-задача всегда ниже наступившей задачи', () => {
+    const p = makePlanting({
+      id: 1, watering_freq_days: 3, frost_sensitive: false, transplant_days: null, harvest_days: 200,
+      planted_at: daysAgo(10, TODAY), care_tasks: [{ name: 'Прополка', day_offset: 12 }],
+    })
+    const tasks = buildTasks([p], makeWeather(), { 1: new Date(daysAgo(3, TODAY)) }, {}, [], TODAY)
+    expect(tasks[tasks.length - 1].care_task_name).toBe('Прополка')
   })
 
   it('полив на нескольких посадках группируется в одну карточку (days_overdue = максимум)', () => {

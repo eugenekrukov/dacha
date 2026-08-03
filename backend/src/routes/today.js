@@ -1,6 +1,11 @@
 'use strict'
 
-const { buildTasks, formatTasks } = require('../utils/todayLogic')
+const { buildTasks, formatTasks, TASK_LIMIT, RAIN_AS_WATERING_MM } = require('../utils/todayLogic')
+
+// Снимок старше суток (упал weatherJob) не должен рождать задачи: «Угроза заморозков!»
+// по позавчерашним данным хуже, чем её отсутствие. На карточке погоды снимок при этом
+// остаётся — там у него есть своя дата.
+const WEATHER_MAX_AGE_HOURS = 24
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
@@ -24,12 +29,28 @@ module.exports = async function (fastify) {
       [garden_id]
     )
     const weather = weatherRes.rows[0] || null
+    // Возраст неизвестен (fetched_at пуст) → считаем снимок годным: гарантией свежести
+    // занимается weatherJob, а молча терять предупреждение о заморозках хуже.
+    const weatherAgeMs = weather?.fetched_at ? today - new Date(weather.fetched_at) : 0
+    const weatherFresh = weather && weatherAgeMs < WEATHER_MAX_AGE_HOURS * 3600000
+    const weatherForTasks = weatherFresh ? weather : null
+
+    // ── 1.5. ПОСЛЕДНИЙ НАСТОЯЩИЙ ДОЖДЬ ───────────────────────────────────────
+    // Ливень заменяет полив, иначе после 20 мм осадков приложение продолжает требовать
+    // «полить, 5 дн. без воды». Отдельная таблица не нужна: снимки и так копятся каждые 3 ч,
+    // берём последний, где дневная сумма осадков дотянула до полноценного полива.
+    const rainRes = await fastify.db.query(
+      `SELECT MAX(fetched_at) AS rained_at FROM weather_snapshots
+       WHERE garden_id=$1 AND precip_mm >= $2 AND fetched_at > NOW() - INTERVAL '7 days'`,
+      [garden_id, RAIN_AS_WATERING_MM]
+    )
+    const lastRainAt = rainRes.rows[0]?.rained_at ? new Date(rainRes.rows[0].rained_at) : null
 
     // ── 2. АКТИВНЫЕ ПОСАДКИ (включая care_tasks и conditions) ───────────────
     const plantingsRes = await fastify.db.query(
       `SELECT p.id, p.planted_at, p.stage, p.quantity, p.conditions, p.sowing_method,
               c.name as crop_name, c.category,
-              c.watering_freq_days, c.transplant_days,
+              c.watering_freq_days, c.watering_details, c.transplant_days,
               c.harvest_days, c.frost_sensitive, c.care_tasks, c.fertilizing_schedule, c.is_perennial
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
@@ -145,8 +166,8 @@ module.exports = async function (fastify) {
     }))
 
     // ── 5. ЗАДАЧИ ────────────────────────────────────────────────────────────
-    const rawTasks = buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminderTasks, today, careActionsToday, weather?.precip_prob_pct ?? null, lastCareActionMap, lastHarvestedMap)
-    const topTasks = formatTasks(rawTasks)
+    const rawTasks = buildTasks(plantings, weatherForTasks, lastWateredMap, lastFertilizedMap, reminderTasks, today, careActionsToday, weatherForTasks?.precip_prob_pct ?? null, lastCareActionMap, lastHarvestedMap, { lastRainAt })
+    const topTasks = formatTasks(rawTasks.slice(0, TASK_LIMIT))
 
     return {
       garden_id: garden.id,
@@ -165,7 +186,10 @@ module.exports = async function (fastify) {
       } : null,
       forecast: weather?.forecast_json ?? [],
       tasks:           topTasks,
+      // Полное число задач до среза — клиент показывает «и ещё N», чтобы срез не выглядел
+      // как «больше дел нет».
       tasks_total:     rawTasks.length,
+      tasks_hidden:    Math.max(rawTasks.length - topTasks.length, 0),
       reminders_today: reminderTasks.length,
       generated_at:    today.toISOString(),
     }

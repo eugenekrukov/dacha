@@ -66,14 +66,154 @@ function effectivePlantedAt(plantedAt, isPerennial, today) {
   return anniv
 }
 
+// pg отдаёт numeric-колонки строками ('22.5'), а weather приходит в buildTasks сырой строкой
+// БД — без приведения все сравнения с порогами молча ломались бы на строках.
+function num(v) {
+  if (v === null || v === undefined || v === '') return null
+  const n = typeof v === 'number' ? v : parseFloat(v)
+  return Number.isFinite(n) ? n : null
+}
+
 // Интервал полива с учётом условий. Теплица → поливать ЧАЩЕ: без дождя и ветрового испарения
 // снаружи грунт под укрытием прогревается и пересыхает быстрее, поэтому интервал КОРОЧЕ (×0.8).
 // Единая функция-источник правды для today.js, careRemindersJob.js и Android (CalendarViewModel).
 const GREENHOUSE_WATERING_FACTOR = 0.8
-function wateringIntervalDays(freqDays, conditions) {
+
+// Испарение: в жару, в сухом воздухе и на ветру грунт пересыхает быстрее — интервал короче.
+// Это не модель эвапотранспирации, а калибровочные ручки под среднюю полосу: пороги и
+// множители правятся по фидбеку дачников, поэтому вынесены константами.
+const HEAT_WATERING_FACTORS = [
+  { fromTempC: 30, factor: 0.6 },
+  { fromTempC: 26, factor: 0.75 },
+  { fromTempC: 22, factor: 0.9 },
+]
+const DRY_AIR_HUMIDITY_PCT = 40
+const DRY_AIR_FACTOR       = 0.9
+const WINDY_MS             = 6
+const WINDY_FACTOR         = 0.9
+// Нижняя граница: даже при жаре+ветре+сухости не сокращаем интервал больше чем вдвое.
+const MIN_WATERING_FACTOR  = 0.5
+// С этой температуры полив уводим на вечер (днём вода обжигает лист и испаряется впустую).
+const HOT_DAY_TEMP_C       = 28
+
+function wateringIntervalDays(freqDays, conditions, weather = null) {
   const base = freqDays || 3
-  const factor = conditions === 'greenhouse' ? GREENHOUSE_WATERING_FACTOR : 1
-  return Math.max(1, Math.round(base * factor))
+  const greenhouse = conditions === 'greenhouse'
+  let factor = greenhouse ? GREENHOUSE_WATERING_FACTOR : 1
+
+  const maxTemp = num(weather?.max_temp_c)
+  if (maxTemp !== null) {
+    const hit = HEAT_WATERING_FACTORS.find(h => maxTemp >= h.fromTempC)
+    if (hit) factor *= hit.factor
+  }
+  const humidity = num(weather?.humidity_pct)
+  if (humidity !== null && humidity < DRY_AIR_HUMIDITY_PCT) factor *= DRY_AIR_FACTOR
+  // Ветер сушит только открытый грунт — под укрытием испарение от него не зависит.
+  const wind = num(weather?.wind_ms)
+  if (!greenhouse && wind !== null && wind >= WINDY_MS) factor *= WINDY_FACTOR
+
+  return Math.max(1, Math.round(base * Math.max(factor, MIN_WATERING_FACTOR)))
+}
+
+// Стадии посадки → ключи watering_details (в справочнике культур своя номенклатура).
+// Зеркалит маппинг подкормок в buildTasks (transplanted → growing).
+const WATERING_STAGE_ALIAS = { sowing: 'seedling', transplanted: 'growing', harvesting: 'fruiting' }
+
+// Норма и частота полива для текущей стадии из crops.watering_details
+// ({"growing":{"freq_days":3,"amount_l_m2":6}, ...}). Нет данных по стадии → null,
+// тогда работает общий watering_freq_days культуры.
+function stageWatering(wateringDetails, stage) {
+  if (!wateringDetails || !stage) return null
+  const entry = wateringDetails[WATERING_STAGE_ALIAS[stage] || stage]
+  return entry && typeof entry === 'object' ? entry : null
+}
+
+// Дождь засчитываем вместо полива и отменяем им задачу только если это настоящий пролив,
+// а не морось: нужны И высокая вероятность, И заметный объём. Одна вероятность врёт —
+// 70% на 0.2 мм это не полив.
+const RAIN_SKIP_PROB_PCT = 70
+const RAIN_SKIP_MM       = 3
+// Сколько миллиметров считаем полноценным поливом (для зачёта уже прошедшего дождя).
+const RAIN_AS_WATERING_MM = 5
+
+function isRainyDay(day) {
+  if (!day) return false
+  const prob = num(day.precip_prob_pct)
+  const mm   = num(day.precip_mm)
+  return prob !== null && prob >= RAIN_SKIP_PROB_PCT && mm !== null && mm >= RAIN_SKIP_MM
+}
+
+// Ждать ли дождя сегодня/завтра. Основной источник — forecast_json (вероятность И объём);
+// если прогноза нет (старый снимок) — фолбэк на голую вероятность из снимка.
+function rainOutlook(weather, precipProb = null) {
+  const forecast = weather?.forecast_json
+  if (Array.isArray(forecast) && forecast.length) {
+    return { today: isRainyDay(forecast[0]), tomorrow: isRainyDay(forecast[1]) }
+  }
+  const prob = num(precipProb)
+  return { today: prob !== null && prob >= RAIN_SKIP_PROB_PCT, tomorrow: false }
+}
+
+// Заморозок сегодня — из снимка; на завтра/послезавтра — из прогноза, чтобы успеть укрыть
+// (сообщить в день заморозка почти бесполезно). Порог совпадает с frost_risk в weatherService.
+const FROST_MIN_TEMP_C = 2
+const FROST_LOOKAHEAD_DAYS = 2
+
+function frostOutlook(weather) {
+  if (!weather) return null
+  if (weather.frost_risk === true) return { days_until: 0, min_temp_c: num(weather.min_temp_c) }
+  const forecast = weather.forecast_json
+  if (!Array.isArray(forecast)) return null
+  for (let i = 1; i <= FROST_LOOKAHEAD_DAYS; i++) {
+    const min = num(forecast[i]?.min_temp_c)
+    if (min !== null && min <= FROST_MIN_TEMP_C) return { days_until: i, min_temp_c: min }
+  }
+  return null
+}
+
+/**
+ * Единый расчёт полива: интервал (стадия + теплица + испарение), зачёт прошедшего дождя
+ * вместо полива и отмена по прогнозу. Источник правды для GET /today и careRemindersJob —
+ * иначе пуш в 09:00 зовёт поливать под дождём, а экран «Сегодня» задачу уже не показывает.
+ *
+ * @param lastWateredAt — Date последнего полива (или дата посадки, если не поливали)
+ * @param lastRainAt    — Date последнего настоящего дождя (>= RAIN_AS_WATERING_MM) или null
+ */
+function wateringStatus(p, weather, lastWateredAt, lastRainAt, today, rain = null) {
+  const stageEntry = stageWatering(p.watering_details, p.stage)
+  const baseFreq = num(stageEntry?.freq_days) ?? p.watering_freq_days
+  if (!baseFreq) return { due: false }
+
+  const outdoor = p.conditions !== 'greenhouse'
+  // Ливень — это полив: без зачёта приложение после 20 мм осадков продолжает требовать
+  // «полить, 5 дн. без воды». В теплицу дождь не попадает, там зачёта нет.
+  let last = lastWateredAt
+  if (outdoor && lastRainAt && lastRainAt > last) last = lastRainAt
+
+  const daysSinceWatering = Math.floor((today - last) / 86400000)
+  const freq = wateringIntervalDays(baseFreq, p.conditions, weather)
+  const overdue = daysSinceWatering - freq
+  const outlook = rain || rainOutlook(weather)
+  // Дождь отменяет полив только в открытом грунте. Завтрашний — только если посадка ещё
+  // не просрочена: пересохшей грядке ждать сутки нельзя.
+  const rainSkip = outdoor && (outlook.today || (outlook.tomorrow && overdue <= 0))
+
+  return {
+    due: daysSinceWatering >= freq && !rainSkip,
+    freq,
+    days_since_watering: daysSinceWatering,
+    days_overdue: Math.max(overdue, 0),
+    amount_l_m2: num(stageEntry?.amount_l_m2),
+  }
+}
+
+// «Когда» и «сколько» — детали, которых карточке полива не хватало.
+function wateringHint(weather, status) {
+  const parts = []
+  if (status.amount_l_m2) parts.push(`~${status.amount_l_m2} л/м²`)
+  const maxTemp = num(weather?.max_temp_c)
+  if (maxTemp !== null && maxTemp >= HOT_DAY_TEMP_C) parts.push('в жару — после 19:00, под корень')
+  return parts.join(' · ') || null
 }
 
 const TASK_PRIORITY = {
@@ -176,21 +316,25 @@ function pushGrouped(tasks, accum, type) {
   if (accum.length === 0) return
   if (accum.length === 1) { tasks.push(accum[0]); return }
   const crops = accum.map(g => g.crop_name)
+  // Подсказка группы — только та, что верна для всех культур (норма л/м² у каждой своя).
+  const hints = new Set(accum.map(g => g.hint || ''))
   tasks.push({
     type,
     priority: accum[0].priority,
     planting_id: null,
     crop_name: null,
     crops,
+    hint: hints.size === 1 ? (accum[0].hint || null) : null,
     planting_ids: accum.map(g => g.planting_id),
     crop_names_with_ids: accum.map(g => ({ id: g.planting_id, name: g.crop_name })),
     days_overdue: Math.max(...accum.map(g => g.days_overdue || 0)),
   })
 }
 
-function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null, lastCareActionMap = {}, lastHarvestedMap = {}) {
-  // Если завтра дождь ≥70% — полив не нужен
-  const rainExpected = precipProb !== null && precipProb >= 70
+function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null, lastCareActionMap = {}, lastHarvestedMap = {}, opts = {}) {
+  const { lastRainAt = null } = opts
+  const rain = rainOutlook(weather, precipProb)
+  const frost = frostOutlook(weather)
   const tasks = []
   const careAccum = [] // care-задачи копим отдельно — потом группируем однотипные
   const waterAccum = [] // полив — тоже группируем (одна карточка «Полить: …» на много посадок)
@@ -201,14 +345,23 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
     const plantedAt = effectivePlantedAt(new Date(p.planted_at), p.is_perennial, today)
     const daysSincePlanting = Math.floor((today - plantedAt) / 86400000)
 
-    // 🚨 Угроза заморозков (теплица защищает — для greenhouse алерт не показываем)
-    if (p.frost_sensitive && p.conditions !== 'greenhouse' && weather && weather.frost_risk === true) {
+    // 🚨 Угроза заморозков (теплица защищает — для greenhouse алерт не показываем).
+    // Предупреждаем и на завтра/послезавтра: укрытие нужно готовить заранее.
+    if (p.frost_sensitive && p.conditions !== 'greenhouse' && frost) {
+      const t = frost.min_temp_c !== null ? ` (${Math.round(frost.min_temp_c)}°C)` : ''
+      const message = frost.days_until === 0
+        ? `Угроза заморозков! Защитите ${p.crop_name}`
+        : frost.days_until === 1
+          ? `Заморозки завтра ночью${t} — укройте ${p.crop_name}`
+          : `Заморозки через ${frost.days_until} дн.${t} — подготовьте укрытие для ${p.crop_name}`
       tasks.push({
         type: 'frost_alert',
         priority: TASK_PRIORITY.frost_alert,
         planting_id: p.id,
         crop_name: p.crop_name,
-        message: `Угроза заморозков! Защитите ${p.crop_name}`,
+        days_until: frost.days_until,
+        min_temp_c: frost.min_temp_c,
+        message,
       })
     }
 
@@ -265,7 +418,14 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       addedCareNames.add(key)
       const diff = dueOffset - daysSincePlanting // <= 3; отрицательный = просрочено
       const when = diff <= 0 ? 'сегодня' : `через ${diff} дн.`
+      // Опрыскивание перед дождём бессмысленно — препарат смоет; и никогда не по солнцу.
+      const hint = mappedAction === 'treatment'
+        ? (rain.today || rain.tomorrow
+            ? 'Ожидается дождь — перенесите, иначе смоет'
+            : 'Не по солнцу — утром или вечером')
+        : null
       careAccum.push({
+        hint,
         type: 'care_task_due',
         priority: TASK_PRIORITY.care_task_due,
         planting_id: p.id,
@@ -281,21 +441,18 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       })
     }
 
-    // 💧 Нужен полив (пропускаем если ожидается дождь ≥70%)
-    if (p.watering_freq_days && !rainExpected) {
-      const lastWatered = lastWateredMap[p.id] || plantedAt
-      const daysSinceWatering = Math.floor((today - lastWatered) / 86400000)
-      const freq = wateringIntervalDays(p.watering_freq_days, p.conditions)
-      if (daysSinceWatering >= freq) {
-        waterAccum.push({
-          type: 'watering_due',
-          priority: TASK_PRIORITY.watering_due,
-          planting_id: p.id,
-          crop_name: p.crop_name,
-          message: `${p.crop_name} — нужен полив (${daysSinceWatering} дн. без воды)`,
-          days_overdue: daysSinceWatering - freq,
-        })
-      }
+    // 💧 Нужен полив — единый расчёт с пушами (дождь, испарение, стадия): wateringStatus.
+    const water = wateringStatus(p, weather, lastWateredMap[p.id] || plantedAt, lastRainAt, today, rain)
+    if (water.due) {
+      waterAccum.push({
+        type: 'watering_due',
+        priority: TASK_PRIORITY.watering_due,
+        planting_id: p.id,
+        crop_name: p.crop_name,
+        message: `${p.crop_name} — нужен полив (${water.days_since_watering} дн. без воды)`,
+        days_overdue: water.days_overdue,
+        hint: wateringHint(weather, water),
+      })
     }
 
     // 🌿 Нужна подкормка (по fertilizing_schedule для текущей стадии).
@@ -361,6 +518,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
         crop_name: null,
         care_task_name: name,
         product: CARE_TASK_PRODUCT[name] || null,
+        hint: group[0].hint || null, // зависит от имени задачи и погоды → одинакова для всей группы
         crops,
         // Для мульти-посадочного действия: id всех посадок группы и пары {id, name},
         // чтобы клиент построил лист «снять/выполнить» по каждой культуре.
@@ -383,11 +541,24 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
   tasks.push(...reminders)
 
   tasks.sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority
+    const d = urgency(a) - urgency(b)
+    if (d !== 0) return d
     return (b.days_overdue || 0) - (a.days_overdue || 0)
   })
 
-  return tasks.slice(0, 7) // увеличили с 5 до 7 для ведения по флоу
+  return tasks
+}
+
+// Срочность = приоритет типа, смягчённый просрочкой. Голый приоритет типа врал: care-задача
+// «через 3 дня» стояла выше полива, забытого на неделю. Потолок бонуса — 3 дня (≈1.5 ступени),
+// чтобы давняя просрочка не выдавливала заморозки и пересадку из топа.
+const OVERDUE_BONUS_PER_DAY  = 0.5
+const OVERDUE_BONUS_CAP_DAYS = 3
+function urgency(t) {
+  // Ещё не наступившие задачи всегда ниже наступивших. Исключение — заморозки:
+  // предупреждение «завтра ночью −1» ценно именно тем, что приходит заранее.
+  if ((t.days_until || 0) > 0 && t.type !== 'frost_alert') return 100 + t.priority
+  return t.priority - Math.min(t.days_overdue || 0, OVERDUE_BONUS_CAP_DAYS) * OVERDUE_BONUS_PER_DAY
 }
 
 function formatTasks(tasks) {
@@ -403,7 +574,9 @@ function formatTasks(tasks) {
                                  ? `Подкормить: ${listCrops(t.crops)}`
                                  : t.product_example ? `Подкормить ${t.crop_name} (${t.product_example})` : `Подкормить: ${t.crop_name}`; break
       case 'harvest_due':      title = `Убрать урожай: ${t.crop_name}`; break
-      case 'frost_alert':      title = `Заморозки: ${t.crop_name}`; break
+      case 'frost_alert':      title = t.days_until > 0
+                                 ? `Заморозки ${t.days_until === 1 ? 'завтра' : `через ${t.days_until} дн.`}: ${t.crop_name}`
+                                 : `Заморозки: ${t.crop_name}`; break
       case 'care_task_due':    title = (t.crops && t.crops.length)
                                  ? `${t.care_task_name}: ${listCrops(t.crops)}`
                                  : `${t.care_task_name}: ${t.crop_name}`; break
@@ -427,7 +600,10 @@ function formatTasks(tasks) {
         ? `${t.product_example}`
         : t.days_overdue > 0 ? `Пора — задержка ${t.days_overdue} дн.` : 'Сделайте сегодня'
     } else if (t.type === 'frost_alert') {
-      description = 'Защитите растение от мороза'
+      const temp = t.min_temp_c != null ? `${Math.round(t.min_temp_c)}°C ночью — ` : ''
+      description = t.days_until > 0
+        ? `${temp}подготовьте укрытие заранее`
+        : `${temp}защитите растение от мороза`
     } else if (t.type === 'care_task_due') {
       description = t.days_overdue > 0
         ? `Пора — задержка ${t.days_overdue} дн.`
@@ -437,6 +613,9 @@ function formatTasks(tasks) {
     } else {
       description = t.crop_name ? `Культура: ${t.crop_name}` : ''
     }
+
+    // Подсказка «когда/сколько/чем» — отдельного поля на клиентах нет, дописываем в description.
+    if (t.hint) description = description ? `${description} · ${t.hint}` : t.hint
 
     return {
       type: t.type,
@@ -448,7 +627,9 @@ function formatTasks(tasks) {
       days_overdue: t.days_overdue || null,
       care_task_name: t.care_task_name || t.product_example || null,
       product: t.product || null,
-      days_until: t.days_until || null,
+      // Заморозки с упреждением остаются в «Сегодня» (укрытие готовят сейчас), поэтому
+      // days_until для них не отдаём — срок уже в заголовке.
+      days_until: t.type === 'frost_alert' ? null : (t.days_until || null),
       // Групповая care-задача: посадки для мульти-действия (одиночные → null).
       planting_ids: t.planting_ids || null,
       crop_names_with_ids: t.crop_names_with_ids || null,
@@ -456,4 +637,12 @@ function formatTasks(tasks) {
   })
 }
 
-module.exports = { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt, CARE_ACTION_TYPES, OVERDUE_WINDOW_DAYS }
+// Сколько задач показываем на экране «Сегодня». Срез делает вызывающий (routes/today.js),
+// чтобы отдать честное общее число: раньше tasks_total считался ПОСЛЕ среза и не мог быть > 7.
+const TASK_LIMIT = 7
+
+module.exports = {
+  buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType,
+  wateringIntervalDays, wateringStatus, rainOutlook, frostOutlook, effectivePlantedAt,
+  CARE_ACTION_TYPES, OVERDUE_WINDOW_DAYS, TASK_LIMIT, RAIN_AS_WATERING_MM,
+}

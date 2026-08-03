@@ -69,6 +69,9 @@ data class TodayResponse(
     val tasks: List<TodayTask> = emptyList(),
     val weather: WeatherSummary? = null,
     val forecast: List<ForecastDay> = emptyList(),
+    // Сколько задач не поместилось в срез сервера — экран показывает «Ещё задач: N»,
+    // иначе срез выглядит как «дел больше нет».
+    @Json(name = "tasks_hidden") val tasksHidden: Int = 0,
     @Json(name = "generated_at") val generatedAt: String = ""
 )
 

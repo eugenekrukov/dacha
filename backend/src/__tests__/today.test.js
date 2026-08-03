@@ -37,6 +37,7 @@ function makeWeatherRow(overrides = {}) {
     humidity_pct: 60,
     condition: 'clear',
     condition_text: 'Ясно',
+    fetched_at: new Date().toISOString(),
     ...overrides,
   }
 }
@@ -50,12 +51,14 @@ function makeWeatherRow(overrides = {}) {
  *   4. SELECT action_logs (только если есть посадки)
  *   5. SELECT reminders
  */
-function buildTodayMockDb({ garden = GARDEN, weather = null, plantings = [], lastActions = [], reminders = [] } = {}) {
+function buildTodayMockDb({ garden = GARDEN, weather = null, plantings = [], lastActions = [], reminders = [], lastRainAt = null } = {}) {
   const calls = []
   return {
     query: async (sql) => {
       calls.push(sql.trim().split('\n')[0])  // запоминаем для отладки
       if (sql.includes('FROM gardens')) return { rows: garden ? [garden] : [] }
+      // Запрос последнего дождя — тоже по weather_snapshots, отличается агрегатом
+      if (sql.includes('MAX(fetched_at)')) return { rows: [{ rained_at: lastRainAt }] }
       if (sql.includes('FROM weather_snapshots')) return { rows: weather ? [weather] : [] }
       if (sql.includes('FROM plantings')) return { rows: plantings }
       if (sql.includes('FROM action_logs')) return { rows: lastActions }
@@ -210,6 +213,42 @@ describe('GET /today', () => {
       .set('Authorization', `Bearer ${localToken}`)
 
     expect(res.body.tasks.length).toBeLessThanOrEqual(7)
+    // tasks_total — полное число ДО среза (раньше считалось после и не могло быть > 7)
+    expect(res.body.tasks_total).toBeGreaterThan(7)
+    expect(res.body.tasks_hidden).toBe(res.body.tasks_total - res.body.tasks.length)
+    await localApp.close()
+  })
+
+  it('протухший снимок погоды (старше суток) задач не рождает', async () => {
+    const localApp = await buildApp(buildTodayMockDb({
+      weather: makeWeatherRow({ frost_risk: true, fetched_at: daysAgo(2) }),
+      plantings: [makePlanting({ frost_sensitive: true })],
+    }))
+    const localToken = makeToken(localApp)
+
+    const res = await supertest(localApp.server)
+      .get('/today?garden_id=1')
+      .set('Authorization', `Bearer ${localToken}`)
+
+    expect(res.body.tasks.some(t => t.type === 'frost_alert')).toBe(false)
+    expect(res.body.weather).not.toBeNull() // на карточке погоду всё равно показываем
+    await localApp.close()
+  })
+
+  it('прошедший ливень снимает задачу полива', async () => {
+    const localApp = await buildApp(buildTodayMockDb({
+      weather: makeWeatherRow(),
+      plantings: [makePlanting({ watering_freq_days: 3 })],
+      lastActions: [],
+      lastRainAt: daysAgo(1),
+    }))
+    const localToken = makeToken(localApp)
+
+    const res = await supertest(localApp.server)
+      .get('/today?garden_id=1')
+      .set('Authorization', `Bearer ${localToken}`)
+
+    expect(res.body.tasks.some(t => t.type === 'watering_due')).toBe(false)
     await localApp.close()
   })
 

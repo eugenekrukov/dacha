@@ -37,12 +37,18 @@ describe('parseWeatherData', () => {
     expect(parseWeatherData(makeOpenMeteoResponse({ minTemp: 3 })).frost_risk).toBe(false)
   })
 
-  it('heat_risk=true когда max_temp_c >= 35', () => {
-    expect(parseWeatherData(makeOpenMeteoResponse({ maxTemp: 35 })).heat_risk).toBe(true)
+  it('heat_risk=true когда max_temp_c >= 30', () => {
+    expect(parseWeatherData(makeOpenMeteoResponse({ maxTemp: 30 })).heat_risk).toBe(true)
   })
 
-  it('heat_risk=false когда max_temp_c < 35', () => {
-    expect(parseWeatherData(makeOpenMeteoResponse({ maxTemp: 34 })).heat_risk).toBe(false)
+  it('heat_risk=false когда max_temp_c < 30', () => {
+    expect(parseWeatherData(makeOpenMeteoResponse({ maxTemp: 29 })).heat_risk).toBe(false)
+  })
+
+  it('precip_prob_pct — вероятность на СЕГОДНЯ, а не на завтра', () => {
+    const data = makeOpenMeteoResponse()
+    data.daily.precipitation_probability_max = [10, 90]
+    expect(parseWeatherData(data).precip_prob_pct).toBe(10)
   })
 
   it('condition=clear для weatherCode=0', () => {
