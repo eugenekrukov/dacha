@@ -61,8 +61,11 @@ async function uploadWallPhoto(vk, groupId, bytes) {
   form.append('photo', new Blob([bytes], { type: 'image/jpeg' }), 'photo.jpg')
   const upRes = await vk.fetchImpl(upload_url, { method: 'POST', body: form })
   const up = await upRes.json()
-  if (!up || up.photo == null || up.hash == null) {
-    throw new Error(`VK upload: неожиданный ответ сервера загрузки фото: ${JSON.stringify(up).slice(0, 200)}`)
+  // up.photo == null пропускает случай, когда сервер загрузки не распознал фото и вернул
+  // photo:"[]" (валидная непустая строка, но пустой JSON-массив) — из-за этого saveWallPhoto
+  // падает следующим шагом с невнятной ошибкой 100 без исходного ответа сервера загрузки в логах.
+  if (!up || up.photo == null || up.photo === '[]' || up.hash == null) {
+    throw new Error(`VK upload: сервер загрузки фото не вернул валидное фото: ${JSON.stringify(up)}`)
   }
   const saved = await vk.call('photos.saveWallPhoto', {
     group_id: gid, server: up.server, photo: up.photo, hash: up.hash
