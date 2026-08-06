@@ -17,6 +17,13 @@ function makeStatefulDb(initialRows = []) {
         }
         return { rows: [] }
       }
+      if (/^DELETE FROM push_tokens WHERE user_id = \$1 AND platform/.test(sql)) {
+        const [userId, platform, token] = params
+        for (let i = rows.length - 1; i >= 0; i--) {
+          if (rows[i].user_id === userId && rows[i].platform === platform && rows[i].token !== token) rows.splice(i, 1)
+        }
+        return { rows: [] }
+      }
       if (/^INSERT INTO push_tokens/.test(sql)) {
         const [userId, token, platform, provider] = params
         const existing = rows.find(r => r.user_id === userId && r.token === token)
@@ -27,7 +34,7 @@ function makeStatefulDb(initialRows = []) {
         }
         return { rows: [] }
       }
-      if (/^DELETE FROM push_tokens WHERE user_id/.test(sql)) {
+      if (/^DELETE FROM push_tokens WHERE user_id = \$1 AND token/.test(sql)) {
         const [userId, token] = params
         for (let i = rows.length - 1; i >= 0; i--) {
           if (rows[i].user_id === userId && rows[i].token === token) rows.splice(i, 1)
@@ -71,6 +78,28 @@ describe('POST /push-tokens', () => {
       { user_id: 2, token: 'OTHER_DEVICE_TOKEN', platform: 'android', provider: 'rustore' },
       { user_id: 6, token: 'MY_TOKEN', platform: 'android', provider: 'fcm' },
     ]))
+    await app.close()
+  })
+
+  it('ротация токена (SDK выдал новый) — старый токен этой платформы удаляется, чужие остаются', async () => {
+    const db = makeStatefulDb([
+      { user_id: 6, token: 'OLD_ROTATED_TOKEN', platform: 'android', provider: 'fcm' },
+      { user_id: 2, token: 'OTHER_USER_TOKEN', platform: 'android', provider: 'fcm' },
+    ])
+    const app = await buildApp(db)
+    const token = makeToken(app, 6)
+
+    const res = await supertest(app.server)
+      .post('/push-tokens')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ token: 'NEW_TOKEN', provider: 'fcm' })
+
+    expect(res.status).toBe(204)
+    expect(db.rows).toEqual(expect.arrayContaining([
+      { user_id: 6, token: 'NEW_TOKEN', platform: 'android', provider: 'fcm' },
+      { user_id: 2, token: 'OTHER_USER_TOKEN', platform: 'android', provider: 'fcm' },
+    ]))
+    expect(db.rows.find(r => r.token === 'OLD_ROTATED_TOKEN')).toBeUndefined()
     await app.close()
   })
 

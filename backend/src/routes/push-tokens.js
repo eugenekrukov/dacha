@@ -18,6 +18,14 @@ module.exports = async function (fastify) {
       [token, request.user.userId]
     )
 
+    // FCM/RuStore иногда ротируют токен устройства без явного logout — старая строка
+    // остаётся валидной и получает пуши параллельно с новой (дубли). У пользователя
+    // одно устройство на платформу, так что старые токены этой платформы просто убираем.
+    await fastify.db.query(
+      'DELETE FROM push_tokens WHERE user_id = $1 AND platform = $2 AND token != $3',
+      [request.user.userId, platform, token]
+    )
+
     await fastify.db.query(
       `INSERT INTO push_tokens (user_id, token, platform, provider, updated_at)
        VALUES ($1, $2, $3, $4, NOW())

@@ -91,11 +91,34 @@ async function sendToGarden(db, gardenId, title, body, data) {
   return deliveredAny
 }
 
+// weatherJob гоняет обновление погоды раз в 3 часа: пока держится риск, frost_risk/heat_risk
+// остаются true на каждом прогоне. Без дедупа по дню это слало один и тот же алерт заново
+// каждые 3 часа — пуш "возвращался" после того, как пользователь его смахнул.
+async function wasWeatherAlertSentToday(db, gardenId, alertType) {
+  const result = await db.query(
+    `SELECT 1 FROM weather_alert_log
+     WHERE garden_id = $1 AND alert_type = $2 AND sent_at::date = CURRENT_DATE`,
+    [gardenId, alertType]
+  )
+  return result.rows.length > 0
+}
+
+async function markWeatherAlertSent(db, gardenId, alertType) {
+  await db.query(
+    `INSERT INTO weather_alert_log (garden_id, alert_type, sent_at) VALUES ($1, $2, NOW())`,
+    [gardenId, alertType]
+  )
+}
+
 async function sendFrostAlert(db, gardenId, tempC) {
   try {
+    if (await wasWeatherAlertSentToday(db, gardenId, 'frost_alert')) return
     const body = `Ожидается ${tempC}°C. Укройте теплолюбивые растения!`
     const delivered = await sendToGarden(db, gardenId, '⚠️ Угроза заморозков', body, { type: 'frost_alert', garden_id: String(gardenId) })
-    if (delivered) console.log(`[push] frost_alert доставлен, участок ${gardenId}`)
+    if (delivered) {
+      await markWeatherAlertSent(db, gardenId, 'frost_alert')
+      console.log(`[push] frost_alert доставлен, участок ${gardenId}`)
+    }
   } catch (e) {
     console.error('[push] Ошибка sendFrostAlert:', e.message)
   }
@@ -103,9 +126,13 @@ async function sendFrostAlert(db, gardenId, tempC) {
 
 async function sendHeatAlert(db, gardenId, tempC) {
   try {
+    if (await wasWeatherAlertSentToday(db, gardenId, 'heat_alert')) return
     const body = `Ожидается ${tempC}°C. Полейте растения и притените теплицу!`
     const delivered = await sendToGarden(db, gardenId, '🌡️ Сильная жара', body, { type: 'heat_alert', garden_id: String(gardenId) })
-    if (delivered) console.log(`[push] heat_alert доставлен, участок ${gardenId}`)
+    if (delivered) {
+      await markWeatherAlertSent(db, gardenId, 'heat_alert')
+      console.log(`[push] heat_alert доставлен, участок ${gardenId}`)
+    }
   } catch (e) {
     console.error('[push] Ошибка sendHeatAlert:', e.message)
   }
