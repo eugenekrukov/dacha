@@ -79,4 +79,22 @@ function makeToken(fastify, userId = 1, email = 'test@test.com') {
   return fastify.jwt.sign({ userId, email })
 }
 
-module.exports = { buildApp, makeToken }
+/**
+ * Ответ мок-БД на запрос freeTierState (utils/access.js) — гейт read-only по free-набору.
+ * По умолчанию: free-пользователь, у которого посадка id=1 входит в свободный набор,
+ * то есть НЕ заблокирована (поведение до появления гейта — старые тесты не переписываются).
+ * Возвращает null, если sql — не про free-набор: тест идёт по своей ветке.
+ */
+function freeTierQuery(sql, { subscribed = false, freeIds = [1] } = {}) {
+  if (!sql.includes('free_ids')) return null
+  return {
+    rows: [{
+      subscription_until: subscribed ? new Date(Date.now() + 86_400_000) : null,
+      promo_until: null,
+      store: null,
+      free_ids: freeIds,
+    }],
+  }
+}
+
+module.exports = { buildApp, makeToken, freeTierQuery }

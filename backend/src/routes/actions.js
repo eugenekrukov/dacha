@@ -1,22 +1,25 @@
 'use strict'
 
+const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
+
 module.exports = async function (fastify, opts) {
   const auth = { onRequest: [fastify.authenticate] }
   // Для каскадного удаления фото-вложений действия (файлы). Переопределяемо в тестах.
   const imageService = opts.imageService || require('../services/imageService')
 
-  // Проверка принадлежности посадки текущему пользователю
-  async function userOwnsPlanting(plantingId, userId) {
+  // Своя посадка ({id, stage}) или null — нужна и для IDOR-проверки, и для гейта read-only.
+  async function getOwnedPlanting(plantingId, userId) {
     const res = await fastify.db.query(
-      `SELECT 1 FROM plantings p
+      `SELECT p.id, p.stage FROM plantings p
        JOIN gardens g ON g.id = p.garden_id
        WHERE p.id = $1 AND g.user_id = $2`,
       [plantingId, userId]
     )
-    return res.rows.length > 0
+    return res.rows[0] || null
   }
 
-  // POST /actions — свободно в рамках free-лимита посадок (гейт — на создании посадки, POST /plantings)
+  // POST /actions — свободно по посадкам free-набора; заблокированные (сверх лимита, без
+  // подписки) только для чтения — см. isPlantingLocked.
   fastify.post('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
     const { planting_id, notes } = request.body
     const action_type = request.body.action_type ?? request.body.type
@@ -25,8 +28,14 @@ module.exports = async function (fastify, opts) {
     const logged_at = request.body.logged_at ?? null
 
     // Защита от IDOR: нельзя писать в журнал чужой посадки
-    if (!planting_id || !(await userOwnsPlanting(planting_id, request.user.userId))) {
+    const planting = planting_id ? await getOwnedPlanting(planting_id, request.user.userId) : null
+    if (!planting) {
       return reply.code(403).send({ error: 'Planting not found or not yours' })
+    }
+
+    const state = await freeTierState(fastify.db, request.user.userId)
+    if (isPlantingLocked(state, planting)) {
+      return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
     }
 
     // Валидация клиентских полей офлайн-очереди (F1)

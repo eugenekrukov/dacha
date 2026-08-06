@@ -83,6 +83,9 @@ export interface Planting {
   last_action_type?: string | null
   next_care_task?: NextCareTask | null
   overdue_care_task?: OverdueCareTask | null
+  // Посадка только для чтения: она сверх free-набора (3 активных), а подписки нет.
+  // Считает бэкенд (utils/access.js, isPlantingLocked) — клиент лишь отражает.
+  locked?: boolean
 }
 
 // Формат formatTasks (backend todayLogic.js): готовые title/description + детали.

@@ -629,11 +629,11 @@ ModalBottomSheet(
 
 ## 17. Паттерны сессии 2026-06-03
 
-- **Free-тариф/подписка/гейт (обновлено 2026-07-18)**: `/auth/me` отдаёт `subscribed`/`plantingsLimit`.
+- **Free-тариф/подписка/гейт (обновлено 2026-08-06)**: `/auth/me` отдаёт `subscribed`/`plantingsLimit`.
   `SubscriptionManager.refresh()` берёт статус с сервера и синкает подписку (`syncSubscription(active)`).
-  Backend гейтит только `POST /plantings` → **402** `plan_limit_reached` сверх free-лимита (1 сад,
-  `FREE_PLANTING_LIMIT` посадок, бессрочно); `POST /actions`/`/harvests` свободны в рамках уже
-  созданных посадок. 402 = лимит/нет подписки (не путать с IDOR 403).
+  Backend гейтит `POST /plantings` → **402** `plan_limit_reached` сверх free-лимита (1 сад,
+  `FREE_PLANTING_LIMIT` посадок, бессрочно) **и запись по посадке сверх free-набора** →
+  **402** `planting_locked` (см. ниже, §24). 402 = лимит/нет подписки (не путать с IDOR 403).
 - **Иконки действий**: единый `ui/actions/ActionVisuals.kt actionIcon(type)` (Material Icons) —
   использовать и в журнале, и в селекторе. Эмодзи в UI действий не добавлять.
 - **Автодополнение (город)**: `ExposedDropdownMenuBox` + `ExposedDropdownMenu` + `Modifier.menuAnchor()`
@@ -779,6 +779,26 @@ ModalBottomSheet(
   (`ResetStep.REQUEST_CODE` → `ENTER_NEW_PASSWORD`). Вход из `LoginScreen` («Забыли пароль?»).
 - Простые тела запросов — `Map<String,String>` (как `redeemPromo`). Ошибка кода (400) → «Неверный или
   просроченный код» (`parseCodeError`).
+
+## 24. Read-only посадки — `Planting.locked` (сессия 2026-08-06)
+
+**Правило**: состояние «только чтение» считает **сервер**, клиент его не выводит и не кэширует.
+`GET /plantings` и `GET /plantings/:id` отдают `locked: Boolean` (`Planting.locked`, дефолт `false`).
+
+**Что закрывать в UI при `locked`** — ровно то, что закрывает бэкенд (`utils/access.js`,
+`isPlantingLocked`): запись действия, правка информации, смена условий, выбор грядки, добавление
+фото. **Не закрывать**: «Завершить сезон» (`stage='done'`) и «Удалить посадку» — бэкенд их
+разрешает намеренно, это «уменьшающие» операции, освобождающие слот free-набора.
+
+Место в UI: бейдж «Только чтение» на карточке (`PlantingsScreen.PlantingCard`), баннер
+`LockedBanner` + скрытые контролы на `PlantingInfoScreen.AboutTab`. Путь к оплате — существующий
+`onOpenPaywall` (прокинут из `MainActivity`, как у `TodayScreen`).
+
+> Причина появления (2026-08-06): гейт стоял только на создании посадки, поэтому подписки на месяц
+> в начале сезона хватало, чтобы завести все посадки и вести сезон бесплатно. Автопродления нет ни
+> в Google Play, ни в RuStore. Подробнее — `backend/CONVENTIONS.md` §6.
+
+---
 
 ## 22. Runtime-разрешение POST_NOTIFICATIONS (Android 13+, сессия 2026-06-05)
 

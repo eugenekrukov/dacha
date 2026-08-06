@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Pencil, ArrowLeft } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Pencil, ArrowLeft, Lock } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
 import { buildSchedule, collapseActions, type SchedStatus } from '../api/schedule'
@@ -103,6 +104,10 @@ export default function PlantingDetailScreen() {
       ? Math.round(planting.yield_per_plant_kg * planting.quantity * 10) / 10
       : null
 
+  // Посадка сверх free-набора без подписки: правки закрыты, но завершить сезон и удалить
+  // можно всегда — это разрешает и бэкенд (isPlantingLocked), иначе выйти из лимита было бы нечем.
+  const locked = planting.locked === true
+
   return (
     <div className="flex flex-col gap-4">
       <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-left font-bold text-muted">
@@ -120,7 +125,20 @@ export default function PlantingDetailScreen() {
         <p className="font-semibold text-muted">
           Посажено {formatDate(planting.planted_at)} · {planting.quantity ?? 1} шт.
         </p>
-        {editingBed ? (
+        {locked && (
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-muted">
+            <Lock size={14} aria-hidden className="shrink-0" />
+            Только чтение: бесплатно ведутся 3 посадки.
+            <Link to="/paywall" className="font-bold text-link underline">
+              Оформить подписку →
+            </Link>
+          </p>
+        )}
+        {locked ? (
+          <p className="font-semibold text-muted">
+            Место: {beds.find((b) => b.id === planting.bed_id)?.name ?? 'не выбрано'}
+          </p>
+        ) : editingBed ? (
           <BedField
             gardenId={planting.garden_id}
             value={planting.bed_id ?? null}
@@ -157,7 +175,8 @@ export default function PlantingDetailScreen() {
             <button
               key={c}
               type="button"
-              className={`dacha-chip text-xs ${planting.conditions === c ? 'dacha-chip-active' : ''}`}
+              disabled={locked}
+              className={`dacha-chip text-xs ${planting.conditions === c ? 'dacha-chip-active' : ''} ${locked ? 'opacity-50' : ''}`}
               onClick={async () => {
                 if (planting.conditions === c) return
                 try {
@@ -193,9 +212,11 @@ export default function PlantingDetailScreen() {
 
       {tab === 'planting' && (
         <>
-          <button className="dacha-btn flex items-center justify-center gap-2" onClick={() => setLogging(true)}>
-            <Pencil size={18} aria-hidden /> Записать действие
-          </button>
+          {!locked && (
+            <button className="dacha-btn flex items-center justify-center gap-2" onClick={() => setLogging(true)}>
+              <Pencil size={18} aria-hidden /> Записать действие
+            </button>
+          )}
 
           {schedule.length > 0 && (
             <section className="dacha-card flex flex-col gap-1.5 p-5">
@@ -211,7 +232,7 @@ export default function PlantingDetailScreen() {
             </section>
           )}
 
-          <PhotoDiary key={photoRefresh} plantingId={planting.id} />
+          <PhotoDiary key={photoRefresh} plantingId={planting.id} locked={locked} />
 
           <section className="flex flex-col gap-2">
             <h2 className="text-lg font-black">История действий</h2>

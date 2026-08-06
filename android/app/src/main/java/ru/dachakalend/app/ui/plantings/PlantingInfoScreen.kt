@@ -137,6 +137,7 @@ fun PlantingInfoScreen(
     plantingId: Int,
     onBack: () -> Unit,
     onOpenGuide: (cropId: Int, cropName: String?) -> Unit,
+    onOpenPaywall: () -> Unit = {},
     viewModel: PlantingInfoViewModel = hiltViewModel()
 ) {
     LaunchedEffect(plantingId) { viewModel.reset(); viewModel.load(plantingId) }
@@ -183,6 +184,7 @@ fun PlantingInfoScreen(
                         onRenameBed = viewModel::renameBed,
                         onDeleteBed = viewModel::deleteBed,
                         onSetConditions = viewModel::setConditions,
+                        onOpenPaywall = onOpenPaywall,
                     )
                     1 -> if (crop != null) CropCareSection(crop, modifier = scroll)
                          else EmptyTab(scroll, "Нет данных об уходе.")
@@ -216,13 +218,18 @@ private fun AboutTab(
     onRenameBed: (bed: ru.dachakalend.app.data.model.GardenBed, name: String) -> Unit,
     onDeleteBed: (bed: ru.dachakalend.app.data.model.GardenBed) -> Unit,
     onSetConditions: (String) -> Unit,
+    onOpenPaywall: () -> Unit = {},
 ) {
     val planting = state.planting ?: return
+    // Посадка сверх free-набора без подписки: правки и новые записи бэкенд не примет (402).
+    val locked = planting.locked
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (locked) LockedBanner(onOpenPaywall)
         InfoSection(title = "Посадка") {
             InfoRow2("Дата посадки", planting.sownAt?.let { formatShort(it) } ?: "—")
             planting.variety?.takeIf { it.isNotBlank() }?.let { InfoRow2("Сорт", it) }
-            ConditionsRow(current = planting.conditions ?: "soil", onSelect = onSetConditions)
+            if (locked) InfoRow2("Условия", if (planting.conditions == "greenhouse") "Теплица" else "Грунт")
+            else ConditionsRow(current = planting.conditions ?: "soil", onSelect = onSetConditions)
             InfoRow2("Количество растений", "${planting.quantity ?: 1} шт.")
             planting.yieldPerPlantKg?.let { perPlant ->
                 val expected = perPlant * (planting.quantity ?: 1)
@@ -233,7 +240,7 @@ private fun AboutTab(
             InfoRow2("Место", currentBed?.name ?: "не выбрано")
         }
 
-        InfoSection(title = "Место (грядка)") {
+        if (!locked) InfoSection(title = "Место (грядка)") {
             BedPickerField(
                 beds = state.beds,
                 selectedBedId = planting.bedId,
@@ -275,11 +282,38 @@ private fun AboutTab(
             actions = state.recentActions,
             uploadBusy = state.uploadBusy,
             photoError = state.photoError,
+            locked = locked,
             onUpload = onUpload,
             onDelete = onDelete,
             onReplace = onReplace,
             onDeleteRecord = onDeleteRecord,
         )
+    }
+}
+
+// Посадка сверх free-набора: объясняем, почему правки закрыты, и даём путь к оплате.
+@Composable
+private fun LockedBanner(onOpenPaywall: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "Только чтение",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "Бесплатно ведутся 3 посадки. Записи и фото этой посадки сохранены, но добавлять новые можно с подпиской.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(onClick = onOpenPaywall) {
+                Text("Оформить «Дачник Про»", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false)
+            }
+        }
     }
 }
 
@@ -299,6 +333,7 @@ private fun JournalSection(
     actions: List<ActionLog>,
     uploadBusy: Boolean,
     photoError: String?,
+    locked: Boolean,
     onUpload: (ByteArray, Int?) -> Unit,
     onDelete: (Int) -> Unit,
     onReplace: (PlantingPhoto, ByteArray) -> Unit,
@@ -321,7 +356,9 @@ private fun JournalSection(
     }
 
     InfoSection(title = "Журнал") {
-        if (uploadBusy) {
+        // Заблокированная посадка: история видна, новые кадры бэкенд не примет (402).
+        if (locked) Unit
+        else if (uploadBusy) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))

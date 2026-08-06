@@ -51,6 +51,52 @@ function hasAccess(user) {
     hasPromo(user && user.promo_until)
 }
 
+// Свободный набор free-тарифа: первые FREE_PLANTING_LIMIT активных посадок пользователя (по id).
+// Один и тот же SQL используют freeTierState и роуты — правило «какие посадки остаются рабочими»
+// живёт в одном месте. $1 = user_id, $2 = лимит.
+const FREE_SET_SQL = `
+  SELECT p.id FROM plantings p
+  JOIN gardens g ON g.id = p.garden_id
+  WHERE g.user_id = $1 AND p.stage <> 'done'
+  ORDER BY p.id
+  LIMIT $2
+`
+
+/**
+ * Состояние free-тарифа пользователя одним запросом: есть ли платный доступ и id посадок,
+ * которые остаются изменяемыми, если доступа нет.
+ */
+async function freeTierState(db, userId) {
+  const res = await db.query(
+    `SELECT u.subscription_until, u.promo_until, u.store,
+            ARRAY(${FREE_SET_SQL}) AS free_ids
+     FROM users u WHERE u.id = $1`,
+    [userId, FREE_PLANTING_LIMIT]
+  )
+  const row = res.rows[0]
+  if (!row) return { paid: false, freeIds: new Set() }
+  return { paid: hasAccess(row), freeIds: new Set(row.free_ids || []) }
+}
+
+/**
+ * Посадка «только для чтения»? Без платного доступа изменяются лишь первые FREE_PLANTING_LIMIT
+ * активных посадок; созданные сверх лимита (в период подписки) остаются видны, но неизменяемы —
+ * иначе достаточно было бы оплатить один месяц в начале сезона и вести весь сезон бесплатно.
+ *
+ * Завершённые (stage='done') не блокируются: это архив, туда дописывают урожай после закрытия
+ * сезона, и блокировка ломала бы обычный сценарий честного free-пользователя с 3 посадками.
+ * ponytail: как следствие, заблокированную посадку можно перевести в 'done' и дописывать записи
+ * в архив. В /today такие посадки не попадают (нет care-задач), продуктовой ценности это не даёт.
+ * Если понадобится закрыть — гейтить архив отдельным правилом «done был в free-наборе».
+ *
+ * Вызывать ПОСЛЕ проверки владельца посадки: сюда передаётся уже свой planting.
+ */
+function isPlantingLocked(state, planting) {
+  if (state.paid) return false
+  if (!planting || planting.stage === 'done') return false
+  return !state.freeIds.has(planting.id)
+}
+
 /**
  * Новая дата окончания подписки после оплаты на `days` дней.
  * Если подписка ещё активна — продлеваем от её конца (не теряем оплаченное);
@@ -74,5 +120,5 @@ function revokeSubscription(currentUntil, days) {
 module.exports = {
   SUBSCRIPTION_WINDOW_DAYS, PROMO_MONTH_DAYS, LIFETIME_UNTIL, FREE_PLANTING_LIMIT,
   isSubscribed, hasPromo, isLifetimePromo, hasAccess, extendSubscription,
-  revokeSubscription, isAdSupportedStore
+  revokeSubscription, isAdSupportedStore, freeTierState, isPlantingLocked
 }

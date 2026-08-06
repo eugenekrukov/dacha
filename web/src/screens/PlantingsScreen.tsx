@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sprout, Clock } from 'lucide-react'
+import { Sprout, Clock, Lock } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
 import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
@@ -91,8 +91,15 @@ function PlantingCard({ p }: { p: Planting }) {
     <Link to={`/plantings/${p.id}`} className="dacha-card-link flex flex-col gap-1 p-4">
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 truncate text-lg font-black">{p.crop_name ?? `Посадка #${p.id}`}</span>
-        <span className="dacha-chip shrink-0 bg-background text-xs text-tertiary">
-          {STAGE_LABELS[p.stage] ?? p.stage}
+        <span className="flex shrink-0 items-center gap-1">
+          {p.locked && (
+            <span className="dacha-chip flex items-center gap-1 bg-background text-xs text-muted">
+              <Lock size={12} aria-hidden /> Только чтение
+            </span>
+          )}
+          <span className="dacha-chip bg-background text-xs text-tertiary">
+            {STAGE_LABELS[p.stage] ?? p.stage}
+          </span>
         </span>
       </div>
       {p.variety && <span className="text-sm font-bold text-tertiary">Сорт: {p.variety}</span>}

@@ -1,7 +1,7 @@
 'use strict'
 
 const supertest = require('supertest')
-const { buildApp, makeToken } = require('./helpers/buildApp')
+const { buildApp, makeToken, freeTierQuery } = require('./helpers/buildApp')
 
 const REMINDER = {
   id: 1, user_id: 1, planting_id: 1, remind_at: new Date().toISOString(),
@@ -9,8 +9,10 @@ const REMINDER = {
   crop_name: 'Помидор',
 }
 
+// Запрос free-набора перехватываем здесь: по умолчанию посадка 1 не заблокирована.
 function makeMockDb(overrides = {}) {
-  return { query: async () => ({ rows: [] }), ...overrides }
+  const base = { query: async () => ({ rows: [] }), ...overrides }
+  return { ...base, query: async (sql, params) => freeTierQuery(sql) || base.query(sql, params) }
 }
 
 describe('POST /reminders', () => {
@@ -25,6 +27,22 @@ describe('POST /reminders', () => {
 
     expect(res.status).toBe(201)
     expect(res.body).toMatchObject({ type: 'watering' })
+    await app.close()
+  })
+
+  it('заблокированная посадка (сверх free-набора, без подписки) → 402 planting_locked', async () => {
+    const app = await buildApp({
+      query: async (sql) => freeTierQuery(sql, { freeIds: [7, 8, 9] }) || { rows: [{ id: 1, stage: 'growing' }] },
+    })
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/reminders')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ planting_id: 1, remind_at: new Date().toISOString(), type: 'watering' })
+
+    expect(res.status).toBe(402)
+    expect(res.body.error).toBe('planting_locked')
     await app.close()
   })
 

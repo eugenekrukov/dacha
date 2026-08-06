@@ -399,7 +399,8 @@ class MainActivity : ComponentActivity() {
                                 onAddCrop = { navController.navigate(Screen.Crops.route) },
                                 onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) },
                                 onOpenHarvest = { navController.navigate(Screen.Harvest.route) },
-                                onOpenPlantingInfo = { plantingId -> navController.navigate(Screen.PlantingInfo.route(plantingId)) }
+                                onOpenPlantingInfo = { plantingId -> navController.navigate(Screen.PlantingInfo.route(plantingId)) },
+                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(
@@ -412,7 +413,8 @@ class MainActivity : ComponentActivity() {
                                 onAddCrop = { navController.navigate(Screen.Crops.route) },
                                 onCropDetail = { cropId -> navController.navigate(Screen.CropDetail.route(cropId, showPlantButton = false)) },
                                 onOpenHarvest = { navController.navigate(Screen.Harvest.route) },
-                                onOpenPlantingInfo = { plantingId -> navController.navigate(Screen.PlantingInfo.route(plantingId)) }
+                                onOpenPlantingInfo = { plantingId -> navController.navigate(Screen.PlantingInfo.route(plantingId)) },
+                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(Screen.Harvest.route) {
@@ -486,7 +488,8 @@ class MainActivity : ComponentActivity() {
                             PlantingInfoScreen(
                                 plantingId = pid,
                                 onBack = { navController.popBackStack() },
-                                onOpenGuide = { cropId, cropName -> navController.navigate(Screen.Guide.withCrop(cropId, cropName)) }
+                                onOpenGuide = { cropId, cropName -> navController.navigate(Screen.Guide.withCrop(cropId, cropName)) },
+                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(

@@ -1,7 +1,7 @@
 'use strict'
 
 const supertest = require('supertest')
-const { buildApp, makeToken } = require('./helpers/buildApp')
+const { buildApp, makeToken, freeTierQuery } = require('./helpers/buildApp')
 
 function fakeImageService() {
   return {
@@ -16,19 +16,19 @@ function fakeImageService() {
   }
 }
 
-function makeDb({ owns = true, photoCount = 0, accountCount = 0, user = {}, actionMatch = true } = {}) {
+function makeDb({ owns = true, photoCount = 0, accountCount = 0, actionMatch = true,
+                 subscribed = false, freeIds = [5], stage = 'growing' } = {}) {
   const inserted = []
   return {
     inserted,
     async query(sql, params) {
+      const ft = freeTierQuery(sql, { subscribed, freeIds })
+      if (ft) return ft
       if (/FROM plantings p\s+JOIN gardens g/i.test(sql) && /WHERE p\.id/i.test(sql)) {
-        return { rows: owns ? [{ '?column?': 1 }] : [] }
+        return { rows: owns ? [{ id: 5, stage }] : [] }
       }
       if (/FROM action_logs WHERE id/i.test(sql)) {
         return { rows: actionMatch ? [{ '?column?': 1 }] : [] }
-      }
-      if (/SELECT subscription_until, promo_until, store FROM users/i.test(sql)) {
-        return { rows: [user] }
       }
       if (/COUNT\(\*\).*FROM planting_photos pp\s+JOIN/i.test(sql)) {
         return { rows: [{ count: String(accountCount) }] }
@@ -49,7 +49,7 @@ function makeDb({ owns = true, photoCount = 0, accountCount = 0, user = {}, acti
 describe('POST /photos', () => {
   it('happy path: 201, файл обработан, строка вставлена', async () => {
     const img = fakeImageService()
-    const db = makeDb({ photoCount: 0, user: { subscription_until: null } })
+    const db = makeDb({ photoCount: 0 })
     const app = await buildApp(db, { imageService: img })
     const res = await supertest(app.server)
       .post('/photos')
@@ -78,7 +78,7 @@ describe('POST /photos', () => {
 
   it('квота free (3-е есть → 4-е) → 409 photo_limit_reached', async () => {
     const img = fakeImageService()
-    const db = makeDb({ photoCount: 3, user: { subscription_until: null } })
+    const db = makeDb({ photoCount: 3 })
     const app = await buildApp(db, { imageService: img })
     const res = await supertest(app.server)
       .post('/photos')
@@ -94,8 +94,7 @@ describe('POST /photos', () => {
 
   it('подписчик: лимит 30 (есть 3 → проходит)', async () => {
     const img = fakeImageService()
-    const future = new Date(Date.now() + 30 * 86400000)
-    const db = makeDb({ photoCount: 3, user: { subscription_until: future } })
+    const db = makeDb({ photoCount: 3, subscribed: true })
     const app = await buildApp(db, { imageService: img })
     const res = await supertest(app.server)
       .post('/photos')
@@ -106,9 +105,24 @@ describe('POST /photos', () => {
     await app.close()
   })
 
+  it('заблокированная посадка (сверх free-набора, без подписки) → 402, файл не обработан', async () => {
+    const img = fakeImageService()
+    const db = makeDb({ freeIds: [1, 2, 3] })   // посадка 5 вне свободного набора
+    const app = await buildApp(db, { imageService: img })
+    const res = await supertest(app.server)
+      .post('/photos')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+      .field('planting_id', '5')
+      .attach('file', Buffer.from('x'), 'p.jpg')
+    expect(res.status).toBe(402)
+    expect(res.body.error).toBe('planting_locked')
+    expect(img.processed).toHaveLength(0)
+    await app.close()
+  })
+
   it('action_id не от этой посадки → 400', async () => {
     const img = fakeImageService()
-    const db = makeDb({ actionMatch: false, user: { trial_started_at: new Date() } })
+    const db = makeDb({ actionMatch: false })
     const app = await buildApp(db, { imageService: img })
     const res = await supertest(app.server)
       .post('/photos')

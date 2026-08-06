@@ -69,6 +69,7 @@ fun PlantingsScreen(
     onOpenCropDetail: (Int) -> Unit = onCropDetail,
     onOpenHarvest: () -> Unit = {},
     onOpenPlantingInfo: (Int) -> Unit = {},
+    onOpenPaywall: () -> Unit = {},
     viewModel: PlantingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -263,7 +264,8 @@ fun PlantingsScreen(
                         onFinishSeason = { viewModel.requestFinishSeason(planting) },
                         onInfo         = { onOpenPlantingInfo(planting.id) },
                         onSetReminder    = { viewModel.requestReminder(planting) },
-                        onCancelReminder = { viewModel.cancelBedReminder(planting.id) }
+                        onCancelReminder = { viewModel.cancelBedReminder(planting.id) },
+                        onOpenPaywall    = onOpenPaywall
                     )
                 }
             }
@@ -501,7 +503,8 @@ private fun PlantingCard(
     onFinishSeason: () -> Unit,
     onInfo: () -> Unit,
     onSetReminder: () -> Unit,
-    onCancelReminder: () -> Unit
+    onCancelReminder: () -> Unit,
+    onOpenPaywall: () -> Unit = {}
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -655,6 +658,20 @@ private fun PlantingCard(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    // Pill-бейдж «только чтение» — посадка сверх free-набора без подписки.
+                    if (planting.locked) {
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
+                            Text(
+                                text = "Только чтение",
+                                fontFamily = NunitoFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                softWrap = false
+                            )
+                        }
+                    }
                     // Pill-бейдж стадии
                     Surface(
                         shape = CircleShape,
@@ -691,10 +708,14 @@ private fun PlantingCard(
                                 text = { Text("Информация о посадке", fontFamily = NunitoFamily) },
                                 onClick = { menuExpanded = false; onInfo() }
                             )
-                            DropdownMenuItem(
-                                text = { Text("Редактировать информацию", fontFamily = NunitoFamily) },
-                                onClick = { menuExpanded = false; onEditInfo() }
-                            )
+                            // Правка закрыта на заблокированной посадке; завершение сезона и
+                            // удаление остаются — их разрешает и бэкенд (isPlantingLocked).
+                            if (!planting.locked) {
+                                DropdownMenuItem(
+                                    text = { Text("Редактировать информацию", fontFamily = NunitoFamily) },
+                                    onClick = { menuExpanded = false; onEditInfo() }
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Напоминание об осмотре", fontFamily = NunitoFamily) },
                                 onClick = { menuExpanded = false; onSetReminder() }
@@ -716,26 +737,54 @@ private fun PlantingCard(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onLogAction,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(8.dp))
+            // Заблокированная посадка: записывать действия нельзя (бэкенд вернёт 402),
+            // вместо кнопки — путь к оплате.
+            if (planting.locked) {
                 Text(
-                    text = "Записать действие",
+                    text = "Бесплатно ведутся 3 посадки. Эта — только для чтения.",
                     fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.Black,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onOpenPaywall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text = "Оформить «Дачник Про»",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            } else {
+                Button(
+                    onClick = onLogAction,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Записать действие",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Black,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

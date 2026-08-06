@@ -1,7 +1,7 @@
 'use strict'
 
 const { getNextCareTask, getOverdueCareTask, effectivePlantedAt } = require('../utils/todayLogic')
-const { hasAccess, FREE_PLANTING_LIMIT } = require('../utils/access')
+const { hasAccess, FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
@@ -13,6 +13,17 @@ module.exports = async function (fastify) {
       [gardenId, userId]
     )
     return res.rows.length > 0
+  }
+
+  // Своя посадка ({id, stage}) или null — нужна и для 404, и для гейта read-only.
+  async function getOwnedPlanting(plantingId, userId) {
+    const res = await fastify.db.query(
+      `SELECT p.id, p.stage FROM plantings p
+       JOIN gardens g ON g.id = p.garden_id
+       WHERE p.id = $1 AND g.user_id = $2`,
+      [plantingId, userId]
+    )
+    return res.rows[0] || null
   }
 
   // POST /plantings — free-тариф: до FREE_PLANTING_LIMIT активных (stage<>'done') посадок,
@@ -110,6 +121,10 @@ module.exports = async function (fastify) {
       })
     }
 
+    // locked — посадка только для чтения на free-тарифе (см. isPlantingLocked). Отдаём флагом,
+    // чтобы клиенты сразу рисовали read-only, а не узнавали о блокировке из 402 по нажатию.
+    const state = await freeTierState(fastify.db, request.user.userId)
+
     // Вычисляем next_care_task (будущие) и overdue_care_task (просроченные/сегодня) для каждой посадки
     const now = new Date()
     const rows = result.rows.map(p => {
@@ -131,7 +146,13 @@ module.exports = async function (fastify) {
         : null
       // Не передаём care_tasks клиенту — это внутренние данные
       const { care_tasks, ...rest } = p
-      return { ...rest, next_care_task: nextCareTask, overdue_care_task: overdueCareTask, expected_harvest_at: expectedHarvestAt }
+      return {
+        ...rest,
+        next_care_task: nextCareTask,
+        overdue_care_task: overdueCareTask,
+        expected_harvest_at: expectedHarvestAt,
+        locked: isPlantingLocked(state, p)
+      }
     })
 
     return rows
@@ -148,12 +169,24 @@ module.exports = async function (fastify) {
       [request.params.id, request.user.userId]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
-    return result.rows[0]
+    const state = await freeTierState(fastify.db, request.user.userId)
+    return { ...result.rows[0], locked: isPlantingLocked(state, result.rows[0]) }
   })
 
   // PATCH /plantings/:id/stage
   fastify.patch('/:id/stage', auth, async (request, reply) => {
     const { stage } = request.body
+    // Заблокированную посадку разрешено только завершать (stage='done') — как и удалять: это
+    // «уменьшающая» операция, она освобождает слот free-набора, иначе выход из лимита был бы
+    // возможен лишь через удаление данных.
+    if (stage !== 'done') {
+      const planting = await getOwnedPlanting(request.params.id, request.user.userId)
+      if (!planting) return reply.code(404).send({ error: 'Planting not found' })
+      const state = await freeTierState(fastify.db, request.user.userId)
+      if (isPlantingLocked(state, planting)) {
+        return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
+      }
+    }
     // Защита от IDOR: обновляем только посадку в участке текущего пользователя
     const result = await fastify.db.query(
       `UPDATE plantings SET stage=$1, updated_at=NOW()
@@ -185,6 +218,14 @@ module.exports = async function (fastify) {
     const varietyVal = variety === undefined
       ? null
       : (typeof variety === 'string' && variety.trim() ? variety.trim().slice(0, 120) : '')
+
+    const planting = await getOwnedPlanting(request.params.id, request.user.userId)
+    if (!planting) return reply.code(404).send({ error: 'Planting not found' })
+    const state = await freeTierState(fastify.db, request.user.userId)
+    if (isPlantingLocked(state, planting)) {
+      return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
+    }
+
     // Защита от IDOR: обновляем только посадку в участке текущего пользователя
     if (bed_id != null) {
       const bedCheck = await fastify.db.query(

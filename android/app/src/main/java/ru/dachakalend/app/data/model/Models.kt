@@ -233,7 +233,11 @@ data class Planting(
     @Json(name = "watering_freq_days") val wateringFreqDays: Int? = null,
     @Json(name = "yield_per_plant_kg") val yieldPerPlantKg: Double? = null,
     @Json(name = "next_care_task") val nextCareTask: NextCareTask? = null,
-    @Json(name = "overdue_care_task") val overdueCareTask: OverdueCareTask? = null
+    @Json(name = "overdue_care_task") val overdueCareTask: OverdueCareTask? = null,
+    // Посадка только для чтения: она сверх free-набора (3 активных), а подписки нет.
+    // Считает бэкенд (utils/access.js, isPlantingLocked) — клиент лишь отражает.
+    // Дефолт false: поле приходит только из GET /plantings и GET /plantings/:id.
+    val locked: Boolean = false
 )
 
 // --- Фото-дневник (F12) ---

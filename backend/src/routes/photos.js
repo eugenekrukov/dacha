@@ -1,27 +1,24 @@
 'use strict'
 
-const { isSubscribed, hasPromo, isAdSupportedStore } = require('../utils/access')
+const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
 
 const PHOTO_LIMIT_FREE = 3
 const PHOTO_LIMIT_PAID = 30
 const PHOTO_CAP_ACCOUNT = 1000
 
-function isPaidTier(user) {
-  return !!user && (isSubscribed(user.subscription_until) || hasPromo(user.promo_until) || isAdSupportedStore(user.store))
-}
-
 module.exports = async function (fastify, opts) {
   const imageService = opts.imageService || require('../services/imageService')
   const auth = { onRequest: [fastify.authenticate] }
 
-  async function userOwnsPlanting(plantingId, userId) {
+  // Своя посадка ({id, stage}) или null — нужна и для IDOR-проверки, и для гейта read-only.
+  async function getOwnedPlanting(plantingId, userId) {
     const res = await fastify.db.query(
-      `SELECT 1 FROM plantings p
+      `SELECT p.id, p.stage FROM plantings p
        JOIN gardens g ON g.id = p.garden_id
        WHERE p.id = $1 AND g.user_id = $2`,
       [plantingId, userId]
     )
-    return res.rows.length > 0
+    return res.rows[0] || null
   }
 
   // POST /photos — multipart: planting_id, [action_id], [caption], [taken_at], file
@@ -37,7 +34,8 @@ module.exports = async function (fastify, opts) {
     const userId = request.user.userId
 
     if (!plantingId) return reply.code(400).send({ error: 'planting_id_required' })
-    if (!(await userOwnsPlanting(plantingId, userId))) {
+    const planting = await getOwnedPlanting(plantingId, userId)
+    if (!planting) {
       try { await data.toBuffer() } catch {}
       return reply.code(403).send({ error: 'Planting not found or not yours' })
     }
@@ -50,9 +48,14 @@ module.exports = async function (fastify, opts) {
       }
     }
 
-    const accessRes = await fastify.db.query(
-      'SELECT subscription_until, promo_until, store FROM users WHERE id = $1', [userId])
-    const limit = isPaidTier(accessRes.rows[0]) ? PHOTO_LIMIT_PAID : PHOTO_LIMIT_FREE
+    // Заблокированная посадка (сверх free-набора, без подписки) — только для чтения.
+    const state = await freeTierState(fastify.db, userId)
+    if (isPlantingLocked(state, planting)) {
+      try { await data.toBuffer() } catch {}
+      return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
+    }
+
+    const limit = state.paid ? PHOTO_LIMIT_PAID : PHOTO_LIMIT_FREE
 
     const perPlanting = await fastify.db.query('SELECT COUNT(*) FROM planting_photos WHERE planting_id = $1', [plantingId])
     if (parseInt(perPlanting.rows[0].count, 10) >= limit) {

@@ -5,7 +5,8 @@ import type { PlantingPhoto } from '../api/types'
 import AuthImage from './AuthImage'
 import { useModalA11y } from './Modal'
 
-export default function PhotoDiary({ plantingId }: { plantingId: number }) {
+// locked — посадка сверх free-набора без подписки: дневник виден, но новые кадры бэкенд не примет.
+export default function PhotoDiary({ plantingId, locked = false }: { plantingId: number; locked?: boolean }) {
   const [photos, setPhotos] = useState<PlantingPhoto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,15 +57,19 @@ export default function PhotoDiary({ plantingId }: { plantingId: number }) {
     <section className="mt-6">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-black">Дневник</h2>
-        <button
-          type="button"
-          className="dacha-chip flex items-center gap-1.5 px-3 py-2"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-        >
-          <Camera size={18} aria-hidden /> {busy ? '…' : 'Добавить фото'}
-        </button>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPick} />
+        {!locked && (
+          <>
+            <button
+              type="button"
+              className="dacha-chip flex items-center gap-1.5 px-3 py-2"
+              disabled={busy}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Camera size={18} aria-hidden /> {busy ? '…' : 'Добавить фото'}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPick} />
+          </>
+        )}
       </div>
 
       {error && <p className="mb-2 text-sm font-bold text-red-600">{error}</p>}

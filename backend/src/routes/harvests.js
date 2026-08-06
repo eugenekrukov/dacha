@@ -1,5 +1,7 @@
 'use strict'
 
+const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
+
 // pg возвращает DECIMAL как строку — нормализуем weight_kg в число
 function normalizeHarvest(h) {
   return { ...h, weight_kg: h.weight_kg != null ? parseFloat(h.weight_kg) : null }
@@ -8,24 +10,31 @@ function normalizeHarvest(h) {
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
-  // Проверка принадлежности посадки текущему пользователю
-  async function userOwnsPlanting(plantingId, userId) {
+  // Своя посадка ({id, stage}) или null — нужна и для IDOR-проверки, и для гейта read-only.
+  async function getOwnedPlanting(plantingId, userId) {
     const res = await fastify.db.query(
-      `SELECT 1 FROM plantings p
+      `SELECT p.id, p.stage FROM plantings p
        JOIN gardens g ON g.id = p.garden_id
        WHERE p.id = $1 AND g.user_id = $2`,
       [plantingId, userId]
     )
-    return res.rows.length > 0
+    return res.rows[0] || null
   }
 
-  // POST /harvests — свободно в рамках free-лимита посадок (гейт — на создании посадки, POST /plantings)
+  // POST /harvests — свободно по посадкам free-набора; заблокированные (сверх лимита, без
+  // подписки) только для чтения — см. isPlantingLocked.
   fastify.post('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
     const { planting_id, weight_kg, quantity, notes } = request.body
 
     // Защита от IDOR: нельзя добавить урожай к чужой посадке
-    if (!planting_id || !(await userOwnsPlanting(planting_id, request.user.userId))) {
+    const planting = planting_id ? await getOwnedPlanting(planting_id, request.user.userId) : null
+    if (!planting) {
       return reply.code(403).send({ error: 'Planting not found or not yours' })
+    }
+
+    const state = await freeTierState(fastify.db, request.user.userId)
+    if (isPlantingLocked(state, planting)) {
+      return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
     }
 
     const result = await fastify.db.query(

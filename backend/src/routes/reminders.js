@@ -1,5 +1,7 @@
 'use strict'
 
+const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
+
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
 
@@ -10,13 +12,18 @@ module.exports = async function (fastify) {
     // Защита от IDOR: если напоминание привязано к посадке — она должна быть своей
     if (planting_id != null) {
       const owns = await fastify.db.query(
-        `SELECT 1 FROM plantings p
+        `SELECT p.id, p.stage FROM plantings p
          JOIN gardens g ON g.id = p.garden_id
          WHERE p.id = $1 AND g.user_id = $2`,
         [planting_id, request.user.userId]
       )
       if (owns.rows.length === 0) {
         return reply.code(403).send({ error: 'Planting not found or not yours' })
+      }
+      // Заблокированная посадка (сверх free-набора, без подписки) — только для чтения.
+      const state = await freeTierState(fastify.db, request.user.userId)
+      if (isPlantingLocked(state, owns.rows[0])) {
+        return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
       }
     }
 

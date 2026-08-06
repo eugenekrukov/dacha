@@ -1,7 +1,7 @@
 'use strict'
 
 const supertest = require('supertest')
-const { buildApp, makeToken } = require('./helpers/buildApp')
+const { buildApp, makeToken, freeTierQuery } = require('./helpers/buildApp')
 
 const PLANTING = {
   id: 1, garden_id: 1, crop_id: 1, stage: 'sowing',
@@ -10,8 +10,11 @@ const PLANTING = {
   frost_sensitive: true, harvest_days: 90, care_tasks: null, last_action_at: null,
 }
 
+// Запрос free-набора перехватываем здесь: по умолчанию посадка 1 не заблокирована,
+// поэтому кейсы ниже проверяют свою логику, а не гейт (гейт — отдельным describe).
 function makeMockDb(overrides = {}) {
-  return { query: async () => ({ rows: [] }), ...overrides }
+  const base = { query: async () => ({ rows: [] }), ...overrides }
+  return { ...base, query: async (sql, params) => freeTierQuery(sql) || base.query(sql, params) }
 }
 
 // Ответ на гейт free-лимита: free-пользователь (нет подписки/промо), COUNT ниже лимита по умолчанию.
@@ -302,6 +305,7 @@ describe('PATCH /plantings/:id/info', () => {
     const app = await buildApp(makeMockDb({
       query: async (sql, params) => {
         if (sql.includes('UPDATE plantings')) { capturedParams = params; return { rows: [{ ...PLANTING, bed_id: 10 }] } }
+        if (sql.includes('FROM plantings p')) return { rows: [PLANTING] }  // проверка владельца
         return { rows: [] }
       },
     }))
@@ -371,6 +375,101 @@ describe('PATCH /plantings/:id/stage', () => {
       .send({ stage: 'sprouted' })
 
     expect(res.status).toBe(404)
+    await app.close()
+  })
+})
+
+describe('read-only гейт free-тарифа (посадки сверх free-набора)', () => {
+  // Мок: посадка 1 вне свободного набора → без подписки она только для чтения.
+  function lockedDb({ subscribed = false, stage = 'growing' } = {}) {
+    return {
+      query: async (sql) => {
+        const ft = freeTierQuery(sql, { subscribed, freeIds: [7, 8, 9] })
+        if (ft) return ft
+        if (sql.includes('FROM plantings p')) return { rows: [{ id: 1, stage }] }
+        return { rows: [{ ...PLANTING, stage }] }
+      },
+    }
+  }
+
+  it('PATCH /:id/info по заблокированной посадке → 402 planting_locked', async () => {
+    const app = await buildApp(lockedDb())
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${makeToken(app)}`)
+      .send({ quantity: 5 })
+
+    expect(res.status).toBe(402)
+    expect(res.body.error).toBe('planting_locked')
+    await app.close()
+  })
+
+  it('PATCH /:id/stage по заблокированной посадке → 402', async () => {
+    const app = await buildApp(lockedDb())
+    const res = await supertest(app.server)
+      .patch('/plantings/1/stage')
+      .set('Authorization', `Bearer ${makeToken(app)}`)
+      .send({ stage: 'flowering' })
+
+    expect(res.status).toBe(402)
+    await app.close()
+  })
+
+  it('завершение заблокированной посадки (stage=done) разрешено — освобождает слот free-набора', async () => {
+    const app = await buildApp(lockedDb())
+    const res = await supertest(app.server)
+      .patch('/plantings/1/stage')
+      .set('Authorization', `Bearer ${makeToken(app)}`)
+      .send({ stage: 'done' })
+
+    expect(res.status).toBe(200)
+    await app.close()
+  })
+
+  it('подписка активна → блокировки нет', async () => {
+    const app = await buildApp(lockedDb({ subscribed: true }))
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${makeToken(app)}`)
+      .send({ quantity: 5 })
+
+    expect(res.status).toBe(200)
+    await app.close()
+  })
+
+  it('GET /plantings отдаёт locked=true для посадки вне free-набора', async () => {
+    const app = await buildApp({
+      query: async (sql) => freeTierQuery(sql, { freeIds: [7, 8, 9] }) || { rows: [PLANTING] },
+    })
+    const res = await supertest(app.server)
+      .get('/plantings')
+      .set('Authorization', `Bearer ${makeToken(app)}`)
+
+    expect(res.body[0].locked).toBe(true)
+    await app.close()
+  })
+
+  it('GET /plantings отдаёт locked=false для посадки из free-набора', async () => {
+    const app = await buildApp({
+      query: async (sql) => freeTierQuery(sql, { freeIds: [1] }) || { rows: [PLANTING] },
+    })
+    const res = await supertest(app.server)
+      .get('/plantings')
+      .set('Authorization', `Bearer ${makeToken(app)}`)
+
+    expect(res.body[0].locked).toBe(false)
+    await app.close()
+  })
+
+  it('DELETE не блокируется — удалить лишнюю посадку можно всегда', async () => {
+    const app = await buildApp({
+      query: async (sql) => freeTierQuery(sql, { freeIds: [7, 8, 9] }) || { rows: [{ id: 1 }] },
+    })
+    const res = await supertest(app.server)
+      .delete('/plantings/1')
+      .set('Authorization', `Bearer ${makeToken(app)}`)
+
+    expect(res.status).toBe(200)
     await app.close()
   })
 })
