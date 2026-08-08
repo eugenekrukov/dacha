@@ -65,5 +65,6 @@ docs/store-assets/screenshots-raw/
 docs/store-assets/rustore-promo/*.png
 docs/store-assets/presentation/fonts.css
 
-# Промежуточный вывод fetch-crop-images.js — источник истины по кредитам это миграция 064.
-backend/scripts/crop-images.generated.sql
+# Промежуточный вывод fetch-crop-images.js. Источник истины по кредитам — миграции
+# (064 культуры, 065 справочник): там они выверены вручную, а файл перезаписывается каждым прогоном.
+backend/scripts/*-images.generated.sql

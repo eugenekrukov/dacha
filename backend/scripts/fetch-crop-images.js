@@ -14,8 +14,9 @@
  * Скрипт НИЧЕГО не пишет в БД: он только качает файлы и печатает готовый SQL для миграции,
  * чтобы фото можно было глазами проверить до деплоя.
  *
- * Запуск:  node backend/scripts/fetch-crop-images.js [slug ...]
- *          (без аргументов — все культуры из CROPS)
+ * Запуск:  node backend/scripts/fetch-crop-images.js [slug ...]           — культуры (CROPS)
+ *          node backend/scripts/fetch-crop-images.js --guide [slug ...]  — справочник (GUIDE)
+ *          (без списка slug — все записи набора)
  */
 
 const fs = require('fs')
@@ -23,8 +24,8 @@ const path = require('path')
 
 // Wikimedia требует содержательный User-Agent, иначе режет запросы.
 const UA = 'DachaKalendar/1.0 (https://dacha.studio1008.com; dacha@studio1008.com) node-fetch'
-const OUT_DIR = path.join(__dirname, '..', '..', 'web', 'public', 'media', 'crops')
-const WIDTH = 900   // как у фото справочника
+const MEDIA_ROOT = path.join(__dirname, '..', '..', 'web', 'public', 'media')
+const WIDTH = 900   // одинаково для культур и справочника
 const PAUSE_MS = 300
 
 // slug → откуда брать кадр.
@@ -33,6 +34,8 @@ const PAUSE_MS = 300
 //   search — фолбэк: поиск по Commons, когда у статьи нет ведущего фото или оно несвободное
 //   category — видовая категория Commons (+ prefer: подстрока в имени файла). Самый надёжный
 //              путь для «трудных» культур: в категории лежат фотографии вида, а не сканы книг
+//   file   — конкретный файл Commons («File:...»). Для записей справочника, где кадр подобран
+//            вручную: болезнь надо показать ту самую, случайный снимок рода вводит в заблуждение
 const CROPS = {
   // овощи
   tomat:                  { wiki: 'en', title: 'Tomato' },
@@ -106,6 +109,20 @@ const CROPS = {
   // цветы
   barhatcy:               { wiki: 'en', title: 'Tagetes' },
   petuniya:               { wiki: 'en', title: 'Petunia' },
+}
+
+// Записи справочника проблем (guide_entries). Кадры подобраны и сверены вручную: для болезни
+// важно показать именно её, поэтому здесь только явные `file`, без поиска «на удачу».
+const GUIDE = {
+  'uglovataya-pyatnistost-bakterioz': { file: 'File:Angular leaf spot of cucumber 5359665.jpg' },
+  'fomopsis-suhaya-gnil':             { file: 'File:Eggplant phomopsis 1 (5815759324).jpg' },
+  'boron-deficiency':                 { file: 'File:Endivien Bormangel, Hinrichs-Berger, Jan, LTZ Augustenberg.jpg' },
+}
+
+// Что заливаем: культуры (по умолчанию) или записи справочника (--guide).
+const TARGETS = {
+  crops: { dir: 'crops', table: 'crops',         items: CROPS },
+  guide: { dir: 'guide', table: 'guide_entries', items: GUIDE },
 }
 
 // Свободные лицензии, которые пускаем. Всё остальное (fair use, GFDL, «No restrictions»,
@@ -216,22 +233,29 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 const sqlEscape = s => String(s).replace(/'/g, "''")
 
 async function main() {
-  const only = process.argv.slice(2)
-  const slugs = only.length ? only : Object.keys(CROPS)
+  const args = process.argv.slice(2)
+  const mode = args.includes('--guide') ? 'guide' : 'crops'
+  const target = TARGETS[mode]
+  const OUT_DIR = path.join(MEDIA_ROOT, target.dir)
+
+  const only = args.filter(a => a !== '--guide')
+  const slugs = only.length ? only : Object.keys(target.items)
   fs.mkdirSync(OUT_DIR, { recursive: true })
 
   const done = []
   const failed = []
 
   for (const slug of slugs) {
-    const cfg = CROPS[slug]
-    if (!cfg) { failed.push([slug, 'нет в конфиге CROPS']); continue }
+    const cfg = target.items[slug]
+    if (!cfg) { failed.push([slug, `нет в конфиге (${mode})`]); continue }
     try {
-      const fileTitle = cfg.category
-        ? await categoryFile(cfg.category, cfg.prefer)
-        : cfg.search
-          ? await searchFile(cfg.search)
-          : await leadImageFile(cfg.wiki || 'en', cfg.title)
+      const fileTitle = cfg.file
+        ? cfg.file
+        : cfg.category
+          ? await categoryFile(cfg.category, cfg.prefer)
+          : cfg.search
+            ? await searchFile(cfg.search)
+            : await leadImageFile(cfg.wiki || 'en', cfg.title)
 
       const info = await fileInfo(fileTitle)
 
@@ -265,20 +289,20 @@ async function main() {
 
   // Источники — чтобы проверить лицензию по ссылке, не перезапуская скрипт.
   // Копится между запусками: скрипт часто гоняют по одному slug.
-  const srcPath = path.join(__dirname, 'crop-images.sources.json')
+  const srcPath = path.join(__dirname, `${mode}-images.sources.json`)
   const prev = fs.existsSync(srcPath) ? JSON.parse(fs.readFileSync(srcPath, 'utf8')) : []
   const merged = [...prev.filter(p => !done.some(d => d.slug === p.slug)), ...done]
     .sort((a, b) => a.slug.localeCompare(b.slug))
   fs.writeFileSync(srcPath, JSON.stringify(merged, null, 2) + '\n')
 
   // Готовый SQL — вставить в миграцию после визуальной проверки кадров.
-  const sqlPath = path.join(__dirname, 'crop-images.generated.sql')
+  const sqlPath = path.join(__dirname, `${mode}-images.generated.sql`)
   const sql = merged.map(d =>
-    `UPDATE crops SET image_url='https://dacha.studio1008.com/app/media/crops/${d.slug}.jpg', ` +
+    `UPDATE ${target.table} SET image_url='https://dacha.studio1008.com/app/media/${target.dir}/${d.slug}.jpg', ` +
     `image_credit='${sqlEscape(d.credit)}' WHERE slug='${d.slug}';`
   ).join('\n')
   fs.writeFileSync(sqlPath, sql + '\n')
-  console.log(`\nВсего в наборе: ${merged.length}. SQL: ${sqlPath}`)
+  console.log(`\nВсего в наборе (${mode}): ${merged.length}. SQL: ${sqlPath}`)
 }
 
 main().catch(e => { console.error(e); process.exit(1) })
