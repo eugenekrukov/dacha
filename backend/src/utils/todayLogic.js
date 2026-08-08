@@ -561,6 +561,23 @@ function urgency(t) {
   return t.priority - Math.min(t.days_overdue || 0, OVERDUE_BONUS_CAP_DAYS) * OVERDUE_BONUS_PER_DAY
 }
 
+// Ступень срочности для клиента. До этого пилюля просрочки была одного цвета на всё:
+// на «Сегодня» одновременно горело 6+ одинаковых меток, и «полить сегодня» выглядело так же
+// тревожно, как «прополка забыта две недели назад» — сигнал терялся весь сразу.
+//
+// Порог в 3 дня выбран по природе дачных работ: полив/прополка с задержкой в пару дней
+// навёрстываются без последствий, а неделя — уже реальный ущерб.
+//
+// Значения: critical (заморозки — окно погоды, ждать нельзя) · late (просрочка > 3 дн.)
+//           soon (просрочка 1–3 дн.) · normal (наступила сегодня или ещё предстоит).
+const URGENCY_SOON_MAX_DAYS = 3
+function urgencyLevel(t) {
+  if (t.type === 'frost_alert') return 'critical'
+  const overdue = t.days_overdue || 0
+  if (overdue <= 0) return 'normal'
+  return overdue <= URGENCY_SOON_MAX_DAYS ? 'soon' : 'late'
+}
+
 function formatTasks(tasks) {
   return tasks.map(t => {
     // Короткий actionable заголовок — помещается в одну строку карточки
@@ -620,6 +637,9 @@ function formatTasks(tasks) {
     return {
       type: t.type,
       priority: t.priority,
+      // Ступень срочности считает сервер, клиенты только красят (см. urgencyLevel).
+      // Порог живёт в одном месте — иначе web и Android разъедутся, как было с careTaskActionType.
+      urgency: urgencyLevel(t),
       title,
       description,
       planting_id: t.planting_id || null,
@@ -644,5 +664,7 @@ const TASK_LIMIT = 7
 module.exports = {
   buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType,
   wateringIntervalDays, wateringStatus, rainOutlook, frostOutlook, effectivePlantedAt,
+  urgencyLevel,
   CARE_ACTION_TYPES, OVERDUE_WINDOW_DAYS, TASK_LIMIT, RAIN_AS_WATERING_MM,
+  URGENCY_SOON_MAX_DAYS,
 }

@@ -1084,6 +1084,20 @@ private fun SwipeActionsBox(
 
 // ─── Task card ─────────────────────────────────────────────────────────────
 
+/**
+ * Цвета пилюли просрочки по ступени срочности (значение считает бэкенд, см. `urgencyLevel`).
+ * Красный оставлен за тем, что требует действия сейчас: заморозки и давняя просрочка.
+ * Небольшая задержка — приглушённый tertiaryContainer, чтобы не тревожить зря.
+ */
+@Composable
+private fun overdueBadgeColors(urgency: String): Pair<Color, Color> = when (urgency) {
+    "critical", "late" -> MaterialTheme.colorScheme.error to Color.White
+    "soon"             -> MaterialTheme.colorScheme.tertiaryContainer to
+                          MaterialTheme.colorScheme.onTertiaryContainer
+    else               -> MaterialTheme.colorScheme.surfaceVariant to
+                          MaterialTheme.colorScheme.onSurfaceVariant
+}
+
 @Composable
 private fun SunnyTaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -1141,18 +1155,18 @@ private fun SunnyTaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
                     lineHeight = 16.sp
                 )
             }
-            // Overdue badge
+            // Пилюля просрочки. Цвет — по ступени срочности с сервера: раньше все просрочки
+            // красились в error, и на экране одновременно горело 6+ одинаковых меток, где
+            // «полить сегодня» выглядело так же тревожно, как «прополка забыта две недели».
             if ((task.daysOverdue ?: 0) > 0) {
-                Surface(
-                    color  = MaterialTheme.colorScheme.error,
-                    shape  = CircleShape
-                ) {
+                val (badgeBg, badgeFg) = overdueBadgeColors(task.urgency)
+                Surface(color = badgeBg, shape = CircleShape) {
                     Text(
                         text       = "+${task.daysOverdue}д",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.Black,
                         fontSize   = 11.sp,
-                        color      = Color.White,
+                        color      = badgeFg,
                         modifier   = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
                         softWrap   = false
                     )

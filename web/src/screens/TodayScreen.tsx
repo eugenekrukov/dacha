@@ -9,7 +9,7 @@ import { taskIcon, actionIcon } from '../ui/icons'
 import ActionLogSheet from '../components/ActionLogSheet'
 import HarvestLogModal from '../components/HarvestLogModal'
 import ErrorCard from '../components/ErrorCard'
-import type { ActionLog, Recommendation, TodayResponse, TodayTask } from '../api/types'
+import type { ActionLog, Recommendation, TaskUrgency, TodayResponse, TodayTask } from '../api/types'
 
 // Локальная дата (без времени) — для отбора действий, выполненных «сегодня».
 function isToday(iso: string): boolean {
@@ -313,9 +313,26 @@ export default function TodayScreen() {
   )
 }
 
+// Цвет пилюли просрочки по ступени срочности. Раньше все просрочки были одного цвета:
+// «полить сегодня» выглядело так же тревожно, как «прополка забыта две недели назад».
+// Красный оставлен за тем, что действительно требует действия сейчас.
+const URGENCY_PILL: Record<TaskUrgency, string> = {
+  critical: 'bg-red-100 text-red-600',
+  late:     'bg-red-100 text-red-600',
+  soon:     'bg-amber-100 text-amber-700',
+  normal:   'bg-black/5 text-muted',
+}
+const URGENCY_HINT: Record<TaskUrgency, string> = {
+  critical: 'Срочно',
+  late:     'Давно просрочено',
+  soon:     'Небольшая задержка',
+  normal:   'По плану',
+}
+
 function TaskCard({ t, onLog }: { t: TodayTask; onLog?: (t: TodayTask) => void }) {
   const overdue = (t.days_overdue ?? 0) > 0
-  const critical = t.type === 'frost_alert' // только заморозки — действительно срочно (красный)
+  // Ступень берём с сервера; фолбэк — на случай ответа старого бэкенда без поля urgency.
+  const urgency: TaskUrgency = t.urgency ?? (t.type === 'frost_alert' ? 'critical' : overdue ? 'soon' : 'normal')
   const grouped = (t.crop_names_with_ids?.length ?? 0) > 0
   const clickable = (t.planting_id != null || grouped) && !!onLog
   const careType = t.type === 'care_task_due' && t.care_task_name ? careTaskActionType(t.care_task_name) : null
@@ -339,9 +356,8 @@ function TaskCard({ t, onLog }: { t: TodayTask; onLog?: (t: TodayTask) => void }
       </div>
       {overdue && (
         <span
-          className={`ml-auto flex shrink-0 items-center gap-1 self-start rounded-pill px-2 py-0.5 text-xs font-bold ${
-            critical ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'
-          }`}
+          className={`ml-auto flex shrink-0 items-center gap-1 self-start rounded-pill px-2 py-0.5 text-xs font-bold ${URGENCY_PILL[urgency]}`}
+          title={URGENCY_HINT[urgency]}
         >
           <Clock size={13} aria-hidden /> {t.days_overdue} дн.
         </span>
