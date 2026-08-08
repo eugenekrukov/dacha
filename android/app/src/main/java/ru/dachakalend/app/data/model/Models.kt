@@ -80,7 +80,7 @@ data class TodayTask(
     val type: String,
     val priority: Int,
     // Ступень срочности считает бэкенд (utils/todayLogic.js, urgencyLevel) — клиент только красит:
-    // critical (заморозки) · late (просрочка > 3 дн.) · soon (1–3 дн.) · normal (сегодня/предстоит).
+    // critical (заморозки) · late (просрочка > 7 дн.) · soon (1–7 дн.) · normal (сегодня/предстоит).
     // Дефолт "normal" — на случай ответа старого бэкенда без поля.
     val urgency: String = "normal",
     val title: String,

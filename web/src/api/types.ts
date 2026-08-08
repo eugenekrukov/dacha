@@ -96,8 +96,8 @@ export interface CropRef {
 
 // Ступень срочности задачи. Считает бэкенд (utils/todayLogic.js, urgencyLevel) — клиент
 // только красит, порог просрочки в одном месте на обе платформы.
-//   critical — заморозки (окно погоды) · late — просрочка > 3 дн.
-//   soon — просрочка 1–3 дн.          · normal — сегодня или ещё предстоит
+//   critical — заморозки (окно погоды) · late — просрочка > 7 дн.
+//   soon — просрочка 1–7 дн.          · normal — сегодня или ещё предстоит
 export type TaskUrgency = 'critical' | 'late' | 'soon' | 'normal'
 
 export interface TodayTask {
