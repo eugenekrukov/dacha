@@ -164,6 +164,9 @@ interface DachaApi {
     @DELETE("photos/{id}")
     suspend fun deletePhoto(@Path("id") id: Int)
 
+    @POST("photos/{id}/diagnose")
+    suspend fun diagnosePhoto(@Path("id") id: Int): AiDiagnosisResult
+
     // Инвентарь семян
     @GET("seeds")
     suspend fun getSeeds(): List<Seed>

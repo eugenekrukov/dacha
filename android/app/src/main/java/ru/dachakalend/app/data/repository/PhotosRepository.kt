@@ -4,6 +4,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import ru.dachakalend.app.data.api.DachaApi
+import ru.dachakalend.app.data.model.AiDiagnosisResult
 import ru.dachakalend.app.data.model.PlantingPhoto
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -46,5 +47,11 @@ class PhotosRepository @Inject constructor(
         Result.Success(api.deletePhoto(id))
     } catch (e: Exception) {
         errorResult(e, "Не удалось удалить фото")
+    }
+
+    suspend fun diagnosePhoto(photoId: Int): Result<AiDiagnosisResult> = try {
+        Result.Success(api.diagnosePhoto(photoId))
+    } catch (e: Exception) {
+        errorResult(e, "Не удалось определить болезнь/вредителя")
     }
 }

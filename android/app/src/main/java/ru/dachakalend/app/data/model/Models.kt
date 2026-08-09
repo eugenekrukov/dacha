@@ -256,7 +256,25 @@ data class PlantingPhoto(
     val width: Int? = null,
     val height: Int? = null,
     val url: String,                                  // относительный: /photos/file/:id
-    @Json(name = "thumb_url") val thumbUrl: String
+    @Json(name = "thumb_url") val thumbUrl: String,
+    @Json(name = "ai_diagnosis") val aiDiagnosis: List<AiDiagnosisCandidate>? = null,
+    @Json(name = "ai_diagnosed_at") val aiDiagnosedAt: String? = null,
+)
+
+// AI-диагностика по фото (F2): кандидаты болезней/вредителей от модели.
+@JsonClass(generateAdapter = true)
+data class AiDiagnosisCandidate(
+    val id: Int,
+    val name: String,
+    val confidence: String,
+    val reasoning: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class AiDiagnosisResult(
+    val candidates: List<AiDiagnosisCandidate>,
+    val disclaimer: String,
+    @Json(name = "diagnosed_at") val diagnosedAt: String,
 )
 
 // --- Лента «Мой участок» (GET /feed) ---
