@@ -7,6 +7,7 @@ const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../uti
 const PHOTO_LIMIT_FREE = 3
 const PHOTO_LIMIT_PAID = 30
 const PHOTO_CAP_ACCOUNT = 1000
+const AI_DIAGNOSIS_FREE_LIMIT = 3
 
 module.exports = async function (fastify, opts) {
   const imageService = opts.imageService || require('../services/imageService')
@@ -155,7 +156,21 @@ module.exports = async function (fastify, opts) {
     const userId = request.user.userId
     const state = await freeTierState(fastify.db, userId)
     if (!state.paid) {
-      return reply.code(402).send({ error: 'subscription_required' })
+      // Free-хук: 3 диагноза на аккаунт навсегда (не в месяц — считаем уже сделанные, без
+      // отдельного счётчика). Пере-диагноз уже диагностированного фото не расходует лимит:
+      // COUNT не растёт, если ai_diagnosis уже был NOT NULL. UI сейчас не даёт передиагностировать
+      // (кнопка скрыта, когда диагноз уже есть), так что повторный расход исключён и с той стороны.
+      const usedRes = await fastify.db.query(
+        `SELECT COUNT(*) FROM planting_photos pp
+         JOIN plantings p ON p.id = pp.planting_id
+         JOIN gardens g   ON g.id = p.garden_id
+         WHERE g.user_id = $1 AND pp.ai_diagnosis IS NOT NULL`,
+        [userId]
+      )
+      const used = parseInt(usedRes.rows[0].count, 10)
+      if (used >= AI_DIAGNOSIS_FREE_LIMIT) {
+        return reply.code(402).send({ error: 'ai_diagnosis_free_limit_reached', limit: AI_DIAGNOSIS_FREE_LIMIT })
+      }
     }
 
     const id = parseInt(request.params.id, 10)

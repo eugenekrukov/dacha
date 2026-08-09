@@ -247,11 +247,14 @@ describe('GET /photos/file/:id', () => {
 
 describe('POST /photos/:id/diagnose', () => {
   function makeDiagDb({ owns = true, subscribed = true, cropId = 3, cropName = 'Томат',
-                        filePath = 'plantings/5/uuid.webp', freeIds = [] } = {}) {
+                        filePath = 'plantings/5/uuid.webp', freeIds = [], usedCount = 0 } = {}) {
     return {
       async query(sql, params) {
         const ft = freeTierQuery(sql, { subscribed, freeIds })
         if (ft) return ft
+        if (/COUNT\(\*\).*FROM planting_photos pp.*WHERE g\.user_id = \$1 AND pp\.ai_diagnosis IS NOT NULL/is.test(sql)) {
+          return { rows: [{ count: String(usedCount) }] }
+        }
         if (/SELECT pp\.file_path, pp\.planting_id, p\.crop_id, c\.name AS crop_name/i.test(sql)) {
           return { rows: owns ? [{ file_path: filePath, planting_id: 5, crop_id: cropId, crop_name: cropName }] : [] }
         }
@@ -296,13 +299,25 @@ describe('POST /photos/:id/diagnose', () => {
     await app.close()
   })
 
-  it('без подписки → 402 subscription_required', async () => {
-    const db = makeDiagDb({ subscribed: false })
+  it('без подписки, но лимит бесплатных проверок не исчерпан → 200 (free-хук)', async () => {
+    const db = makeDiagDb({ subscribed: false, usedCount: 2 })
+    const app = await buildApp(db, { aiDiagnosisService: fakeAiService(), fsPromises: fakeFs() })
+    const res = await supertest(app.server)
+      .post('/photos/1/diagnose')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(200)
+    await app.close()
+  })
+
+  it('без подписки и лимит (3) исчерпан → 402 ai_diagnosis_free_limit_reached', async () => {
+    const db = makeDiagDb({ subscribed: false, usedCount: 3 })
     const app = await buildApp(db, { aiDiagnosisService: fakeAiService() })
     const res = await supertest(app.server)
       .post('/photos/1/diagnose')
       .set('Authorization', `Bearer ${makeToken(app, 1)}`)
     expect(res.status).toBe(402)
+    expect(res.body.error).toBe('ai_diagnosis_free_limit_reached')
+    expect(res.body.limit).toBe(3)
     await app.close()
   })
 

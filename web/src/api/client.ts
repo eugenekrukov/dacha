@@ -51,6 +51,8 @@ export const PLAN_LIMIT_MESSAGE =
   'Бесплатно доступно 3 посадки одновременно. Оформите «Дачник Про» для безлимита.'
 export const PLANTING_LOCKED_MESSAGE =
   'Эта посадка только для чтения: бесплатно ведутся 3 посадки. Оформите «Дачник Про», чтобы вести все.'
+export const AI_DIAGNOSIS_FREE_LIMIT_MESSAGE =
+  'Бесплатные проверки закончились (3 из 3). Оформите «Дачник Про» для безлимита.'
 
 type Json = Record<string, unknown>
 
@@ -95,6 +97,7 @@ async function request<T>(
       const message =
         code === 'plan_limit_reached' ? PLAN_LIMIT_MESSAGE
         : code === 'planting_locked' ? PLANTING_LOCKED_MESSAGE
+        : code === 'ai_diagnosis_free_limit_reached' ? AI_DIAGNOSIS_FREE_LIMIT_MESSAGE
         : SUBSCRIPTION_REQUIRED_MESSAGE
       throw new ApiError(402, message, code)
     }

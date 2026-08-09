@@ -46,4 +46,21 @@ class PhotosRepositoryDiagnoseTest {
 
         assertTrue(result is Result.Error)
     }
+
+    @Test
+    fun `diagnosePhoto 402 ai_diagnosis_free_limit_reached даёт отдельное сообщение`() = runTest {
+        val api = mockk<DachaApi>()
+        val body = """{"error":"ai_diagnosis_free_limit_reached","limit":3}"""
+        coEvery { api.diagnosePhoto(1) } throws HttpException(
+            Response.error<AiDiagnosisResult>(402, body.toResponseBody(null))
+        )
+
+        val repo = PhotosRepository(api)
+        val result = repo.diagnosePhoto(1)
+
+        assertTrue(result is Result.Error)
+        val error = result as Result.Error
+        assertTrue(error.isSubscriptionRequired)
+        assertTrue(error.message.contains("3 из 3"))
+    }
 }
