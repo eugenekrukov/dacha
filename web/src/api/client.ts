@@ -1,6 +1,7 @@
 import { tokenStore } from '../auth/storage'
 import type {
   ActionLog,
+  AiDiagnosisResult,
   AnalyticsSummary,
   AuthResponse,
   BillingPlan,
@@ -201,6 +202,8 @@ export const api = {
   },
   deletePhoto: (id: number) =>
     request<void>(`/photos/${id}`, { method: 'DELETE' }),
+  diagnosePhoto: (photoId: number) =>
+    request<AiDiagnosisResult>(`/photos/${photoId}/diagnose`, { method: 'POST' }),
   // Удаление записи действия вместе с привязанными фото (FK: фото удаляются на бэкенде).
   deleteAction: (id: number) =>
     request<{ deleted: boolean }>(`/actions/${id}`, { method: 'DELETE' }),

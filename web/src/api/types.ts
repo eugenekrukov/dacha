@@ -372,6 +372,22 @@ export interface PlantingPhoto {
   height: number | null
   url: string        // /photos/file/:id
   thumb_url: string  // /photos/file/:id?thumb=1
+  ai_diagnosis?: AiDiagnosisCandidate[] | null
+  ai_diagnosed_at?: string | null
+}
+
+// AI-диагностика фото посадки (F2)
+export interface AiDiagnosisCandidate {
+  id: number
+  name: string
+  confidence: 'high' | 'medium' | 'low'
+  reasoning: string
+}
+
+export interface AiDiagnosisResult {
+  candidates: AiDiagnosisCandidate[]
+  disclaimer: string
+  diagnosed_at: string
 }
 
 export interface GuideEntryDetail extends GuideEntry {
