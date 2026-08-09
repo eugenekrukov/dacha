@@ -62,7 +62,12 @@ async function buildApp(mockDb, billingOpts = {}) {
   fastify.register(require('../../routes/reminders'), { prefix: '/reminders' })
   fastify.register(require('../../routes/push-tokens'), { prefix: '/push-tokens' })
   fastify.register(require('../../routes/unsubscribe'), { prefix: '/unsubscribe' })
-  fastify.register(require('../../routes/photos'), { prefix: '/photos', imageService: billingOpts.imageService })
+  fastify.register(require('../../routes/photos'), {
+    prefix: '/photos',
+    imageService: billingOpts.imageService,
+    aiDiagnosisService: billingOpts.aiDiagnosisService,
+    fsPromises: billingOpts.fsPromises
+  })
   fastify.register(require('../../routes/seeds'), { prefix: '/seeds', imageService: billingOpts.imageService })
   fastify.register(require('../../routes/feed'), { prefix: '/feed' })
   fastify.register(require('../../routes/moon-calendar'), { prefix: '/moon-calendar' })

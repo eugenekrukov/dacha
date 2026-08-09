@@ -244,3 +244,85 @@ describe('GET /photos/file/:id', () => {
     await app.close()
   })
 })
+
+describe('POST /photos/:id/diagnose', () => {
+  function makeDiagDb({ owns = true, subscribed = true, cropId = 3, cropName = 'Томат',
+                        filePath = 'plantings/5/uuid.webp', freeIds = [] } = {}) {
+    return {
+      async query(sql, params) {
+        const ft = freeTierQuery(sql, { subscribed, freeIds })
+        if (ft) return ft
+        if (/SELECT pp\.file_path, pp\.planting_id, p\.crop_id, c\.name AS crop_name/i.test(sql)) {
+          return { rows: owns ? [{ file_path: filePath, planting_id: 5, crop_id: cropId, crop_name: cropName }] : [] }
+        }
+        if (/FROM guide_entries e\s+JOIN crop_guide_entries/i.test(sql)) {
+          return { rows: [
+            { id: 8, name: 'Фитофтороз', kind: 'disease' },
+            { id: 61, name: 'Вершинная гниль', kind: 'disease' }
+          ] }
+        }
+        if (/UPDATE planting_photos SET ai_diagnosis/i.test(sql)) {
+          return { rows: [{ id: params[2], ai_diagnosis: JSON.parse(params[0]), ai_diagnosed_at: params[1] }] }
+        }
+        throw new Error('Неожиданный SQL: ' + sql)
+      }
+    }
+  }
+
+  function fakeAiService(overrides = {}) {
+    return {
+      isEnabled: () => true,
+      diagnose: async () => ({
+        candidates: [{ id: 8, name: 'Фитофтороз', confidence: 'high', reasoning: 'тест' }],
+        model: 'qwen-vl-plus'
+      }),
+      ...overrides
+    }
+  }
+
+  function fakeFs() {
+    return { readFile: async () => Buffer.from('fake-webp-bytes') }
+  }
+
+  it('happy path: 200, диагноз записан', async () => {
+    const db = makeDiagDb()
+    const app = await buildApp(db, { aiDiagnosisService: fakeAiService(), fsPromises: fakeFs() })
+    const res = await supertest(app.server)
+      .post('/photos/1/diagnose')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(200)
+    expect(res.body.candidates).toHaveLength(1)
+    expect(res.body.disclaimer).toMatch(/предварительн/i)
+    await app.close()
+  })
+
+  it('без подписки → 402 subscription_required', async () => {
+    const db = makeDiagDb({ subscribed: false })
+    const app = await buildApp(db, { aiDiagnosisService: fakeAiService() })
+    const res = await supertest(app.server)
+      .post('/photos/1/diagnose')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(402)
+    await app.close()
+  })
+
+  it('чужое фото → 404', async () => {
+    const db = makeDiagDb({ owns: false })
+    const app = await buildApp(db, { aiDiagnosisService: fakeAiService() })
+    const res = await supertest(app.server)
+      .post('/photos/1/diagnose')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(404)
+    await app.close()
+  })
+
+  it('сервис выключен (нет ключа) → 503', async () => {
+    const db = makeDiagDb()
+    const app = await buildApp(db, { aiDiagnosisService: fakeAiService({ isEnabled: () => false }) })
+    const res = await supertest(app.server)
+      .post('/photos/1/diagnose')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(503)
+    await app.close()
+  })
+})

@@ -1,5 +1,7 @@
 'use strict'
 
+const fsPromises = require('fs/promises')
+const path = require('path')
 const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
 
 const PHOTO_LIMIT_FREE = 3
@@ -8,6 +10,8 @@ const PHOTO_CAP_ACCOUNT = 1000
 
 module.exports = async function (fastify, opts) {
   const imageService = opts.imageService || require('../services/imageService')
+  const aiDiagnosisService = opts.aiDiagnosisService || require('../services/aiDiagnosisService')
+  const fsImpl = opts.fsPromises || fsPromises
   const auth = { onRequest: [fastify.authenticate] }
 
   // Своя посадка ({id, stage}) или null — нужна и для IDOR-проверки, и для гейта read-only.
@@ -97,7 +101,7 @@ module.exports = async function (fastify, opts) {
     const conds = []
     if (planting_id) { params.push(planting_id); conds.push(`pp.planting_id = $${params.length}`) }
     const res = await fastify.db.query(
-      `SELECT pp.id, pp.planting_id, pp.action_id, pp.caption, pp.taken_at, pp.width, pp.height FROM planting_photos pp
+      `SELECT pp.id, pp.planting_id, pp.action_id, pp.caption, pp.taken_at, pp.width, pp.height, pp.ai_diagnosis, pp.ai_diagnosed_at FROM planting_photos pp
        JOIN plantings p ON p.id = pp.planting_id
        JOIN gardens g   ON g.id = p.garden_id
        WHERE g.user_id = $1 ${conds.length ? 'AND ' + conds.join(' AND ') : ''}
@@ -140,5 +144,64 @@ module.exports = async function (fastify, opts) {
     reply.header('X-Accel-Redirect', `/media-internal/${rel}`)
     reply.header('Content-Type', 'image/webp')
     return reply.send()
+  })
+
+  // POST /photos/:id/diagnose — AI-диагноз (closed-set по culture, F2, «Дачник Про»).
+  fastify.post('/:id/diagnose', auth, async (request, reply) => {
+    if (!aiDiagnosisService.isEnabled()) {
+      return reply.code(503).send({ error: 'ai_diagnosis_unavailable' })
+    }
+
+    const userId = request.user.userId
+    const state = await freeTierState(fastify.db, userId)
+    if (!state.paid) {
+      return reply.code(402).send({ error: 'subscription_required' })
+    }
+
+    const id = parseInt(request.params.id, 10)
+    const found = await fastify.db.query(
+      `SELECT pp.file_path, pp.planting_id, p.crop_id, c.name AS crop_name
+       FROM planting_photos pp
+       JOIN plantings p ON p.id = pp.planting_id
+       JOIN gardens g   ON g.id = p.garden_id
+       JOIN crops c     ON c.id = p.crop_id
+       WHERE pp.id = $1 AND g.user_id = $2`,
+      [id, userId]
+    )
+    const photo = found.rows[0]
+    if (!photo) return reply.code(404).send({ error: 'not_found' })
+
+    // Closed-set кандидаты: болезни/вредители ИМЕННО этой культуры (тот же JOIN, что в guide.js).
+    const guideRes = await fastify.db.query(
+      `SELECT e.id, e.name, e.kind
+       FROM guide_entries e
+       JOIN crop_guide_entries cg ON cg.entry_id = e.id AND cg.crop_id = $1
+       WHERE e.kind IN ('disease', 'pest')`,
+      [photo.crop_id]
+    )
+    if (guideRes.rows.length === 0) {
+      return reply.code(422).send({ error: 'no_guide_entries_for_crop' })
+    }
+
+    const mediaDir = process.env.MEDIA_DIR || '/var/www/dacha-media'
+    const imageBuffer = await fsImpl.readFile(path.join(mediaDir, photo.file_path))
+
+    const result = await aiDiagnosisService.diagnose({
+      imageBuffer,
+      cropName: photo.crop_name,
+      candidates: guideRes.rows
+    })
+
+    const diagnosedAt = new Date()
+    await fastify.db.query(
+      'UPDATE planting_photos SET ai_diagnosis = $1, ai_diagnosed_at = $2 WHERE id = $3',
+      [JSON.stringify(result.candidates), diagnosedAt, id]
+    )
+
+    return reply.code(200).send({
+      candidates: result.candidates,
+      disclaimer: 'Предварительная оценка ИИ — не заменяет консультацию агронома. Сверьтесь со справочником.',
+      diagnosed_at: diagnosedAt
+    })
   })
 }
