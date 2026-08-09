@@ -184,7 +184,12 @@ module.exports = async function (fastify, opts) {
     }
 
     const mediaDir = process.env.MEDIA_DIR || '/var/www/dacha-media'
-    const imageBuffer = await fsImpl.readFile(path.join(mediaDir, photo.file_path))
+    let imageBuffer
+    try {
+      imageBuffer = await fsImpl.readFile(path.join(mediaDir, photo.file_path))
+    } catch {
+      return reply.code(500).send({ error: 'photo_file_missing' })
+    }
 
     const result = await aiDiagnosisService.diagnose({
       imageBuffer,

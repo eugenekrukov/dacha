@@ -325,4 +325,17 @@ describe('POST /photos/:id/diagnose', () => {
     expect(res.status).toBe(503)
     await app.close()
   })
+
+  it('файл фото отсутствует на диске → 500, путь в ответе не светится', async () => {
+    const db = makeDiagDb()
+    const brokenFs = { readFile: async () => { throw new Error('ENOENT: /var/www/dacha-media/plantings/5/uuid.webp') } }
+    const app = await buildApp(db, { aiDiagnosisService: fakeAiService(), fsPromises: brokenFs })
+    const res = await supertest(app.server)
+      .post('/photos/1/diagnose')
+      .set('Authorization', `Bearer ${makeToken(app, 1)}`)
+    expect(res.status).toBe(500)
+    expect(res.body).toEqual({ error: 'photo_file_missing' })
+    expect(res.text).not.toMatch(/\/var\/www|dacha-media/)
+    await app.close()
+  })
 })
