@@ -4,13 +4,16 @@ const { runTrialEmails } = require('../jobs/trialEmailsJob')
 const { trialEmailContent } = require('../services/emailService')
 
 // Мок-БД: отдаёт кандидатов, эмулирует проверку дублей и сбор статистики, копит INSERT в trial_emails.
-function makeMockDb(candidates, { alreadySent = [], stats = { plantings: 3, actions: 7 } } = {}) {
+function makeMockDb(candidates, { alreadySent = [], stats = { plantings: 3, actions: 7 }, limitHit = [] } = {}) {
   const inserted = []
   return {
     inserted,
     async query(sql, params) {
       if (sql.includes('FROM users u') && sql.includes('trial_started_at')) {
         return { rows: candidates }
+      }
+      if (sql.includes('FROM users u') && sql.includes('p.stage <>')) {
+        return { rows: limitHit }
       }
       if (sql.includes('FROM trial_emails WHERE user_id')) {
         const [userId, day] = params
@@ -41,7 +44,7 @@ function makeMailer({ result = true } = {}) {
 }
 
 describe('runTrialEmails (письма жизненного цикла триала)', () => {
-  it('шлёт письмо только на дни из списка (1/3/5/6/8) и фиксирует отправку', async () => {
+  it('шлёт письмо только на дни из списка (1/3/5/8/29/50) и фиксирует отправку', async () => {
     const db = makeMockDb([
       { id: 1, email: 'a@b.c', name: 'Аня', day: 1 },
       { id: 2, email: 'd@e.f', name: null, day: 2 },  // день 2 — не в списке, пропустить
@@ -55,6 +58,17 @@ describe('runTrialEmails (письма жизненного цикла триа�
     expect(days).toEqual([1, 8])
     // Зафиксированы обе успешные отправки
     expect(db.inserted.map((p) => p[0]).sort()).toEqual([1, 3])
+  })
+
+  it('шлёт письмо дня 6 событийно — тем, кто упёрся в лимит посадок, а не по календарю', async () => {
+    const db = makeMockDb([], { limitHit: [{ id: 4, email: 'l@m.n', name: 'Лена', has_garden: true }] })
+    const mailer = makeMailer()
+
+    await runTrialEmails(db, mailer)
+
+    expect(mailer.calls).toHaveLength(1)
+    expect(mailer.calls[0]).toMatchObject({ to: 'l@m.n', day: 6 })
+    expect(db.inserted).toEqual([[4, 6]])
   })
 
   it('для дней 5 и 6 подтягивает статистику (посадки/действия)', async () => {
@@ -80,7 +94,7 @@ describe('runTrialEmails (письма жизненного цикла триа�
   })
 
   it('не фиксирует отправку, если почта недоступна (mailer вернул false)', async () => {
-    const db = makeMockDb([{ id: 9, email: 's@t.u', name: 'Сёма', day: 6 }])
+    const db = makeMockDb([{ id: 9, email: 's@t.u', name: 'Сёма', day: 3 }])
     const mailer = makeMailer({ result: false })
 
     await runTrialEmails(db, mailer)
