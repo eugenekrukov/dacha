@@ -73,4 +73,45 @@ describe('aiDiagnosisService', () => {
     expect(fakeFetch).toHaveBeenCalledTimes(2) // ретрай
     expect(result.candidates).toEqual([])
   })
+
+  it('diagnose(): HTTP error (res.ok=false) → throws with status', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue({ ok: false, status: 500 })
+    const svc = require('../services/aiDiagnosisService')
+    await expect(
+      svc.diagnose({
+        imageBuffer: Buffer.from('x'),
+        cropName: 'Tomato',
+        candidates: [{ id: 1, name: 'Test', kind: 'disease' }],
+        fetchImpl: fakeFetch
+      })
+    ).rejects.toThrow(/HTTP 500/)
+  })
+
+  it('diagnose(): модель вернула id не из списка кандидатов → отфильтрован', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              candidates: [
+                { id: 8, name: 'Valid', confidence: 'high', reasoning: 'ok' },
+                { id: 999, name: 'Hallucinated', confidence: 'high', reasoning: 'not in list' }
+              ]
+            })
+          }
+        }],
+        usage: {}
+      })
+    })
+    const svc = require('../services/aiDiagnosisService')
+    const result = await svc.diagnose({
+      imageBuffer: Buffer.from('x'),
+      cropName: 'Tomato',
+      candidates: [{ id: 8, name: 'Valid', kind: 'disease' }], // только id=8 валиден
+      fetchImpl: fakeFetch
+    })
+    expect(result.candidates).toHaveLength(1)
+    expect(result.candidates[0].id).toBe(8)
+  })
 })
