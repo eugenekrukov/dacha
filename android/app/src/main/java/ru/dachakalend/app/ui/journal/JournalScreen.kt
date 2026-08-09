@@ -39,7 +39,7 @@ private val ACTION_LABELS = mapOf(
     "bolt_removal"  to "Удаление стрелок",
     "deflowering"   to "Удаление цветков",
     "staking"       to "Установка опоры",
-    "other"         to "Другое"
+    "other"         to "Заметки"
 )
 
 private fun formatDate(iso: String): String = try {

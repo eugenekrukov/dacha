@@ -13,7 +13,7 @@ export const ACTION_LABELS: Record<ActionType, string> = {
   watering: 'Полив',
   fertilizing: 'Подкормка',
   treatment: 'Обработка',
-  other: 'Другое',
+  other: 'Заметки',
 }
 
 export const ACTION_TYPES: ActionType[] = ['watering', 'fertilizing', 'treatment', 'other']
@@ -36,7 +36,7 @@ export const ACTION_CATALOG: { type: string; label: string }[] = [
   { type: 'bolt_removal', label: 'Удаление стрелок' },
   { type: 'deflowering', label: 'Удаление цветков' },
   { type: 'staking', label: 'Установка опоры' },
-  { type: 'other', label: 'Другое' },
+  { type: 'other', label: 'Заметки' },
   { type: 'harvest', label: 'Сбор урожая' },
 ]
 

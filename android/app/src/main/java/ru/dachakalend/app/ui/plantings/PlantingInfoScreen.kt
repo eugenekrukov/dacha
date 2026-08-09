@@ -56,7 +56,7 @@ private val ACTION_LABELS = mapOf(
     "weeding" to "Прополка", "loosening" to "Рыхление", "thinning" to "Прореживание",
     "runner_removal" to "Удаление усов", "bolt_removal" to "Удаление стрелок",
     "deflowering" to "Удаление цветков", "staking" to "Установка опоры",
-    "harvest" to "Сбор урожая", "other" to "Другое"
+    "harvest" to "Сбор урожая", "other" to "Заметки"
 )
 
 private fun formatShort(iso: String): String = try {

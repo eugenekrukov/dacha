@@ -156,7 +156,13 @@ export default function ActionLogSheet({
 
         <input
           className="dacha-input mt-4"
-          placeholder="Заметка (необязательно)"
+          // «Другое» — самый частый вход для дневника наблюдений (сроки, симптомы),
+          // конкретный пример подсказывает такой сценарий не хуже отдельного экрана
+          placeholder={
+            type === 'other'
+              ? 'Например: пожелтели нижние листья, падалица в норме'
+              : 'Заметка (необязательно)'
+          }
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />

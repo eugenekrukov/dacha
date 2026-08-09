@@ -271,7 +271,15 @@ private fun ActionLogSheetImpl(
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("Заметка (необязательно)", fontFamily = NunitoFamily) },
+                // «Другое» — самый частый вход для дневника наблюдений (сроки, симптомы),
+                // конкретный пример подсказывает такой сценарий не хуже отдельного экрана
+                label = {
+                    Text(
+                        if (selectedType == "other") "Например: пожелтели нижние листья, падалица в норме"
+                        else "Заметка (необязательно)",
+                        fontFamily = NunitoFamily
+                    )
+                },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 1,
                 maxLines = 3,
