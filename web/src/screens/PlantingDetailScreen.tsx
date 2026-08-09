@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { Pencil, ArrowLeft, Lock } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
-import { buildSchedule, collapseActions, type SchedStatus } from '../api/schedule'
+import { buildSchedule, careTaskActionType, collapseActions, type SchedStatus } from '../api/schedule'
 import { CareSection, NeighborsSection } from '../components/CropCare'
 import ProblemList from '../components/ProblemList'
 import DiagnosePhotoButton from '../components/DiagnosePhotoButton'
@@ -34,6 +34,8 @@ export default function PlantingDetailScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [logging, setLogging] = useState(false)
+  // Тип действия, с которым открыть лист — клик по строке расписания (см. openForRow)
+  const [preselectType, setPreselectType] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('planting')
   // Бамп при записи действия — чтобы лента дневника перечитала фото, прикреплённые к действию.
   const [photoRefresh, setPhotoRefresh] = useState(0)
@@ -214,7 +216,10 @@ export default function PlantingDetailScreen() {
       {tab === 'planting' && (
         <>
           {!locked && (
-            <button className="dacha-btn flex items-center justify-center gap-2" onClick={() => setLogging(true)}>
+            <button
+              className="dacha-btn flex items-center justify-center gap-2"
+              onClick={() => { setPreselectType(null); setLogging(true) }}
+            >
               <Pencil size={18} aria-hidden /> Записать действие
             </button>
           )}
@@ -228,7 +233,23 @@ export default function PlantingDetailScreen() {
                 <span className="flex items-center gap-1"><Dot status="upcoming" /> предстоит</span>
               </p>
               {schedule.map((row, i) => (
-                <SchedRowView key={i} row={row} />
+                <SchedRowView
+                  key={i}
+                  row={row}
+                  disabled={locked}
+                  onClick={() => {
+                    // Пересадка/полив — отдельные типы; остальные строки — по имени care-задачи
+                    // (substring-match, переживает суффикс «(каждые N дн.)»); неизвестное → 'other'.
+                    const n = row.name.toLowerCase()
+                    const type = n.includes('пересадк')
+                      ? 'transplanting'
+                      : n.includes('полив')
+                        ? 'watering'
+                        : (careTaskActionType(row.name) ?? 'other')
+                    setPreselectType(type)
+                    setLogging(true)
+                  }}
+                />
               ))}
             </section>
           )}
@@ -287,6 +308,7 @@ export default function PlantingDetailScreen() {
         <ActionLogSheet
           plantingId={plantingId}
           cropName={planting.crop_name}
+          preselectedType={preselectType}
           onClose={() => setLogging(false)}
           onLogged={() => {
             setLogging(false)
@@ -312,25 +334,47 @@ function Dot({ status }: { status: SchedStatus }) {
   return <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${DOT_COLOR[status]}`} />
 }
 
-function SchedRowView({ row }: { row: import('../api/schedule').SchedRow }) {
+function SchedRowView({
+  row,
+  onClick,
+  disabled,
+}: {
+  row: import('../api/schedule').SchedRow
+  onClick?: () => void
+  disabled?: boolean
+}) {
   const color =
     row.status === 'missed'
       ? 'text-red-600'
       : row.status === 'upcoming'
         ? 'text-[#3a2a1a]'
         : 'text-muted'
-  return (
-    <div className="flex items-start justify-between gap-3 border-b border-black/5 py-1.5 last:border-0">
+  // «Сбор урожая» (neutral) не связан с action_type — кликом не открываем лист.
+  const clickable = row.status !== 'neutral' && !disabled
+  const content = (
+    <>
       <div className="flex flex-col">
         <span className={`flex items-center gap-1.5 font-semibold ${color} ${row.status === 'done' ? 'line-through' : ''}`}>
           <Dot status={row.status} />
           {row.name}
         </span>
         {row.product && <span className="text-xs font-semibold text-tertiary">Препарат: {row.product}</span>}
+        {/* Клик по строке подставляет тип в лист действия — просроченное неочевидно кликабельно без подсказки */}
+        {clickable && row.status === 'missed' && (
+          <span className="text-xs font-semibold text-red-600/70">Нажмите, чтобы отметить выполненным</span>
+        )}
       </div>
       <span className={`shrink-0 font-semibold ${color} ${row.status === 'missed' ? 'font-black' : ''}`}>
         {row.dateStr}
       </span>
-    </div>
+    </>
+  )
+  const className = 'flex w-full items-start justify-between gap-3 border-b border-black/5 py-1.5 text-left last:border-0'
+  return clickable ? (
+    <button type="button" onClick={onClick} className={`${className} active:opacity-70`}>
+      {content}
+    </button>
+  ) : (
+    <div className={className}>{content}</div>
   )
 }

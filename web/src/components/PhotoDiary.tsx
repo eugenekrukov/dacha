@@ -99,6 +99,7 @@ export default function PhotoDiary({ plantingId, locked = false }: { plantingId:
       ) : photos.length === 0 ? (
         <p className="rounded-btn bg-background p-4 text-center text-sm text-muted">
           Пока нет фото. Снимите свою посадку — соберётся лента роста.
+          Наблюдения без фото можно записывать через «+ действие» → «Заметки».
         </p>
       ) : (
         <div className="grid grid-cols-3 gap-2">

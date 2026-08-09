@@ -37,7 +37,7 @@ val ACTION_TYPES = listOf(
     "bolt_removal"  to "Удаление стрелок",
     "deflowering"   to "Удаление цветков",
     "staking"       to "Установка опоры",
-    "other"         to "Другое"
+    "other"         to "Заметки"
 )
 
 // Маппинг care_task_name → action_type. По КЛЮЧЕВОМУ СЛОВУ (имена в БД описательные:

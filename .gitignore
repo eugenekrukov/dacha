@@ -68,3 +68,5 @@ docs/store-assets/presentation/fonts.css
 # Промежуточный вывод fetch-crop-images.js. Источник истины по кредитам — миграции
 # (064 культуры, 065 справочник): там они выверены вручную, а файл перезаписывается каждым прогоном.
 backend/scripts/*-images.generated.sql
+
+.worktrees/
