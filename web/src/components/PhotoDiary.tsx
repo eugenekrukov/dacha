@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Camera, Trash2, X } from 'lucide-react'
-import { api, ApiError } from '../api/client'
+import { api, ApiError, SUBSCRIPTION_REQUIRED_MESSAGE } from '../api/client'
 import type { PlantingPhoto } from '../api/types'
 import AuthImage from './AuthImage'
 import { useModalA11y } from './Modal'
@@ -12,6 +12,8 @@ export default function PhotoDiary({ plantingId, locked = false }: { plantingId:
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [viewer, setViewer] = useState<PlantingPhoto | null>(null)
+  const [diagBusy, setDiagBusy] = useState(false)
+  const [diagError, setDiagError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const viewerRef = useRef<HTMLDivElement | null>(null)
   useModalA11y(viewerRef, () => setViewer(null), viewer != null)
@@ -40,6 +42,25 @@ export default function PhotoDiary({ plantingId, locked = false }: { plantingId:
         : 'Не удалось загрузить фото')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const runDiagnosis = async (photo: PlantingPhoto) => {
+    setDiagBusy(true)
+    setDiagError(null)
+    try {
+      const result = await api.diagnosePhoto(photo.id)
+      const updated = { ...photo, ai_diagnosis: result.candidates, ai_diagnosed_at: result.diagnosed_at }
+      setPhotos((prev) => prev.map((p) => (p.id === photo.id ? updated : p)))
+      setViewer(updated)
+    } catch (err) {
+      setDiagError(
+        err instanceof ApiError && err.status === 402
+          ? SUBSCRIPTION_REQUIRED_MESSAGE
+          : 'Не удалось определить болезнь/вредителя'
+      )
+    } finally {
+      setDiagBusy(false)
     }
   }
 
@@ -106,6 +127,27 @@ export default function PhotoDiary({ plantingId, locked = false }: { plantingId:
             <div>
               <p className="font-bold">{new Date(viewer.taken_at).toLocaleDateString('ru-RU')}</p>
               {viewer.caption && <p className="text-sm text-white/70">{viewer.caption}</p>}
+              {viewer.ai_diagnosis && viewer.ai_diagnosis.length > 0 ? (
+                <div className="mt-2 flex flex-col gap-1.5 rounded-btn bg-white/10 p-3">
+                  {viewer.ai_diagnosis.map((c) => (
+                    <p key={c.id} className="text-sm text-white">
+                      <span className="font-bold">Похоже на: {c.name}</span>
+                      <span className="text-white/70"> — {c.reasoning}</span>
+                    </p>
+                  ))}
+                  <p className="text-xs text-white/50">Предварительная оценка ИИ — сверьтесь со справочником.</p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="dacha-chip mt-2 px-3 py-2 text-sm"
+                  disabled={diagBusy}
+                  onClick={() => runDiagnosis(viewer)}
+                >
+                  {diagBusy ? 'Определяю…' : '🔍 Определить болезнь/вредителя'}
+                </button>
+              )}
+              {diagError && <p className="mt-1 text-xs font-bold text-red-400">{diagError}</p>}
             </div>
             <button type="button" aria-label="Удалить" onClick={() => remove(viewer.id)} className="text-red-400">
               <Trash2 size={24} aria-hidden />
