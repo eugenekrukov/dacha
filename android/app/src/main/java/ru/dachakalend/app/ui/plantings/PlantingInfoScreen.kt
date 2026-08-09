@@ -14,8 +14,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -189,8 +192,14 @@ fun PlantingInfoScreen(
                     )
                     1 -> if (crop != null) CropCareSection(crop, modifier = scroll)
                          else EmptyTab(scroll, "Нет данных об уходе.")
-                    2 -> ProblemList(state.problems, "disease", "Болезни не отмечены.") { onOpenGuide(planting.cropId, planting.cropName) }
-                    3 -> ProblemList(state.problems, "pest", "Вредители не отмечены.") { onOpenGuide(planting.cropId, planting.cropName) }
+                    2 -> Column(modifier = scroll) {
+                        QuickDiagnoseCard(state, onDiagnose = viewModel::diagnoseNewPhoto, onOpenPaywall = onOpenPaywall)
+                        ProblemList(state.problems, "disease", "Болезни не отмечены.") { onOpenGuide(planting.cropId, planting.cropName) }
+                    }
+                    3 -> Column(modifier = scroll) {
+                        QuickDiagnoseCard(state, onDiagnose = viewModel::diagnoseNewPhoto, onOpenPaywall = onOpenPaywall)
+                        ProblemList(state.problems, "pest", "Вредители не отмечены.") { onOpenGuide(planting.cropId, planting.cropName) }
+                    }
                     4 -> if (crop != null) CropNeighborsSection(crop, modifier = scroll)
                          else EmptyTab(scroll, "Нет данных.")
                 }
@@ -296,6 +305,76 @@ private fun AboutTab(
             onDiagnose = onDiagnose,
             onOpenPaywall = onOpenPaywall,
         )
+    }
+}
+
+// Быстрый вход в AI-диагностику с вкладок «Болезни»/«Вредители» (F2, зеркало web
+// DiagnosePhotoButton): снял фото → сразу загрузка+диагноз, без похода в дневник фото.
+// Диагноз closed-set — покрывает и болезни, и вредителей разом, поэтому карточка
+// одинаковая на обеих вкладках: угадать заранее, что покажет фото, нельзя.
+@Composable
+private fun QuickDiagnoseCard(
+    state: PlantingInfoUiState,
+    onDiagnose: (ByteArray) -> Unit,
+    onOpenPaywall: () -> Unit,
+) {
+    if (state.planting?.locked == true) return
+    val pickers = rememberPhotoPickers(onBytes = onDiagnose)
+    Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("🔍 Определить болезнь/вредителя по фото", fontFamily = NunitoFamily, fontWeight = FontWeight.Black)
+            if (state.quickDiagnoseBusy) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Определяю…", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { pickers.camera() }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Камера", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false)
+                    }
+                    OutlinedButton(onClick = { pickers.gallery() }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Галерея", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false)
+                    }
+                }
+            }
+
+            state.quickDiagnoseResult?.let { candidates ->
+                if (candidates.isEmpty()) {
+                    Text(
+                        "Не удалось однозначно определить — сверьтесь со справочником ниже.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    candidates.forEach { c ->
+                        Column {
+                            Text("Похоже на: ${c.name}", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                            Text(c.reasoning, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Text(
+                        "Предварительная оценка ИИ — не заменяет консультацию агронома. Сверьтесь со справочником.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            state.quickDiagnoseError?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                if (state.quickDiagnoseSubscriptionRequired) {
+                    OutlinedButton(onClick = onOpenPaywall) {
+                        Text("Оформить «Дачник Про»", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -497,6 +576,14 @@ private fun PhotoViewerDialog(
     onOpenPaywall: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        // Окно Dialog по умолчанию НЕ edge-to-edge → системные инсеты (навбар/статус-бар) в
+        // композицию не долетают, и navigationBarsPadding() ниже подпирает нулевую высоту —
+        // контент у нижнего края уходит под системную навигацию (жалоба пользователя,
+        // кнопка «Определить болезнь» пряталась под кнопками навигации). Явно просим окно
+        // диалога стать edge-to-edge — тогда инсеты появляются и padding-модификаторы работают.
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect { dialogWindow?.let { WindowCompat.setDecorFitsSystemWindows(it, false) } }
+
         Box(Modifier.fillMaxSize().background(Color(0xE6000000))) {
             AsyncImage(
                 model = mediaUrl(photo.url),
@@ -504,8 +591,7 @@ private fun PhotoViewerDialog(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize().padding(24.dp).align(Alignment.Center)
             )
-            // Верхняя панель: действия слева, «Закрыть» справа. Наверху, т.к. низ диалога
-            // перекрывается системной навигацией (инсеты в Dialog не доходят).
+            // Верхняя панель: действия слева, «Закрыть» справа.
             Row(
                 modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth()
                     .background(Color(0x99000000)).statusBarsPadding().padding(horizontal = 4.dp, vertical = 2.dp),

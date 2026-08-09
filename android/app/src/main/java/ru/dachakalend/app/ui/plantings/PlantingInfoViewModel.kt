@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.ActionLog
+import ru.dachakalend.app.data.model.AiDiagnosisCandidate
 import ru.dachakalend.app.data.model.Crop
 import ru.dachakalend.app.data.model.GardenBed
 import ru.dachakalend.app.data.model.GuideEntry
@@ -43,6 +44,13 @@ data class PlantingInfoUiState(
     val diagnoseErrorPhotoId: Int? = null,
     val diagnoseError: String? = null,
     val diagnoseSubscriptionRequired: Boolean = false,
+    // Быстрая диагностика с вкладок «Болезни»/«Вредители» (F2, зеркало web DiagnosePhotoButton):
+    // снял фото → сразу загрузка+диагноз одним действием, без похода в дневник фото.
+    // Своё состояние (не завязано на id уже существующего фото — его ещё нет на момент клика).
+    val quickDiagnoseBusy: Boolean = false,
+    val quickDiagnoseError: String? = null,
+    val quickDiagnoseSubscriptionRequired: Boolean = false,
+    val quickDiagnoseResult: List<AiDiagnosisCandidate>? = null,
 )
 
 @HiltViewModel
@@ -193,6 +201,49 @@ class PlantingInfoViewModel @Inject constructor(
                     diagnoseErrorPhotoId = photo.id,
                     diagnoseError = res.message,
                     diagnoseSubscriptionRequired = res.isSubscriptionRequired
+                )
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    /** Быстрая диагностика с вкладок «Болезни»/«Вредители»: снял фото → загрузка+диагноз одним
+     *  действием (зеркало web DiagnosePhotoButton). Своя ветка состояния — на момент клика
+     *  фото ещё не существует, поэтому per-photo id из [diagnosePhoto] сюда не подходит. */
+    fun diagnoseNewPhoto(bytes: ByteArray) {
+        val plantingId = _uiState.value.planting?.id ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                quickDiagnoseBusy = true, quickDiagnoseError = null, quickDiagnoseResult = null
+            )
+            when (val uploadRes = photosRepository.uploadPhoto(plantingId, bytes)) {
+                is Result.Success -> {
+                    val photo = uploadRes.data
+                    _uiState.value = _uiState.value.copy(photos = listOf(photo) + _uiState.value.photos)
+                    when (val diagRes = photosRepository.diagnosePhoto(photo.id)) {
+                        is Result.Success -> {
+                            val updated = photo.copy(aiDiagnosis = diagRes.data.candidates, aiDiagnosedAt = diagRes.data.diagnosedAt)
+                            _uiState.value = _uiState.value.copy(
+                                photos = _uiState.value.photos.map { if (it.id == updated.id) updated else it },
+                                quickDiagnoseBusy = false,
+                                quickDiagnoseResult = diagRes.data.candidates,
+                            )
+                        }
+                        is Result.Error -> _uiState.value = _uiState.value.copy(
+                            quickDiagnoseBusy = false,
+                            quickDiagnoseError = diagRes.message,
+                            quickDiagnoseSubscriptionRequired = diagRes.isSubscriptionRequired,
+                        )
+                        is Result.Loading -> Unit
+                    }
+                }
+                is Result.Error -> _uiState.value = _uiState.value.copy(
+                    quickDiagnoseBusy = false,
+                    // 409 от бэкенда = достигнут лимит фото (free 3 / paid 30 на посадку) — тот же
+                    // разбор, что в uploadPhoto() выше.
+                    quickDiagnoseError = if (uploadRes.message.contains("409"))
+                        "Достигнут лимит фото. Оформите подписку, чтобы добавить больше."
+                    else "Не удалось загрузить фото",
                 )
                 is Result.Loading -> Unit
             }

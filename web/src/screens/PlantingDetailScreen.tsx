@@ -7,6 +7,7 @@ import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
 import { buildSchedule, collapseActions, type SchedStatus } from '../api/schedule'
 import { CareSection, NeighborsSection } from '../components/CropCare'
 import ProblemList from '../components/ProblemList'
+import DiagnosePhotoButton from '../components/DiagnosePhotoButton'
 import ActionLogSheet from '../components/ActionLogSheet'
 import PhotoDiary from '../components/PhotoDiary'
 import BedField from '../components/BedField'
@@ -269,10 +270,16 @@ export default function PlantingDetailScreen() {
 
       {tab === 'care' && (crop ? <CareSection crop={crop} /> : <p className="dacha-card p-4 font-semibold text-muted">Нет данных об уходе.</p>)}
       {tab === 'disease' && (
-        <ProblemList entries={problems} kind="disease" cropId={planting.crop_id} cropName={planting.crop_name} emptyText="Болезни не отмечены." />
+        <>
+          <DiagnosePhotoButton plantingId={planting.id} locked={locked} />
+          <ProblemList entries={problems} kind="disease" cropId={planting.crop_id} cropName={planting.crop_name} emptyText="Болезни не отмечены." />
+        </>
       )}
       {tab === 'pest' && (
-        <ProblemList entries={problems} kind="pest" cropId={planting.crop_id} cropName={planting.crop_name} emptyText="Вредители не отмечены." />
+        <>
+          <DiagnosePhotoButton plantingId={planting.id} locked={locked} />
+          <ProblemList entries={problems} kind="pest" cropId={planting.crop_id} cropName={planting.crop_name} emptyText="Вредители не отмечены." />
+        </>
       )}
       {tab === 'neighbors' && (crop ? <NeighborsSection crop={crop} /> : <p className="dacha-card p-4 font-semibold text-muted">Нет данных.</p>)}
 

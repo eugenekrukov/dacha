@@ -126,7 +126,7 @@ export default function PhotoDiary({ plantingId, locked = false }: { plantingId:
               <X size={28} aria-hidden />
             </button>
           </div>
-          <div className="flex flex-1 items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto px-4" onClick={(e) => e.stopPropagation()}>
             <AuthImage path={viewer.url} alt="Фото посадки" className="max-h-full max-w-full rounded-lg object-contain" />
           </div>
           <div className="flex items-center justify-between p-4 text-white" onClick={(e) => e.stopPropagation()}>

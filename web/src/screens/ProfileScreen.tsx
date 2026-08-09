@@ -22,8 +22,9 @@ import ErrorCard from '../components/ErrorCard'
 import ChangePasswordModal from '../components/ChangePasswordModal'
 import ChangeEmailModal from '../components/ChangeEmailModal'
 import DeleteAccountModal from '../components/DeleteAccountModal'
+import SubscribeCta from '../components/SubscribeCta'
 import { useModalA11y } from '../components/Modal'
-import type { FeedItem, MilestoneKind } from '../api/types'
+import type { AiDiagnosisCandidate, FeedItem, MilestoneKind } from '../api/types'
 
 type Tab = 'feed' | 'stats' | 'account'
 
@@ -330,12 +331,32 @@ function PhotoViewer({
   const containerRef = useRef<HTMLDivElement | null>(null)
   useModalA11y(containerRef, onClose)
 
+  // AI-диагностика (F2): лента не хранит ai_diagnosis по фото (GET /feed её не отдаёт),
+  // поэтому результат держим локально в самом просмотрщике — тот же паттерн, что в
+  // DiagnosePhotoButton, а не синхронизация со списком, как в PhotoDiary.
+  const [diagBusy, setDiagBusy] = useState(false)
+  const [diagError, setDiagError] = useState<string | null>(null)
+  const [diagResult, setDiagResult] = useState<AiDiagnosisCandidate[] | null>(null)
+
   const wrap = (fn: () => void | Promise<void>) => async () => {
     setBusy(true)
     try {
       await fn()
     } finally {
       setBusy(false)
+    }
+  }
+
+  const runDiagnosis = async () => {
+    setDiagBusy(true)
+    setDiagError(null)
+    try {
+      const result = await api.diagnosePhoto(target.photoId)
+      setDiagResult(result.candidates)
+    } catch (err) {
+      setDiagError(err instanceof ApiError ? err.message : 'Не удалось определить болезнь/вредителя')
+    } finally {
+      setDiagBusy(false)
     }
   }
 
@@ -376,14 +397,41 @@ function PhotoViewer({
         </IconBtn>
       </div>
 
-      <div className="flex flex-1 items-center justify-center overflow-hidden p-4">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
         <AuthImage path={target.url} alt="Фото посадки" className="max-h-full max-w-full object-contain" />
       </div>
 
-      <div className="flex flex-col gap-0.5 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="flex flex-col gap-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {target.cropName && <span className="text-lg font-black text-white">{target.cropName}</span>}
         <span className="text-sm font-semibold text-white/70">{shortDate(target.dateIso)}</span>
         {target.caption && <span className="text-sm text-white/90">{target.caption}</span>}
+
+        {diagResult && diagResult.length > 0 ? (
+          <div className="mt-1 flex flex-col gap-1.5 rounded-btn bg-white/10 p-3">
+            {diagResult.map((c) => (
+              <p key={c.id} className="text-sm text-white">
+                <span className="font-bold">Похоже на: {c.name}</span>
+                <span className="text-white/70"> — {c.reasoning}</span>
+              </p>
+            ))}
+            <p className="text-xs text-white/50">Предварительная оценка ИИ — не заменяет консультацию агронома. Сверьтесь со справочником.</p>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="dacha-chip mt-1 self-start px-3 py-2 text-sm"
+            disabled={diagBusy}
+            onClick={runDiagnosis}
+          >
+            {diagBusy ? 'Определяю…' : '🔍 Определить болезнь/вредителя'}
+          </button>
+        )}
+        {diagError && (
+          <div className="mt-1 flex flex-col gap-1">
+            <p className="text-xs font-bold text-red-400">{diagError}</p>
+            <SubscribeCta message={diagError} />
+          </div>
+        )}
       </div>
     </div>
   )
