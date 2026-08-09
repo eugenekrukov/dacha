@@ -18,13 +18,26 @@ function isEnabled() {
   return !!process.env.AI_DIAGNOSIS_API_KEY
 }
 
-const SYSTEM = (
-  'Ты агроном-эксперт. Тебе дано фото и ЗАКРЫТЫЙ список возможных болезней/вредителей ' +
-  'этой культуры. Выбери 2-3 наиболее вероятных варианта СТРОГО из списка (по id), ' +
-  'от самого вероятного к менее вероятному. Если ни один не подходит — верни пустой массив. ' +
-  'Ответ СТРОГО валидным JSON без markdown: {"candidates": [{"id": <int>, "name": "<строго из списка>", ' +
-  '"confidence": "high|medium|low", "reasoning": "краткое обоснование по видимым признакам"}]}'
-)
+// Сколько кандидатов реально показывать. У многих культур в справочнике всего 1-2 болезни/
+// вредителя — фиксированные «топ-2-3» на таком списке вырождаются в пересказ всего справочника
+// (не отбор, а дамп), выглядит как обман. Правило: показываем строго МЕНЬШЕ, чем весь список
+// (кроме единственного варианта — там отбирать физически не из чего, это честный единственный
+// ответ). 1→1, 2→1, 3-4→2, 5+→3.
+function maxOutputCandidates(totalCandidates) {
+  if (totalCandidates <= 1) return 1
+  return Math.min(3, totalCandidates - 1)
+}
+
+function buildSystem(maxN) {
+  const countPhrase = maxN === 1 ? '1 наиболее вероятный вариант' : `не более ${maxN} наиболее вероятных вариантов`
+  return (
+    'Ты агроном-эксперт. Тебе дано фото и ЗАКРЫТЫЙ список возможных болезней/вредителей ' +
+    `этой культуры. Выбери ${countPhrase} СТРОГО из списка (по id), ` +
+    'от самого вероятного к менее вероятному. Если ни один не подходит — верни пустой массив. ' +
+    'Ответ СТРОГО валидным JSON без markdown: {"candidates": [{"id": <int>, "name": "<строго из списка>", ' +
+    '"confidence": "high|medium|low", "reasoning": "краткое обоснование по видимым признакам"}]}'
+  )
+}
 
 function buildPayload(system, userText, dataUrl) {
   return {
@@ -64,12 +77,13 @@ async function callOnce(payload, fetchImpl) {
   }
 }
 
-function parseCandidates(text, validIds) {
+function parseCandidates(text, validIds, maxN) {
   try {
     const parsed = JSON.parse(text)
     const list = Array.isArray(parsed.candidates) ? parsed.candidates : []
-    // Не доверяем модели вслепую: оставляем только id из переданного closed-set списка.
-    return list.filter((c) => validIds.has(c.id)).slice(0, 3)
+    // Не доверяем модели вслепую: оставляем только id из переданного closed-set списка,
+    // и режем до maxN, даже если модель вернула больше, чем просили.
+    return list.filter((c) => validIds.has(c.id)).slice(0, maxN)
   } catch {
     return null
   }
@@ -84,20 +98,22 @@ function parseCandidates(text, validIds) {
  */
 async function diagnose({ imageBuffer, cropName, candidates, fetchImpl = fetch }) {
   const validIds = new Set(candidates.map((c) => c.id))
+  const maxN = maxOutputCandidates(candidates.length)
+  const system = buildSystem(maxN)
   const candText = candidates.map((c) => `- id=${c.id}, ${c.kind}: ${c.name}`).join('\n')
   const userText = `Культура: ${cropName}.\nВозможные варианты:\n${candText}\n\nЧто на фото?`
   const dataUrl = `data:image/webp;base64,${imageBuffer.toString('base64')}`
 
-  let { text } = await callOnce(buildPayload(SYSTEM, userText, dataUrl), fetchImpl)
-  let parsed = parseCandidates(text, validIds)
+  let { text } = await callOnce(buildPayload(system, userText, dataUrl), fetchImpl)
+  let parsed = parseCandidates(text, validIds, maxN)
 
   if (parsed === null) {
     // Один ретрай с более настойчивой инструкцией — как в Tender openai_compatible_client.
     ;({ text } = await callOnce(
-      buildPayload(SYSTEM, userText + '\n\nВерни ТОЛЬКО JSON-объект, ничего больше.', dataUrl),
+      buildPayload(system, userText + '\n\nВерни ТОЛЬКО JSON-объект, ничего больше.', dataUrl),
       fetchImpl
     ))
-    parsed = parseCandidates(text, validIds) || []
+    parsed = parseCandidates(text, validIds, maxN) || []
   }
 
   return { candidates: parsed, model: MODEL() }
