@@ -174,7 +174,12 @@ class PlantingInfoViewModel @Inject constructor(
     /** AI-диагноз по снимку (F2, «Дачник Про»): closed-set кандидатов болезней/вредителей культуры. */
     fun diagnosePhoto(photo: PlantingPhoto) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(diagnosingPhotoId = photo.id)
+            _uiState.value = _uiState.value.copy(
+                diagnosingPhotoId = photo.id,
+                diagnoseErrorPhotoId = null,
+                diagnoseError = null,
+                diagnoseSubscriptionRequired = false,
+            )
             when (val res = photosRepository.diagnosePhoto(photo.id)) {
                 is Result.Success -> {
                     val updated = photo.copy(aiDiagnosis = res.data.candidates, aiDiagnosedAt = res.data.diagnosedAt)
