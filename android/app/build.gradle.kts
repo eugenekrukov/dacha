@@ -27,8 +27,8 @@ android {
         applicationId = "ru.dachakalend.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.0.8"
+        versionCode = 12
+        versionName = "1.0.9"
 
         // URL бэкенда — менять здесь при смене окружения
         buildConfigField("String", "BASE_URL", "\"https://dacha.studio1008.com/\"")
@@ -55,6 +55,7 @@ android {
         }
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
