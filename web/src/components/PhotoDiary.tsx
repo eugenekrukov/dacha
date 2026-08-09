@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Camera, Trash2, X } from 'lucide-react'
-import { api, ApiError, SUBSCRIPTION_REQUIRED_MESSAGE } from '../api/client'
+import { api, ApiError } from '../api/client'
 import type { PlantingPhoto } from '../api/types'
 import AuthImage from './AuthImage'
 import { useModalA11y } from './Modal'
+import SubscribeCta from './SubscribeCta'
 
 // locked — посадка сверх free-набора без подписки: дневник виден, но новые кадры бэкенд не примет.
 export default function PhotoDiary({ plantingId, locked = false }: { plantingId: number; locked?: boolean }) {
@@ -52,13 +53,9 @@ export default function PhotoDiary({ plantingId, locked = false }: { plantingId:
       const result = await api.diagnosePhoto(photo.id)
       const updated = { ...photo, ai_diagnosis: result.candidates, ai_diagnosed_at: result.diagnosed_at }
       setPhotos((prev) => prev.map((p) => (p.id === photo.id ? updated : p)))
-      setViewer(updated)
+      setViewer((v) => (v && v.id === photo.id ? updated : v))
     } catch (err) {
-      setDiagError(
-        err instanceof ApiError && err.status === 402
-          ? SUBSCRIPTION_REQUIRED_MESSAGE
-          : 'Не удалось определить болезнь/вредителя'
-      )
+      setDiagError(err instanceof ApiError ? err.message : 'Не удалось определить болезнь/вредителя')
     } finally {
       setDiagBusy(false)
     }
@@ -106,7 +103,16 @@ export default function PhotoDiary({ plantingId, locked = false }: { plantingId:
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {photos.map((p) => (
-            <button key={p.id} type="button" onClick={() => setViewer(p)} className="block">
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                setDiagBusy(false)
+                setDiagError(null)
+                setViewer(p)
+              }}
+              className="block"
+            >
               <AuthImage path={p.thumb_url} alt="Фото посадки" className="aspect-square w-full rounded-btn object-cover" />
             </button>
           ))}
@@ -135,7 +141,7 @@ export default function PhotoDiary({ plantingId, locked = false }: { plantingId:
                       <span className="text-white/70"> — {c.reasoning}</span>
                     </p>
                   ))}
-                  <p className="text-xs text-white/50">Предварительная оценка ИИ — сверьтесь со справочником.</p>
+                  <p className="text-xs text-white/50">Предварительная оценка ИИ — не заменяет консультацию агронома. Сверьтесь со справочником.</p>
                 </div>
               ) : (
                 <button
@@ -147,7 +153,12 @@ export default function PhotoDiary({ plantingId, locked = false }: { plantingId:
                   {diagBusy ? 'Определяю…' : '🔍 Определить болезнь/вредителя'}
                 </button>
               )}
-              {diagError && <p className="mt-1 text-xs font-bold text-red-400">{diagError}</p>}
+              {diagError && (
+                <div className="mt-1 flex flex-col gap-1">
+                  <p className="text-xs font-bold text-red-400">{diagError}</p>
+                  <SubscribeCta message={diagError} />
+                </div>
+              )}
             </div>
             <button type="button" aria-label="Удалить" onClick={() => remove(viewer.id)} className="text-red-400">
               <Trash2 size={24} aria-hidden />
