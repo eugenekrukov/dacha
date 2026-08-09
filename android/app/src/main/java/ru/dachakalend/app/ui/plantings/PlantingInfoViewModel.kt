@@ -36,7 +36,13 @@ data class PlantingInfoUiState(
     // Фото-дневник
     val photos: List<PlantingPhoto> = emptyList(),
     val uploadBusy: Boolean = false,
-    val photoError: String? = null
+    val photoError: String? = null,
+    // AI-диагностика по фото (F2): состояние скопировано по id фото, чтобы busy/error одного
+    // снимка не «протекали» на другой при переключении фото в просмотрщике.
+    val diagnosingPhotoId: Int? = null,
+    val diagnoseErrorPhotoId: Int? = null,
+    val diagnoseError: String? = null,
+    val diagnoseSubscriptionRequired: Boolean = false,
 )
 
 @HiltViewModel
@@ -163,6 +169,29 @@ class PlantingInfoViewModel @Inject constructor(
 
     fun clearPhotoError() {
         _uiState.value = _uiState.value.copy(photoError = null)
+    }
+
+    /** AI-диагноз по снимку (F2, «Дачник Про»): closed-set кандидатов болезней/вредителей культуры. */
+    fun diagnosePhoto(photo: PlantingPhoto) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(diagnosingPhotoId = photo.id)
+            when (val res = photosRepository.diagnosePhoto(photo.id)) {
+                is Result.Success -> {
+                    val updated = photo.copy(aiDiagnosis = res.data.candidates, aiDiagnosedAt = res.data.diagnosedAt)
+                    _uiState.value = _uiState.value.copy(
+                        photos = _uiState.value.photos.map { if (it.id == photo.id) updated else it },
+                        diagnosingPhotoId = null
+                    )
+                }
+                is Result.Error -> _uiState.value = _uiState.value.copy(
+                    diagnosingPhotoId = null,
+                    diagnoseErrorPhotoId = photo.id,
+                    diagnoseError = res.message,
+                    diagnoseSubscriptionRequired = res.isSubscriptionRequired
+                )
+                is Result.Loading -> Unit
+            }
+        }
     }
 
     private fun loadBeds(gardenId: Int) {

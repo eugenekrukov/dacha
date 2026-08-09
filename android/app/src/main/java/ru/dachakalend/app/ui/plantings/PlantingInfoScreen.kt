@@ -184,6 +184,7 @@ fun PlantingInfoScreen(
                         onRenameBed = viewModel::renameBed,
                         onDeleteBed = viewModel::deleteBed,
                         onSetConditions = viewModel::setConditions,
+                        onDiagnose = viewModel::diagnosePhoto,
                         onOpenPaywall = onOpenPaywall,
                     )
                     1 -> if (crop != null) CropCareSection(crop, modifier = scroll)
@@ -218,6 +219,7 @@ private fun AboutTab(
     onRenameBed: (bed: ru.dachakalend.app.data.model.GardenBed, name: String) -> Unit,
     onDeleteBed: (bed: ru.dachakalend.app.data.model.GardenBed) -> Unit,
     onSetConditions: (String) -> Unit,
+    onDiagnose: (PlantingPhoto) -> Unit,
     onOpenPaywall: () -> Unit = {},
 ) {
     val planting = state.planting ?: return
@@ -287,6 +289,12 @@ private fun AboutTab(
             onDelete = onDelete,
             onReplace = onReplace,
             onDeleteRecord = onDeleteRecord,
+            diagnosingPhotoId = state.diagnosingPhotoId,
+            diagnoseErrorPhotoId = state.diagnoseErrorPhotoId,
+            diagnoseError = state.diagnoseError,
+            diagnoseSubscriptionRequired = state.diagnoseSubscriptionRequired,
+            onDiagnose = onDiagnose,
+            onOpenPaywall = onOpenPaywall,
         )
     }
 }
@@ -338,6 +346,12 @@ private fun JournalSection(
     onDelete: (Int) -> Unit,
     onReplace: (PlantingPhoto, ByteArray) -> Unit,
     onDeleteRecord: (Int) -> Unit,
+    diagnosingPhotoId: Int?,
+    diagnoseErrorPhotoId: Int?,
+    diagnoseError: String?,
+    diagnoseSubscriptionRequired: Boolean,
+    onDiagnose: (PlantingPhoto) -> Unit,
+    onOpenPaywall: () -> Unit,
 ) {
     var viewer by remember { mutableStateOf<PlantingPhoto?>(null) }
     // Источник фото: галерея или камера. После выбора кадра — диалог привязки к действию (ниже),
@@ -450,13 +464,21 @@ private fun JournalSection(
         )
     }
 
-    viewer?.let { p ->
+    // photos — источник истины из ViewModel; viewer — снимок, взятый в момент открытия. Диагноз
+    // приходит асинхронно и обновляет photos, поэтому берём актуальную версию по id, а не «замороженную» p.
+    val currentViewer = viewer?.let { v -> photos.find { it.id == v.id } ?: v }
+    currentViewer?.let { p ->
         PhotoViewerDialog(
             photo = p,
             onDismiss = { viewer = null },
             onDeletePhoto = { onDelete(p.id); viewer = null },
             onReplace = { bytes -> onReplace(p, bytes); viewer = null },
             onDeleteRecord = { p.actionId?.let { onDeleteRecord(it) }; viewer = null },
+            diagBusy = diagnosingPhotoId == p.id,
+            diagError = if (diagnoseErrorPhotoId == p.id) diagnoseError else null,
+            diagSubscriptionRequired = diagnoseSubscriptionRequired,
+            onDiagnose = { onDiagnose(p) },
+            onOpenPaywall = onOpenPaywall,
         )
     }
 }
@@ -468,6 +490,11 @@ private fun PhotoViewerDialog(
     onDeletePhoto: () -> Unit,
     onReplace: (ByteArray) -> Unit,
     onDeleteRecord: () -> Unit,
+    diagBusy: Boolean,
+    diagError: String?,
+    diagSubscriptionRequired: Boolean,
+    onDiagnose: () -> Unit,
+    onOpenPaywall: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color(0xE6000000))) {
@@ -501,6 +528,55 @@ private fun PhotoViewerDialog(
             ) {
                 Text(formatShort(photo.takenAt), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
                 photo.caption?.let { Text(it, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily) }
+
+                if (!photo.aiDiagnosis.isNullOrEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                            .background(Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        photo.aiDiagnosis.forEach { c ->
+                            Text(
+                                "Похоже на: ${c.name}",
+                                color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold
+                            )
+                            Text(c.reasoning, color = Color(0xB3FFFFFF), fontFamily = NunitoFamily, fontSize = 13.sp)
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        Text(
+                            "Предварительная оценка ИИ — не заменяет консультацию агронома. Сверьтесь со справочником.",
+                            color = Color(0x80FFFFFF), fontFamily = NunitoFamily, fontSize = 11.sp
+                        )
+                    }
+                } else {
+                    Spacer(Modifier.height(8.dp))
+                    if (diagBusy) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Определяю…", color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        TextButton(onClick = onDiagnose) {
+                            Text(
+                                "🔍 Определить болезнь/вредителя",
+                                color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    diagError?.let {
+                        Text(it, color = Color(0xFFFF8A80), fontFamily = NunitoFamily, fontSize = 12.sp)
+                        if (diagSubscriptionRequired) {
+                            TextButton(onClick = onOpenPaywall) {
+                                Text(
+                                    "Оформить «Дачник Про»",
+                                    color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
