@@ -71,7 +71,15 @@ module.exports = async function (fastify) {
     const hadRecentRain = weather && parseFloat(weather.precip_mm) > 3
     let rainSkipCandidate = null
 
-    for (const planting of plantingsRes.rows) {
+    // Слот совета по стадии (ниже) ограничен двумя посадками за раз. Без SQL ORDER BY
+    // порядок plantingsRes.rows стабилен день за днём — без ротации слот навсегда достаётся
+    // первым двум посадкам в этом порядке (жалоба владельца 2026-08-10: одни и те же советы
+    // про капусту и арбуз несколько дней подряд). Сдвигаем стартовую точку по дню года, чтобы
+    // за несколько дней слот обошёл все посадки по кругу.
+    const rotationOffset = plantingsRes.rows.length > 0 ? getDayOfYear(now) % plantingsRes.rows.length : 0
+    const rotatedPlantings = [...plantingsRes.rows.slice(rotationOffset), ...plantingsRes.rows.slice(0, rotationOffset)]
+
+    for (const planting of rotatedPlantings) {
       const daysSincePlanting = Math.floor((now - new Date(planting.planted_at)) / 86400000)
 
       // Данные о поливе нужны только для совета «после дождя» (ниже).

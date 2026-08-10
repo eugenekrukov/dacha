@@ -9,7 +9,7 @@ const cron = require('node-cron')
 const telegramService = require('../services/telegramService')
 
 const PROMO_TEXT = 'Персональные напоминания: когда поливать, подкармливать и что делать на грядках ' +
-  '— под ваш регион и культуры. Попробуйте «Календарь дачника» бесплатно 7 дней: https://dacha.studio1008.com 🌻'
+  '— под ваш регион и культуры. Попробуйте «Календарь дачника»: https://dacha.studio1008.com 🌻'
 
 function isEnabled(env = process.env) {
   return !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHANNEL_ID)
