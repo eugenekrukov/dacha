@@ -420,7 +420,8 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Harvest.route) {
                             HarvestScreen(
                                 onAddPlanting = { navController.navigate(Screen.Crops.route) },
-                                onBack = { navController.popBackStack() }
+                                onBack = { navController.popBackStack() },
+                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(Screen.Profile.route) {
@@ -441,7 +442,10 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Screen.Seeds.route) {
-                            SeedsScreen(onBack = { navController.popBackStack() })
+                            SeedsScreen(
+                                onBack = { navController.popBackStack() },
+                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
+                            )
                         }
                         composable(Screen.More.route) {
                             MoreScreen(

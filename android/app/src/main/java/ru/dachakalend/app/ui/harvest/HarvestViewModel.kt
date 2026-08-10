@@ -21,6 +21,9 @@ data class HarvestUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val error: String? = null,
+    // Отличает 402 (нет подписки/лимит free-тарифа) от прочих ошибок — снекбар в HarvestScreen
+    // добавляет действие «Перейти на Про» только для этого случая (см. PlantingsViewModel).
+    val errorIsSubscriptionRequired: Boolean = false,
     val successMessage: String? = null,
     val showAddSheet: Boolean = false
 )
@@ -49,14 +52,14 @@ class HarvestViewModel @Inject constructor(
 
             val harvests = (harvestResult as? Result.Success)?.data ?: emptyList()
             val plantings = (plantingsResult as? Result.Success)?.data ?: emptyList()
-            val error = (harvestResult as? Result.Error)?.message
-                ?: (plantingsResult as? Result.Error)?.message
+            val errorResult = (harvestResult as? Result.Error) ?: (plantingsResult as? Result.Error)
 
             _uiState.value = _uiState.value.copy(
                 harvests = harvests,
                 plantings = plantings,
                 isLoading = false,
-                error = error
+                error = errorResult?.message,
+                errorIsSubscriptionRequired = errorResult?.isSubscriptionRequired ?: false
             )
         }
     }
@@ -76,7 +79,8 @@ class HarvestViewModel @Inject constructor(
                 }
                 is Result.Error -> _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    error = result.message
+                    error = result.message,
+                    errorIsSubscriptionRequired = result.isSubscriptionRequired
                 )
                 is Result.Loading -> Unit
             }
@@ -92,6 +96,6 @@ class HarvestViewModel @Inject constructor(
     }
 
     fun clearMessage() {
-        _uiState.value = _uiState.value.copy(successMessage = null, error = null)
+        _uiState.value = _uiState.value.copy(successMessage = null, error = null, errorIsSubscriptionRequired = false)
     }
 }

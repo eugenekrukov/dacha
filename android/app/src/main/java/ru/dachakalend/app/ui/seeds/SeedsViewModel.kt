@@ -17,6 +17,9 @@ data class SeedsUiState(
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val error: String? = null,
+    // Сейчас бэкенд не гейтит семена подпиской (нет 402), но поле держим для единообразия
+    // со сборкой ошибок в Plantings/Harvest — если гейт появится, снекбар подхватит его сам.
+    val errorIsSubscriptionRequired: Boolean = false,
     val showSheet: Boolean = false,
     val editing: Seed? = null      // null при открытой шторке — добавление нового пакетика
 ) {
@@ -38,7 +41,7 @@ class SeedsViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             when (val result = repository.getSeeds()) {
                 is Result.Success -> _uiState.value = _uiState.value.copy(seeds = result.data, isLoading = false)
-                is Result.Error -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false)
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false, errorIsSubscriptionRequired = result.isSubscriptionRequired)
                 is Result.Loading -> Unit
             }
         }
@@ -47,7 +50,7 @@ class SeedsViewModel @Inject constructor(
     fun openAdd() { _uiState.value = _uiState.value.copy(showSheet = true, editing = null) }
     fun openEdit(seed: Seed) { _uiState.value = _uiState.value.copy(showSheet = true, editing = seed) }
     fun closeSheet() { _uiState.value = _uiState.value.copy(showSheet = false, editing = null) }
-    fun clearError() { _uiState.value = _uiState.value.copy(error = null) }
+    fun clearError() { _uiState.value = _uiState.value.copy(error = null, errorIsSubscriptionRequired = false) }
 
     /**
      * Сохранение из шторки: новый пакетик создаётся, существующий обновляется.
@@ -66,14 +69,14 @@ class SeedsViewModel @Inject constructor(
                 is Result.Success -> {
                     if (photoBytes != null) {
                         when (val photo = repository.uploadPhoto(saved.data.id, photoBytes)) {
-                            is Result.Error -> _uiState.value = _uiState.value.copy(error = photo.message)
+                            is Result.Error -> _uiState.value = _uiState.value.copy(error = photo.message, errorIsSubscriptionRequired = photo.isSubscriptionRequired)
                             else -> Unit
                         }
                     }
                     _uiState.value = _uiState.value.copy(isSaving = false, showSheet = false, editing = null)
                     load()
                 }
-                is Result.Error -> _uiState.value = _uiState.value.copy(isSaving = false, error = saved.message)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isSaving = false, error = saved.message, errorIsSubscriptionRequired = saved.isSubscriptionRequired)
                 is Result.Loading -> Unit
             }
         }
@@ -85,7 +88,7 @@ class SeedsViewModel @Inject constructor(
                 is Result.Success -> _uiState.value = _uiState.value.copy(
                     seeds = _uiState.value.seeds.filterNot { it.id == seed.id }
                 )
-                is Result.Error -> _uiState.value = _uiState.value.copy(error = result.message)
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = result.message, errorIsSubscriptionRequired = result.isSubscriptionRequired)
                 is Result.Loading -> Unit
             }
         }

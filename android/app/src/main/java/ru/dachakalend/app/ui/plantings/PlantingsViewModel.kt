@@ -27,6 +27,9 @@ data class PlantingsUiState(
     val stageFilter: String? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
+    // Отличает 402 (нет подписки/лимит free-тарифа) от прочих ошибок — снекбар в PlantingsScreen
+    // добавляет действие «Перейти на Про» только для этого случая.
+    val errorIsSubscriptionRequired: Boolean = false,
     val showActionSheet: Planting? = null,
     val successMessage: String? = null,
     val pendingCropId: Int? = null,
@@ -140,7 +143,7 @@ class PlantingsViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(beds = _uiState.value.beds + res.data)
                     onSelected(res.data)
                 }
-                is Result.Error -> _uiState.value = _uiState.value.copy(error = res.message)
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = res.message, errorIsSubscriptionRequired = res.isSubscriptionRequired)
                 is Result.Loading -> Unit
             }
         }
@@ -153,7 +156,7 @@ class PlantingsViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         beds = _uiState.value.beds.map { if (it.id == res.data.id) res.data else it }
                     )
-                is Result.Error -> _uiState.value = _uiState.value.copy(error = res.message)
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = res.message, errorIsSubscriptionRequired = res.isSubscriptionRequired)
                 is Result.Loading -> Unit
             }
         }
@@ -164,7 +167,7 @@ class PlantingsViewModel @Inject constructor(
             when (val res = bedsRepository.deleteBed(bed.id)) {
                 is Result.Success ->
                     _uiState.value = _uiState.value.copy(beds = _uiState.value.beds.filter { it.id != bed.id })
-                is Result.Error -> _uiState.value = _uiState.value.copy(error = res.message)
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = res.message, errorIsSubscriptionRequired = res.isSubscriptionRequired)
                 is Result.Loading -> Unit
             }
         }
@@ -191,7 +194,7 @@ class PlantingsViewModel @Inject constructor(
                     // Бейдж = то, что реально подсвечено на карточках (карточки server-driven).
                     tokenStorage.saveAttentionCount(attentionCount(result.data, pending, snoozed))
                 }
-                is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false)
+                is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false, errorIsSubscriptionRequired = result.isSubscriptionRequired)
                 is Result.Loading -> Unit
             }
         }
@@ -229,7 +232,7 @@ class PlantingsViewModel @Inject constructor(
                     loadPlantings()
                     loadBeds()
                 }
-                is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message)
+                is Result.Error   -> _uiState.value = _uiState.value.copy(error = result.message, errorIsSubscriptionRequired = result.isSubscriptionRequired)
                 is Result.Loading -> Unit
             }
         }
@@ -388,6 +391,6 @@ class PlantingsViewModel @Inject constructor(
     }
 
     fun clearMessage() {
-        _uiState.value = _uiState.value.copy(successMessage = null, error = null)
+        _uiState.value = _uiState.value.copy(successMessage = null, error = null, errorIsSubscriptionRequired = false)
     }
 }

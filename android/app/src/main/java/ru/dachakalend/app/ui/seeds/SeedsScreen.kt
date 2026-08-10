@@ -60,14 +60,21 @@ private fun parseMonthInput(text: String): String? {
 @Composable
 fun SeedsScreen(
     onBack: () -> Unit = {},
+    onOpenPaywall: () -> Unit = {},
     viewModel: SeedsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // 402 (нет подписки/лимит free-тарифа) — снекбар с действием «Перейти на Про» (см. PlantingsScreen).
     LaunchedEffect(state.error) {
         state.error?.let {
-            snackbarHostState.showSnackbar(it)
+            val result = snackbarHostState.showSnackbar(
+                message = it,
+                actionLabel = if (state.errorIsSubscriptionRequired) "Перейти на Про" else null,
+                duration = if (state.errorIsSubscriptionRequired) SnackbarDuration.Long else SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) onOpenPaywall()
             viewModel.clearError()
         }
     }
@@ -318,8 +325,7 @@ private fun SeedSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surface,
-        windowInsets = WindowInsets(0)
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier

@@ -138,8 +138,7 @@ private fun ActionLogSheetImpl(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        windowInsets = WindowInsets(0)
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         val focusManager = LocalFocusManager.current
         Column(

@@ -12,9 +12,11 @@ class HarvestRepository @Inject constructor(private val api: DachaApi) {
     suspend fun getHarvests(gardenId: Int? = null): Result<List<Harvest>> = try {
         Result.Success(api.getHarvests(gardenId))
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Ошибка загрузки урожая")
+        errorResult(e, "Ошибка загрузки урожая")
     }
 
+    // 402 здесь — посадка сверх free-набора (planting_locked, только для чтения);
+    // errorResult() классифицирует его вместо сырого текста исключения.
     suspend fun addHarvest(
         plantingId: Int,
         weightKg: Double?,
@@ -25,6 +27,6 @@ class HarvestRepository @Inject constructor(private val api: DachaApi) {
             api.createHarvest(CreateHarvestRequest(plantingId, weightKg, quantity, notes))
         )
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Ошибка добавления записи")
+        errorResult(e, "Ошибка добавления записи")
     }
 }

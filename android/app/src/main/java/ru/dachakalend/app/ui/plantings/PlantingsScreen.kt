@@ -90,6 +90,23 @@ fun PlantingsScreen(
             viewModel.clearMessage()
         }
     }
+    // Без этого эффекта ошибка createPlanting (в т.ч. 402 free-лимит 3 посадок) тихо
+    // оседала в state.error — лист закрывался (confirmPlanting сбрасывает pendingCropId
+    // сразу, не дожидаясь ответа), а пользователь не видел никакого сообщения
+    // (жалоба владельца 2026-08-10). Для 402 (нет подписки/лимит) снекбар получает действие
+    // «Перейти на Про» — иначе подсказка сообщает о лимите, но не даёт с этим ничего сделать
+    // (пожелание владельца 2026-08-10).
+    LaunchedEffect(state.error) {
+        state.error?.let {
+            val result = snackbarHostState.showSnackbar(
+                message = it,
+                actionLabel = if (state.errorIsSubscriptionRequired) "Перейти на Про" else null,
+                duration = if (state.errorIsSubscriptionRequired) SnackbarDuration.Long else SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) onOpenPaywall()
+            viewModel.clearMessage()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -816,8 +833,7 @@ private fun PlantingSetupBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        windowInsets = WindowInsets(0)
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -979,8 +995,7 @@ private fun PlantingEditBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        windowInsets = WindowInsets(0)
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier

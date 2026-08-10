@@ -29,6 +29,7 @@ import ru.dachakalend.app.ui.theme.NunitoFamily
 fun HarvestScreen(
     onAddPlanting: () -> Unit = {},
     onBack: () -> Unit = {},
+    onOpenPaywall: () -> Unit = {},
     viewModel: HarvestViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -40,9 +41,15 @@ fun HarvestScreen(
             viewModel.clearMessage()
         }
     }
+    // 402 (нет подписки/лимит free-тарифа) — снекбар с действием «Перейти на Про» (см. PlantingsScreen).
     LaunchedEffect(state.error) {
         state.error?.let {
-            snackbarHostState.showSnackbar(it)
+            val result = snackbarHostState.showSnackbar(
+                message = it,
+                actionLabel = if (state.errorIsSubscriptionRequired) "Перейти на Про" else null,
+                duration = if (state.errorIsSubscriptionRequired) SnackbarDuration.Long else SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) onOpenPaywall()
             viewModel.clearMessage()
         }
     }

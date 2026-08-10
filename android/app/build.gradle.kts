@@ -27,8 +27,8 @@ android {
         applicationId = "ru.dachakalend.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.0.9"
+        versionCode = 13
+        versionName = "1.0.10"
 
         // URL бэкенда — менять здесь при смене окружения
         buildConfigField("String", "BASE_URL", "\"https://dacha.studio1008.com/\"")
