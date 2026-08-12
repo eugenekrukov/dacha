@@ -125,4 +125,16 @@ describe('refreshSeasonStart', () => {
     expect(doy).toBeNull()
     expect(called).toBe(false)
   })
+
+  // Регрессия: на юге февральская оттепель давала «весну» 18 февраля при норме зоны 73.
+  it('февраль в анализ не попадает — ложная весна не ловится', async () => {
+    let requested = null
+    const fetchFn = async (url) => {
+      requested = url
+      return { ok: true, json: async () => ({ daily: { time: [], temperature_2m_mean: [] } }) }
+    }
+    await refreshSeasonStart({ query: async () => ({}) }, garden, new Date('2026-08-12'), { fetchFn })
+    expect(requested).toContain('start_date=2026-03-01')
+    expect(requested).not.toContain('02-15')
+  })
 })

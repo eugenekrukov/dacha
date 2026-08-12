@@ -14,8 +14,12 @@
 const THRESHOLD_C = 5
 // Сглаживание: без него единичное похолодание в мае сдвигало бы дату на месяц.
 const SMOOTH_DAYS = 7
-// Раньше этого дня года считать нечего — весна не наступала даже на юге (зона 6 ≈ 70).
-const EARLIEST_DOY = 50
+// Анализируем с 1 марта. Не с февраля: на юге (Краснодар) февральская оттепель поднимает
+// недельное среднее выше +5 °C, и «начало сезона» уезжало на 18 февраля при норме зоны 73.
+// Это ложная весна, а не устойчивый переход. Тем же окном посчитана и норма SEASON_START_DOY —
+// иначе факт и норма меряли бы разное.
+const ANALYSIS_START_DOY = 60
+const EARLIEST_DOY = ANALYSIS_START_DOY
 
 function dayOfYear(iso) {
   const d = new Date(`${iso}T00:00:00Z`)
@@ -48,7 +52,7 @@ function transitionDoy(times, temps) {
 async function fetchSpringTemps(lat, lon, year, fetchFn = fetch) {
   const url = 'https://archive-api.open-meteo.com/v1/archive'
     + `?latitude=${lat}&longitude=${lon}`
-    + `&start_date=${year}-02-15&end_date=${year}-07-15`
+    + `&start_date=${year}-03-01&end_date=${year}-07-15`
     + '&daily=temperature_2m_mean&timezone=auto'
   const res = await fetchFn(url)
   if (!res.ok) throw new Error(`archive HTTP ${res.status}`)
