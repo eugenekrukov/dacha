@@ -17,6 +17,7 @@ android/*.jks
 android/keystore.properties
 android/app/*.aab
 android/app/*.apk
+android/release-builds/
 
 # =====================
 # Node.js / Backend
