@@ -599,6 +599,9 @@ data class Garden(
     val lon: Double? = null,
     @Json(name = "soil_type") val soilType: String?,
     @Json(name = "climate_zone") val climateZone: String?,
+    // Начало сезона ухода (день года) для зоны участка. Считает сервер (normalizeGarden) —
+    // клиенту не нужно знать ни про зоны, ни про пороги температуры.
+    @Json(name = "season_start_doy") val seasonStartDoy: Int? = null,
     @Json(name = "garden_type") val gardenType: String? = "soil"
 )
 

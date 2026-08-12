@@ -49,13 +49,69 @@ function careTaskActionType(name) {
   return null
 }
 
-// Эффективная дата отсчёта графика ухода. Для многолетников (is_perennial) график считается
-// от начала ТЕКУЩЕГО сезона, а не от давней даты посадки: если посадке больше ~330 дней,
-// прибавляем целые годы, пока дата не попадёт в последние 12 месяцев. Так клубника, заведённая
-// год назад, получает задачи этого сезона, а не «лавину» пропущенных за прошлые годы.
-function effectivePlantedAt(plantedAt, isPerennial, today) {
+// День года (1 = 1 января) → Date указанного года. Через setDate, поэтому високосный
+// год учитывается сам: setDate(60) в 2028-м даст 29 февраля, а не 1 марта.
+function dateFromDoy(doy, year) {
+  const d = new Date(year, 0, 1)
+  d.setDate(doy)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// Начало сезона ухода (день года) для культуры в зоне участка. Берём из уже существующих
+// и уже зонированных данных crops.climate_zones[зона].transplant_start; зона участка —
+// gardens.climate_zone. Нет данных → null (тогда работает прежний якорь-годовщина).
+// Начало сезона ухода (день года) по климатической зоне USDA.
+//
+// Это свойство КЛИМАТА, а не культуры: различия между растениями уже сидят в day_offset
+// внутри сезона. Поэтому одна таблица на зону, а не поле у каждой культуры.
+//
+// НЕ путать с crops.climate_zones[зона].transplant_start — то окно ПОСАДКИ саженца, оно про
+// другое: у жимолости оно сентябрьское (244), и уход по нему стартовал бы осенью, а
+// «Весенняя обрезка» попадала бы на 11 сентября.
+//
+// Значения — устойчивый переход среднесуточной температуры через +5 °C (стандартное
+// агрометеорологическое определение начала вегетации), посчитанный по архиву Open-Meteo
+// за 2021–2026 для опорных городов каждой зоны тем же алгоритмом, что в seasonService
+// (центрированное 7-дневное сглаживание):
+//   зона 3 — Новосибирск (108), Красноярск (111), Иркутск (110), Чита (119)
+//   зона 4 — Омск (101), Екатеринбург (99), Пермь (107), Челябинск (98), Тюмень (98)
+//   зона 5 — Москва (89), Воронеж (83), Саратов (86)
+//   зона 6 — Краснодар (70), Ростов-на-Дону (76)
+// Это НОРМА. Разброс по годам достигает трёх недель (Новосибирск: 94…115), поэтому по
+// факту весну уточняет seasonService по архиву погоды участка — таблица остаётся фолбэком.
+const SEASON_START_DOY = { '3': 112, '4': 101, '5': 86, '6': 73 }
+const DEFAULT_SEASON_START_DOY = SEASON_START_DOY['5']
+
+function seasonStartDoy(climateZone) {
+  if (climateZone == null) return null
+  return SEASON_START_DOY[String(climateZone)] ?? DEFAULT_SEASON_START_DOY
+}
+
+// Эффективная дата отсчёта графика ухода для многолетников (is_perennial).
+//
+// Уход у многолетника привязан к КАЛЕНДАРЮ, а не к дате посадки: смородину обрезают весной
+// независимо от того, посадили её в октябре или в мае. Поэтому якорь — начало сезона ухода
+// в зоне участка (seasonStart, день года), а не годовщина посадки. Раньше считали от
+// годовщины, и у осенней посадки «Весенняя обрезка» уезжала в октябрь, а «Осенняя» — в февраль.
+//
+// seasonStart отсутствует (нет зоны участка или climate_zones у культуры) → фолбэк на прежнее
+// поведение: годовщина посадки в текущем сезоне. Хуже календаря, но лучше даты трёхлетней давности.
+//
+// ВНИМАНИЕ: якорь может оказаться РАНЬШЕ даты посадки (куст завели в середине сезона).
+// Это намеренно — так у него остаётся текущий уход (прополка и т.п.); задачи, выпавшие
+// до самой посадки, отсекаются отдельно по plantedAt там, где строится список.
+function effectivePlantedAt(plantedAt, isPerennial, today, seasonStart = null) {
   if (!isPerennial) return plantedAt
   const p = new Date(plantedAt)
+
+  if (seasonStart) {
+    let anchor = dateFromDoy(seasonStart, today.getFullYear())
+    // Сезон этого года ещё далеко впереди — значит идёт прошлогодний (та же логика, что у годовщины).
+    if (anchor - today > 31 * 86400000) anchor = dateFromDoy(seasonStart, today.getFullYear() - 1)
+    return anchor
+  }
+
   // Посадка моложе года — отсчёт от реальной даты.
   if (today - p < 365 * 86400000) return p
   // Иначе — годовщина посадки (тот же месяц/день) в текущем сезоне.
@@ -226,30 +282,54 @@ const TASK_PRIORITY = {
   reminder:         7,
 }
 
+// Длина текущего сезона многолетника в днях (365 или 366) — от годовщины посадки до
+// следующей. Считаем календарно, а не константой 365: иначе в високосный год «через N дн.»
+// на карточке разъезжается с датой в расписании работ.
+function seasonLengthDays(anchor) {
+  const next = new Date(anchor)
+  next.setFullYear(anchor.getFullYear() + 1)
+  return Math.round((next - anchor) / 86400000)
+}
+
 /**
  * Вычисляет ближайшую дату наступления care_task для посадки.
  * Используется в GET /plantings для поля next_care_task.
+ *
+ * @param seasonDays — длина сезона многолетника (seasonLengthDays), иначе null.
+ *   Уход у многолетника цикличен по годам: если все задачи ТЕКУЩЕГО сезона уже прошли
+ *   (осенняя посадка, смотрим летом → daysSincePlanting ~300 при limit 180), берём первое
+ *   наступление в СЛЕДУЮЩЕМ сезоне. Без этого карточка молчала до самой годовщины.
  */
-function getNextCareTask(careTasks, daysSincePlanting, harvestDays) {
+function getNextCareTask(careTasks, daysSincePlanting, harvestDays, seasonDays = null) {
   if (!careTasks || careTasks.length === 0) return null
   const limit = harvestDays || 180
   let nextTask = null
   let nextDays = Infinity
 
-  for (const task of careTasks) {
-    let offset = task.day_offset
-    while (offset <= limit) {
-      if (offset > daysSincePlanting) {
-        const daysUntil = offset - daysSincePlanting
-        if (daysUntil < nextDays) {
-          nextDays = daysUntil
-          nextTask = { name: task.name, days_until: daysUntil }
-        }
-        break
-      }
-      if (!task.repeat_days) break
-      offset += task.repeat_days
+  const consider = (name, daysUntil) => {
+    if (daysUntil < nextDays) {
+      nextDays = daysUntil
+      nextTask = { name, days_until: daysUntil }
     }
+  }
+
+  for (const task of careTasks) {
+    // Ближайшее наступление в текущем сезоне (null — все уже прошли).
+    let occurrence = null
+    if (!task.repeat_days) {
+      // Разовая задача не зависит от limit — у неё ровно одна дата, и у многолетников
+      // day_offset бывает больше лимита (осенняя обрезка на 150-й день). Зеркало buildSchedule.
+      if (task.day_offset > daysSincePlanting) occurrence = task.day_offset
+    } else {
+      let offset = task.day_offset
+      while (offset <= limit) {
+        if (offset > daysSincePlanting) { occurrence = offset; break }
+        offset += task.repeat_days
+      }
+    }
+
+    if (occurrence !== null) consider(task.name, occurrence - daysSincePlanting)
+    else if (seasonDays) consider(task.name, seasonDays + task.day_offset - daysSincePlanting)
   }
   return nextTask
 }
@@ -263,11 +343,14 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays) {
  *
  * @returns {{ name: string, days_overdue: number } | null}
  */
-function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDone = {}, todayActions = [], isPerennial = false) {
+function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDone = {}, todayActions = [], isPerennial = false, seasonStart = null) {
   if (!careTasks || careTasks.length === 0) return null
   const limit = harvestDays || 180
-  const eff = effectivePlantedAt(plantedAt, isPerennial, today)
+  const eff = effectivePlantedAt(plantedAt, isPerennial, today, seasonStart)
   const daysSincePlanting = Math.floor((today - eff) / 86400000)
+  // Якорь сезона может быть раньше посадки (куст завели в середине сезона) — задачи
+  // до самой посадки не показываем: их физически нельзя было выполнить.
+  const realPlantedAt = new Date(plantedAt)
   let best = null
 
   for (const task of careTasks) {
@@ -286,6 +369,7 @@ function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDo
 
     const mappedAction = careTaskActionType(task.name)
     const dueDate = new Date(eff.getTime() + dueOffset * 86400000)
+    if (dueDate < realPlantedAt) continue // задача выпала раньше, чем куст оказался в земле
     const lastDone = mappedAction ? lastCareDone[mappedAction] : null
     const doneSinceDue = lastDone && new Date(lastDone) >= dueDate
     const doneToday = mappedAction && todayActions.includes(mappedAction)
@@ -332,7 +416,11 @@ function pushGrouped(tasks, accum, type) {
 }
 
 function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, reminders, today = new Date(), careActionsToday = {}, precipProb = null, lastCareActionMap = {}, lastHarvestedMap = {}, opts = {}) {
-  const { lastRainAt = null } = opts
+  // climateZone — зона участка (gardens.climate_zone). Нужна, чтобы уход многолетников
+  // считался от начала сезона в этой зоне, а не от годовщины посадки (см. effectivePlantedAt).
+  // seasonStart можно передать готовым (погодная поправка по участку) — иначе берём по зоне.
+  const { lastRainAt = null, climateZone = null, seasonStart = null } = opts
+  const gardenSeasonStart = seasonStart ?? seasonStartDoy(climateZone)
   const rain = rainOutlook(weather, precipProb)
   const frost = frostOutlook(weather)
   const tasks = []
@@ -341,9 +429,11 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
   const fertAccum = []  // подкормка — аналогично
 
   for (const p of plantings) {
-    // Для многолетников отсчёт ухода — от текущего сезона (см. effectivePlantedAt).
-    const plantedAt = effectivePlantedAt(new Date(p.planted_at), p.is_perennial, today)
+    // Для многолетников отсчёт ухода — от начала сезона в зоне участка (см. effectivePlantedAt).
+    const plantedAt = effectivePlantedAt(new Date(p.planted_at), p.is_perennial, today, gardenSeasonStart)
     const daysSincePlanting = Math.floor((today - plantedAt) / 86400000)
+    // Якорь сезона бывает раньше посадки — задачи до неё не показываем (см. effectivePlantedAt).
+    const realPlantedAt = new Date(p.planted_at)
 
     // 🚨 Угроза заморозков (теплица защищает — для greenhouse алерт не показываем).
     // Предупреждаем и на завтра/послезавтра: укрытие нужно готовить заранее.
@@ -410,6 +500,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
 
       const mappedAction = careTaskActionType(task.name)
       const dueDate = new Date(plantedAt.getTime() + dueOffset * 86400000)
+      if (dueDate < realPlantedAt) continue // задача выпала раньше, чем культура оказалась в земле
       const lastDone = mappedAction ? lastCareDone[mappedAction] : null
       const doneSinceDue = lastDone && new Date(lastDone) >= dueDate
       const doneToday = mappedAction && todayActions.includes(mappedAction)
@@ -669,6 +760,7 @@ const TASK_LIMIT = 7
 module.exports = {
   buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType,
   wateringIntervalDays, wateringStatus, rainOutlook, frostOutlook, effectivePlantedAt,
+  seasonLengthDays, seasonStartDoy, dateFromDoy, SEASON_START_DOY,
   urgencyLevel,
   CARE_ACTION_TYPES, OVERDUE_WINDOW_DAYS, TASK_LIMIT, RAIN_AS_WATERING_MM,
   URGENCY_SOON_MAX_DAYS,

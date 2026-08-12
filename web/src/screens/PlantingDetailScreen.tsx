@@ -5,6 +5,7 @@ import { Pencil, ArrowLeft, Lock } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { STAGE_LABELS, actionLabel, formatDate } from '../api/labels'
 import { buildSchedule, careTaskActionType, collapseActions, type SchedStatus } from '../api/schedule'
+import { useGardens } from '../garden/GardenContext'
 import { CareSection, NeighborsSection } from '../components/CropCare'
 import ProblemList from '../components/ProblemList'
 import DiagnosePhotoButton from '../components/DiagnosePhotoButton'
@@ -26,6 +27,7 @@ export default function PlantingDetailScreen() {
   const { id } = useParams()
   const plantingId = Number(id)
   const navigate = useNavigate()
+  const { gardens } = useGardens()
 
   const [planting, setPlanting] = useState<Planting | null>(null)
   const [crop, setCrop] = useState<Crop | null>(null)
@@ -60,6 +62,9 @@ export default function PlantingDetailScreen() {
 
   const schedule = useMemo(() => {
     if (!planting?.planted_at || !crop) return []
+    // Начало сезона берём у участка ЭТОЙ посадки, а не у активного: участков может быть
+    // несколько. Число уже посчитано сервером (см. normalizeGarden).
+    const seasonStart = gardens.find((g) => g.id === planting.garden_id)?.season_start_doy ?? null
     return buildSchedule({
       transplantDays: crop.transplant_days,
       careTasks: crop.care_tasks,
@@ -68,12 +73,13 @@ export default function PlantingDetailScreen() {
       conditions: planting.conditions,
       sowingMethod: planting.sowing_method,
       isPerennial: crop.is_perennial,
+      seasonStart,
       planted: new Date(planting.planted_at),
       actions,
       today: new Date(),
       createdAt: planting.created_at ? new Date(planting.created_at) : null,
     })
-  }, [planting, crop, actions])
+  }, [planting, crop, actions, gardens])
 
   useEffect(() => {
     load()

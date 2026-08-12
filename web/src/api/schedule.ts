@@ -117,6 +117,10 @@ export function buildSchedule(opts: {
   conditions?: string | null
   sowingMethod?: string | null
   isPerennial?: boolean | null
+  // Начало сезона ухода (день года). Приходит с сервера готовым — garden.season_start_doy.
+  // Для многолетника это якорь вместо годовщины посадки: иначе «Весенняя обрезка» уезжает
+  // в месяц посадки. Считает сервер, чтобы логика не расползалась по трём платформам.
+  seasonStart?: number | null
   planted: Date
   actions: ActionLog[]
   today: Date
@@ -129,11 +133,10 @@ export function buildSchedule(opts: {
   const planted = midnight(opts.planted)
   const today = midnight(opts.today)
   const createdAt = opts.createdAt ? midnight(opts.createdAt) : null
-  // Многолетники: годовой уход/урожай считаем от годовщины посадки в ТЕКУЩЕМ сезоне, а не
-  // навечно от исходного года посадки — иначе после первого года все day_offset-даты остаются
-  // в прошлом и задачи просто пропадают из расписания. Разовая пересадка сеянцев (transplantDays)
-  // годовщине не подчиняется — она была один раз в начале жизни растения, считаем от planted.
-  const anchor = effectivePlanted(planted, opts.isPerennial === true, today)
+  // Многолетники: уход считаем от начала сезона в зоне участка (календарь), иначе — от
+  // годовщины посадки. Разовая пересадка сеянцев (transplantDays) якорю не подчиняется —
+  // она была один раз в начале жизни растения, считаем от planted.
+  const anchor = effectivePlanted(planted, opts.isPerennial === true, today, opts.seasonStart ?? null)
   const rows: SchedRow[] = []
 
   const statusOf = (name: string, date: Date, next: Date | null): SchedStatus => {
@@ -208,8 +211,10 @@ export function buildSchedule(opts: {
     rows.push({ name: 'Сбор урожая', dateStr: fmt(d), date: d, status: 'neutral' })
   }
 
-  const visible = createdAt ? rows.filter((r) => r.date >= createdAt) : rows
-  return visible.sort((a, b) => a.date.getTime() - b.date.getTime())
+  // Отсекаем то, что выполнить было нельзя: задачи раньше самой посадки (якорь сезона может
+  // быть раньше неё, если куст завели в середине сезона) и раньше добавления в приложение.
+  const floor = createdAt && createdAt > planted ? createdAt : planted
+  return rows.filter((r) => r.date >= floor).sort((a, b) => a.date.getTime() - b.date.getTime())
 }
 
 // ─── Календарь: сборка событий (порт android CalendarViewModel.buildEvents) ───
@@ -240,9 +245,27 @@ function parseDateOnly(iso?: string | null): Date | null {
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
 }
 
-// Сезонный сброс отсчёта для многолетников — зеркало backend effectivePlantedAt (utils/todayLogic.js).
-function effectivePlanted(planted: Date, isPerennial: boolean, today: Date): Date {
+// День года (1 = 1 января) → Date указанного года. Через setDate, поэтому високосный год
+// учитывается сам. Зеркало backend dateFromDoy (utils/todayLogic.js).
+function dateFromDoy(doy: number, year: number): Date {
+  const d = new Date(year, 0, 1)
+  d.setDate(doy)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// Эффективная дата отсчёта ухода. У многолетника уход привязан к КАЛЕНДАРЮ, а не к дате
+// посадки: смородину обрезают весной независимо от того, посадили её в октябре или в мае.
+// Якорь — начало сезона в зоне участка; без зоны — фолбэк на годовщину посадки.
+// Зеркало backend effectivePlantedAt (utils/todayLogic.js).
+function effectivePlanted(planted: Date, isPerennial: boolean, today: Date, seasonStart: number | null = null): Date {
   if (!isPerennial) return planted
+  if (seasonStart) {
+    let anchor = dateFromDoy(seasonStart, today.getFullYear())
+    // Сезон этого года ещё далеко впереди — значит идёт прошлогодний.
+    if (anchor.getTime() - today.getTime() > 31 * DAY) anchor = dateFromDoy(seasonStart, today.getFullYear() - 1)
+    return anchor
+  }
   if (today.getTime() - planted.getTime() < 365 * DAY) return planted
   const anniv = new Date(planted)
   anniv.setFullYear(today.getFullYear())

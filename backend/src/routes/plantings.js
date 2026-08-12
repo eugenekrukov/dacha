@@ -1,7 +1,9 @@
 'use strict'
 
-const { getNextCareTask, getOverdueCareTask, effectivePlantedAt } = require('../utils/todayLogic')
+const { getNextCareTask, getOverdueCareTask, effectivePlantedAt, seasonLengthDays, seasonStartDoy } = require('../utils/todayLogic')
 const { hasAccess, FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
+const { getZoneForRegion } = require('../utils/regionCoords')
+const { storedSeasonStart } = require('../services/seasonService')
 
 module.exports = async function (fastify) {
   const auth = { onRequest: [fastify.authenticate] }
@@ -78,6 +80,7 @@ module.exports = async function (fastify) {
     const result = await fastify.db.query(
       `SELECT p.*, c.name as crop_name, c.category, c.watering_freq_days, c.frost_sensitive,
               c.care_tasks, c.harvest_days, c.watering_freq_days as watering_freq_days, c.yield_per_plant_kg, c.is_perennial,
+              g.climate_zone, g.region, g.season_start_doy, g.season_start_year,
               (SELECT MAX(a.logged_at) FROM action_logs a WHERE a.planting_id = p.id) AS last_action_at,
               (SELECT a.action_type FROM action_logs a WHERE a.planting_id = p.id
                ORDER BY a.logged_at DESC LIMIT 1) AS last_action_type
@@ -128,24 +131,35 @@ module.exports = async function (fastify) {
     // Вычисляем next_care_task (будущие) и overdue_care_task (просроченные/сегодня) для каждой посадки
     const now = new Date()
     const rows = result.rows.map(p => {
-      // Многолетникам график ухода считаем от текущего сезона (см. effectivePlantedAt).
-      const plantedAt = effectivePlantedAt(new Date(p.planted_at), p.is_perennial, now)
+      // Многолетникам график ухода считаем от начала сезона в зоне участка (см. effectivePlantedAt).
+      // Зона участка бывает не заполнена (создан до появления поля / регион не распознан) —
+      // тогда берём её из региона тем же правилом, что и GET /gardens, иначе фикс сезонности
+      // молча не сработал бы для таких участков.
+      // Фактическая весна этого года (джоб погоды), иначе норма по зоне.
+      const seasonStart = storedSeasonStart(p, now) ?? seasonStartDoy(p.climate_zone || getZoneForRegion(p.region))
+      const plantedAt = effectivePlantedAt(new Date(p.planted_at), p.is_perennial, now, seasonStart)
       const daysSincePlanting = Math.floor((now - plantedAt) / 86400000)
       // Завершённым посадкам уход не нужен
+      // Многолетнику передаём длину сезона: когда весь уход текущего сезона позади
+      // (осенняя посадка, смотрим летом), next_care_task берётся из следующего сезона,
+      // а не молчит до годовщины. Однолетнику следующего сезона нет → null.
+      const seasonDays = p.is_perennial ? seasonLengthDays(plantedAt) : null
       const nextCareTask = p.stage === 'done'
         ? null
-        : getNextCareTask(p.care_tasks, daysSincePlanting, p.harvest_days)
+        : getNextCareTask(p.care_tasks, daysSincePlanting, p.harvest_days, seasonDays)
       const overdueCareTask = p.stage === 'done'
         ? null
-        : getOverdueCareTask(p.care_tasks, new Date(p.planted_at), now, p.harvest_days, lastCareMap[p.id] || {}, todayCareMap[p.id] || [], p.is_perennial)
+        : getOverdueCareTask(p.care_tasks, new Date(p.planted_at), now, p.harvest_days, lastCareMap[p.id] || {}, todayCareMap[p.id] || [], p.is_perennial, seasonStart)
       // Ожидаемая дата урожая = эффективная дата посадки + harvest_days (для многолетников —
       // от текущего сезона, см. effectivePlantedAt). Клиенты (Android/web) показывают её в
       // календаре; раньше поле не отдавалось, и на Android событие «Урожай» не появлялось.
       const expectedHarvestAt = p.harvest_days
         ? new Date(plantedAt.getTime() + p.harvest_days * 86400000).toISOString()
         : null
-      // Не передаём care_tasks клиенту — это внутренние данные
-      const { care_tasks, ...rest } = p
+      // Не передаём care_tasks клиенту — это внутренние данные. climate_zones/climate_zone
+      // подтянуты только для расчёта якоря сезона: справочник культур отдаёт их сам (/crops),
+      // а здесь они лишь раздували бы ответ на каждую посадку.
+      const { care_tasks, climate_zone, region, season_start_doy, season_start_year, ...rest } = p
       return {
         ...rest,
         next_care_task: nextCareTask,

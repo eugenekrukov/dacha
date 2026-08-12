@@ -101,7 +101,9 @@ module.exports = async function (fastify, opts) {
        ${whereClause}
        -- Ретро-посадки (planted_at в прошлом) не должны тянуть в историю действия,
        -- залогированные раньше, чем сама посадка появилась в приложении.
-       ${conds.length ? 'AND' : 'WHERE'} combined.logged_at >= combined.planting_created_at
+       -- COALESCE обязателен: created_at nullable, а сравнение с NULL отбросило бы
+       -- ВСЮ историю такой посадки молча (-infinity = не фильтруем, как было раньше).
+       ${conds.length ? 'AND' : 'WHERE'} combined.logged_at >= COALESCE(combined.planting_created_at, '-infinity'::timestamptz)
        ORDER BY logged_at DESC
        LIMIT $${params.length}`,
       params

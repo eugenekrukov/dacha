@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks, formatTasks, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt, TASK_LIMIT } = require('../../utils/todayLogic')
+const { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt, seasonLengthDays, seasonStartDoy, dateFromDoy, TASK_LIMIT } = require('../../utils/todayLogic')
 
 // ─── Фабрики тестовых данных ─────────────────────────────────────────────────
 
@@ -815,6 +815,59 @@ describe('окно давности просрочки', () => {
   })
 })
 
+// ─── getNextCareTask (поле next_care_task на карточке посадки) ────────────────
+
+describe('getNextCareTask', () => {
+  const TASKS = [
+    { name: 'Весенняя обрезка', day_offset: 7, repeat_days: null },
+    { name: 'Прополка', day_offset: 30, repeat_days: 21 },
+  ]
+
+  it('пустой список задач → null', () => {
+    expect(getNextCareTask([], 10, 180)).toBeNull()
+    expect(getNextCareTask(null, 10, 180)).toBeNull()
+  })
+
+  it('возвращает ближайшую будущую задачу', () => {
+    // 3-й день сезона: обрезка на 7-й ближе, чем прополка на 30-й
+    expect(getNextCareTask(TASKS, 3, 180)).toEqual({ name: 'Весенняя обрезка', days_until: 4 })
+  })
+
+  it('повторяющаяся задача — следующий повтор, а не первое наступление', () => {
+    // 35-й день: прополка была на 30-м, следующая на 51-м (30+21)
+    expect(getNextCareTask(TASKS, 35, 180)).toEqual({ name: 'Прополка', days_until: 16 })
+  })
+
+  it('однолетник: весь уход сезона позади → null (следующего сезона нет)', () => {
+    expect(getNextCareTask(TASKS, 300, 180)).toBeNull()
+  })
+
+  // Осенняя посадка многолетника: смотрим летом, до годовщины ещё далеко.
+  // Раньше карточка молчала — все day_offset уже позади, а limit короче срока.
+  it('многолетник: весь уход сезона позади → первая задача СЛЕДУЮЩЕГО сезона', () => {
+    const r = getNextCareTask(TASKS, 300, 180, 365)
+    // Следующий сезон стартует через 365-300=65 дн., обрезка ещё через 7 → 72
+    expect(r).toEqual({ name: 'Весенняя обрезка', days_until: 72 })
+  })
+
+  it('многолетник: задача текущего сезона приоритетнее задачи следующего', () => {
+    // 3-й день: обрезка через 4 дн. этого сезона, а не через 365+7-3 следующего
+    expect(getNextCareTask(TASKS, 3, 180, 365)).toEqual({ name: 'Весенняя обрезка', days_until: 4 })
+  })
+
+  it('разовая задача за пределами limit всё равно находится (осенняя обрезка кустов)', () => {
+    // harvest_days=null → limit 180; у кустов/деревьев есть разовые задачи на 130–150 день
+    const autumn = [{ name: 'Осенняя обрезка', day_offset: 150, repeat_days: null }]
+    expect(getNextCareTask(autumn, 100, 120)).toEqual({ name: 'Осенняя обрезка', days_until: 50 })
+  })
+
+  it('days_until всегда положительный при переходе в следующий сезон', () => {
+    // Граница: сезон почти закончился (334 дн. — максимум для годовщинного якоря)
+    const r = getNextCareTask(TASKS, 334, 180, 365)
+    expect(r.days_until).toBeGreaterThan(0)
+  })
+})
+
 // ─── Сезонный сброс для многолетников (effectivePlantedAt) ─────────────────────
 
 describe('effectivePlantedAt', () => {
@@ -833,6 +886,73 @@ describe('effectivePlantedAt', () => {
     const days = Math.floor((TODAY - eff) / 86400000)
     expect(days).toBeGreaterThanOrEqual(0)
     expect(days).toBeLessThanOrEqual(365)
+  })
+
+  // ─── Якорь по началу сезона в зоне участка (фикс сезонности) ───
+  // Сверяем по ЛОКАЛЬНЫМ компонентам даты: dateFromDoy строит локальную полночь, а
+  // toISOString() увёл бы дату на сутки назад в любом поясе восточнее UTC.
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  it('seasonStartDoy: холодная зона стартует позже тёплой', () => {
+    // Реальные значения: устойчивый переход через +5 °C по архиву Open-Meteo 2021–2026
+    expect(seasonStartDoy('3')).toBe(112) // Сибирь, ~22 апреля
+    expect(seasonStartDoy('4')).toBe(101)
+    expect(seasonStartDoy('5')).toBe(86)
+    expect(seasonStartDoy('6')).toBe(73)  // юг, ~14 марта
+    expect(seasonStartDoy(3)).toBe(112)   // число, не строка
+  })
+
+  it('seasonStartDoy: нет зоны → null; неизвестная зона → дефолт', () => {
+    expect(seasonStartDoy(null)).toBeNull()
+    expect(seasonStartDoy(undefined)).toBeNull()
+    expect(seasonStartDoy('99')).toBe(86) // фолбэк на среднюю полосу, а не падение
+  })
+
+  it('dateFromDoy: 91-й день = 1 апреля, високосный год учитывается', () => {
+    expect(ymd(dateFromDoy(91, 2026))).toBe('2026-04-01')
+    expect(ymd(dateFromDoy(60, 2028))).toBe('2028-02-29') // 2028 високосный
+  })
+
+  // Главный случай пользователя: осенняя посадка больше не тащит «весну» в октябрь.
+  it('осенняя посадка многолетника: якорь — 1 апреля (зона 3), а НЕ годовщина в октябре', () => {
+    const planted = new Date('2024-10-15')
+    const today = new Date('2026-08-12')
+    const eff = effectivePlantedAt(planted, true, today, 109)
+    expect(ymd(eff)).toBe('2026-04-19')
+    // «Весенняя обрезка» +7 дн. теперь попадает в апрель, а не в октябрь
+    const pruning = new Date(eff.getTime() + 7 * 86400000)
+    expect(pruning.getMonth() + 1).toBe(4)
+  })
+
+  it('зона сдвигает якорь: зона 6 (1 марта) раньше зоны 3 (1 апреля)', () => {
+    const planted = new Date('2024-10-15')
+    const today = new Date('2026-08-12')
+    const z3 = effectivePlantedAt(planted, true, today, 109)
+    const z6 = effectivePlantedAt(planted, true, today, 70)
+    expect(Math.round((z3 - z6) / 86400000)).toBe(39) // ровно месяц разницы
+  })
+
+  it('зимой (сезон ещё впереди) якорь — прошлогодний, а не будущий', () => {
+    const eff = effectivePlantedAt(new Date('2024-10-15'), true, new Date('2026-02-01'), 109)
+    expect(ymd(eff)).toBe('2025-04-19') // 01.04.2026 ещё >31 дн. впереди
+  })
+
+  it('без зоны — прежнее поведение (годовщина посадки)', () => {
+    const planted = new Date('2024-10-15')
+    const today = new Date('2026-08-12')
+    const eff = effectivePlantedAt(planted, true, today, null)
+    expect(eff.getMonth() + 1).toBe(10) // октябрьская годовщина, как раньше
+  })
+
+  it('однолетник не трогается даже при заданной зоне', () => {
+    const planted = new Date('2026-05-20')
+    const eff = effectivePlantedAt(planted, false, new Date('2026-08-12'), 109)
+    expect(eff.getTime()).toBe(planted.getTime())
+  })
+
+  it('длина сезона — 365 или 366 дней (високосный год)', () => {
+    expect(seasonLengthDays(new Date('2026-05-01'))).toBe(365)
+    expect(seasonLengthDays(new Date('2027-05-01'))).toBe(366) // 2028 високосный → 29 февраля внутри
   })
 
   it('многолетник с прошлогодней датой показывает уход текущего сезона, без лавины', () => {

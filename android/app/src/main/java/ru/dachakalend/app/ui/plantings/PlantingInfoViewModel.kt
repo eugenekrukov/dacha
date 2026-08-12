@@ -34,6 +34,9 @@ data class PlantingInfoUiState(
     val bedError: String? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
+    // Начало сезона ухода (день года) — якорь графика многолетников. Считает сервер
+    // (normalizeGarden), клиент только передаёт в buildSchedule. См. effectivePlanted.
+    val seasonStartDoy: Int? = null,
     // Фото-дневник
     val photos: List<PlantingPhoto> = emptyList(),
     val uploadBusy: Boolean = false,
@@ -60,7 +63,8 @@ class PlantingInfoViewModel @Inject constructor(
     private val actionsRepository: ActionsRepository,
     private val guideRepository: GuideRepository,
     private val photosRepository: PhotosRepository,
-    private val bedsRepository: BedsRepository
+    private val bedsRepository: BedsRepository,
+    private val tokenStorage: ru.dachakalend.app.data.local.TokenStorage
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlantingInfoUiState())
@@ -72,7 +76,7 @@ class PlantingInfoViewModel @Inject constructor(
         if (loadedPlantingId == plantingId && _uiState.value.planting != null) return
         loadedPlantingId = plantingId
         viewModelScope.launch {
-            _uiState.value = PlantingInfoUiState(isLoading = true)
+            _uiState.value = PlantingInfoUiState(isLoading = true, seasonStartDoy = tokenStorage.getSeasonStartDoy())
             val pRes = plantingsRepository.getPlanting(plantingId)
             val planting = (pRes as? Result.Success)?.data
             if (planting == null) {
@@ -93,7 +97,8 @@ class PlantingInfoViewModel @Inject constructor(
                 recentActions = if (actions is Result.Success) actions.data else emptyList(),
                 problems = if (guide is Result.Success) guide.data else emptyList(),
                 isLoading = false,
-                error = if (crop is Result.Error) crop.message else null
+                error = if (crop is Result.Error) crop.message else null,
+                seasonStartDoy = tokenStorage.getSeasonStartDoy()
             )
             loadBeds(planting.gardenId)
             loadPhotos(plantingId)

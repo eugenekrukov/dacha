@@ -30,6 +30,9 @@ export interface Garden {
   region?: string | null
   city?: string | null
   climate_zone?: string | null
+  // Начало сезона ухода (день года) для зоны участка. Считает сервер (normalizeGarden):
+  // клиенту не нужно знать ни про зоны, ни про пороги температуры.
+  season_start_doy?: number | null
   garden_type?: string | null
   planting_count?: number
 }

@@ -1,6 +1,8 @@
 'use strict'
 
 const { getCoordsForRegion, getZoneForRegion } = require('../utils/regionCoords')
+const { seasonStartDoy } = require('../utils/todayLogic')
+const { storedSeasonStart } = require('../services/seasonService')
 const { updateGardenWeather } = require('../services/weatherService')
 
 async function geocodeCity(city) {
@@ -18,12 +20,20 @@ async function geocodeCity(city) {
   return null
 }
 
-// pg возвращает DECIMAL-колонки как строки — нормализуем в числа
+// pg возвращает DECIMAL-колонки как строки — нормализуем в числа.
+// Заодно достраиваем два производных поля, чтобы клиентам не приходилось их выводить самим:
+//   climate_zone     — из региона, если у участка не проставлена;
+//   season_start_doy — начало сезона ухода (день года) для этой зоны. Считает СЕРВЕР:
+//     раньше такую логику дублировали на трёх платформах, и копии расходились.
 function normalizeGarden(g) {
+  const zone = g.climate_zone ?? getZoneForRegion(g.region)
   return {
     ...g,
     lat: g.lat != null ? parseFloat(g.lat) : null,
     lon: g.lon != null ? parseFloat(g.lon) : null,
+    climate_zone: zone,
+    // Фактическая весна этого года, если джоб погоды успел её определить; иначе норма по зоне.
+    season_start_doy: storedSeasonStart(g) ?? seasonStartDoy(zone),
   }
 }
 
@@ -91,10 +101,7 @@ module.exports = async function (fastify) {
        ORDER BY planting_count DESC, g.created_at ASC`,
       [request.user.userId]
     )
-    return result.rows.map(g => ({
-      ...normalizeGarden(g),
-      climate_zone: g.climate_zone ?? getZoneForRegion(g.region)
-    }))
+    return result.rows.map(normalizeGarden)
   })
 
   // GET /gardens/:id

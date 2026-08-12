@@ -40,6 +40,7 @@ import ru.dachakalend.app.data.model.ActionLog
 import ru.dachakalend.app.data.model.CareTask
 import ru.dachakalend.app.data.model.PlantingPhoto
 import ru.dachakalend.app.ui.actions.careTaskActionType
+import ru.dachakalend.app.ui.common.effectivePlanted
 import ru.dachakalend.app.ui.common.rememberPhotoPickers
 import ru.dachakalend.app.ui.crops.CropCareSection
 import ru.dachakalend.app.ui.crops.CropNeighborsSection
@@ -90,26 +91,15 @@ private fun rowActionTypes(name: String): Set<String>? = when {
 // createdAt — когда посадка реально добавлена в приложение (planting.createdAt). Для
 // ретро-посадок (planted в прошлом) отсекаем строки расписания раньше этой даты — их всё
 // равно уже не выполнить, у многолетников (обрезка/подвязка «раз в год») иначе копится мёртвый лог.
-// Многолетники: годовой уход/урожай считаем от годовщины посадки в ТЕКУЩЕМ сезоне, а не
-// навечно от исходного года посадки — иначе после первого года все dayOffset-даты остаются
-// в прошлом и задачи пропадают из расписания (порт web effectivePlanted, schedule.ts).
-private fun effectivePlanted(planted: LocalDate, isPerennial: Boolean, today: LocalDate): LocalDate {
-    if (!isPerennial) return planted
-    if (java.time.temporal.ChronoUnit.DAYS.between(planted, today) < 365) return planted
-    var anniv = planted.withYear(today.year)
-    if (java.time.temporal.ChronoUnit.DAYS.between(today, anniv) > 31) anniv = anniv.withYear(today.year - 1)
-    return anniv
-}
-
 private fun buildSchedule(
     transplantDays: Int?, careTasks: List<CareTask>?, harvestDays: Int?, wateringFreqDays: Int?,
     conditions: String?, sowingMethod: String?, planted: LocalDate, actions: List<ActionLog>, today: LocalDate,
-    createdAt: LocalDate? = null, isPerennial: Boolean = false
+    createdAt: LocalDate? = null, isPerennial: Boolean = false, seasonStart: Int? = null
 ): List<SchedRow> {
     val rows = mutableListOf<SchedRow>()
-    // Разовая пересадка сеянцев (transplantDays) годовщине не подчиняется — она была один раз
+    // Разовая пересадка сеянцев (transplantDays) якорю не подчиняется — она была один раз
     // в начале жизни растения, считаем от planted; остальное — от anchor.
-    val anchor = effectivePlanted(planted, isPerennial, today)
+    val anchor = effectivePlanted(planted, isPerennial, today, seasonStart)
     fun statusOf(name: String, date: LocalDate, next: LocalDate?): SchedStatus {
         val types = rowActionTypes(name) ?: return SchedStatus.NEUTRAL
         val done = actions.any { a ->
@@ -152,8 +142,10 @@ private fun buildSchedule(
         }
     }
     harvestDays?.let { val d = anchor.plusDays(it.toLong()); rows += SchedRow("Сбор урожая", fmtDate(d), d, SchedStatus.NEUTRAL) }
-    val visible = if (createdAt != null) rows.filter { !it.date.isBefore(createdAt) } else rows
-    return visible.sortedBy { it.date }
+    // Отсекаем то, что выполнить было нельзя: задачи раньше самой посадки (якорь сезона может
+    // быть раньше неё, если куст завели в середине сезона) и раньше добавления в приложение.
+    val floor = if (createdAt != null && createdAt.isAfter(planted)) createdAt else planted
+    return rows.filter { !it.date.isBefore(floor) }.sortedBy { it.date }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -297,7 +289,8 @@ private fun AboutTab(
                 transplantDays = crop.transplantDays, careTasks = crop.careTasks, harvestDays = crop.harvestDays,
                 wateringFreqDays = crop.wateringFreqDays, conditions = planting.conditions, sowingMethod = planting.sowingMethod,
                 planted = planted, actions = state.recentActions, today = LocalDate.now(),
-                createdAt = plantedDate(planting.createdAt), isPerennial = crop.isPerennial == true
+                createdAt = plantedDate(planting.createdAt), isPerennial = crop.isPerennial == true,
+                seasonStart = state.seasonStartDoy
             )
             if (schedule.isNotEmpty()) {
                 InfoSection(title = "Расписание работ") {

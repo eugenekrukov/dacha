@@ -22,6 +22,7 @@ class GardenRepository @Inject constructor(
             if (gardens.isNotEmpty()) {
                 tokenStorage.saveGardenId(gardens.first().id)
                 tokenStorage.saveClimateZone(gardens.first().climateZone)
+                tokenStorage.saveSeasonStartDoy(gardens.first().seasonStartDoy)
             }
             Result.Success(gardens)
         } catch (e: Exception) {
@@ -53,6 +54,7 @@ class GardenRepository @Inject constructor(
             )
             tokenStorage.saveGardenId(garden.id)
             tokenStorage.saveClimateZone(garden.climateZone)
+            tokenStorage.saveSeasonStartDoy(garden.seasonStartDoy)
             Result.Success(garden)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Ошибка создания участка")
@@ -83,6 +85,7 @@ class GardenRepository @Inject constructor(
                 )
             )
             tokenStorage.saveClimateZone(garden.climateZone)
+            tokenStorage.saveSeasonStartDoy(garden.seasonStartDoy)
             Result.Success(garden)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Ошибка сохранения участка")

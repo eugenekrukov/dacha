@@ -15,6 +15,7 @@ import ru.dachakalend.app.data.model.TodayTask
 import ru.dachakalend.app.data.repository.CalendarRepository
 import ru.dachakalend.app.data.repository.MoonCalendarRepository
 import ru.dachakalend.app.data.repository.Result
+import ru.dachakalend.app.ui.common.effectivePlanted
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
@@ -165,8 +166,15 @@ class CalendarViewModel @Inject constructor(
                 }
             }
 
-            val sown = planting.sownAt?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
+            // Уход/полив у многолетника считаем от начала сезона в зоне участка (календарь),
+            // а не от даты посадки — иначе «Весенняя обрезка» уезжает в месяц посадки, а у куста,
+            // заведённого год назад, календарь вообще пуст. Событие «Посев» выше — по РЕАЛЬНОЙ дате.
+            // Зеркало web buildCalendarEvents (api/schedule.ts).
+            val realSown = planting.sownAt?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
                 ?: return@forEach
+            val sown = effectivePlanted(
+                realSown, crop?.isPerennial == true, today, tokenStorage.getSeasonStartDoy()
+            )
 
             // Полив — по wateringFreqDays. Теплица → поливать ЧАЩЕ (×0.8 к интервалу),
             // единый расчёт с бэкендом (utils/todayLogic.wateringIntervalDays).
