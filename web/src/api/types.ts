@@ -33,6 +33,7 @@ export interface Garden {
   // Начало сезона ухода (день года) для зоны участка. Считает сервер (normalizeGarden):
   // клиенту не нужно знать ни про зоны, ни про пороги температуры.
   season_start_doy?: number | null
+  season_end_doy?: number | null
   garden_type?: string | null
   planting_count?: number
 }
@@ -183,6 +184,9 @@ export interface CareTask {
   name: string
   day_offset: number
   repeat_days?: number | null
+  // К чему привязано day_offset: 'start' (по умолчанию) — к началу вегетации,
+  // 'end' — к её концу, тогда отрицательное значение означает «до листопада».
+  anchor?: 'start' | 'end' | null
 }
 
 // Болезни/вредители/подкормки/полив — зеркало backend crops schema (миграция 005) и android Models.kt.

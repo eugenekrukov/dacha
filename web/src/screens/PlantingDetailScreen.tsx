@@ -74,6 +74,7 @@ export default function PlantingDetailScreen() {
       sowingMethod: planting.sowing_method,
       isPerennial: crop.is_perennial,
       seasonStart,
+      seasonEnd: gardens.find((g) => g.id === planting.garden_id)?.season_end_doy ?? null,
       planted: new Date(planting.planted_at),
       actions,
       today: new Date(),

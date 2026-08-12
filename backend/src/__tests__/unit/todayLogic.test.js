@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt, seasonLengthDays, seasonStartDoy, dateFromDoy, TASK_LIMIT } = require('../../utils/todayLogic')
+const { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt, seasonLengthDays, seasonStartDoy, seasonEndDoy, dateFromDoy, taskDayOffset, TASK_LIMIT } = require('../../utils/todayLogic')
 
 // ─── Фабрики тестовых данных ─────────────────────────────────────────────────
 
@@ -812,6 +812,45 @@ describe('окно давности просрочки', () => {
   it('getOverdueCareTask: задача старше окна → null', () => {
     const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 5 }], new Date(daysAgo(40, TODAY)), TODAY, 200)
     expect(r).toBeNull()
+  })
+})
+
+// ─── Осенний якорь (anchor:"end") ────────────────────────────────────────────
+
+describe('taskDayOffset — привязка осенних работ к концу вегетации', () => {
+  const autumn = { name: 'Осенняя обрезка', day_offset: 7, anchor: 'end' }
+  const spring = { name: 'Весенняя обрезка', day_offset: 7 }
+
+  it('весенняя задача считается от начала — длина сезона не влияет', () => {
+    expect(taskDayOffset(spring, 168)).toBe(7)
+    expect(taskDayOffset(spring, 252)).toBe(7)
+  })
+
+  it('осенняя задача сдвигается на длину сезона своей зоны', () => {
+    // Зона 3: сезон 165 дн. → 172-й день от начала = середина октября
+    expect(taskDayOffset(autumn, 165)).toBe(172)
+    // Зона 6: сезон 253 дн. → 260-й день, тоже осень, а не август
+    expect(taskDayOffset(autumn, 253)).toBe(260)
+  })
+
+  it('отрицательное смещение = ДО конца вегетации (осенняя подкормка)', () => {
+    expect(taskDayOffset({ name: 'Осенняя подкормка', day_offset: -21, anchor: 'end' }, 165)).toBe(144)
+  })
+
+  it('нет длины сезона → задача остаётся привязанной к началу, а не теряется', () => {
+    expect(taskDayOffset(autumn, null)).toBe(7)
+    expect(taskDayOffset(autumn, 0)).toBe(7)
+  })
+
+  // Смысловая проверка: одна и та же задача в разных зонах попадает в ОСЕНЬ.
+  it('осенняя обрезка попадает в осень и в Сибири, и на юге', () => {
+    const month = (startDoy, seasonLen) => {
+      const d = dateFromDoy(startDoy, 2026)
+      d.setDate(d.getDate() + taskDayOffset(autumn, seasonLen))
+      return d.getMonth() + 1
+    }
+    expect([9, 10]).toContain(month(112, 277 - 112)) // зона 3
+    expect([9, 10, 11]).toContain(month(73, 326 - 73)) // зона 6
   })
 })
 

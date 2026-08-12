@@ -42,6 +42,7 @@ import ru.dachakalend.app.data.model.PlantingPhoto
 import ru.dachakalend.app.ui.actions.careTaskActionType
 import ru.dachakalend.app.ui.common.effectivePlanted
 import ru.dachakalend.app.ui.common.rememberPhotoPickers
+import ru.dachakalend.app.ui.common.taskDayOffset
 import ru.dachakalend.app.ui.crops.CropCareSection
 import ru.dachakalend.app.ui.crops.CropNeighborsSection
 import ru.dachakalend.app.ui.feed.ActionFeedCard
@@ -94,9 +95,12 @@ private fun rowActionTypes(name: String): Set<String>? = when {
 private fun buildSchedule(
     transplantDays: Int?, careTasks: List<CareTask>?, harvestDays: Int?, wateringFreqDays: Int?,
     conditions: String?, sowingMethod: String?, planted: LocalDate, actions: List<ActionLog>, today: LocalDate,
-    createdAt: LocalDate? = null, isPerennial: Boolean = false, seasonStart: Int? = null
+    createdAt: LocalDate? = null, isPerennial: Boolean = false,
+    seasonStart: Int? = null, seasonEnd: Int? = null
 ): List<SchedRow> {
     val rows = mutableListOf<SchedRow>()
+    // Длина сезона — для перевода осенних задач (anchor="end") в отсчёт от начала.
+    val seasonLength = if (seasonStart != null && seasonEnd != null) seasonEnd - seasonStart else null
     // Разовая пересадка сеянцев (transplantDays) якорю не подчиняется — она была один раз
     // в начале жизни растения, считаем от planted; остальное — от anchor.
     val anchor = effectivePlanted(planted, isPerennial, today, seasonStart)
@@ -115,13 +119,15 @@ private fun buildSchedule(
     careTasks?.forEach { task ->
         // Разовая задача не зависит от limit — у неё всегда ровно одна дата
         // (у многолетников/деревьев dayOffset может быть >120, напр. осенняя обрезка).
+        // Осенние задачи заданы от конца вегетации — приводим к отсчёту от начала.
+        val baseOffset = taskDayOffset(task, seasonLength)
         if (task.repeatDays == null) {
-            val d = anchor.plusDays(task.dayOffset.toLong())
+            val d = anchor.plusDays(baseOffset.toLong())
             rows += SchedRow(task.name, fmtDate(d), d, statusOf(task.name, d, null))
             return@forEach
         }
         val occ = mutableListOf<LocalDate>()
-        var offset = task.dayOffset
+        var offset = baseOffset
         while (offset <= limit) { occ += anchor.plusDays(offset.toLong()); offset += task.repeatDays }
         if (occ.isEmpty()) return@forEach // dayOffset уже за пределами limit — задача вне горизонта
         val idx = occ.indexOfFirst { !it.isBefore(today) }
@@ -290,7 +296,7 @@ private fun AboutTab(
                 wateringFreqDays = crop.wateringFreqDays, conditions = planting.conditions, sowingMethod = planting.sowingMethod,
                 planted = planted, actions = state.recentActions, today = LocalDate.now(),
                 createdAt = plantedDate(planting.createdAt), isPerennial = crop.isPerennial == true,
-                seasonStart = state.seasonStartDoy
+                seasonStart = state.seasonStartDoy, seasonEnd = state.seasonEndDoy
             )
             if (schedule.isNotEmpty()) {
                 InfoSection(title = "Расписание работ") {

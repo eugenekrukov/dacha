@@ -1,6 +1,6 @@
 'use strict'
 
-const { refreshSeasonStart, storedSeasonStart, transitionDoy } = require('../../services/seasonService')
+const { refreshSeason, storedSeasonStart, storedSeasonEnd, transitionDoy } = require('../../services/seasonService')
 
 // Ряд среднесуточных: зима до дня N, потом устойчивое тепло.
 function series(startDoy, temps) {
@@ -80,48 +80,87 @@ describe('storedSeasonStart — актуальность сохранённог�
   })
 })
 
-describe('refreshSeasonStart', () => {
+describe('refreshSeason', () => {
   const garden = { id: 7, lat: 55.03, lon: 82.92 }
   const okResponse = (doy, temps) => ({
     ok: true,
     json: async () => ({ daily: series(doy, temps) }),
   })
 
-  it('считает и сохраняет день перехода', async () => {
+  it('считает и сохраняет начало сезона', async () => {
     let saved = null
     const db = { query: async (sql, params) => { saved = params; return { rows: [] } } }
     const { time, temps } = series(95, [...Array(10).fill(-2), ...Array(14).fill(11)])
     const fetchFn = async () => ({ ok: true, json: async () => ({ daily: { time, temperature_2m_mean: temps } }) })
 
-    const doy = await refreshSeasonStart(db, garden, new Date('2026-08-12'), { fetchFn })
-    expect(doy).toBe(105)
-    expect(saved).toEqual([105, 2026, 7])
+    const r = await refreshSeason(db, garden, new Date('2026-08-12'), { fetchFn })
+    expect(r.start).toBe(105)
+    expect(saved).toEqual([105, null, 2026, 7]) // конец сезона ещё не наступил
+  })
+
+  // Осень определима только после её наступления — ряд с падением ниже +5 в октябре.
+  it('считает и конец сезона, когда осень уже прошла', async () => {
+    let saved = null
+    const db = { query: async (sql, params) => { saved = params; return { rows: [] } } }
+    // весна: мороз с 1 марта (60), тепло с 100; осень: тепло до 280, затем холод
+    const time = [], temps = []
+    const d = new Date(Date.UTC(2026, 2, 1))
+    for (let doy = 60; doy <= 350; doy++) {
+      time.push(d.toISOString().slice(0, 10))
+      temps.push(doy < 100 ? -4 : (doy < 280 ? 14 : -3))
+      d.setUTCDate(d.getUTCDate() + 1)
+    }
+    const fetchFn = async () => ({ ok: true, json: async () => ({ daily: { time, temperature_2m_mean: temps } }) })
+
+    const r = await refreshSeason(db, garden, new Date('2026-12-20'), { fetchFn })
+    expect(r.start).toBeGreaterThanOrEqual(99)
+    expect(r.start).toBeLessThanOrEqual(103)
+    expect(r.end).toBeGreaterThanOrEqual(278)
+    expect(r.end).toBeLessThanOrEqual(283)
+    expect(saved[3]).toBe(7) // id участка
+  })
+
+  it('до осени за её границей в сеть повторно не ходим', async () => {
+    let called = 0
+    const fetchFn = async () => { called++; return okResponse(95, []) }
+    const g = { ...garden, season_start_doy: 105, season_start_year: 2026, season_end_doy: null }
+    // Август: осень ещё не наступила (AUTUMN_ATTEMPT_FROM_DOY = 270)
+    await refreshSeason({ query: async () => ({}) }, g, new Date('2026-08-12'), { fetchFn })
+    expect(called).toBe(0)
+  })
+
+  it('после наступления осени возвращаемся за её датой', async () => {
+    let called = 0
+    const fetchFn = async () => { called++; return { ok: true, json: async () => ({ daily: { time: [], temperature_2m_mean: [] } }) } }
+    const g = { ...garden, season_start_doy: 105, season_start_year: 2026, season_end_doy: null }
+    await refreshSeason({ query: async () => ({}) }, g, new Date('2026-11-15'), { fetchFn })
+    expect(called).toBe(1)
   })
 
   it('значение за этот год уже есть → в сеть не ходим', async () => {
     let called = false
     const fetchFn = async () => { called = true; return okResponse(95, []) }
-    const g = { ...garden, season_start_doy: 101, season_start_year: 2026 }
-    const doy = await refreshSeasonStart({ query: async () => ({}) }, g, new Date('2026-08-12'), { fetchFn })
+    const g = { ...garden, season_start_doy: 101, season_start_year: 2026, season_end_doy: 277 }
+    const doy = (await refreshSeason({ query: async () => ({}) }, g, new Date('2026-08-12'), { fetchFn })).start
     expect(doy).toBe(101)
     expect(called).toBe(false)
   })
 
   it('ошибка сети не роняет вызов — тихо null', async () => {
     const fetchFn = async () => { throw new Error('network down') }
-    const doy = await refreshSeasonStart({ query: async () => ({}) }, garden, new Date('2026-08-12'), { fetchFn })
+    const doy = (await refreshSeason({ query: async () => ({}) }, garden, new Date('2026-08-12'), { fetchFn })).start
     expect(doy).toBeNull()
   })
 
   it('участок без координат → null', async () => {
-    const doy = await refreshSeasonStart({ query: async () => ({}) }, { id: 1 }, new Date('2026-08-12'), {})
+    const doy = (await refreshSeason({ query: async () => ({}) }, { id: 1 }, new Date('2026-08-12'), {})).start
     expect(doy).toBeNull()
   })
 
   it('зимой (весна ещё не наступала) в сеть не ходим', async () => {
     let called = false
     const fetchFn = async () => { called = true; return okResponse(95, []) }
-    const doy = await refreshSeasonStart({ query: async () => ({}) }, garden, new Date('2026-01-20'), { fetchFn })
+    const doy = (await refreshSeason({ query: async () => ({}) }, garden, new Date('2026-01-20'), { fetchFn })).start
     expect(doy).toBeNull()
     expect(called).toBe(false)
   })
@@ -133,7 +172,7 @@ describe('refreshSeasonStart', () => {
       requested = url
       return { ok: true, json: async () => ({ daily: { time: [], temperature_2m_mean: [] } }) }
     }
-    await refreshSeasonStart({ query: async () => ({}) }, garden, new Date('2026-08-12'), { fetchFn })
+    await refreshSeason({ query: async () => ({}) }, garden, new Date('2026-08-12'), { fetchFn })
     expect(requested).toContain('start_date=2026-03-01')
     expect(requested).not.toContain('02-15')
   })

@@ -2,7 +2,7 @@
 
 const { buildTasks, formatTasks, TASK_LIMIT, RAIN_AS_WATERING_MM } = require('../utils/todayLogic')
 const { getZoneForRegion } = require('../utils/regionCoords')
-const { storedSeasonStart } = require('../services/seasonService')
+const { storedSeasonStart, storedSeasonEnd } = require('../services/seasonService')
 
 // Снимок старше суток (упал weatherJob) не должен рождать задачи: «Угроза заморозков!»
 // по позавчерашним данным хуже, чем её отсутствие. На карточке погоды снимок при этом
@@ -173,6 +173,7 @@ module.exports = async function (fastify) {
       climateZone: garden.climate_zone || getZoneForRegion(garden.region),
       // Фактическая весна этого года (джоб погоды); null → buildTasks возьмёт норму по зоне.
       seasonStart: storedSeasonStart(garden, today),
+      seasonEnd: storedSeasonEnd(garden, today),
     })
     const topTasks = formatTasks(rawTasks.slice(0, TASK_LIMIT))
 

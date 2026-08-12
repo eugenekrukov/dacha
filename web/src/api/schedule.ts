@@ -71,6 +71,19 @@ export function collapseActions(actions: ActionLog[]): ActionGroup[] {
   return out
 }
 
+/**
+ * Смещение задачи в днях ОТ НАЧАЛА сезона.
+ *
+ * Осенние работы (anchor: "end") заданы относительно конца вегетации: «Осенняя обрезка» —
+ * это «через 7 дней после листопада», а не «через 120 дней после схода снега». Длина сезона
+ * по зонам отличается на 84 дня, поэтому привязка осени к весне давала на юге август.
+ * Зеркало backend taskDayOffset (utils/todayLogic.js).
+ */
+export function taskDayOffset(task: CareTask, seasonLength: number | null): number {
+  if (task.anchor !== 'end' || !seasonLength) return task.day_offset
+  return seasonLength + task.day_offset
+}
+
 export type SchedStatus = 'done' | 'missed' | 'upcoming' | 'neutral'
 
 export interface SchedRow {
@@ -121,6 +134,8 @@ export function buildSchedule(opts: {
   // Для многолетника это якорь вместо годовщины посадки: иначе «Весенняя обрезка» уезжает
   // в месяц посадки. Считает сервер, чтобы логика не расползалась по трём платформам.
   seasonStart?: number | null
+  // Конец вегетации (garden.season_end_doy) — к нему привязаны осенние работы, см. taskDayOffset.
+  seasonEnd?: number | null
   planted: Date
   actions: ActionLog[]
   today: Date
@@ -137,6 +152,8 @@ export function buildSchedule(opts: {
   // годовщины посадки. Разовая пересадка сеянцев (transplantDays) якорю не подчиняется —
   // она была один раз в начале жизни растения, считаем от planted.
   const anchor = effectivePlanted(planted, opts.isPerennial === true, today, opts.seasonStart ?? null)
+  // Длина сезона — для перевода осенних задач (anchor:"end") в отсчёт от начала.
+  const seasonLength = opts.seasonStart && opts.seasonEnd ? opts.seasonEnd - opts.seasonStart : null
   const rows: SchedRow[] = []
 
   const statusOf = (name: string, date: Date, next: Date | null): SchedStatus => {
@@ -164,15 +181,17 @@ export function buildSchedule(opts: {
   // повторы не дублируем — они видны в «Истории действий».
   careTasks?.forEach((task) => {
     const product = CARE_TASK_PRODUCT[task.name]
+    // Осенние задачи заданы от конца вегетации — приводим к отсчёту от начала.
+    const baseOffset = taskDayOffset(task, seasonLength)
     // Разовая задача не зависит от limit — у неё всегда ровно одна дата
-    // (у многолетников/деревьев day_offset может быть >120, напр. осенняя обрезка).
+    // (у многолетников/деревьев смещение может быть >120, напр. осенняя обрезка).
     if (task.repeat_days == null) {
-      const d = addDays(anchor, task.day_offset)
+      const d = addDays(anchor, baseOffset)
       rows.push({ name: task.name, dateStr: fmt(d), date: d, status: statusOf(task.name, d, null), product })
       return
     }
     const occ: Date[] = []
-    let offset = task.day_offset
+    let offset = baseOffset
     while (offset <= limit) {
       occ.push(addDays(anchor, offset))
       offset += task.repeat_days
@@ -287,8 +306,13 @@ export function buildCalendarEvents(opts: {
   crops: Crop[]
   todayTasks: TodayTask[]
   today: Date
+  // Границы вегетации участка (garden.season_start_doy / season_end_doy). Без них календарь
+  // считал бы уход многолетников от годовщины посадки и расходился бы с «Расписанием работ».
+  seasonStart?: number | null
+  seasonEnd?: number | null
 }): Record<string, CalendarEvent[]> {
   const today = midnight(opts.today)
+  const seasonLength = opts.seasonStart && opts.seasonEnd ? opts.seasonEnd - opts.seasonStart : null
   const horizon = addDays(today, 60)
   const result: Record<string, CalendarEvent[]> = {}
   const push = (date: Date, title: string, type: CalendarEventType) => {
@@ -322,7 +346,7 @@ export function buildCalendarEvents(opts: {
     const realSown = parseDateOnly(p.planted_at)
     if (!realSown) continue
     const isPerennial = crop?.is_perennial === true
-    const sown = effectivePlanted(realSown, isPerennial, today)
+    const sown = effectivePlanted(realSown, isPerennial, today, opts.seasonStart ?? null)
 
     // Дата посева (реальная) — попадёт в окно только для свежих посадок
     if (inWindow(realSown)) push(realSown, `Посев: ${cropName}`, 'sowing')
@@ -352,11 +376,17 @@ export function buildCalendarEvents(opts: {
     // care_tasks — разворачиваем до горизонта
     const limit = crop?.harvest_days ?? 180
     for (const task of crop?.care_tasks ?? []) {
-      let offset = task.day_offset
+      // Осенние задачи заданы от конца вегетации — приводим к отсчёту от начала.
+      let offset = taskDayOffset(task, seasonLength)
+      // Разовая задача не ограничена limit: осенние работы выходят за harvest_days.
+      if (task.repeat_days == null) {
+        const d = addDays(sown, offset)
+        if (inWindow(d)) push(d, `${task.name}: ${cropName}`, 'care')
+        continue
+      }
       while (offset <= limit) {
         const d = addDays(sown, offset)
         if (inWindow(d)) push(d, `${task.name}: ${cropName}`, 'care')
-        if (task.repeat_days == null) break
         offset += task.repeat_days
         if (d.getTime() > horizon.getTime()) break
       }

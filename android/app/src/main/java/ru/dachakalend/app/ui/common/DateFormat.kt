@@ -11,6 +11,19 @@ fun formatIsoDate(iso: String): String = try {
 } catch (_: Exception) { iso }
 
 /**
+ * Смещение задачи в днях ОТ НАЧАЛА сезона.
+ *
+ * Осенние работы (anchor = "end") заданы относительно конца вегетации: «Осенняя обрезка» —
+ * это «через 7 дней после листопада», а не «через 120 дней после схода снега». Длина сезона
+ * по зонам отличается на 84 дня, поэтому привязка осени к весне давала на юге август.
+ * Зеркало backend taskDayOffset (utils/todayLogic.js).
+ */
+fun taskDayOffset(task: ru.dachakalend.app.data.model.CareTask, seasonLength: Int?): Int {
+    if (task.anchor != "end" || seasonLength == null || seasonLength == 0) return task.dayOffset
+    return seasonLength + task.dayOffset
+}
+
+/**
  * День года (1 = 1 января) → дата указанного года. Високосный год учитывается сам.
  * Зеркало backend dateFromDoy (utils/todayLogic.js).
  */

@@ -16,6 +16,7 @@ import ru.dachakalend.app.data.repository.CalendarRepository
 import ru.dachakalend.app.data.repository.MoonCalendarRepository
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.ui.common.effectivePlanted
+import ru.dachakalend.app.ui.common.taskDayOffset
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
@@ -114,6 +115,11 @@ class CalendarViewModel @Inject constructor(
         val result = mutableMapOf<LocalDate, MutableList<DayEvent>>()
         val today = LocalDate.now()
         val horizon = today.plusDays(60)
+        // Границы вегетации участка: начало — якорь ухода многолетников, длина — для перевода
+        // осенних задач (anchor="end") в отсчёт от начала.
+        val seasonStart = tokenStorage.getSeasonStartDoy()
+        val seasonEnd = tokenStorage.getSeasonEndDoy()
+        val seasonLength = if (seasonStart != null && seasonEnd != null) seasonEnd - seasonStart else null
         val cropsById = crops.associateBy { it.id }
         // Завершённые посадки (сезон закрыт) — их работы/напоминания/отложенные задачи в календаре не показываем.
         val donePlantingIds = plantings.filter { it.stage == "done" }.map { it.id }.toSet()
@@ -173,7 +179,7 @@ class CalendarViewModel @Inject constructor(
             val realSown = planting.sownAt?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
                 ?: return@forEach
             val sown = effectivePlanted(
-                realSown, crop?.isPerennial == true, today, tokenStorage.getSeasonStartDoy()
+                realSown, crop?.isPerennial == true, today, seasonStart
             )
 
             // Полив — по wateringFreqDays. Теплица → поливать ЧАЩЕ (×0.8 к интервалу),
@@ -206,15 +212,24 @@ class CalendarViewModel @Inject constructor(
 
             // care_tasks — разворачиваем до горизонта
             crop?.careTasks?.forEach { task ->
-                var offset = task.dayOffset
+                // Осенние задачи заданы от конца вегетации — приводим к отсчёту от начала.
+                var offset = taskDayOffset(task, seasonLength)
                 val limit = crop.harvestDays ?: 180
+                // Разовая задача не ограничена limit: осенние работы выходят за harvest_days.
+                if (task.repeatDays == null) {
+                    val date = sown.plusDays(offset.toLong())
+                    if (!date.isBefore(today) && !date.isAfter(horizon)) {
+                        result.getOrPut(date) { mutableListOf() }
+                            .add(DayEvent(date, "${task.name}: $cropName", "care"))
+                    }
+                    return@forEach
+                }
                 while (offset <= limit) {
                     val date = sown.plusDays(offset.toLong())
                     if (!date.isBefore(today) && !date.isAfter(horizon)) {
                         result.getOrPut(date) { mutableListOf() }
                             .add(DayEvent(date, "${task.name}: $cropName", "care"))
                     }
-                    if (task.repeatDays == null) break
                     offset += task.repeatDays
                     if (date.isAfter(horizon)) break
                 }

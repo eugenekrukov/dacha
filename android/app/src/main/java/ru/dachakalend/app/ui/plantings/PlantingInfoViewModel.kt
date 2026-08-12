@@ -37,6 +37,7 @@ data class PlantingInfoUiState(
     // Начало сезона ухода (день года) — якорь графика многолетников. Считает сервер
     // (normalizeGarden), клиент только передаёт в buildSchedule. См. effectivePlanted.
     val seasonStartDoy: Int? = null,
+    val seasonEndDoy: Int? = null,
     // Фото-дневник
     val photos: List<PlantingPhoto> = emptyList(),
     val uploadBusy: Boolean = false,
@@ -76,7 +77,7 @@ class PlantingInfoViewModel @Inject constructor(
         if (loadedPlantingId == plantingId && _uiState.value.planting != null) return
         loadedPlantingId = plantingId
         viewModelScope.launch {
-            _uiState.value = PlantingInfoUiState(isLoading = true, seasonStartDoy = tokenStorage.getSeasonStartDoy())
+            _uiState.value = PlantingInfoUiState(isLoading = true, seasonStartDoy = tokenStorage.getSeasonStartDoy(), seasonEndDoy = tokenStorage.getSeasonEndDoy())
             val pRes = plantingsRepository.getPlanting(plantingId)
             val planting = (pRes as? Result.Success)?.data
             if (planting == null) {
@@ -98,7 +99,7 @@ class PlantingInfoViewModel @Inject constructor(
                 problems = if (guide is Result.Success) guide.data else emptyList(),
                 isLoading = false,
                 error = if (crop is Result.Error) crop.message else null,
-                seasonStartDoy = tokenStorage.getSeasonStartDoy()
+                seasonStartDoy = tokenStorage.getSeasonStartDoy(), seasonEndDoy = tokenStorage.getSeasonEndDoy()
             )
             loadBeds(planting.gardenId)
             loadPhotos(plantingId)

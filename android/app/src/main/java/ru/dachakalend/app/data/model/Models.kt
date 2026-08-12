@@ -378,7 +378,10 @@ data class CropPest(
 data class CareTask(
     val name: String,
     @Json(name = "day_offset") val dayOffset: Int,
-    @Json(name = "repeat_days") val repeatDays: Int? = null
+    @Json(name = "repeat_days") val repeatDays: Int? = null,
+    // К чему привязано dayOffset: "start" (по умолчанию) — к началу вегетации,
+    // "end" — к её концу; тогда отрицательное значение означает «до листопада».
+    val anchor: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -602,6 +605,7 @@ data class Garden(
     // Начало сезона ухода (день года) для зоны участка. Считает сервер (normalizeGarden) —
     // клиенту не нужно знать ни про зоны, ни про пороги температуры.
     @Json(name = "season_start_doy") val seasonStartDoy: Int? = null,
+    @Json(name = "season_end_doy") val seasonEndDoy: Int? = null,
     @Json(name = "garden_type") val gardenType: String? = "soil"
 )
 

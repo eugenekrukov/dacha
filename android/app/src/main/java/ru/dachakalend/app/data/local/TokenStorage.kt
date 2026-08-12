@@ -114,6 +114,8 @@ class TokenStorage @Inject constructor(
     // Начало сезона ухода (день года) с сервера — якорь графика ухода многолетников.
     // 0 = не получали; тогда расчёт откатывается на годовщину посадки.
     fun saveSeasonStartDoy(doy: Int?) = prefs.edit { putInt(KEY_SEASON_START_DOY, doy ?: 0) }
+    fun saveSeasonEndDoy(doy: Int?) = prefs.edit { putInt(KEY_SEASON_END_DOY, doy ?: 0) }
+    fun getSeasonEndDoy(): Int? = prefs.getInt(KEY_SEASON_END_DOY, 0).takeIf { it > 0 }
     fun getSeasonStartDoy(): Int? = prefs.getInt(KEY_SEASON_START_DOY, 0).takeIf { it > 0 }
 
     // Последний зарегистрированный push-токен — храним локально, чтобы при выходе из аккаунта
@@ -337,6 +339,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_GARDEN_ID       = "garden_id"
         private const val KEY_CLIMATE_ZONE    = "climate_zone"
         private const val KEY_SEASON_START_DOY = "season_start_doy"
+        private const val KEY_SEASON_END_DOY = "season_end_doy"
         private const val KEY_PUSH_TOKEN      = "push_token"
         private const val KEY_PLANTINGS_COUNT = "active_plantings_count"
         private const val KEY_PENDING_TASKS   = "pending_tasks"

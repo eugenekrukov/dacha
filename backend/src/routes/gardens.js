@@ -1,8 +1,8 @@
 'use strict'
 
 const { getCoordsForRegion, getZoneForRegion } = require('../utils/regionCoords')
-const { seasonStartDoy } = require('../utils/todayLogic')
-const { storedSeasonStart } = require('../services/seasonService')
+const { seasonStartDoy, seasonEndDoy } = require('../utils/todayLogic')
+const { storedSeasonStart, storedSeasonEnd } = require('../services/seasonService')
 const { updateGardenWeather } = require('../services/weatherService')
 
 async function geocodeCity(city) {
@@ -34,6 +34,7 @@ function normalizeGarden(g) {
     climate_zone: zone,
     // Фактическая весна этого года, если джоб погоды успел её определить; иначе норма по зоне.
     season_start_doy: storedSeasonStart(g) ?? seasonStartDoy(zone),
+    season_end_doy: storedSeasonEnd(g) ?? seasonEndDoy(zone),
   }
 }
 

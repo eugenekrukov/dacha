@@ -2,7 +2,7 @@
 
 const cron = require('node-cron')
 const { updateGardenWeather } = require('../services/weatherService')
-const { refreshSeasonStart } = require('../services/seasonService')
+const { refreshSeason } = require('../services/seasonService')
 const { sendFrostAlert, sendHeatAlert } = require('../services/pushService')
 
 function startWeatherJob(db) {
@@ -20,7 +20,7 @@ async function runWeatherUpdate(db) {
 
   try {
     const result = await db.query(
-      `SELECT id, lat, lon, season_start_doy, season_start_year
+      `SELECT id, lat, lon, season_start_doy, season_start_year, season_end_doy
        FROM gardens WHERE lat IS NOT NULL AND lon IS NOT NULL`
     )
 
@@ -35,7 +35,7 @@ async function runWeatherUpdate(db) {
       try {
         // Фактическое начало сезона (переход через +5 °C) — не чаще раза в год на участок:
         // refreshSeasonStart сам выходит, если значение за этот год уже посчитано.
-        await refreshSeasonStart(db, garden)
+        await refreshSeason(db, garden)
         const weather = await updateGardenWeather(db, garden)
         if (weather && weather.frost_risk) {
           await sendFrostAlert(db, garden.id, weather.min_temp_c)

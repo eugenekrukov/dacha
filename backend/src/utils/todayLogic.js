@@ -83,9 +83,36 @@ function dateFromDoy(doy, year) {
 const SEASON_START_DOY = { '3': 112, '4': 101, '5': 86, '6': 73 }
 const DEFAULT_SEASON_START_DOY = SEASON_START_DOY['5']
 
+// Конец вегетации — переход НИЖЕ +5 °C, тем же методом и по тем же городам:
+//   зона 3 — 4 окт · зона 4 — 5 окт · зона 5 — 31 окт · зона 6 — 22 ноя
+// Длина сезона отсюда: 168 / 176 / 218 / 252 дня. Именно этот разброс (84 дня) и делает
+// невозможной привязку осенних работ к весне — см. taskDayOffset.
+const SEASON_END_DOY = { '3': 277, '4': 278, '5': 304, '6': 326 }
+const DEFAULT_SEASON_END_DOY = SEASON_END_DOY['5']
+
 function seasonStartDoy(climateZone) {
   if (climateZone == null) return null
   return SEASON_START_DOY[String(climateZone)] ?? DEFAULT_SEASON_START_DOY
+}
+
+function seasonEndDoy(climateZone) {
+  if (climateZone == null) return null
+  return SEASON_END_DOY[String(climateZone)] ?? DEFAULT_SEASON_END_DOY
+}
+
+/**
+ * Смещение задачи в днях ОТ НАЧАЛА сезона.
+ *
+ * Осенние работы (anchor: "end") заданы относительно конца вегетации: «Осенняя обрезка»
+ * это «через 7 дней после листопада», а не «через 120 дней после схода снега». Приводим
+ * их к отсчёту от начала — дальше вся арифметика расписаний работает без изменений.
+ *
+ * seasonLength не известна (нет данных по зоне) → задача остаётся привязанной к началу:
+ * хуже по точности, но лучше, чем не показать её вовсе.
+ */
+function taskDayOffset(task, seasonLength) {
+  if (task.anchor !== 'end' || !seasonLength) return task.day_offset
+  return seasonLength + task.day_offset
 }
 
 // Эффективная дата отсчёта графика ухода для многолетников (is_perennial).
@@ -300,7 +327,7 @@ function seasonLengthDays(anchor) {
  *   (осенняя посадка, смотрим летом → daysSincePlanting ~300 при limit 180), берём первое
  *   наступление в СЛЕДУЮЩЕМ сезоне. Без этого карточка молчала до самой годовщины.
  */
-function getNextCareTask(careTasks, daysSincePlanting, harvestDays, seasonDays = null) {
+function getNextCareTask(careTasks, daysSincePlanting, harvestDays, seasonDays = null, seasonLength = null) {
   if (!careTasks || careTasks.length === 0) return null
   const limit = harvestDays || 180
   let nextTask = null
@@ -314,14 +341,16 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays, seasonDays =
   }
 
   for (const task of careTasks) {
+    // Осенние задачи заданы от конца вегетации — приводим к отсчёту от начала.
+    const baseOffset = taskDayOffset(task, seasonLength)
     // Ближайшее наступление в текущем сезоне (null — все уже прошли).
     let occurrence = null
     if (!task.repeat_days) {
       // Разовая задача не зависит от limit — у неё ровно одна дата, и у многолетников
-      // day_offset бывает больше лимита (осенняя обрезка на 150-й день). Зеркало buildSchedule.
-      if (task.day_offset > daysSincePlanting) occurrence = task.day_offset
+      // смещение бывает больше лимита (осенняя обрезка). Зеркало buildSchedule.
+      if (baseOffset > daysSincePlanting) occurrence = baseOffset
     } else {
-      let offset = task.day_offset
+      let offset = baseOffset
       while (offset <= limit) {
         if (offset > daysSincePlanting) { occurrence = offset; break }
         offset += task.repeat_days
@@ -329,7 +358,7 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays, seasonDays =
     }
 
     if (occurrence !== null) consider(task.name, occurrence - daysSincePlanting)
-    else if (seasonDays) consider(task.name, seasonDays + task.day_offset - daysSincePlanting)
+    else if (seasonDays) consider(task.name, seasonDays + baseOffset - daysSincePlanting)
   }
   return nextTask
 }
@@ -343,7 +372,7 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays, seasonDays =
  *
  * @returns {{ name: string, days_overdue: number } | null}
  */
-function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDone = {}, todayActions = [], isPerennial = false, seasonStart = null) {
+function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDone = {}, todayActions = [], isPerennial = false, seasonStart = null, seasonLength = null) {
   if (!careTasks || careTasks.length === 0) return null
   const limit = harvestDays || 180
   const eff = effectivePlantedAt(plantedAt, isPerennial, today, seasonStart)
@@ -354,13 +383,19 @@ function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDo
   let best = null
 
   for (const task of careTasks) {
+    // Осенние задачи заданы от конца вегетации — приводим к отсчёту от начала.
+    const baseOffset = taskDayOffset(task, seasonLength)
     // Последняя наступившая дата задачи (<= сегодня)
     let dueOffset = null
-    let offset = task.day_offset
-    while (offset <= limit && offset <= daysSincePlanting) {
-      dueOffset = offset
-      if (!task.repeat_days) break
-      offset += task.repeat_days
+    if (!task.repeat_days) {
+      // Разовая задача: одна дата, limit её не ограничивает (см. buildTasks).
+      if (baseOffset <= daysSincePlanting) dueOffset = baseOffset
+    } else {
+      let offset = baseOffset
+      while (offset <= limit && offset <= daysSincePlanting) {
+        dueOffset = offset
+        offset += task.repeat_days
+      }
     }
     if (dueOffset === null) continue // ещё не наступила
 
@@ -419,8 +454,11 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
   // climateZone — зона участка (gardens.climate_zone). Нужна, чтобы уход многолетников
   // считался от начала сезона в этой зоне, а не от годовщины посадки (см. effectivePlantedAt).
   // seasonStart можно передать готовым (погодная поправка по участку) — иначе берём по зоне.
-  const { lastRainAt = null, climateZone = null, seasonStart = null } = opts
+  const { lastRainAt = null, climateZone = null, seasonStart = null, seasonEnd = null } = opts
   const gardenSeasonStart = seasonStart ?? seasonStartDoy(climateZone)
+  const gardenSeasonEnd = seasonEnd ?? seasonEndDoy(climateZone)
+  // Длина сезона — чтобы перевести осенние задачи (anchor:"end") в отсчёт от начала.
+  const seasonLength = gardenSeasonStart && gardenSeasonEnd ? gardenSeasonEnd - gardenSeasonStart : null
   const rain = rainOutlook(weather, precipProb)
   const frost = frostOutlook(weather)
   const tasks = []
@@ -484,13 +522,20 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
     const lastCareDone = lastCareActionMap[p.id] || {}
     const addedCareNames = new Set()
     for (const task of careTasks) {
+      // Осенние задачи заданы от конца вегетации — приводим к отсчёту от начала.
+      const baseOffset = taskDayOffset(task, seasonLength)
       // Находим последнюю наступившую (или близкую, до +3 дней) дату задачи
       let dueOffset = null
-      let offset = task.day_offset
-      while (offset <= careLimit && offset <= daysSincePlanting + 3) {
-        dueOffset = offset
-        if (!task.repeat_days) break
-        offset += task.repeat_days
+      if (!task.repeat_days) {
+        // Разовая задача: ровно одна дата, careLimit её не ограничивает — осенние работы
+        // выходят за harvest_days, а прежний лимит просто прятал их с экрана.
+        if (baseOffset <= daysSincePlanting + 3) dueOffset = baseOffset
+      } else {
+        let offset = baseOffset
+        while (offset <= careLimit && offset <= daysSincePlanting + 3) {
+          dueOffset = offset
+          offset += task.repeat_days
+        }
       }
       if (dueOffset === null) continue // ещё не наступила
       if (daysSincePlanting - dueOffset > OVERDUE_WINDOW_DAYS) continue // слишком старое
@@ -760,7 +805,8 @@ const TASK_LIMIT = 7
 module.exports = {
   buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType,
   wateringIntervalDays, wateringStatus, rainOutlook, frostOutlook, effectivePlantedAt,
-  seasonLengthDays, seasonStartDoy, dateFromDoy, SEASON_START_DOY,
+  seasonLengthDays, seasonStartDoy, seasonEndDoy, dateFromDoy, taskDayOffset,
+  SEASON_START_DOY, SEASON_END_DOY,
   urgencyLevel,
   CARE_ACTION_TYPES, OVERDUE_WINDOW_DAYS, TASK_LIMIT, RAIN_AS_WATERING_MM,
   URGENCY_SOON_MAX_DAYS,

@@ -31,7 +31,7 @@ function eventColor(type: string): string {
 }
 
 export default function CalendarScreen() {
-  const { gardenId } = useGardens()
+  const { gardenId, gardens } = useGardens()
   const [eventsByDay, setEventsByDay] = useState<Record<string, CalendarEvent[]>>({})
   const [moonDays, setMoonDays] = useState<Record<string, MoonDay>>({})
   const [loading, setLoading] = useState(true)
@@ -50,11 +50,18 @@ export default function CalendarScreen() {
       api.getToday(gardenId).then((r) => r.tasks).catch(() => []),
     ])
       .then(([plantings, crops, tasks]) => {
-        setEventsByDay(buildCalendarEvents({ plantings, crops, todayTasks: tasks, today: new Date() }))
+        // Границы вегетации участка — иначе календарь считал бы уход многолетников от
+        // годовщины посадки и расходился бы с «Расписанием работ» в карточке.
+        const g = gardens.find((x) => x.id === gardenId)
+        setEventsByDay(buildCalendarEvents({
+          plantings, crops, todayTasks: tasks, today: new Date(),
+          seasonStart: g?.season_start_doy ?? null,
+          seasonEnd: g?.season_end_doy ?? null,
+        }))
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Не удалось загрузить календарь'))
       .finally(() => setLoading(false))
-  }, [gardenId])
+  }, [gardenId, gardens])
 
   // Фазы Луны зависят от просматриваемого месяца (в отличие от задач — те считаются
   // от сегодняшней даты на 60 дней вперёд и не требуют перезагрузки при смене месяца).
