@@ -87,11 +87,29 @@ private fun rowActionTypes(name: String): Set<String>? = when {
 
 // Расписание работ: повторяющиеся задачи и полив схлопнуты до одной актуальной строки
 // «(каждые N дн.)» — без «стены» однотипных действий через день (порт web buildSchedule).
+// createdAt — когда посадка реально добавлена в приложение (planting.createdAt). Для
+// ретро-посадок (planted в прошлом) отсекаем строки расписания раньше этой даты — их всё
+// равно уже не выполнить, у многолетников (обрезка/подвязка «раз в год») иначе копится мёртвый лог.
+// Многолетники: годовой уход/урожай считаем от годовщины посадки в ТЕКУЩЕМ сезоне, а не
+// навечно от исходного года посадки — иначе после первого года все dayOffset-даты остаются
+// в прошлом и задачи пропадают из расписания (порт web effectivePlanted, schedule.ts).
+private fun effectivePlanted(planted: LocalDate, isPerennial: Boolean, today: LocalDate): LocalDate {
+    if (!isPerennial) return planted
+    if (java.time.temporal.ChronoUnit.DAYS.between(planted, today) < 365) return planted
+    var anniv = planted.withYear(today.year)
+    if (java.time.temporal.ChronoUnit.DAYS.between(today, anniv) > 31) anniv = anniv.withYear(today.year - 1)
+    return anniv
+}
+
 private fun buildSchedule(
     transplantDays: Int?, careTasks: List<CareTask>?, harvestDays: Int?, wateringFreqDays: Int?,
-    conditions: String?, sowingMethod: String?, planted: LocalDate, actions: List<ActionLog>, today: LocalDate
+    conditions: String?, sowingMethod: String?, planted: LocalDate, actions: List<ActionLog>, today: LocalDate,
+    createdAt: LocalDate? = null, isPerennial: Boolean = false
 ): List<SchedRow> {
     val rows = mutableListOf<SchedRow>()
+    // Разовая пересадка сеянцев (transplantDays) годовщине не подчиняется — она была один раз
+    // в начале жизни растения, считаем от planted; остальное — от anchor.
+    val anchor = effectivePlanted(planted, isPerennial, today)
     fun statusOf(name: String, date: LocalDate, next: LocalDate?): SchedStatus {
         val types = rowActionTypes(name) ?: return SchedStatus.NEUTRAL
         val done = actions.any { a ->
@@ -105,33 +123,37 @@ private fun buildSchedule(
     }
     val limit = harvestDays ?: 120
     careTasks?.forEach { task ->
+        // Разовая задача не зависит от limit — у неё всегда ровно одна дата
+        // (у многолетников/деревьев dayOffset может быть >120, напр. осенняя обрезка).
+        if (task.repeatDays == null) {
+            val d = anchor.plusDays(task.dayOffset.toLong())
+            rows += SchedRow(task.name, fmtDate(d), d, statusOf(task.name, d, null))
+            return@forEach
+        }
         val occ = mutableListOf<LocalDate>()
         var offset = task.dayOffset
-        while (offset <= limit) { occ += planted.plusDays(offset.toLong()); if (task.repeatDays == null) break; offset += task.repeatDays }
-        if (task.repeatDays == null) {
-            val d = occ[0]
-            rows += SchedRow(task.name, fmtDate(d), d, statusOf(task.name, d, null))
-        } else {
-            val idx = occ.indexOfFirst { !it.isBefore(today) }
-            val repIdx = if (idx >= 0) idx else occ.size - 1
-            val d = occ[repIdx]
-            rows += SchedRow("${task.name} (каждые ${task.repeatDays} дн.)", fmtDate(d), d, statusOf(task.name, d, occ.getOrNull(repIdx + 1)))
-        }
+        while (offset <= limit) { occ += anchor.plusDays(offset.toLong()); offset += task.repeatDays }
+        if (occ.isEmpty()) return@forEach // dayOffset уже за пределами limit — задача вне горизонта
+        val idx = occ.indexOfFirst { !it.isBefore(today) }
+        val repIdx = if (idx >= 0) idx else occ.size - 1
+        val d = occ[repIdx]
+        rows += SchedRow("${task.name} (каждые ${task.repeatDays} дн.)", fmtDate(d), d, statusOf(task.name, d, occ.getOrNull(repIdx + 1)))
     }
     wateringFreqDays?.let { freq ->
         val interval = if (conditions == "greenhouse") maxOf(1, Math.round(freq * 0.8).toInt()) else freq
         if (interval >= 1) {
             val wLimit = minOf(harvestDays ?: 120, 120)
             var offset = interval
-            while (offset <= wLimit && planted.plusDays(offset.toLong()).isBefore(today)) offset += interval
+            while (offset <= wLimit && anchor.plusDays(offset.toLong()).isBefore(today)) offset += interval
             if (offset <= wLimit) {
-                val d = planted.plusDays(offset.toLong())
+                val d = anchor.plusDays(offset.toLong())
                 rows += SchedRow("Полив (каждые $interval дн.)", fmtDate(d), d, SchedStatus.UPCOMING)
             }
         }
     }
-    harvestDays?.let { val d = planted.plusDays(it.toLong()); rows += SchedRow("Сбор урожая", fmtDate(d), d, SchedStatus.NEUTRAL) }
-    return rows.sortedBy { it.date }
+    harvestDays?.let { val d = anchor.plusDays(it.toLong()); rows += SchedRow("Сбор урожая", fmtDate(d), d, SchedStatus.NEUTRAL) }
+    val visible = if (createdAt != null) rows.filter { !it.date.isBefore(createdAt) } else rows
+    return visible.sortedBy { it.date }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -274,7 +296,8 @@ private fun AboutTab(
             val schedule = buildSchedule(
                 transplantDays = crop.transplantDays, careTasks = crop.careTasks, harvestDays = crop.harvestDays,
                 wateringFreqDays = crop.wateringFreqDays, conditions = planting.conditions, sowingMethod = planting.sowingMethod,
-                planted = planted, actions = state.recentActions, today = LocalDate.now()
+                planted = planted, actions = state.recentActions, today = LocalDate.now(),
+                createdAt = plantedDate(planting.createdAt), isPerennial = crop.isPerennial == true
             )
             if (schedule.isNotEmpty()) {
                 InfoSection(title = "Расписание работ") {

@@ -75,7 +75,7 @@ module.exports = async function (fastify, opts) {
       `SELECT id, planting_id, action_type, notes, auto, logged_at, client_id, crop_name
        FROM (
          SELECT al.id, al.planting_id, al.action_type, al.notes, al.auto, al.logged_at, al.client_id,
-                c.name AS crop_name, p.garden_id
+                c.name AS crop_name, p.garden_id, p.created_at AS planting_created_at
          FROM action_logs al
          JOIN plantings p ON p.id = al.planting_id
          JOIN crops c     ON c.id = p.crop_id
@@ -91,7 +91,7 @@ module.exports = async function (fastify, opts) {
                   NULLIF(TRIM(COALESCE(h.notes, '')), '')
                 ) AS notes,
                 false AS auto, h.harvested_at AS logged_at, NULL::uuid AS client_id,
-                c.name AS crop_name, p.garden_id
+                c.name AS crop_name, p.garden_id, p.created_at AS planting_created_at
          FROM harvests h
          JOIN plantings p ON p.id = h.planting_id
          JOIN crops c     ON c.id = p.crop_id
@@ -99,6 +99,9 @@ module.exports = async function (fastify, opts) {
          WHERE g.user_id = $1
        ) combined
        ${whereClause}
+       -- Ретро-посадки (planted_at в прошлом) не должны тянуть в историю действия,
+       -- залогированные раньше, чем сама посадка появилась в приложении.
+       ${conds.length ? 'AND' : 'WHERE'} combined.logged_at >= combined.planting_created_at
        ORDER BY logged_at DESC
        LIMIT $${params.length}`,
       params

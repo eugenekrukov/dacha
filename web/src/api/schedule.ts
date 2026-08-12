@@ -116,13 +116,24 @@ export function buildSchedule(opts: {
   wateringFreqDays?: number | null
   conditions?: string | null
   sowingMethod?: string | null
+  isPerennial?: boolean | null
   planted: Date
   actions: ActionLog[]
   today: Date
+  // Когда посадка реально добавлена в приложение (planting.created_at). Для ретро-посадок
+  // (planted в прошлом) отсекаем строки расписания раньше этой даты — их всё равно уже
+  // не выполнить, у многолетников (обрезка/подвязка «раз в год») иначе копится мёртвый лог.
+  createdAt?: Date | null
 }): SchedRow[] {
   const { transplantDays, careTasks, harvestDays, wateringFreqDays, conditions, sowingMethod, actions } = opts
   const planted = midnight(opts.planted)
   const today = midnight(opts.today)
+  const createdAt = opts.createdAt ? midnight(opts.createdAt) : null
+  // Многолетники: годовой уход/урожай считаем от годовщины посадки в ТЕКУЩЕМ сезоне, а не
+  // навечно от исходного года посадки — иначе после первого года все day_offset-даты остаются
+  // в прошлом и задачи просто пропадают из расписания. Разовая пересадка сеянцев (transplantDays)
+  // годовщине не подчиняется — она была один раз в начале жизни растения, считаем от planted.
+  const anchor = effectivePlanted(planted, opts.isPerennial === true, today)
   const rows: SchedRow[] = []
 
   const statusOf = (name: string, date: Date, next: Date | null): SchedStatus => {
@@ -149,19 +160,21 @@ export function buildSchedule(opts: {
   // Разовые задачи (пикировка, единичный уход) показываем как есть. Прошлые выполненные
   // повторы не дублируем — они видны в «Истории действий».
   careTasks?.forEach((task) => {
-    const occ: Date[] = []
-    let offset = task.day_offset
-    while (offset <= limit) {
-      occ.push(addDays(planted, offset))
-      if (task.repeat_days == null) break
-      offset += task.repeat_days
-    }
     const product = CARE_TASK_PRODUCT[task.name]
+    // Разовая задача не зависит от limit — у неё всегда ровно одна дата
+    // (у многолетников/деревьев day_offset может быть >120, напр. осенняя обрезка).
     if (task.repeat_days == null) {
-      const d = occ[0]
+      const d = addDays(anchor, task.day_offset)
       rows.push({ name: task.name, dateStr: fmt(d), date: d, status: statusOf(task.name, d, null), product })
       return
     }
+    const occ: Date[] = []
+    let offset = task.day_offset
+    while (offset <= limit) {
+      occ.push(addDays(anchor, offset))
+      offset += task.repeat_days
+    }
+    if (occ.length === 0) return // day_offset уже за пределами limit — задача вне горизонта
     // Повторяющаяся: индекс ближайшей будущей даты (или последней, если все в прошлом).
     const idx = occ.findIndex((d) => d >= today)
     const repIdx = idx >= 0 ? idx : occ.length - 1
@@ -182,20 +195,21 @@ export function buildSchedule(opts: {
     if (interval >= 1) {
       const wLimit = Math.min(harvestDays ?? 120, 120)
       let offset = interval
-      while (offset <= wLimit && addDays(planted, offset) < today) offset += interval
+      while (offset <= wLimit && addDays(anchor, offset) < today) offset += interval
       if (offset <= wLimit) {
-        const d = addDays(planted, offset)
+        const d = addDays(anchor, offset)
         rows.push({ name: `Полив (каждые ${interval} дн.)`, dateStr: fmt(d), date: d, status: 'upcoming' })
       }
     }
   }
 
   if (harvestDays) {
-    const d = addDays(planted, harvestDays)
+    const d = addDays(anchor, harvestDays)
     rows.push({ name: 'Сбор урожая', dateStr: fmt(d), date: d, status: 'neutral' })
   }
 
-  return rows.sort((a, b) => a.date.getTime() - b.date.getTime())
+  const visible = createdAt ? rows.filter((r) => r.date >= createdAt) : rows
+  return visible.sort((a, b) => a.date.getTime() - b.date.getTime())
 }
 
 // ─── Календарь: сборка событий (порт android CalendarViewModel.buildEvents) ───

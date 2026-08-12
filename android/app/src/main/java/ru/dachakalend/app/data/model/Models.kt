@@ -226,6 +226,7 @@ data class Planting(
     @Json(name = "garden_id") val gardenId: Int,
     val stage: String,
     @Json(name = "planted_at") val sownAt: String?,
+    @Json(name = "created_at") val createdAt: String? = null,
     @Json(name = "expected_harvest_at") val expectedHarvestAt: String?,
     val variety: String? = null,
     @Json(name = "bed_id") val bedId: Int? = null,

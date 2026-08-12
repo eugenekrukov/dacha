@@ -76,6 +76,7 @@ export interface Planting {
   bed_id?: number | null
   quantity?: number
   planted_at?: string
+  created_at?: string
   yield_per_plant_kg?: number | null
   watering_freq_days?: number | null
   harvest_days?: number | null

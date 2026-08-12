@@ -67,9 +67,11 @@ export default function PlantingDetailScreen() {
       wateringFreqDays: crop.watering_freq_days,
       conditions: planting.conditions,
       sowingMethod: planting.sowing_method,
+      isPerennial: crop.is_perennial,
       planted: new Date(planting.planted_at),
       actions,
       today: new Date(),
+      createdAt: planting.created_at ? new Date(planting.created_at) : null,
     })
   }, [planting, crop, actions])
 
