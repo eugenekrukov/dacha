@@ -50,6 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await api.register(email, password)
     tokenStore.setToken(res.token)
     setUser(res.user)
+    // Цель Метрики "trial_start" — старт триала, для оценки рекламных кампаний
+    ;(window as unknown as { ym?: (...args: unknown[]) => void }).ym?.(110118201, 'reachGoal', 'trial_start')
   }
 
   const logout = () => {
