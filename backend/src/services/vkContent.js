@@ -7,6 +7,13 @@
 //
 //   Тело поста. Любое число строк и абзацев.
 //
+//   FAQ:
+//   В: Вопрос?
+//   О: Ответ.
+//
+//   В: Второй вопрос?
+//   О: Второй ответ.
+//
 //   Telegram:
 //   Короткая версия для Telegram-канала (необязательно). Хук, эмодзи, короткие абзацы —
 //   без markdown-заголовков. Если секции нет — в Telegram уйдёт общий body (см. telegramQueueJob.js).
@@ -14,7 +21,18 @@
 //   Теги: #дача #огород #полив
 //   Картинка: https://images.pexels.com/...
 //
+// FAQ (необязательно) — только для блога на сайте (schema.org FAQPage, см. generate-blog.js);
+// в ВК/Дзен/Telegram не публикуется, оттого и живёт отдельной секцией, а не частью body.
 // Посты разделяются следующим заголовком "## ". Время трактуется как МСК (+03:00).
+
+// "В: …\nО: …" (возможен многострочный ответ) — блоки разделены пустой строкой.
+function parseFaq(text) {
+  if (!text) return []
+  return String(text).split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean)
+    .map((block) => block.match(/^В:\s*(.+?)\n+О:\s*([\s\S]+)$/i))
+    .filter(Boolean)
+    .map((m) => ({ q: m[1].trim(), a: m[2].trim().replace(/\s*\n+\s*/g, ' ') }))
+}
 
 function parseContentFile(md) {
   const posts = []
@@ -28,20 +46,24 @@ function parseContentFile(md) {
 
     let tags = null
     let image = null
-    let section = 'body' // 'body' | 'telegram' — переключается маркером "Telegram:"
+    let section = 'body' // 'body' | 'faq' | 'telegram' — переключается маркерами "FAQ:"/"Telegram:"
     const bodyLines = []
+    const faqLines = []
     const tgLines = []
+    const sectionLines = { body: bodyLines, faq: faqLines, telegram: tgLines }
     for (const ln of lines.slice(1)) {
       const t = ln.trim()
       if (/^Теги:/i.test(t)) { tags = t.replace(/^Теги:\s*/i, '').trim() || null; continue }
       if (/^Картинка:/i.test(t)) { image = t.replace(/^Картинка:\s*/i, '').trim() || null; continue }
+      if (/^FAQ:\s*$/i.test(t)) { section = 'faq'; continue }
       if (/^Telegram:\s*$/i.test(t)) { section = 'telegram'; continue }
-      ;(section === 'telegram' ? tgLines : bodyLines).push(ln)
+      sectionLines[section].push(ln)
     }
     posts.push({
       scheduledAt: `${date}T${time}:00+03:00`, // МСК
       title: title.trim(),
       body: bodyLines.join('\n').trim(),
+      faq: parseFaq(faqLines.join('\n').trim()),
       telegramBody: tgLines.join('\n').trim() || null,
       tags,
       image

@@ -23,7 +23,7 @@ const path = require('path')
 const { parseContentFile } = require('../src/services/vkContent')
 const { translitToSlug } = require('../src/utils/translit')
 const {
-  esc, writePage, renderShell, articleJsonLd, breadcrumbJsonLd, mergeSitemapUrls
+  esc, writePage, renderShell, articleJsonLd, breadcrumbJsonLd, faqJsonLd, mergeSitemapUrls
 } = require('./lib/seoPage')
 
 const SITE = 'https://dacha.studio1008.com'
@@ -113,7 +113,21 @@ function renderPostBody(post) {
     html += s.heading ? `<h2>${inlineMd(s.heading)}</h2>${body}` : body
   }
   html += '</article>'
+  if (post.faq && post.faq.length) html += renderFaq(post.faq)
   html += `<a class="cta" href="/app/">🌱 Открыть «Календарь дачника» →</a>`
+  return html
+}
+
+// <details>/<summary> — нативный аккордеон без JS, разметка совпадает с FAQPage JSON-LD
+// (см. faqJsonLd в lib/seoPage.js), который собирается из тех же post.faq.
+function renderFaq(faq) {
+  let html = '<section class="faq"><h2>Частые вопросы</h2>'
+  html += faq.map((e) => `
+    <details>
+      <summary>${inlineMd(e.q)}</summary>
+      <p>${inlineMd(e.a)}</p>
+    </details>`).join('')
+  html += '</section>'
   return html
 }
 
@@ -210,7 +224,8 @@ function main() {
           { name: 'Главная', url: `${SITE}/` },
           { name: 'Блог', url: `${SITE}/blog/` },
           { name: post.title, url: canonical }
-        ])
+        ]),
+        ...(post.faq && post.faq.length ? [faqJsonLd(post.faq)] : [])
       ]
     }))
 

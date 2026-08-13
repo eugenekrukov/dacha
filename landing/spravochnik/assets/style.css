@@ -48,6 +48,13 @@ h1{font-size:clamp(26px,4vw,38px);margin-bottom:10px;color:var(--ink)}
   padding:14px 24px;border-radius:16px;background:linear-gradient(180deg,var(--amber),var(--orange));
   color:#fff;margin:24px 0}
 .cta:hover{text-decoration:none;opacity:.92}
+.faq{margin:24px 0}
+.faq h2{font-size:20px;margin-bottom:10px;color:var(--ink)}
+.faq details{background:var(--paper);border:1px solid var(--line);border-radius:14px;
+  padding:14px 18px;margin-bottom:10px}
+.faq summary{font-weight:800;font-size:15px;cursor:pointer;color:var(--ink)}
+.faq summary::marker{color:var(--orange-deep)}
+.faq details p{font-size:15px;color:#4a3a2a;margin-top:8px}
 .related{margin-top:24px}
 .related h2{font-size:16px;margin-bottom:10px}
 .related ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px}

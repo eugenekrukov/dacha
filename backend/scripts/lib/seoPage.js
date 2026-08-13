@@ -46,6 +46,18 @@ function articleJsonLd(name, url, extra = {}) {
   }
 }
 
+function faqJsonLd(entries) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: entries.map((e) => ({
+      '@type': 'Question',
+      name: e.q,
+      acceptedAnswer: { '@type': 'Answer', text: e.a }
+    }))
+  }
+}
+
 function breadcrumbJsonLd(items) {
   return {
     '@context': 'https://schema.org',
@@ -151,5 +163,5 @@ function mergeSitemapUrls(sitemapPath, isOwned, freshUrls) {
 }
 
 module.exports = {
-  esc, writePage, countHtmlFiles, articleJsonLd, breadcrumbJsonLd, renderShell, mergeSitemapUrls
+  esc, writePage, countHtmlFiles, articleJsonLd, breadcrumbJsonLd, faqJsonLd, renderShell, mergeSitemapUrls
 }
