@@ -14,7 +14,7 @@
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' https://mc.yandex.ru https://mc.yandex.com 'sha256-8bde0PcwzVyWOpdXMKryhw1bel6M9wMV8eLyJ3QFcj4='; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://mc.yandex.ru https://mc.yandex.com; connect-src 'self' https://mc.yandex.ru https://mc.yandex.com wss://mc.yandex.ru wss://mc.yandex.com; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; script-src 'self' https://mc.yandex.ru https://mc.yandex.com https://top-fwz1.mail.ru 'sha256-8bde0PcwzVyWOpdXMKryhw1bel6M9wMV8eLyJ3QFcj4=' 'sha256-/vh5HUgI27K4Gr7dCIky2D9bgMjR9I3MYbXLvGFSRyU='; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://mc.yandex.ru https://mc.yandex.com https://top-fwz1.mail.ru; connect-src 'self' https://mc.yandex.ru https://mc.yandex.com wss://mc.yandex.ru wss://mc.yandex.com https://top-fwz1.mail.ru; base-uri 'self'; form-action 'self'"
     />
     <title>Календарь дачника</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -35,9 +35,23 @@
         ym(110118201, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
     </script>
     <!-- /Yandex.Metrika counter -->
+    <!-- Top.Mail.Ru counter -->
+    <script type="text/javascript">
+    var _tmr = window._tmr || (window._tmr = []);
+    _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
+    (function (d, w, id) {
+      if (d.getElementById(id)) return;
+      var ts = d.createElement("script"); ts.type = "text/javascript"; ts.async = true; ts.id = id;
+      ts.src = "https://top-fwz1.mail.ru/js/code.js";
+      var f = function () {var s = d.getElementsByTagName("script")[0]; s.parentNode.insertBefore(ts, s);};
+      if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f, false); } else { f(); }
+    })(document, window, "tmr-code");
+    </script>
+    <!-- /Top.Mail.Ru counter -->
   </head>
   <body>
     <noscript><div><img src="https://mc.yandex.ru/watch/110118201" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+    <noscript><div><img src="https://top-fwz1.mail.ru/counter?id=3787208;js=na" style="position:absolute;left:-9999px;" alt="Top.Mail.Ru" /></div></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

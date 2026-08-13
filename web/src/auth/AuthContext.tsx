@@ -52,6 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user)
     // Цель Метрики "trial_start" — старт триала, для оценки рекламных кампаний
     ;(window as unknown as { ym?: (...args: unknown[]) => void }).ym?.(110118201, 'reachGoal', 'trial_start')
+    // То же для VK Рекламы (пиксель Top.Mail.Ru, id 3787208) — событие настроено в кабинете VK Рекламы
+    ;(window as unknown as { _tmr?: unknown[] })._tmr?.push({ type: 'reachGoal', id: 3787208, goal: 'trial_start' })
   }
 
   const logout = () => {
