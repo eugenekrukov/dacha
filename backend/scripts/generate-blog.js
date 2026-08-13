@@ -8,12 +8,10 @@
  *
  *   node scripts/generate-blog.js <file.md>
  *
- * По уточнению владельца (2026-07-18): в блог не идут статьи, уже опубликованные в ВК —
- * только те, что появятся "с завтра". Фильтр по дате поста (scheduledAt), а не по файлу:
- * можно гонять тот же батч-файл повторно, уже прошедшие даты просто игнорируются каждый раз.
- * ponytail: фильтр — календарная дата > "сегодня" на момент запуска, а не факт публикации
- * в ВК (нет обращения к vk_post_queue.status) — апгрейд, если понадобится точность до поста,
- * а не до дня.
+ * По уточнению владельца (2026-08-13, отменяет решение от 2026-07-18): в блог идёт весь файл
+ * целиком, включая уже опубликованные в ВК посты — сайт хранит архив, а не только анонсы
+ * будущего. Гонять тот же батч-файл повторно безопасно: buildSlug находит существующий слаг
+ * по совпадению заголовка и просто перезаписывает страницу, дублей не плодит.
  * Slug — без даты, translitToSlug(заголовок), коллизии — числовой суффикс.
  * Идемпотентно: повторный прогон не плодит дублей — состояние в
  * backend/scripts/.blog-manifest.json (не коммитится, как и landing/spravochnik/ —
@@ -164,9 +162,8 @@ function renderIndex(pagePosts, page, totalPages) {
 
 function main() {
   const file = process.argv[2]
-  const force = process.argv.includes('--force')
   if (!file) {
-    console.error('Использование: node scripts/generate-blog.js <file.md> [--force]')
+    console.error('Использование: node scripts/generate-blog.js <file.md>')
     process.exit(1)
   }
   const md = fs.readFileSync(file, 'utf8')
@@ -179,19 +176,8 @@ function main() {
   const manifest = loadManifest()
   fs.mkdirSync(OUT_DIR, { recursive: true })
 
-  // В блог — только то, что ещё не опубликовано в ВК ("появится с завтра"), а не весь файл:
-  // дата поста строго позже сегодняшней на момент запуска. Уже прошедшие/сегодняшние посты
-  // из того же батча пропускаются молча (это ожидаемо при повторном запуске на старом файле).
-  // --force: дополнительно перегенерировать уже опубликованные посты этого файла (те, что уже
-  // есть в манифесте) — например, после правки шаблона (renderPostBody/CSS). Новых прошедших
-  // постов, которых ещё нет в манифесте, --force не добавляет — правило "не публикуем прошедшее"
-  // остаётся в силе, флаг только освежает то, что уже вышло.
-  const alreadyPublished = new Set(Object.values(manifest).map(p => p.title))
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const eligible = parsed.filter(p =>
-    p.scheduledAt.slice(0, 10) > todayStr || (force && alreadyPublished.has(p.title))
-  )
-  const skipped = parsed.length - eligible.length
+  // Весь файл, без фильтра по дате (см. комментарий к скрипту выше).
+  const eligible = parsed
 
   for (const post of eligible) {
     const slug = buildSlug(post.title, manifest)
@@ -269,8 +255,7 @@ function main() {
   ]
   mergeSitemapUrls(SITEMAP_PATH, (loc) => loc.startsWith(`${SITE}/blog/`), urls)
 
-  console.log(`Готово: добавлено новых постов из "${path.basename(file)}" — ${eligible.length}` +
-    (skipped > 0 ? ` (пропущено уже опубликованных/сегодняшних — ${skipped})` : '') +
+  console.log(`Готово: обработано постов из "${path.basename(file)}" — ${eligible.length}` +
     `, всего в блоге — ${allPosts.length}.`)
 }
 

@@ -256,7 +256,7 @@ Telegram:
 #чеснок #огород #подготовка
 
 Теги: #чеснок #огород #подготовка #агрономия
-Картинка: https://images.pexels.com/photos/26316162/pexels-photo-26316162.jpeg?auto=compress&cs=tinysrgb&w=1280
+Картинка: https://images.pexels.com/photos/10258187/pexels-photo-10258187.jpeg?auto=compress&cs=tinysrgb&w=1280
 
 ## 2026-08-15 10:00 — Свёкла и морковь: как понять, что пора убирать, а не ориентироваться на пачку от семян
 
