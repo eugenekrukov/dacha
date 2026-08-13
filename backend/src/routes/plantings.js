@@ -102,7 +102,7 @@ module.exports = async function (fastify) {
         `SELECT DISTINCT ON (planting_id, action_type) planting_id, action_type, logged_at
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking','fertilizing')
          ORDER BY planting_id, action_type, logged_at DESC`,
         [ids]
       )
@@ -114,7 +114,7 @@ module.exports = async function (fastify) {
         `SELECT planting_id, array_agg(action_type) AS action_types
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking','fertilizing')
            AND logged_at >= CURRENT_DATE
          GROUP BY planting_id`,
         [ids]
@@ -153,7 +153,7 @@ module.exports = async function (fastify) {
         : getNextCareTask(p.care_tasks, daysSincePlanting, p.harvest_days, seasonDays, seasonLength)
       const overdueCareTask = p.stage === 'done'
         ? null
-        : getOverdueCareTask(p.care_tasks, new Date(p.planted_at), now, p.harvest_days, lastCareMap[p.id] || {}, todayCareMap[p.id] || [], p.is_perennial, seasonStart, seasonLength)
+        : getOverdueCareTask(p.care_tasks, new Date(p.planted_at), now, p.harvest_days, lastCareMap[p.id] || {}, todayCareMap[p.id] || [], p.is_perennial, seasonStart, seasonLength, p.created_at ? new Date(p.created_at) : null)
       // Ожидаемая дата урожая = эффективная дата посадки + harvest_days (для многолетников —
       // от текущего сезона, см. effectivePlantedAt). Клиенты (Android/web) показывают её в
       // календаре; раньше поле не отдавалось, и на Android событие «Урожай» не появлялось.

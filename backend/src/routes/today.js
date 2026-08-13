@@ -50,7 +50,7 @@ module.exports = async function (fastify) {
 
     // ── 2. АКТИВНЫЕ ПОСАДКИ (включая care_tasks и conditions) ───────────────
     const plantingsRes = await fastify.db.query(
-      `SELECT p.id, p.planted_at, p.stage, p.quantity, p.conditions, p.sowing_method,
+      `SELECT p.id, p.planted_at, p.created_at, p.stage, p.quantity, p.conditions, p.sowing_method,
               c.name as crop_name, c.category,
               c.watering_freq_days, c.watering_details, c.transplant_days,
               c.harvest_days, c.frost_sensitive, c.care_tasks, c.fertilizing_schedule, c.is_perennial
@@ -120,7 +120,7 @@ module.exports = async function (fastify) {
         `SELECT DISTINCT ON (planting_id, action_type) planting_id, action_type, logged_at
          FROM action_logs
          WHERE planting_id = ANY($1)
-           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking')
+           AND action_type IN ('tying','pinching','hilling','pruning','weeding','loosening','treatment','thinning','runner_removal','bolt_removal','deflowering','staking','fertilizing')
          ORDER BY planting_id, action_type, logged_at DESC`,
         [ids]
       )

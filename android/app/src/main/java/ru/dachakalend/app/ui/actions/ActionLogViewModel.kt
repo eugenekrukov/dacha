@@ -47,6 +47,7 @@ val ACTION_TYPES = listOf(
 fun careTaskActionType(careTaskName: String?): String {
     val n = careTaskName?.lowercase() ?: return "other"
     return when {
+        n.contains("подкормк") || n.contains("удобрен") -> "fertilizing"
         n.contains("подвяз")                        -> "tying"
         n.contains("пасынк") || n.contains("прищип") -> "pinching"
         n.contains("окучив")                        -> "hilling"

@@ -609,6 +609,34 @@ describe('care_task_due', () => {
     expect(tasks.some(t => t.type === 'care_task_due')).toBe(false)
   })
 
+  // Регрессия (реальный случай): смородина чёрная, planted_at 2024-08-12, добавлена в
+  // приложение 2026-08-12 (retro-посадка). Эффективный якорь — начало сезона (не годовщина
+  // посадки), поэтому «Подкормка после урожая» (+100 дн.) попадает в окно 21-дневной
+  // просрочки И одновременно на дату РАНЬШЕ добавления посадки — buildSchedule/GET actions
+  // такую строку уже прячут, «Сегодня» показывало «просрочка 13 дн.» вопреки им.
+  it('createdAt: сезонный якорь даёт просрочку в окне, но задача была раньше добавления — не показываем', () => {
+    const today = new Date('2026-08-12')
+    const planting = makePlanting({
+      id: 1, crop_name: 'Смородина чёрная', is_perennial: true,
+      watering_freq_days: null, transplant_days: null, harvest_days: null, frost_sensitive: false,
+      planted_at: '2024-08-12',
+      created_at: '2026-08-12',
+      care_tasks: [{ name: 'Подкормка после урожая', day_offset: 100 }],
+    })
+    // seasonStart=112 (22 апреля, зона 3) — тот же якорь, что даёт «Сегодня» по факту.
+    const tasks = buildTasks([planting], null, {}, {}, [], today, {}, null, {}, {}, { seasonStart: 112 })
+    expect(tasks.some(t => t.type === 'care_task_due')).toBe(false)
+  })
+
+  it('createdAt не мешает свежей просрочке той же care-задачи, если посадка добавлена давно', () => {
+    const planting = carePlanting([{ name: 'Прополка', day_offset: 5 }])
+    planting.created_at = planting.planted_at // добавлена одновременно с посадкой
+    const tasks = buildTasks([planting], null, {}, {}, [], TODAY)
+    const t = tasks.find(t => t.type === 'care_task_due' && t.care_task_name === 'Прополка')
+    expect(t).toBeTruthy()
+    expect(t.days_overdue).toBe(5)
+  })
+
   it('одиночная care-задача остаётся адресной (planting_id сохранён)', () => {
     const tasks = buildTasks([carePlanting([{ name: 'Прополка', day_offset: 5 }])], null, {}, {}, [], TODAY)
     const t = tasks.find(t => t.type === 'care_task_due')
@@ -764,6 +792,12 @@ describe('careTaskActionType', () => {
     ['Удаление увядших цветков', 'deflowering'],
     ['Удаление лишних завязей', 'deflowering'],
     ['Установка опоры', 'staking'],
+    // Регрессия: у смородины «Подкормка после урожая» не мапилась ни на одно действие
+    // (не «Осенняя подкормка», её ловит anchor:"end" по другому паттерну) — при клике на
+    // просроченную задачу в форме выделялась «Заметки» вместо «Подкормка».
+    ['Подкормка после урожая', 'fertilizing'],
+    ['Осенняя подкормка', 'fertilizing'],
+    ['Внесение удобрений', 'fertilizing'],
   ])('%s → %s', (name, expected) => {
     expect(careTaskActionType(name)).toBe(expected)
   })
@@ -812,6 +846,30 @@ describe('окно давности просрочки', () => {
   it('getOverdueCareTask: задача старше окна → null', () => {
     const r = getOverdueCareTask([{ name: 'Прополка', day_offset: 5 }], new Date(daysAgo(40, TODAY)), TODAY, 200)
     expect(r).toBeNull()
+  })
+
+  // Регрессия: ретро-посадка (planted_at в прошлом), добавленная в приложение сегодня.
+  // Расписание работ и история такие задачи уже прячут (см. buildSchedule/GET actions) —
+  // «Сегодня» должно вести себя так же, а не показывать «просрочено 13 дн.» то, что
+  // физически нельзя было сделать до момента добавления посадки.
+  it('createdAt: задача до добавления посадки в приложение не считается просроченной', () => {
+    const planted = new Date(daysAgo(400, TODAY)) // давно
+    const createdAt = new Date(TODAY) // добавлена сегодня
+    const r = getOverdueCareTask(
+      [{ name: 'Подкормка после урожая', day_offset: 5 }], planted, TODAY, 200,
+      {}, [], false, null, null, createdAt
+    )
+    expect(r).toBeNull()
+  })
+
+  it('createdAt не мешает свежей просрочке после добавления посадки', () => {
+    const planted = new Date(daysAgo(10, TODAY))
+    const createdAt = new Date(daysAgo(10, TODAY)) // добавлена сразу при посадке
+    const r = getOverdueCareTask(
+      [{ name: 'Прополка', day_offset: 5 }], planted, TODAY, 200,
+      {}, [], false, null, null, createdAt
+    )
+    expect(r).toMatchObject({ name: 'Прополка', days_overdue: 5 })
   })
 })
 

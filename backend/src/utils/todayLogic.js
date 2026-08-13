@@ -3,7 +3,7 @@
 // Care-action_type'ы, которыми Android закрывает care-задачи. Этот же список —
 // в SQL-фильтрах today.js / plantings.js (lastCareActionMap, careActionsToday).
 const CARE_ACTION_TYPES = ['tying', 'pinching', 'hilling', 'pruning', 'weeding', 'loosening', 'treatment',
-  'thinning', 'runner_removal', 'bolt_removal', 'deflowering', 'staking']
+  'thinning', 'runner_removal', 'bolt_removal', 'deflowering', 'staking', 'fertilizing']
 
 // Окно давности: care-задачи и пересадку, просроченные больше этого срока, не показываем —
 // иначе посадка с датой год назад выдаёт «лавину» давно пропущенных задач (см. effectivePlantedAt).
@@ -34,6 +34,7 @@ const CARE_TASK_PRODUCT = {
 function careTaskActionType(name) {
   if (!name) return null
   const n = name.toLowerCase()
+  if (n.includes('подкормк') || n.includes('удобрен')) return 'fertilizing'
   if (n.includes('подвяз'))                            return 'tying'
   if (n.includes('пасынк') || n.includes('прищип'))    return 'pinching'
   if (n.includes('окучив'))                            return 'hilling'
@@ -372,14 +373,17 @@ function getNextCareTask(careTasks, daysSincePlanting, harvestDays, seasonDays =
  *
  * @returns {{ name: string, days_overdue: number } | null}
  */
-function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDone = {}, todayActions = [], isPerennial = false, seasonStart = null, seasonLength = null) {
+function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDone = {}, todayActions = [], isPerennial = false, seasonStart = null, seasonLength = null, createdAt = null) {
   if (!careTasks || careTasks.length === 0) return null
   const limit = harvestDays || 180
   const eff = effectivePlantedAt(plantedAt, isPerennial, today, seasonStart)
   const daysSincePlanting = Math.floor((today - eff) / 86400000)
   // Якорь сезона может быть раньше посадки (куст завели в середине сезона) — задачи
-  // до самой посадки не показываем: их физически нельзя было выполнить.
+  // до самой посадки не показываем: их физически нельзя было выполнить. Аналогично для
+  // ретро-посадок — не показываем как «просроченное» то, что было раньше добавления
+  // посадки в приложение (см. тот же фильтр в buildSchedule/GET actions).
   const realPlantedAt = new Date(plantedAt)
+  const floor = createdAt && createdAt > realPlantedAt ? createdAt : realPlantedAt
   let best = null
 
   for (const task of careTasks) {
@@ -404,7 +408,7 @@ function getOverdueCareTask(careTasks, plantedAt, today, harvestDays, lastCareDo
 
     const mappedAction = careTaskActionType(task.name)
     const dueDate = new Date(eff.getTime() + dueOffset * 86400000)
-    if (dueDate < realPlantedAt) continue // задача выпала раньше, чем куст оказался в земле
+    if (dueDate < floor) continue // до посадки или до добавления в приложение — нельзя было выполнить
     const lastDone = mappedAction ? lastCareDone[mappedAction] : null
     const doneSinceDue = lastDone && new Date(lastDone) >= dueDate
     const doneToday = mappedAction && todayActions.includes(mappedAction)
@@ -471,7 +475,11 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
     const plantedAt = effectivePlantedAt(new Date(p.planted_at), p.is_perennial, today, gardenSeasonStart)
     const daysSincePlanting = Math.floor((today - plantedAt) / 86400000)
     // Якорь сезона бывает раньше посадки — задачи до неё не показываем (см. effectivePlantedAt).
+    // Аналогично для ретро-посадок: задачи раньше момента добавления в приложение не могли
+    // быть выполнены (тот же фильтр, что в buildSchedule/GET actions).
     const realPlantedAt = new Date(p.planted_at)
+    const createdAt = p.created_at ? new Date(p.created_at) : null
+    const careFloor = createdAt && createdAt > realPlantedAt ? createdAt : realPlantedAt
 
     // 🚨 Угроза заморозков (теплица защищает — для greenhouse алерт не показываем).
     // Предупреждаем и на завтра/послезавтра: укрытие нужно готовить заранее.
@@ -545,7 +553,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
 
       const mappedAction = careTaskActionType(task.name)
       const dueDate = new Date(plantedAt.getTime() + dueOffset * 86400000)
-      if (dueDate < realPlantedAt) continue // задача выпала раньше, чем культура оказалась в земле
+      if (dueDate < careFloor) continue // до посадки или до добавления в приложение — нельзя было выполнить
       const lastDone = mappedAction ? lastCareDone[mappedAction] : null
       const doneSinceDue = lastDone && new Date(lastDone) >= dueDate
       const doneToday = mappedAction && todayActions.includes(mappedAction)

@@ -13,6 +13,7 @@ export const CARE_TASK_PRODUCT: Record<string, string> = {
 // Имя care-задачи → action_type (зеркало careTaskActionType в backend/Android). null = нет действия.
 export function careTaskActionType(name: string): string | null {
   const n = (name || '').toLowerCase()
+  if (n.includes('подкормк') || n.includes('удобрен')) return 'fertilizing'
   if (n.includes('подвяз')) return 'tying'
   if (n.includes('пасынк') || n.includes('прищип')) return 'pinching'
   if (n.includes('окучив')) return 'hilling'
