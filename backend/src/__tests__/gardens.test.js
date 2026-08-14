@@ -247,6 +247,28 @@ describe('POST /gardens/:id/beds', () => {
     await app.close()
   })
 
+  it('создаёт грядку с размерами', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('SELECT id FROM gardens')) return { rows: [{ id: 1 }] }
+        if (sql.includes('INSERT INTO garden_beds')) {
+          return { rows: [{ id: 10, garden_id: 1, name: 'Грядка 1', type: 'soil', width_cm: params[3], length_cm: params[4] }] }
+        }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/gardens/1/beds')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Грядка 1', type: 'soil', width_cm: 100, length_cm: 300 })
+
+    expect(res.status).toBe(201)
+    expect(res.body).toMatchObject({ width_cm: 100, length_cm: 300 })
+    await app.close()
+  })
+
   it('403/404 при создании грядки в чужом участке', async () => {
     const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
     const token = makeToken(app)

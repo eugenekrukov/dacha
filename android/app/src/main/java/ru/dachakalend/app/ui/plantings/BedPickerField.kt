@@ -2,6 +2,7 @@ package ru.dachakalend.app.ui.plantings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -9,9 +10,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.dachakalend.app.data.model.GardenBed
@@ -36,6 +39,23 @@ fun rotationWarning(bed: GardenBed?, cropFamily: String?, excludePlantingId: Int
 }
 
 /**
+ * Прикидка вместимости грядки: прямоугольная сетка по схеме посадки культуры (в ряду × между
+ * рядами) и размеру грядки. Оценочная — реальная посадка не всегда идеальной сеткой (загущение
+ * по краям, форма грядки), но ориентир «сколько примерно влезет» для планирования достаточен.
+ * Чистая функция — покрыта юнит-тестом (RotationWarningTest), как rotationWarning выше.
+ */
+fun capacityHint(bed: GardenBed?, spacingInRowCm: Int?, spacingBetweenRowsCm: Int?): String? {
+    if (bed == null || bed.widthCm == null || bed.lengthCm == null ||
+        spacingInRowCm == null || spacingBetweenRowsCm == null
+    ) return null
+    val rows = bed.widthCm / spacingBetweenRowsCm
+    val perRow = bed.lengthCm / spacingInRowCm
+    val capacity = rows * perRow
+    if (capacity <= 0) return "Грядка меньше рекомендованной схемы посадки для этой культуры."
+    return "На грядке «${bed.name}» (${bed.widthCm}×${bed.lengthCm} см) поместится примерно $capacity раст."
+}
+
+/**
  * Поле выбора грядки с инлайн-созданием/переименованием/удалением.
  * Состояние списка грядок и CRUD-операции владеет вызывающий экран/VM — компонент только UI.
  */
@@ -45,19 +65,26 @@ fun BedPickerField(
     selectedBedId: Int?,
     cropFamily: String?,
     allowClear: Boolean,
+    /** Схема посадки культуры — для подсказки вместимости грядки (см. capacityHint). */
+    cropSpacingInRowCm: Int? = null,
+    cropSpacingBetweenRowsCm: Int? = null,
     /** id редактируемой/просматриваемой посадки — исключается из истории грядки (см. rotationWarning). */
     excludePlantingId: Int? = null,
     onSelect: (GardenBed?) -> Unit,
-    onCreate: (name: String, type: String) -> Unit,
-    onRename: (bed: GardenBed, name: String) -> Unit,
+    onCreate: (name: String, type: String, widthCm: Int?, lengthCm: Int?) -> Unit,
+    onRename: (bed: GardenBed, name: String, widthCm: Int?, lengthCm: Int?) -> Unit,
     onDelete: (bed: GardenBed) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var creating by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     var newType by remember { mutableStateOf("soil") }
+    var newWidth by remember { mutableStateOf("") }
+    var newLength by remember { mutableStateOf("") }
     var renamingId by remember { mutableStateOf<Int?>(null) }
     var renameValue by remember { mutableStateOf("") }
+    var renameWidth by remember { mutableStateOf("") }
+    var renameLength by remember { mutableStateOf("") }
     var confirmDelete by remember { mutableStateOf<GardenBed?>(null) }
 
     val selectedBed = beds.firstOrNull { it.id == selectedBedId }
@@ -67,8 +94,12 @@ fun BedPickerField(
         creating = false
         newName = ""
         newType = "soil"
+        newWidth = ""
+        newLength = ""
         renamingId = null
         renameValue = ""
+        renameWidth = ""
+        renameLength = ""
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -106,24 +137,44 @@ fun BedPickerField(
                 }
                 beds.forEach { bed ->
                     if (renamingId == bed.id) {
-                        OutlinedTextField(
-                            value = renameValue,
-                            onValueChange = { renameValue = it },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                            trailingIcon = {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedTextField(
+                                value = renameValue,
+                                onValueChange = { renameValue = it },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(
+                                    value = renameWidth,
+                                    onValueChange = { renameWidth = it.filter(Char::isDigit) },
+                                    label = { Text("Ширина, см", fontFamily = NunitoFamily) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text("×", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                OutlinedTextField(
+                                    value = renameLength,
+                                    onValueChange = { renameLength = it.filter(Char::isDigit) },
+                                    label = { Text("Длина, см", fontFamily = NunitoFamily) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.weight(1f)
+                                )
                                 TextButton(onClick = {
                                     val n = renameValue.trim()
                                     renamingId = null
-                                    if (n.isNotEmpty() && n != bed.name) onRename(bed, n)
+                                    if (n.isNotEmpty()) onRename(bed, n, renameWidth.toIntOrNull(), renameLength.toIntOrNull())
                                 }) { Text("OK", fontFamily = NunitoFamily) }
                             }
-                        )
+                        }
                     } else {
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    bed.name + (if (bed.type == "greenhouse") " · теплица" else " · грунт"),
+                                    bed.name + (if (bed.type == "greenhouse") " · теплица" else " · грунт") +
+                                        (if (bed.widthCm != null && bed.lengthCm != null) " · ${bed.widthCm}×${bed.lengthCm} см" else ""),
                                     fontFamily = NunitoFamily,
                                     fontWeight = if (bed.id == selectedBedId) FontWeight.Black else FontWeight.Normal
                                 )
@@ -131,7 +182,15 @@ fun BedPickerField(
                             onClick = { closeMenu(); onSelect(bed) },
                             trailingIcon = {
                                 Row {
-                                    IconButton(onClick = { renamingId = bed.id; renameValue = bed.name }, modifier = Modifier.size(32.dp)) {
+                                    IconButton(
+                                        onClick = {
+                                            renamingId = bed.id
+                                            renameValue = bed.name
+                                            renameWidth = bed.widthCm?.toString() ?: ""
+                                            renameLength = bed.lengthCm?.toString() ?: ""
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
                                         Icon(Icons.Default.Edit, contentDescription = "Переименовать", modifier = Modifier.size(16.dp))
                                     }
                                     IconButton(onClick = { confirmDelete = bed }, modifier = Modifier.size(32.dp)) {
@@ -176,14 +235,33 @@ fun BedPickerField(
                                 label = { Text("Теплица", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                             )
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedTextField(
+                                value = newWidth,
+                                onValueChange = { newWidth = it.filter(Char::isDigit) },
+                                label = { Text("Ширина, см", fontFamily = NunitoFamily) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text("×", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            OutlinedTextField(
+                                value = newLength,
+                                onValueChange = { newLength = it.filter(Char::isDigit) },
+                                label = { Text("Длина, см", fontFamily = NunitoFamily) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { creating = false; newName = ""; newType = "soil" }) {
+                            TextButton(onClick = { creating = false; newName = ""; newType = "soil"; newWidth = ""; newLength = "" }) {
                                 Text("Отмена", fontFamily = NunitoFamily)
                             }
                             Button(onClick = {
                                 val n = newName.trim()
                                 if (n.isNotEmpty()) {
-                                    onCreate(n, newType)
+                                    onCreate(n, newType, newWidth.toIntOrNull(), newLength.toIntOrNull())
                                     closeMenu()
                                 }
                             }) { Text("Добавить", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold) }
@@ -206,6 +284,15 @@ fun BedPickerField(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.tertiary
+            )
+        }
+        capacityHint(selectedBed, cropSpacingInRowCm, cropSpacingBetweenRowsCm)?.let { hint ->
+            Text(
+                hint,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -8,12 +8,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.Seed
+import ru.dachakalend.app.data.model.SeedShoppingItem
 import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.data.repository.SeedsRepository
 import javax.inject.Inject
 
 data class SeedsUiState(
     val seeds: List<Seed> = emptyList(),
+    val shoppingList: List<SeedShoppingItem> = emptyList(),
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val error: String? = null,
@@ -21,7 +23,8 @@ data class SeedsUiState(
     // со сборкой ошибок в Plantings/Harvest — если гейт появится, снекбар подхватит его сам.
     val errorIsSubscriptionRequired: Boolean = false,
     val showSheet: Boolean = false,
-    val editing: Seed? = null      // null при открытой шторке — добавление нового пакетика
+    val editing: Seed? = null,     // null при открытой шторке — добавление нового пакетика
+    val prefillCropName: String? = null   // подстановка культуры при открытии из «Списка покупок»
 ) {
     val expiredCount: Int get() = seeds.count { it.expired }
 }
@@ -44,12 +47,20 @@ class SeedsViewModel @Inject constructor(
                 is Result.Error -> _uiState.value = _uiState.value.copy(error = result.message, isLoading = false, errorIsSubscriptionRequired = result.isSubscriptionRequired)
                 is Result.Loading -> Unit
             }
+            // Список покупок — не блокирующая, второстепенная секция экрана: ошибку не показываем
+            // отдельно (общий error-снекбар уже занят статусом основной загрузки), просто не рендерим блок.
+            when (val shopping = repository.getShoppingList()) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(shoppingList = shopping.data)
+                else -> Unit
+            }
         }
     }
 
-    fun openAdd() { _uiState.value = _uiState.value.copy(showSheet = true, editing = null) }
+    fun openAdd(prefillCropName: String? = null) {
+        _uiState.value = _uiState.value.copy(showSheet = true, editing = null, prefillCropName = prefillCropName)
+    }
     fun openEdit(seed: Seed) { _uiState.value = _uiState.value.copy(showSheet = true, editing = seed) }
-    fun closeSheet() { _uiState.value = _uiState.value.copy(showSheet = false, editing = null) }
+    fun closeSheet() { _uiState.value = _uiState.value.copy(showSheet = false, editing = null, prefillCropName = null) }
     fun clearError() { _uiState.value = _uiState.value.copy(error = null, errorIsSubscriptionRequired = false) }
 
     /**

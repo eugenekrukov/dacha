@@ -400,6 +400,8 @@ data class Crop(
     @Json(name = "watering_freq_days") val wateringFreqDays: Int?,
     @Json(name = "frost_sensitive") val frostSensitive: Boolean?,
     @Json(name = "companion_crops") val companionCrops: String?,
+    @Json(name = "spacing_in_row_cm") val spacingInRowCm: Int? = null,
+    @Json(name = "spacing_between_rows_cm") val spacingBetweenRowsCm: Int? = null,
     val notes: String?,
     @Json(name = "climate_zones") val climateZones: Map<String, ClimateZoneWindow>? = null,
     @Json(name = "watering_details") val wateringDetails: WateringDetails? = null,
@@ -557,7 +559,6 @@ data class CreateHarvestRequest(
 
 @JsonClass(generateAdapter = true)
 data class AnalyticsSummary(
-    val streak: Int,
     @Json(name = "total_actions") val totalActions: Int,
     @Json(name = "total_harvests") val totalHarvests: Int,
     @Json(name = "plantings_count") val plantingsCount: Int = 0,
@@ -651,19 +652,25 @@ data class GardenBed(
     @Json(name = "garden_id") val gardenId: Int? = null,
     val name: String,
     val type: String,                       // "soil" | "greenhouse"
+    @Json(name = "width_cm") val widthCm: Int? = null,
+    @Json(name = "length_cm") val lengthCm: Int? = null,
     val history: List<BedHistoryEntry> = emptyList()
 )
 
 @JsonClass(generateAdapter = true)
 data class CreateBedRequest(
     val name: String,
-    val type: String                        // "soil" | "greenhouse"
+    val type: String,                       // "soil" | "greenhouse"
+    @Json(name = "width_cm") val widthCm: Int? = null,
+    @Json(name = "length_cm") val lengthCm: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class UpdateBedRequest(
     val name: String? = null,
-    val type: String? = null
+    val type: String? = null,
+    @Json(name = "width_cm") val widthCm: Int? = null,
+    @Json(name = "length_cm") val lengthCm: Int? = null
 )
 
 // --- Инвентарь семян (GET /seeds) ---
@@ -679,6 +686,13 @@ data class Seed(
     @Json(name = "expires_this_year") val expiresThisYear: Boolean = false,
     @Json(name = "photo_url") val photoUrl: String? = null,       // /seeds/:id/photo
     @Json(name = "thumb_url") val thumbUrl: String? = null
+)
+
+// Культура из активной посадки без непросроченных семян в инвентаре — GET /seeds/shopping-list.
+@JsonClass(generateAdapter = true)
+data class SeedShoppingItem(
+    @Json(name = "crop_id") val cropId: Int,
+    @Json(name = "crop_name") val cropName: String
 )
 
 @JsonClass(generateAdapter = true)

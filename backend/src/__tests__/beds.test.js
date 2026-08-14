@@ -45,6 +45,28 @@ describe('PATCH /beds/:id', () => {
     await app.close()
   })
 
+  it('задаёт размеры грядки', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('UPDATE garden_beds')) {
+          return { rows: [{ ...BED, width_cm: params[3], length_cm: params[5] }] }
+        }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/beds/10')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ width_cm: 100, length_cm: 300 })
+
+    expect(res.status).toBe(200)
+    expect(res.body.width_cm).toBe(100)
+    expect(res.body.length_cm).toBe(300)
+    await app.close()
+  })
+
   it('400 для невалидного type', async () => {
     const app = await buildApp(makeMockDb({ query: async () => ({ rows: [{ id: 1 }] }) }))
     const token = makeToken(app)

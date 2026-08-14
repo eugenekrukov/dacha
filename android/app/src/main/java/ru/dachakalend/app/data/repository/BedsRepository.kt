@@ -16,14 +16,18 @@ class BedsRepository @Inject constructor(private val api: DachaApi) {
         errorResult(e, "Ошибка загрузки грядок")
     }
 
-    suspend fun createBed(gardenId: Int, name: String, type: String): Result<GardenBed> = try {
-        Result.Success(api.createBed(gardenId, CreateBedRequest(name = name, type = type)))
+    suspend fun createBed(
+        gardenId: Int, name: String, type: String, widthCm: Int? = null, lengthCm: Int? = null
+    ): Result<GardenBed> = try {
+        Result.Success(api.createBed(gardenId, CreateBedRequest(name = name, type = type, widthCm = widthCm, lengthCm = lengthCm)))
     } catch (e: Exception) {
         errorResult(e, "Ошибка создания грядки")
     }
 
-    suspend fun updateBed(id: Int, name: String? = null, type: String? = null): Result<GardenBed> = try {
-        Result.Success(api.updateBed(id, UpdateBedRequest(name = name, type = type)))
+    suspend fun updateBed(
+        id: Int, name: String? = null, type: String? = null, widthCm: Int? = null, lengthCm: Int? = null
+    ): Result<GardenBed> = try {
+        Result.Success(api.updateBed(id, UpdateBedRequest(name = name, type = type, widthCm = widthCm, lengthCm = lengthCm)))
     } catch (e: Exception) {
         errorResult(e, "Ошибка обновления грядки")
     }

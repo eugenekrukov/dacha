@@ -3,7 +3,7 @@ import { api, ApiError } from '../api/client'
 import AuthImage from '../components/AuthImage'
 import Modal from '../components/Modal'
 import { Camera, Pencil, Trash2, X } from 'lucide-react'
-import type { Crop, Seed } from '../api/types'
+import type { Crop, Seed, SeedShoppingItem } from '../api/types'
 
 // Пакетик пишет срок месяцем («годен до 12.2027»), бэкенд хранит датой.
 // Наружу показываем месяц — в формате, в котором его читают с пакетика.
@@ -21,6 +21,7 @@ function toMonthInput(iso: string | null): string {
 export default function SeedsScreen() {
   const [seeds, setSeeds] = useState<Seed[]>([])
   const [crops, setCrops] = useState<Crop[]>([])
+  const [shoppingList, setShoppingList] = useState<SeedShoppingItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -32,17 +33,25 @@ export default function SeedsScreen() {
   const fileInput = useRef<HTMLInputElement | null>(null)
   const [editing, setEditing] = useState<Seed | null>(null)
   const [viewing, setViewing] = useState<Seed | null>(null)
+  const cropNameInput = useRef<HTMLInputElement | null>(null)
 
   const load = async () => {
     try {
-      const [s, c] = await Promise.all([api.getSeeds(), api.getCrops()])
+      const [s, c, sl] = await Promise.all([api.getSeeds(), api.getCrops(), api.getSeedsShoppingList()])
       setSeeds(s)
       setCrops(c)
+      setShoppingList(sl)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить семена')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Клик по культуре в «Списке покупок» — подставляет её в форму добавления и ставит фокус.
+  const fillFromShoppingList = (name: string) => {
+    setCropName(name)
+    cropNameInput.current?.focus()
   }
 
   useEffect(() => {
@@ -130,9 +139,31 @@ export default function SeedsScreen() {
 
       {error && <p className="font-bold text-[#D32F2F]">{error}</p>}
 
+      {shoppingList.length > 0 && (
+        <div className="dacha-card flex flex-col gap-2 p-4">
+          <h2 className="font-black">Список покупок</h2>
+          <p className="text-sm font-semibold text-muted">
+            Растёт на участке, но семян в коробке нет — возможно, стоит докупить на следующий сезон.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {shoppingList.map((item) => (
+              <button
+                key={item.crop_id}
+                type="button"
+                className="rounded-pill bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary"
+                onClick={() => fillFromShoppingList(item.crop_name)}
+              >
+                + {item.crop_name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <form onSubmit={add} className="dacha-card flex flex-col gap-3 p-5">
         <h2 className="text-lg font-black">Добавить пакетик</h2>
         <input
+          ref={cropNameInput}
           className="dacha-input"
           list="crops-list"
           placeholder="Культура (например, Томат)"

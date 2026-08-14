@@ -171,6 +171,9 @@ interface DachaApi {
     @GET("seeds")
     suspend fun getSeeds(): List<Seed>
 
+    @GET("seeds/shopping-list")
+    suspend fun getSeedsShoppingList(): List<SeedShoppingItem>
+
     @POST("seeds")
     suspend fun createSeed(@Body request: CreateSeedRequest): Seed
 

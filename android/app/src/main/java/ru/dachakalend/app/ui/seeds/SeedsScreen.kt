@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -32,6 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import ru.dachakalend.app.data.api.mediaUrl
 import ru.dachakalend.app.data.model.Seed
+import ru.dachakalend.app.data.model.SeedShoppingItem
 import ru.dachakalend.app.ui.common.FullScreenPhotoDialog
 import ru.dachakalend.app.ui.common.rememberPhotoPickers
 import ru.dachakalend.app.ui.theme.NunitoFamily
@@ -122,11 +124,19 @@ fun SeedsScreen(
                     modifier = Modifier.align(Alignment.Center),
                     color = MaterialTheme.colorScheme.primary
                 )
-                state.seeds.isEmpty() -> EmptySeeds(Modifier.align(Alignment.Center))
+                state.seeds.isEmpty() && state.shoppingList.isEmpty() -> EmptySeeds(Modifier.align(Alignment.Center))
                 else -> LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    if (state.shoppingList.isNotEmpty()) {
+                        item {
+                            ShoppingListCard(
+                                items = state.shoppingList,
+                                onPick = { viewModel.openAdd(prefillCropName = it) }
+                            )
+                        }
+                    }
                     if (state.expiredCount > 0) {
                         item {
                             Text(
@@ -137,12 +147,16 @@ fun SeedsScreen(
                             )
                         }
                     }
-                    items(state.seeds, key = { it.id }) { seed ->
-                        SeedCard(
-                            seed = seed,
-                            onClick = { viewModel.openEdit(seed) },
-                            onDelete = { viewModel.delete(seed) }
-                        )
+                    if (state.seeds.isEmpty()) {
+                        item { EmptySeeds(Modifier.fillMaxWidth()) }
+                    } else {
+                        items(state.seeds, key = { it.id }) { seed ->
+                            SeedCard(
+                                seed = seed,
+                                onClick = { viewModel.openEdit(seed) },
+                                onDelete = { viewModel.delete(seed) }
+                            )
+                        }
                     }
                 }
             }
@@ -152,12 +166,54 @@ fun SeedsScreen(
     if (state.showSheet) {
         SeedSheet(
             seed = state.editing,
+            prefillCropName = state.prefillCropName,
             isSaving = state.isSaving,
             onDismiss = { viewModel.closeSheet() },
             onSave = { cropName, variety, expiresOn, photo ->
                 viewModel.save(state.editing?.id, cropName, variety, expiresOn, photo)
             }
         )
+    }
+}
+
+/** «Список покупок» — культуры из активных посадок без семян в инвентаре, тап подставляет форму. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ShoppingListCard(items: List<SeedShoppingItem>, onPick: (String) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "Список покупок",
+                fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                "Растёт на участке, но семян в коробке нет — возможно, стоит докупить на следующий сезон.",
+                fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items.forEach { item ->
+                    Box(
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(50))
+                            .clickable { onPick(item.cropName) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "+ ${item.cropName}",
+                            fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -305,11 +361,12 @@ private fun SeedCard(seed: Seed, onClick: () -> Unit, onDelete: () -> Unit) {
 @Composable
 private fun SeedSheet(
     seed: Seed?,
+    prefillCropName: String? = null,
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: (cropName: String, variety: String?, expiresOn: String, photo: ByteArray?) -> Unit
 ) {
-    var cropName by remember { mutableStateOf(seed?.cropName ?: "") }
+    var cropName by remember { mutableStateOf(seed?.cropName ?: prefillCropName ?: "") }
     var variety by remember { mutableStateOf(seed?.variety ?: "") }
     var expiryText by remember { mutableStateOf(toMonthInput(seed?.expiresOn)) }
     var photoBytes by remember { mutableStateOf<ByteArray?>(null) }

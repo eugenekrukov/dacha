@@ -291,10 +291,10 @@ class PlantingInfoViewModel @Inject constructor(
         }
     }
 
-    fun createAndSetBed(name: String, type: String) {
+    fun createAndSetBed(name: String, type: String, widthCm: Int? = null, lengthCm: Int? = null) {
         val planting = _uiState.value.planting ?: return
         viewModelScope.launch {
-            when (val created = bedsRepository.createBed(planting.gardenId, name, type)) {
+            when (val created = bedsRepository.createBed(planting.gardenId, name, type, widthCm, lengthCm)) {
                 is Result.Success -> {
                     _uiState.value = _uiState.value.copy(beds = _uiState.value.beds + created.data, bedError = null)
                     setBed(created.data)
@@ -305,9 +305,9 @@ class PlantingInfoViewModel @Inject constructor(
         }
     }
 
-    fun renameBed(bed: GardenBed, name: String) {
+    fun renameBed(bed: GardenBed, name: String, widthCm: Int? = null, lengthCm: Int? = null) {
         viewModelScope.launch {
-            when (val res = bedsRepository.updateBed(bed.id, name = name)) {
+            when (val res = bedsRepository.updateBed(bed.id, name = name, widthCm = widthCm, lengthCm = lengthCm)) {
                 is Result.Success ->
                     _uiState.value = _uiState.value.copy(beds = _uiState.value.beds.map { if (it.id == res.data.id) res.data else it })
                 is Result.Error -> _uiState.value = _uiState.value.copy(bedError = res.message)

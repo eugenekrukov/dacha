@@ -23,6 +23,7 @@ import type {
   PlantingStage,
   Recommendation,
   Seed,
+  SeedShoppingItem,
   TodayResponse,
   UpdatePlantingInfoRequest,
   UserProfile,
@@ -132,9 +133,9 @@ export const api = {
   geocodeSuggest: (q: string) =>
     request<GeocodeSuggestion[]>(`/geocode/suggest?q=${encodeURIComponent(q)}`),
   getBeds: (gardenId: number) => request<GardenBed[]>(`/gardens/${gardenId}/beds`),
-  createBed: (gardenId: number, body: { name: string; type: 'soil' | 'greenhouse' }) =>
+  createBed: (gardenId: number, body: { name: string; type: 'soil' | 'greenhouse'; width_cm?: number | null; length_cm?: number | null }) =>
     request<GardenBed>(`/gardens/${gardenId}/beds`, { method: 'POST', body: body as unknown as Record<string, unknown> }),
-  updateBed: (id: number, body: { name?: string; type?: 'soil' | 'greenhouse' }) =>
+  updateBed: (id: number, body: { name?: string; type?: 'soil' | 'greenhouse'; width_cm?: number | null; length_cm?: number | null }) =>
     request<GardenBed>(`/beds/${id}`, { method: 'PATCH', body: body as unknown as Record<string, unknown> }),
   deleteBed: (id: number) =>
     request<{ deleted: boolean }>(`/beds/${id}`, { method: 'DELETE' }),
@@ -213,6 +214,7 @@ export const api = {
 
   // --- инвентарь семян ---
   getSeeds: () => request<Seed[]>('/seeds'),
+  getSeedsShoppingList: () => request<SeedShoppingItem[]>('/seeds/shopping-list'),
   createSeed: (body: { crop_name: string; variety?: string | null; expires_on?: string | null }) =>
     request<Seed>('/seeds', { method: 'POST', body }),
   updateSeed: (id: number, body: { crop_name?: string; variety?: string | null; expires_on?: string | null }) =>

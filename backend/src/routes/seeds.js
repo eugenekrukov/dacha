@@ -67,6 +67,31 @@ module.exports = async function (fastify, opts) {
     return res.rows.map(withUrls)
   })
 
+  // GET /seeds/shopping-list — культуры из активных посадок (stage <> 'done'), для которых
+  // нет непросроченной записи в инвентаре семян. Сопоставление по названию (не по id):
+  // seeds.crop_name — свободный текст, ради цветов, которых нет в справочнике crops, строгого
+  // FK нет. ponytail: текстового сравнения достаточно, пока форма подбирает культуру из
+  // datalist с теми же названиями (SeedsScreen); если совпадения станут ненадёжными
+  // (опечатки при свободном вводе) — заводить seeds.crop_id.
+  fastify.get('/shopping-list', auth, async (request) => {
+    const res = await fastify.db.query(
+      `SELECT DISTINCT c.id AS crop_id, c.name AS crop_name
+       FROM plantings p
+       JOIN gardens g ON g.id = p.garden_id
+       JOIN crops c ON c.id = p.crop_id
+       WHERE g.user_id = $1 AND p.stage <> 'done'
+         AND NOT EXISTS (
+           SELECT 1 FROM seeds s
+           WHERE s.user_id = $1
+             AND LOWER(TRIM(s.crop_name)) = LOWER(c.name)
+             AND (s.expires_on IS NULL OR s.expires_on >= CURRENT_DATE)
+         )
+       ORDER BY c.name`,
+      [request.user.userId]
+    )
+    return res.rows
+  })
+
   // POST /seeds — { crop_name, variety?, expires_on? } (фото отдельным запросом)
   fastify.post('/', auth, async (request, reply) => {
     const { crop_name, variety } = request.body || {}

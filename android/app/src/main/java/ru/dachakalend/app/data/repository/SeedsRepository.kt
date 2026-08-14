@@ -6,6 +6,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.model.CreateSeedRequest
 import ru.dachakalend.app.data.model.Seed
+import ru.dachakalend.app.data.model.SeedShoppingItem
 import ru.dachakalend.app.data.model.UpdateSeedRequest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,6 +18,12 @@ class SeedsRepository @Inject constructor(private val api: DachaApi) {
         Result.Success(api.getSeeds())
     } catch (e: Exception) {
         errorResult(e, "Не удалось загрузить семена")
+    }
+
+    suspend fun getShoppingList(): Result<List<SeedShoppingItem>> = try {
+        Result.Success(api.getSeedsShoppingList())
+    } catch (e: Exception) {
+        errorResult(e, "Не удалось загрузить список покупок")
     }
 
     suspend fun createSeed(cropName: String, variety: String?, expiresOn: String?): Result<Seed> = try {

@@ -7,6 +7,9 @@ interface Props {
   gardenId: number
   value: number | null
   cropFamily?: string | null
+  /** Схема посадки культуры — для подсказки вместимости грядки (см. capacityHint). */
+  cropSpacingInRowCm?: number | null
+  cropSpacingBetweenRowsCm?: number | null
   /** id редактируемой посадки — исключается из истории грядки (см. rotationWarning). */
   excludePlantingId?: number | null
   onSelect: (bed: GardenBed | null) => void
@@ -14,15 +17,21 @@ interface Props {
 
 // Грядка — просто именованное место (см. design 2026-06-27), без визуальной карты участка.
 // Пикер открывается инлайн в той же форме/секции — отдельного экрана управления грядками нет.
-export default function BedField({ gardenId, value, cropFamily, excludePlantingId, onSelect }: Props) {
+export default function BedField({
+  gardenId, value, cropFamily, cropSpacingInRowCm, cropSpacingBetweenRowsCm, excludePlantingId, onSelect,
+}: Props) {
   const [beds, setBeds] = useState<GardenBed[]>([])
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [newType, setNewType] = useState<'soil' | 'greenhouse'>('soil')
+  const [newWidth, setNewWidth] = useState('')
+  const [newLength, setNewLength] = useState('')
   const [renamingId, setRenamingId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [renameWidth, setRenameWidth] = useState('')
+  const [renameLength, setRenameLength] = useState('')
 
   const load = async () => {
     try {
@@ -49,10 +58,17 @@ export default function BedField({ gardenId, value, cropFamily, excludePlantingI
     const name = newName.trim()
     if (!name) return
     try {
-      const bed = await api.createBed(gardenId, { name, type: newType })
+      const bed = await api.createBed(gardenId, {
+        name,
+        type: newType,
+        width_cm: newWidth ? Number(newWidth) : null,
+        length_cm: newLength ? Number(newLength) : null,
+      })
       setBeds((prev) => [...prev, bed])
       setNewName('')
       setNewType('soil')
+      setNewWidth('')
+      setNewLength('')
       setCreating(false)
       pick(bed)
     } catch (err) {
@@ -63,18 +79,28 @@ export default function BedField({ gardenId, value, cropFamily, excludePlantingI
   const startRename = (bed: GardenBed) => {
     setRenamingId(bed.id)
     setRenameValue(bed.name)
+    setRenameWidth(bed.width_cm ? String(bed.width_cm) : '')
+    setRenameLength(bed.length_cm ? String(bed.length_cm) : '')
   }
 
   const submitRename = async (bed: GardenBed) => {
     const name = renameValue.trim()
+    const width = renameWidth ? Number(renameWidth) : null
+    const length = renameLength ? Number(renameLength) : null
     setRenamingId(null)
-    if (!name || name === bed.name) return
+    const nameChanged = name && name !== bed.name
+    const sizeChanged = width !== (bed.width_cm ?? null) || length !== (bed.length_cm ?? null)
+    if (!nameChanged && !sizeChanged) return
     try {
-      const updated = await api.updateBed(bed.id, { name })
+      const updated = await api.updateBed(bed.id, {
+        ...(nameChanged ? { name } : {}),
+        width_cm: width,
+        length_cm: length,
+      })
       setBeds((prev) => prev.map((b) => (b.id === updated.id ? updated : b)))
       if (value === bed.id) onSelect(updated)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось переименовать грядку')
+      setError(err instanceof ApiError ? err.message : 'Не удалось сохранить грядку')
     }
   }
 
@@ -90,6 +116,7 @@ export default function BedField({ gardenId, value, cropFamily, excludePlantingI
   }
 
   const warning = rotationWarning(selectedBed, cropFamily, excludePlantingId)
+  const capacity = capacityHint(selectedBed, cropSpacingInRowCm, cropSpacingBetweenRowsCm)
 
   return (
     <div className="relative">
@@ -117,21 +144,52 @@ export default function BedField({ gardenId, value, cropFamily, excludePlantingI
           </button>
 
           <div className="max-h-48 overflow-y-auto">
-            {beds.map((bed) => (
-              <div key={bed.id} className="flex items-center gap-1">
-                {renamingId === bed.id ? (
+            {beds.map((bed) =>
+              renamingId === bed.id ? (
+                <div key={bed.id} className="flex flex-col gap-1 px-1 py-1">
                   <input
                     autoFocus
-                    className="dacha-input flex-1 py-1.5 text-sm"
+                    className="dacha-input py-1.5 text-sm"
+                    placeholder="Название грядки"
                     value={renameValue}
                     onChange={(e) => setRenameValue(e.target.value)}
-                    onBlur={() => submitRename(bed)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') submitRename(bed)
                       if (e.key === 'Escape') setRenamingId(null)
                     }}
                   />
-                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      className="dacha-input w-20 py-1.5 text-sm"
+                      type="number"
+                      min={1}
+                      placeholder="Ширина, см"
+                      value={renameWidth}
+                      onChange={(e) => setRenameWidth(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && submitRename(bed)}
+                    />
+                    <span className="text-xs text-muted">×</span>
+                    <input
+                      className="dacha-input w-20 py-1.5 text-sm"
+                      type="number"
+                      min={1}
+                      placeholder="Длина, см"
+                      value={renameLength}
+                      onChange={(e) => setRenameLength(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && submitRename(bed)}
+                    />
+                    <button
+                      type="button"
+                      className="dacha-btn ml-auto px-3 py-1.5 text-sm"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => submitRename(bed)}
+                    >
+                      Сохранить
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div key={bed.id} className="flex items-center gap-1">
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
@@ -143,29 +201,30 @@ export default function BedField({ gardenId, value, cropFamily, excludePlantingI
                     {bed.name}{' '}
                     <span className="text-xs text-muted">
                       {bed.type === 'greenhouse' ? '· теплица' : '· грунт'}
+                      {bed.width_cm && bed.length_cm ? ` · ${bed.width_cm}×${bed.length_cm} см` : ''}
                     </span>
                   </button>
-                )}
-                <button
-                  type="button"
-                  aria-label="Переименовать"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => startRename(bed)}
-                  className="rounded-btn p-1.5 text-muted hover:bg-background"
-                >
-                  <Pencil size={14} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Удалить"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => removeBed(bed)}
-                  className="rounded-btn p-1.5 text-muted hover:bg-background"
-                >
-                  <Trash2 size={14} aria-hidden />
-                </button>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    aria-label="Переименовать"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => startRename(bed)}
+                    className="rounded-btn p-1.5 text-muted hover:bg-background"
+                  >
+                    <Pencil size={14} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Удалить"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => removeBed(bed)}
+                    className="rounded-btn p-1.5 text-muted hover:bg-background"
+                  >
+                    <Trash2 size={14} aria-hidden />
+                  </button>
+                </div>
+              )
+            )}
           </div>
 
           {creating ? (
@@ -189,6 +248,26 @@ export default function BedField({ gardenId, value, cropFamily, excludePlantingI
                     {t === 'soil' ? 'Грунт' : 'Теплица'}
                   </button>
                 ))}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  className="dacha-input w-20 py-1.5 text-sm"
+                  type="number"
+                  min={1}
+                  placeholder="Ширина, см"
+                  value={newWidth}
+                  onChange={(e) => setNewWidth(e.target.value)}
+                />
+                <span className="text-xs text-muted">×</span>
+                <input
+                  className="dacha-input w-20 py-1.5 text-sm"
+                  type="number"
+                  min={1}
+                  placeholder="Длина, см"
+                  value={newLength}
+                  onChange={(e) => setNewLength(e.target.value)}
+                />
+                <span className="text-xs text-muted">(необязательно)</span>
               </div>
               <div className="flex gap-1.5">
                 <button
@@ -224,8 +303,25 @@ export default function BedField({ gardenId, value, cropFamily, excludePlantingI
 
       {error && <p className="mt-1 text-xs font-semibold text-red-600">{error}</p>}
       {warning && <p className="mt-1 text-xs font-semibold text-amber-700">{warning}</p>}
+      {capacity != null && <p className="mt-1 text-xs font-semibold text-muted">{capacity}</p>}
     </div>
   )
+}
+
+// Прикидка вместимости грядки: прямоугольная сетка по схеме посадки культуры (в ряду × между
+// рядами) и размеру грядки. Оценочная — реальная посадка не всегда идеальной сеткой (загущение
+// по краям, форма грядки), но ориентир «сколько примерно влезет» для планирования достаточен.
+function capacityHint(
+  bed: GardenBed | null,
+  spacingInRowCm?: number | null,
+  spacingBetweenRowsCm?: number | null,
+): string | null {
+  if (!bed || !bed.width_cm || !bed.length_cm || !spacingInRowCm || !spacingBetweenRowsCm) return null
+  const rows = Math.floor(bed.width_cm / spacingBetweenRowsCm)
+  const perRow = Math.floor(bed.length_cm / spacingInRowCm)
+  const capacity = rows * perRow
+  if (capacity <= 0) return 'Грядка меньше рекомендованной схемы посадки для этой культуры.'
+  return `На грядке «${bed.name}» (${bed.width_cm}×${bed.length_cm} см) поместится примерно ${capacity} раст.`
 }
 
 // Сравнение по семейству за 3 года истории грядки (история уже приходит с грядкой одним запросом).

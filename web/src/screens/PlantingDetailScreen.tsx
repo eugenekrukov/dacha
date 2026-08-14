@@ -155,6 +155,8 @@ export default function PlantingDetailScreen() {
             gardenId={planting.garden_id}
             value={planting.bed_id ?? null}
             cropFamily={crop?.family}
+            cropSpacingInRowCm={crop?.spacing_in_row_cm}
+            cropSpacingBetweenRowsCm={crop?.spacing_between_rows_cm}
             excludePlantingId={planting.id}
             onSelect={async (bed) => {
               setEditingBed(false)

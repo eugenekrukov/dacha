@@ -327,7 +327,9 @@ fun PlantingsScreen(
             defaultSeedling = state.pendingCropTransplantDays != null,
             beds = state.beds,
             cropFamily = state.pendingCropFamily,
-            onCreateBed = { name, type, onSelected -> viewModel.createBed(name, type, onSelected) },
+            cropSpacingInRowCm = state.pendingCropSpacingInRowCm,
+            cropSpacingBetweenRowsCm = state.pendingCropSpacingBetweenRowsCm,
+            onCreateBed = { name, type, widthCm, lengthCm, onSelected -> viewModel.createBed(name, type, widthCm, lengthCm, onSelected) },
             onRenameBed = viewModel::renameBed,
             onDeleteBed = viewModel::deleteBed,
             onConfirm = { date, qty, cond, method, variety, bedId -> viewModel.confirmPlanting(cropId, date, qty, cond, method, variety, bedId) },
@@ -438,7 +440,9 @@ fun PlantingsScreen(
             planting = planting,
             beds = state.beds,
             cropFamily = state.editingCropFamily,
-            onCreateBed = { name, type, onSelected -> viewModel.createBed(name, type, onSelected) },
+            cropSpacingInRowCm = state.editingCropSpacingInRowCm,
+            cropSpacingBetweenRowsCm = state.editingCropSpacingBetweenRowsCm,
+            onCreateBed = { name, type, widthCm, lengthCm, onSelected -> viewModel.createBed(name, type, widthCm, lengthCm, onSelected) },
             onRenameBed = viewModel::renameBed,
             onDeleteBed = viewModel::deleteBed,
             onConfirm = { date, qty, cond, method, variety, bedId -> viewModel.saveEditedInfo(planting.id, date, qty, cond, method, variety, bedId) },
@@ -815,8 +819,10 @@ private fun PlantingSetupBottomSheet(
     defaultSeedling: Boolean,
     beds: List<GardenBed>,
     cropFamily: String?,
-    onCreateBed: (name: String, type: String, onSelected: (GardenBed) -> Unit) -> Unit,
-    onRenameBed: (bed: GardenBed, name: String) -> Unit,
+    cropSpacingInRowCm: Int? = null,
+    cropSpacingBetweenRowsCm: Int? = null,
+    onCreateBed: (name: String, type: String, widthCm: Int?, lengthCm: Int?, onSelected: (GardenBed) -> Unit) -> Unit,
+    onRenameBed: (bed: GardenBed, name: String, widthCm: Int?, lengthCm: Int?) -> Unit,
     onDeleteBed: (bed: GardenBed) -> Unit,
     onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?, bedId: Int?) -> Unit,
     onDismiss: () -> Unit
@@ -895,12 +901,16 @@ private fun PlantingSetupBottomSheet(
                 beds = beds,
                 selectedBedId = bedId,
                 cropFamily = cropFamily,
+                cropSpacingInRowCm = cropSpacingInRowCm,
+                cropSpacingBetweenRowsCm = cropSpacingBetweenRowsCm,
                 allowClear = true,
                 onSelect = { bed ->
                     bedId = bed?.id
                     if (bed != null) conditions = bed.type
                 },
-                onCreate = { name, type -> onCreateBed(name, type) { created -> bedId = created.id; conditions = created.type } },
+                onCreate = { name, type, widthCm, lengthCm ->
+                    onCreateBed(name, type, widthCm, lengthCm) { created -> bedId = created.id; conditions = created.type }
+                },
                 onRename = onRenameBed,
                 onDelete = { bed -> if (bedId == bed.id) bedId = null; onDeleteBed(bed) },
             )
@@ -970,8 +980,10 @@ private fun PlantingEditBottomSheet(
     planting: Planting,
     beds: List<GardenBed>,
     cropFamily: String?,
-    onCreateBed: (name: String, type: String, onSelected: (GardenBed) -> Unit) -> Unit,
-    onRenameBed: (bed: GardenBed, name: String) -> Unit,
+    cropSpacingInRowCm: Int? = null,
+    cropSpacingBetweenRowsCm: Int? = null,
+    onCreateBed: (name: String, type: String, widthCm: Int?, lengthCm: Int?, onSelected: (GardenBed) -> Unit) -> Unit,
+    onRenameBed: (bed: GardenBed, name: String, widthCm: Int?, lengthCm: Int?) -> Unit,
     onDeleteBed: (bed: GardenBed) -> Unit,
     onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?, bedId: Int?) -> Unit,
     onDismiss: () -> Unit
@@ -1057,13 +1069,17 @@ private fun PlantingEditBottomSheet(
                 beds = beds,
                 selectedBedId = bedId,
                 cropFamily = cropFamily,
+                cropSpacingInRowCm = cropSpacingInRowCm,
+                cropSpacingBetweenRowsCm = cropSpacingBetweenRowsCm,
                 allowClear = false,
                 excludePlantingId = planting.id,
                 onSelect = { bed ->
                     bedId = bed?.id
                     if (bed != null) conditions = bed.type
                 },
-                onCreate = { name, type -> onCreateBed(name, type) { created -> bedId = created.id; conditions = created.type } },
+                onCreate = { name, type, widthCm, lengthCm ->
+                    onCreateBed(name, type, widthCm, lengthCm) { created -> bedId = created.id; conditions = created.type }
+                },
                 onRename = onRenameBed,
                 onDelete = { bed -> if (bedId == bed.id) bedId = null; onDeleteBed(bed) },
             )

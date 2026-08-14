@@ -51,6 +51,8 @@ export interface GardenBed {
   garden_id: number
   name: string
   type: 'soil' | 'greenhouse'
+  width_cm?: number | null
+  length_cm?: number | null
   history: BedHistoryEntry[]
 }
 
@@ -253,6 +255,8 @@ export interface Crop {
   watering_freq_days?: number | null
   frost_sensitive?: boolean
   yield_per_plant_kg?: number | null
+  spacing_in_row_cm?: number | null
+  spacing_between_rows_cm?: number | null
   notes?: string | null
   care_tasks?: CareTask[] | null
   good_neighbors?: string[] | null
@@ -331,7 +335,6 @@ export interface Harvest {
 }
 
 export interface AnalyticsSummary {
-  streak: number
   total_actions: number
   total_harvests: number
   plantings_count: number
@@ -462,4 +465,10 @@ export interface Seed {
   expires_this_year: boolean
   photo_url: string | null    // /seeds/:id/photo
   thumb_url: string | null    // /seeds/:id/photo?thumb=1
+}
+
+// Культура из активной посадки без непросроченных семян в инвентаре — см. GET /seeds/shopping-list.
+export interface SeedShoppingItem {
+  crop_id: number
+  crop_name: string
 }

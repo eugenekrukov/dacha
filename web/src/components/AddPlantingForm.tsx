@@ -186,6 +186,8 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
             gardenId={gardenId}
             value={bedId}
             cropFamily={selectedCrop?.family}
+            cropSpacingInRowCm={selectedCrop?.spacing_in_row_cm}
+            cropSpacingBetweenRowsCm={selectedCrop?.spacing_between_rows_cm}
             onSelect={(bed: GardenBed | null) => {
               setBedId(bed?.id ?? null)
               if (bed) setConditions(bed.type)

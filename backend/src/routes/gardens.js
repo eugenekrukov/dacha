@@ -157,7 +157,7 @@ module.exports = async function (fastify) {
     if (!garden.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
 
     const result = await fastify.db.query(
-      `SELECT b.id, b.name, b.type,
+      `SELECT b.id, b.name, b.type, b.width_cm, b.length_cm,
               COALESCE((
                 SELECT json_agg(json_build_object(
                          'planting_id', p.id,
@@ -184,14 +184,14 @@ module.exports = async function (fastify) {
     )
     if (!garden.rows[0]) return reply.code(404).send({ error: 'Garden not found' })
 
-    const { name, type } = request.body
+    const { name, type, width_cm, length_cm } = request.body
     if (type !== undefined && type !== 'soil' && type !== 'greenhouse') {
       return reply.code(400).send({ error: 'Invalid type' })
     }
     const bedType = type ?? 'soil'
     const result = await fastify.db.query(
-      'INSERT INTO garden_beds (garden_id, name, type) VALUES ($1, $2, $3) RETURNING *',
-      [request.params.id, name, bedType]
+      'INSERT INTO garden_beds (garden_id, name, type, width_cm, length_cm) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [request.params.id, name, bedType, width_cm ?? null, length_cm ?? null]
     )
     return reply.code(201).send({ ...result.rows[0], history: [] })
   })

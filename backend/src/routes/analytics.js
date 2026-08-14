@@ -32,11 +32,14 @@ module.exports = async function (fastify) {
 
   // GET /analytics/summary — метрики для экрана аналитики
   // Возвращает:
-  //   streak          — текущая серия активных дней подряд
   //   total_actions   — всего действий
   //   total_harvests  — всего сборов урожая
   //   activity_by_day — активность за последние 30 дней (дата → кол-во)
   //   onboarding      — прогресс онбординга (garden, planting, action, harvest)
+  //
+  // ponytail: streak («дней подряд») убран 2026-08-14 — рационал в ux-roadmap.md: уход за
+  // огородом нерегулярен по природе, streak-счётчик создавал ложное давление вместо честного
+  // отражения активности (UI-9/U6 из ui-review-2026.md/product-research-2026.md).
   fastify.get('/summary', auth, async (request) => {
     const userId = request.user.userId
 
@@ -52,27 +55,6 @@ module.exports = async function (fastify) {
        ORDER BY day`,
       [userId]
     )
-
-    // --- Streak (дней подряд до сегодня включительно) ---
-    const allDaysRes = await fastify.db.query(
-      `SELECT DISTINCT DATE(al.logged_at) AS day
-       FROM action_logs al
-       JOIN plantings p ON p.id = al.planting_id
-       JOIN gardens g   ON g.id = p.garden_id
-       WHERE g.user_id = $1
-       ORDER BY day DESC`,
-      [userId]
-    )
-    let streak = 0
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    for (const row of allDaysRes.rows) {
-      const d = new Date(row.day)
-      d.setHours(0, 0, 0, 0)
-      const diff = Math.round((today - d) / 86400000)
-      if (diff === streak) streak++
-      else break
-    }
 
     // --- Итоговые счётчики ---
     const totalsRes = await fastify.db.query(
@@ -113,7 +95,6 @@ module.exports = async function (fastify) {
     const onb = onbRes.rows[0]
 
     return {
-      streak,
       total_actions,
       total_harvests,
       plantings_count,

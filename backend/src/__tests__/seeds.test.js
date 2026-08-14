@@ -235,3 +235,39 @@ describe('GET /seeds/:id/photo', () => {
     await app.close()
   })
 })
+
+describe('GET /seeds/shopping-list', () => {
+  it('отдаёт культуры активных посадок без непросроченных семян', async () => {
+    const queries = []
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        queries.push({ sql, params })
+        return { rows: [{ crop_id: 3, crop_name: 'Морковь' }, { crop_id: 7, crop_name: 'Свёкла' }] }
+      },
+    }))
+    const res = await supertest(app.server)
+      .get('/seeds/shopping-list').set('Authorization', `Bearer ${makeToken(app)}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([{ crop_id: 3, crop_name: 'Морковь' }, { crop_id: 7, crop_name: 'Свёкла' }])
+    expect(queries[0].sql).toMatch(/p\.stage <> 'done'/)
+    expect(queries[0].sql).toMatch(/NOT EXISTS/)
+    await app.close()
+  })
+
+  it('пустой список, если всё укомплектовано', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [] }) }))
+    const res = await supertest(app.server)
+      .get('/seeds/shopping-list').set('Authorization', `Bearer ${makeToken(app)}`)
+
+    expect(res.body).toEqual([])
+    await app.close()
+  })
+
+  it('401 без токена', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server).get('/seeds/shopping-list')
+    expect(res.status).toBe(401)
+    await app.close()
+  })
+})

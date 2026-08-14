@@ -79,10 +79,9 @@ export default function HarvestsScreen() {
       <h1 className="text-2xl font-black">Урожай</h1>
 
       {summary && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Stat n={`${Math.round(totalKg * 10) / 10}`} l="кг собрано" />
           <Stat n={String(summary.total_harvests)} l="сборов" />
-          <Stat n={String(summary.streak)} l="дней подряд" />
         </div>
       )}
 
