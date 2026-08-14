@@ -24,6 +24,7 @@ const PLANS: { id: BillingPlan; title: string; price: string; note: string; badg
 const BENEFITS = [
   'Неограниченное число посадок',
   'До 30 фото на посадку вместо 3',
+  'ИИ-диагноз болезней и вредителей по фото без лимита',
   'Поддержка развития приложения',
 ]
 

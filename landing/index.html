@@ -329,7 +329,7 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
       "inLanguage": "ru",
       "url": "https://dacha.studio1008.com/",
       "datePublished": "2026-06-06",
-      "dateModified": "2026-07-18",
+      "dateModified": "2026-08-14",
       "publisher": { "@id": "https://dacha.studio1008.com/#publisher" },
       "offers": [
         { "@type": "Offer", "name": "Бесплатно — 1 сад, до 3 посадок", "price": "0", "priceCurrency": "RUB" },
@@ -363,6 +363,11 @@ footer{padding:46px 0;text-align:center;color:var(--muted);font-weight:700}
           "@type": "Question",
           "name": "Приложение подсказывает, когда сажать?",
           "acceptedAnswer": { "@type": "Answer", "text": "Да. Для каждой культуры рассчитываются сроки посева, высадки рассады, подкормки и сбора урожая — с учётом вашей климатической зоны и текущей погоды." }
+        },
+        {
+          "@type": "Question",
+          "name": "Приложение определяет болезни и вредителей по фото?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Да. По фото листа или плода и справочнику вашей культуры приложение подскажет наиболее вероятную причину и что делать. 3 проверки бесплатны навсегда, без лимита — в подписке «Дачник Про»." }
         },
         {
           "@type": "Question",
@@ -475,7 +480,7 @@ _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
     <div>
       <div class="eyebrow" data-reveal>🌿 Календарь дачника для сада и огорода</div>
       <h1 data-reveal data-d="1">Ваш сад <span class="accent">по плану</span>, а не на удачу</h1>
-      <p class="sub" data-reveal data-d="2">«Календарь дачника» подскажет, когда сеять, поливать, подкармливать и собирать урожай — с учётом культуры, погоды и вашей климатической зоны.</p>
+      <p class="sub" data-reveal data-d="2">«Календарь дачника» подскажет, когда сеять, поливать, подкармливать и собирать урожай, а по фото — что случилось с растением, — с учётом культуры, погоды и вашей климатической зоны.</p>
       <div class="cta-row" data-reveal data-d="3">
         <a class="btn btn-primary" href="/app/">🌱 Открыть веб-версию</a>
         <a class="btn btn-ghost" href="#download">Скачать приложение</a>
@@ -559,6 +564,12 @@ _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
         <div class="ico tint-g">🌱</div>
         <h3>Когда сажать: справочник культур</h3>
         <p>Сроки посева, высадки рассады, совместимость и схемы ухода для 55 культур.</p>
+      </div>
+      <div class="card" data-reveal data-d="1">
+        <div class="blob"></div>
+        <div class="ico tint-o">🔍</div>
+        <h3>ИИ-диагноз болезней и вредителей</h3>
+        <p>Сфотографируйте лист или плод — приложение подскажет, что с растением и чем лечить. 3 проверки бесплатно навсегда, без лимита — в «Дачник Про».</p>
       </div>
       <div class="card" data-reveal data-d="1">
         <div class="blob"></div>
@@ -661,6 +672,7 @@ _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
           <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg> 1 сад, до 3 посадок одновременно</li>
           <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg> Умные напоминания: полив, подкормка, заморозки</li>
           <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg> Погода, лунный календарь, справочник 55 культур</li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg> ИИ-диагноз болезней и вредителей по фото — 3 проверки навсегда</li>
         </ul>
         <div class="plan-foot">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 1v14m0 0l-5-5m5 5l5-5M4 21h16" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -674,6 +686,7 @@ _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
         <ul>
           <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg> Посадок одновременно — без лимита (бесплатно — до 3)</li>
           <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg> До 30 фото на посадку (бесплатно — до 3)</li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg> ИИ-диагноз болезней и вредителей по фото — без лимита</li>
           <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg> Без автосписаний — разовая оплата за выбранный период</li>
         </ul>
         <div class="plan-foot">
@@ -709,6 +722,10 @@ _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
       <details data-reveal>
         <summary>Приложение подсказывает, когда сажать? <span class="chev">▾</span></summary>
         <div class="body"><p>Да. Для каждой культуры рассчитываются сроки посева, высадки рассады, подкормки и сбора урожая — с учётом вашей климатической зоны и текущей погоды.</p></div>
+      </details>
+      <details data-reveal>
+        <summary>Приложение определяет болезни и вредителей по фото? <span class="chev">▾</span></summary>
+        <div class="body"><p>Да. Сфотографируйте лист или плод — по справочнику вашей культуры приложение подскажет наиболее вероятную причину и что делать. Всем доступно 3 бесплатные проверки навсегда, без лимита — в подписке «Дачник Про».</p></div>
       </details>
       <details data-reveal>
         <summary>Учитывается ли лунный календарь? <span class="chev">▾</span></summary>
