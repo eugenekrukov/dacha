@@ -53,15 +53,17 @@ fun FullScreenPhotoDialog(
             ) {
                 Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White)
             }
+            // ponytail-фикс: подпись раньше лежала прямо на фото без подложки — на светлом
+            // снимке (портретный кадр, упирается в нижний край) белый текст мог стать нечитаемым
+            // (WCAG-аудит 2026-08-14). Тёмная подложка под всю нижнюю полосу — как у верхней панели.
             caption?.let {
-                Text(
-                    it,
-                    color = Color.White,
-                    fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.BottomCenter)
+                Box(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .background(Color(0x99000000))
                         .navigationBarsPadding().padding(16.dp)
-                )
+                ) {
+                    Text(it, color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

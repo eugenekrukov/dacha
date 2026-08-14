@@ -632,8 +632,12 @@ private fun PhotoViewerDialog(
                     Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White)
                 }
             }
+            // ponytail-фикс: подпись/дата раньше лежали прямо на фото без подложки — на светлом
+            // снимке белый текст мог стать нечитаемым (WCAG-аудит 2026-08-14). Тёмная подложка
+            // под всю нижнюю панель — как у верхней (Color(0x99000000) там же выше).
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .background(Color(0x99000000))
                     .navigationBarsPadding().padding(16.dp)
             ) {
                 Text(formatShort(photo.takenAt), color = Color.White, fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)

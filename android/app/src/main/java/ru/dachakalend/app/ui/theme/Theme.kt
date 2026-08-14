@@ -43,7 +43,10 @@ val DachaColorScheme = lightColorScheme(
     secondary           = OrangeLight,
     onSecondary         = SoilBrown,
     secondaryContainer  = Color(0xFFFFF3E0),
-    onSecondaryContainer = AmberTask,
+    // AmberTask на этом фоне давал 3.46:1 (ниже WCAG AA 4.5:1) — активный пункт нижнего меню
+    // (NavigationBarItem использует onSecondaryContainer для иконки/подписи) читался плохо.
+    // DachaLink — та же тёплая гамма, уже подобран под контраст ≥4.5:1 (см. выше), даёт 4.72:1.
+    onSecondaryContainer = DachaLink,
 
     tertiary            = LeafGreen,
     onTertiary          = Color.White,

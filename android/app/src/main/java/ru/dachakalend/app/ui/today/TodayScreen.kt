@@ -628,7 +628,8 @@ private fun SunnyHero(
                         )
                     )
                 )
-                IconButton(onClick = onEditGarden, modifier = Modifier.size(44.dp)) {
+                // 48.dp — минимальный тач-таргет Material (было 44dp, WCAG-аудит 2026-08-14).
+                IconButton(onClick = onEditGarden, modifier = Modifier.size(48.dp)) {
                     Icon(Icons.Default.Edit, "Изменить участок",
                         tint = Color.White,
                         modifier = Modifier.size(20.dp))

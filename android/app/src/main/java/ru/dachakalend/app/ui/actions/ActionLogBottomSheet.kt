@@ -198,7 +198,8 @@ private fun ActionLogSheetImpl(
                                     }
                                 },
                                 enabled = canToggle,
-                                modifier = Modifier.size(36.dp)
+                                // 48.dp — минимальный тач-таргет Material (было 36dp, WCAG-аудит 2026-08-14).
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     if (isExcluded) Icons.Default.Refresh else Icons.Default.Close,
@@ -322,7 +323,8 @@ private fun ActionLogSheetImpl(
                             Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(16.dp))
                             Text("Фото прикреплено", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
-                        IconButton(onClick = { pendingPhoto = null }, modifier = Modifier.size(36.dp)) {
+                        // 48.dp — минимальный тач-таргет Material (было 36dp, WCAG-аудит 2026-08-14).
+                        IconButton(onClick = { pendingPhoto = null }, modifier = Modifier.size(48.dp)) {
                             Icon(Icons.Default.Close, contentDescription = "Убрать фото", modifier = Modifier.size(18.dp))
                         }
                     }
