@@ -140,6 +140,24 @@ ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/generate-blog.js ../d
 ssh hetzner 'rm -rf /var/www/dacha-landing/blog && cp -r /var/www/dacha-api/landing/blog /var/www/dacha-landing/blog && cp /var/www/dacha-api/landing/sitemap.xml /var/www/dacha-landing/sitemap.xml'
 ```
 
+**При подготовке каждого нового батча — секция `FAQ:` обязательна** (правило владельца,
+2026-08-13), по аналогии с `Telegram:`. 2–4 пары `В:`/`О:` на пост, отделены пустой строкой,
+ставится в тексте между основным телом и `Telegram:`:
+
+```
+FAQ:
+В: Вопрос по существу статьи?
+О: Ответ в 1–2 предложения.
+
+В: Второй вопрос?
+О: Второй ответ.
+```
+
+В ВК/Дзен/Telegram не публикуется — только в блог на сайте: рендерится секцией
+«Частые вопросы» (`<details>/<summary>`) и схемой `FAQPage`/`Question`/`Answer`
+(JSON-LD, `faqJsonLd` в `lib/seoPage.js`) в `<head>` страницы поста. Парсер —
+`parseFaq()` в `src/services/vkContent.js`.
+
 Идемпотентно — повторный прогон того же файла не плодит дублей (состояние в
 `backend/scripts/.blog-manifest.json`, не в git, живёт на VPS постоянно — `git reset --hard`
 его не трогает, т.к. файл untracked). Требуется свой location-блок в nginx (один раз,
