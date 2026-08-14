@@ -330,6 +330,23 @@ Google Play Console: R8 `shrinkResources`, растровый `ic_sunflower_png`
 обновление `androidx.activity`/`core-ktx` под edge-to-edge на `compileSdk 36`. Текст «Что нового» —
 `session-note.md` (2026-08-09 (2)).
 
+**⚠️ Google Play Console: рекомендации edge-to-edge/растровые изображения продолжают висеть после
+фикса выше — разобрано и закрыто как неактуабельное (2026-08-14).** Три пункта:
+`setStatusBarColor`/`setNavigationBarColor`/`LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES` (классы
+`b21.b`/`d21.b`/`f21.b`/`u2.p`) и декодирование битмапов без библиотеки загрузки (класс `dm0.t`) —
+код не наш: в проекте нет прямых вызовов этих API (`MainActivity.kt` уже вызывает официальный
+`enableEdgeToEdge()`), Coil уже используется везде (`coil-compose`). По докам AndroidX,
+`enableEdgeToEdge()` сам внутри себя вызывает `setStatusBarColor`/`setNavigationBarColor` как
+compat-шим для старых API — `activity-compose 1.13.0` уже последняя стабильная версия, апгрейдить
+некуда. Битмап-декодер — встроенный в `firebase-messaging` загрузчик картинки для push с полем
+`image`; бэкенд (`fcmService.js`) это поле не передаёт, но класс всё равно лежит в SDK мёртвым
+грузом. Проверил доступные апдейты (`firebase-bom` 33.16.0→34.17.0, `firebase-messaging`
+24.1.0→25.1.1, `rustore pushclient` 6.0.0→8.0.0-rc01) — ни в одном changelog нет фикса именно
+этих warning'ов, а `firebase-bom 34.0.0` вдобавок breaking (убраны KTX-модули, устарели
+`getToken`/`deleteToken`/`onNewToken`). **Решение: не трогать зависимости и код ради этих
+warning'ов** — они не блокируют публикацию (это рекомендации, не ошибки) и не уйдут, пока Google
+сам не обновит внутренности AndroidX/Firebase SDK.
+
 **vc11/1.0.8** собирал: тёмная тема (тумблер «Система/Светлая/Тёмная») + контраст карточек,
 **инвентарь «Мои семена»**, советы дня по культуре, фикс ISO-дат на «Урожае», фикс подсказки
 севооборота, фиксы шторок, просмотр фото пакетика, ссылка на веб-версию. Для Google Play это был
