@@ -210,7 +210,21 @@ fun PaywallScreen(
                 }
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(12.dp))
+
+            // Явно разводим сад и посадки: бейдж выше «1 сад, N посадок» рядом со списком фич
+            // читался так, будто Про даёт больше и садов тоже — участок всегда один, лимит
+            // снимается только на посадки (жалоба владельца 2026-08-14).
+            Text(
+                text = "Участок всегда один — и на бесплатном тарифе, и на «Дачник Про». " +
+                    "Лимит снимается только на число посадок.",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(16.dp))
 
             // Фичи — сверх бесплатного тарифа
             val features = listOf(
