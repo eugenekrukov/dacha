@@ -48,10 +48,49 @@ export default function SeedsScreen() {
     }
   }
 
-  // Клик по культуре в «Списке покупок» — подставляет её в форму добавления и ставит фокус.
+  // Клик по автообнаруженной культуре в «Списке покупок» — подставляет её в форму добавления.
   const fillFromShoppingList = (name: string) => {
     setCropName(name)
     cropNameInput.current?.focus()
+  }
+
+  const [wishInput, setWishInput] = useState('')
+  const [wishBusy, setWishBusy] = useState(false)
+
+  // Добавить произвольную культуру в список покупок (wanted:true) — не привязана к посадкам.
+  const addWish = async () => {
+    const name = wishInput.trim()
+    if (!name) return
+    setWishBusy(true)
+    try {
+      await api.createSeed({ crop_name: name, wanted: true })
+      setWishInput('')
+      await load()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось добавить в список покупок')
+    } finally {
+      setWishBusy(false)
+    }
+  }
+
+  // «Куплено» — снимает wanted, позиция становится обычным пакетиком в коробке.
+  const markBought = async (id: number) => {
+    try {
+      await api.updateSeed(id, { wanted: false })
+      await load()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось отметить купленным')
+    }
+  }
+
+  const removeWish = async (item: SeedShoppingItem) => {
+    if (item.id == null) return
+    try {
+      await api.deleteSeed(item.id)
+      setShoppingList((prev) => prev.filter((i) => i.id !== item.id))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось убрать из списка')
+    }
   }
 
   useEffect(() => {
@@ -139,16 +178,18 @@ export default function SeedsScreen() {
 
       {error && <p className="font-bold text-[#D32F2F]">{error}</p>}
 
-      {shoppingList.length > 0 && (
-        <div className="dacha-card flex flex-col gap-2 p-4">
-          <h2 className="font-black">Список покупок</h2>
-          <p className="text-sm font-semibold text-muted">
-            Растёт на участке, но семян в коробке нет — возможно, стоит докупить на следующий сезон.
-          </p>
+      <div className="dacha-card flex flex-col gap-2 p-4">
+        <h2 className="font-black">Список покупок</h2>
+        <p className="text-sm font-semibold text-muted">
+          Растёт на участке без семян в коробке — само подсказало ниже. Плюс сюда можно вписать
+          что угодно, чего ещё нет: новый сорт, культуру на будущий сезон.
+        </p>
+
+        {shoppingList.some((i) => !i.manual) && (
           <div className="flex flex-wrap gap-2">
-            {shoppingList.map((item) => (
+            {shoppingList.filter((i) => !i.manual).map((item) => (
               <button
-                key={item.crop_id}
+                key={`auto-${item.crop_id}`}
                 type="button"
                 className="rounded-pill bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary"
                 onClick={() => fillFromShoppingList(item.crop_name)}
@@ -157,8 +198,57 @@ export default function SeedsScreen() {
               </button>
             ))}
           </div>
+        )}
+
+        {shoppingList.some((i) => i.manual) && (
+          <ul className="flex flex-col gap-1.5">
+            {shoppingList.filter((i) => i.manual).map((item) => (
+              <li key={item.id} className="flex items-center justify-between gap-2 rounded-btn bg-background px-3 py-2">
+                <span className="text-sm font-semibold">
+                  {item.crop_name}
+                  {item.variety ? ` · ${item.variety}` : ''}
+                </span>
+                <span className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="text-xs font-bold text-primary"
+                    onClick={() => item.id != null && markBought(item.id)}
+                  >
+                    Куплено
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Убрать «${item.crop_name}» из списка`}
+                    className="rounded-btn p-1 text-muted hover:bg-black/5"
+                    onClick={() => removeWish(item)}
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex gap-1.5">
+          <input
+            className="dacha-input flex-1 py-1.5 text-sm"
+            list="crops-list"
+            placeholder="Добавить культуру в список (например, Бархатцы)"
+            value={wishInput}
+            onChange={(e) => setWishInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addWish()}
+          />
+          <button
+            type="button"
+            className="dacha-chip px-3 py-1.5 text-sm"
+            disabled={wishBusy || !wishInput.trim()}
+            onClick={addWish}
+          >
+            Добавить
+          </button>
         </div>
-      )}
+      </div>
 
       <form onSubmit={add} className="dacha-card flex flex-col gap-3 p-5">
         <h2 className="text-lg font-black">Добавить пакетик</h2>

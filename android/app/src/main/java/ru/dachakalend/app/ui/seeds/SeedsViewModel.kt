@@ -104,4 +104,38 @@ class SeedsViewModel @Inject constructor(
             }
         }
     }
+
+    /** Добавить произвольную культуру в список покупок (wanted=true) — не привязана к посадкам. */
+    fun addWish(cropName: String) {
+        val name = cropName.trim()
+        if (name.isEmpty()) return
+        viewModelScope.launch {
+            when (val result = repository.createSeed(name, null, null, wanted = true)) {
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = result.message, errorIsSubscriptionRequired = result.isSubscriptionRequired)
+                else -> load()
+            }
+        }
+    }
+
+    /** «Куплено» — снимает wanted, позиция становится обычным пакетиком в коробке. */
+    fun markBought(id: Int) {
+        viewModelScope.launch {
+            when (val result = repository.updateSeed(id, wanted = false)) {
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = result.message, errorIsSubscriptionRequired = result.isSubscriptionRequired)
+                else -> load()
+            }
+        }
+    }
+
+    fun removeWish(id: Int) {
+        viewModelScope.launch {
+            when (val result = repository.deleteSeed(id)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(
+                    shoppingList = _uiState.value.shoppingList.filterNot { it.id == id }
+                )
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = result.message, errorIsSubscriptionRequired = result.isSubscriptionRequired)
+                is Result.Loading -> Unit
+            }
+        }
+    }
 }

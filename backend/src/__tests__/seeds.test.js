@@ -5,7 +5,7 @@ const { buildApp, makeToken } = require('./helpers/buildApp')
 const { normalizeExpiry } = require('../routes/seeds')
 
 const ROW = {
-  id: 5, crop_name: 'Томат', variety: 'Бычье сердце', expires_on: '2027-12-31',
+  id: 5, crop_name: 'Томат', variety: 'Бычье сердце', expires_on: '2027-12-31', wanted: false,
   created_at: '2026-07-29T10:00:00.000Z', has_photo: false, expired: false, expires_this_year: false
 }
 
@@ -56,6 +56,17 @@ describe('GET /seeds', () => {
     await app.close()
   })
 
+  it('не отдаёт позиции «хочу купить» (wanted=true) — только физическую коробку', async () => {
+    let sql = ''
+    const app = await buildApp(makeMockDb({
+      query: async (s) => { sql = s; return { rows: [ROW] } },
+    }))
+    await supertest(app.server).get('/seeds').set('Authorization', `Bearer ${makeToken(app)}`)
+
+    expect(sql).toMatch(/s\.wanted = false/)
+    await app.close()
+  })
+
   it('401 без токена', async () => {
     const app = await buildApp(makeMockDb())
     expect((await supertest(app.server).get('/seeds')).status).toBe(401)
@@ -93,6 +104,41 @@ describe('POST /seeds', () => {
     const badDate = await supertest(app.server).post('/seeds').set('Authorization', `Bearer ${token}`)
       .send({ crop_name: 'Томат', expires_on: '12.2027' })
     expect(badDate.status).toBe(400)
+    await app.close()
+  })
+
+  it('wanted:true — создаёт позицию «хочу купить», не пакетик', async () => {
+    let inserted = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('COUNT(*)')) return { rows: [{ count: '3' }] }
+        if (sql.includes('INSERT INTO seeds')) { inserted = params; return { rows: [{ id: 6 }] } }
+        return { rows: [{ ...ROW, id: 6, wanted: true }] }
+      },
+    }))
+    const res = await supertest(app.server)
+      .post('/seeds').set('Authorization', `Bearer ${makeToken(app)}`)
+      .send({ crop_name: 'Бархатцы', wanted: true })
+
+    expect(res.status).toBe(201)
+    expect(inserted[4]).toBe(true)
+    expect(res.body.wanted).toBe(true)
+    await app.close()
+  })
+
+  it('без wanted — по умолчанию false (обычный пакетик)', async () => {
+    let inserted = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('COUNT(*)')) return { rows: [{ count: '3' }] }
+        if (sql.includes('INSERT INTO seeds')) { inserted = params; return { rows: [{ id: 5 }] } }
+        return { rows: [ROW] }
+      },
+    }))
+    await supertest(app.server)
+      .post('/seeds').set('Authorization', `Bearer ${makeToken(app)}`).send({ crop_name: 'Томат' })
+
+    expect(inserted[4]).toBe(false)
     await app.close()
   })
 
@@ -139,6 +185,24 @@ describe('PATCH /seeds/:id', () => {
 
     expect(params[1]).toBe(false)  // variety не трогаем
     expect(params[3]).toBe(false)  // expires_on не трогаем
+    await app.close()
+  })
+
+  it('wanted: false — «отметить купленным», позиция становится пакетиком', async () => {
+    let params = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, p) => {
+        if (sql.includes('UPDATE seeds')) { params = p; return { rows: [{ id: 5 }] } }
+        return { rows: [{ ...ROW, wanted: false }] }
+      },
+    }))
+    const res = await supertest(app.server)
+      .patch('/seeds/5').set('Authorization', `Bearer ${makeToken(app)}`).send({ wanted: false })
+
+    expect(res.status).toBe(200)
+    expect(params[5]).toBe(true)    // флаг «трогаем wanted»
+    expect(params[6]).toBe(false)
+    expect(res.body.wanted).toBe(false)
     await app.close()
   })
 
@@ -261,6 +325,29 @@ describe('GET /seeds/shopping-list', () => {
       .get('/seeds/shopping-list').set('Authorization', `Bearer ${makeToken(app)}`)
 
     expect(res.body).toEqual([])
+    await app.close()
+  })
+
+  it('включает вручную добавленные позиции «хочу купить» (SQL: UNION ALL по wanted=true)', async () => {
+    const queries = []
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        queries.push({ sql, params })
+        return {
+          rows: [
+            { id: null, crop_id: 3, crop_name: 'Морковь', variety: null, manual: false },
+            { id: 12, crop_id: null, crop_name: 'Бархатцы махровые', variety: 'Килиманджаро', manual: true },
+          ],
+        }
+      },
+    }))
+    const res = await supertest(app.server)
+      .get('/seeds/shopping-list').set('Authorization', `Bearer ${makeToken(app)}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body[1]).toEqual({ id: 12, crop_id: null, crop_name: 'Бархатцы махровые', variety: 'Килиманджаро', manual: true })
+    expect(queries[0].sql).toMatch(/UNION ALL/)
+    expect(queries[0].sql).toMatch(/s\.wanted = true/)
     await app.close()
   })
 

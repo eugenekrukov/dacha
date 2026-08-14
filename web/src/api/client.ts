@@ -215,9 +215,9 @@ export const api = {
   // --- инвентарь семян ---
   getSeeds: () => request<Seed[]>('/seeds'),
   getSeedsShoppingList: () => request<SeedShoppingItem[]>('/seeds/shopping-list'),
-  createSeed: (body: { crop_name: string; variety?: string | null; expires_on?: string | null }) =>
+  createSeed: (body: { crop_name: string; variety?: string | null; expires_on?: string | null; wanted?: boolean }) =>
     request<Seed>('/seeds', { method: 'POST', body }),
-  updateSeed: (id: number, body: { crop_name?: string; variety?: string | null; expires_on?: string | null }) =>
+  updateSeed: (id: number, body: { crop_name?: string; variety?: string | null; expires_on?: string | null; wanted?: boolean }) =>
     request<Seed>(`/seeds/${id}`, { method: 'PATCH', body }),
   deleteSeed: (id: number) => request<void>(`/seeds/${id}`, { method: 'DELETE' }),
   uploadSeedPhoto: async (id: number, file: File): Promise<Seed> => {

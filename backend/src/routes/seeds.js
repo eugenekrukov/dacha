@@ -36,7 +36,7 @@ function normalizeExpiry(value) {
 // сдвигает её в UTC (в MSK «2027-12-31» уезжает на 2027-12-30T21:00Z). Клиентам нужна
 // именно календарная дата с пакетика — отдаём строкой.
 const SELECT_FIELDS = `
-  s.id, s.crop_name, s.variety, to_char(s.expires_on, 'YYYY-MM-DD') AS expires_on, s.created_at,
+  s.id, s.crop_name, s.variety, s.wanted, to_char(s.expires_on, 'YYYY-MM-DD') AS expires_on, s.created_at,
   (s.photo_path IS NOT NULL) AS has_photo,
   (s.expires_on IS NOT NULL AND s.expires_on < CURRENT_DATE) AS expired,
   (s.expires_on IS NOT NULL AND s.expires_on >= CURRENT_DATE
@@ -55,11 +55,13 @@ module.exports = async function (fastify, opts) {
   const imageService = opts.imageService || require('../services/imageService')
   const auth = { onRequest: [fastify.authenticate] }
 
-  // GET /seeds — вся коробка пользователя. Просроченные сверху: ради них экран и открывают.
+  // GET /seeds — физическая коробка пользователя (wanted=false). Позиции «хочу купить»
+  // (wanted=true) сюда не попадают — они не пакетик в руках, а строка в /seeds/shopping-list.
+  // Просроченные сверху: ради них экран и открывают.
   fastify.get('/', auth, async (request) => {
     const res = await fastify.db.query(
       `SELECT ${SELECT_FIELDS} FROM seeds s
-       WHERE s.user_id = $1
+       WHERE s.user_id = $1 AND s.wanted = false
        ORDER BY (s.expires_on IS NOT NULL AND s.expires_on < CURRENT_DATE) DESC,
                 s.crop_name ASC, s.id ASC`,
       [request.user.userId]
@@ -67,15 +69,20 @@ module.exports = async function (fastify, opts) {
     return res.rows.map(withUrls)
   })
 
-  // GET /seeds/shopping-list — культуры из активных посадок (stage <> 'done'), для которых
-  // нет непросроченной записи в инвентаре семян. Сопоставление по названию (не по id):
-  // seeds.crop_name — свободный текст, ради цветов, которых нет в справочнике crops, строгого
-  // FK нет. ponytail: текстового сравнения достаточно, пока форма подбирает культуру из
-  // datalist с теми же названиями (SeedsScreen); если совпадения станут ненадёжными
-  // (опечатки при свободном вводе) — заводить seeds.crop_id.
+  // GET /seeds/shopping-list — две группы, объединённые в один список:
+  // 1) автообнаруженные пробелы — культуры из активных посадок (stage <> 'done'), для которых
+  //    нет ни непросроченного пакетика, ни уже заведённой позиции «хочу купить». Синтетические
+  //    строки без id (id: null) — не запись в seeds, только подсказка; клик на клиенте открывает
+  //    обычную форму добавления пакетика.
+  // 2) вручную добавленные позиции «хочу купить» (seeds.wanted = true) — настоящие записи,
+  //    их можно отметить купленным (PATCH {wanted:false}) или удалить, как любой пакетик.
+  // Сопоставление названий — текстовое (не по id): seeds.crop_name — свободный текст, ради
+  // цветов, которых нет в справочнике crops, строгого FK нет. ponytail: текстового сравнения
+  // достаточно, пока форма подбирает культуру из того же datalist; если совпадения станут
+  // ненадёжными (опечатки) — заводить seeds.crop_id.
   fastify.get('/shopping-list', auth, async (request) => {
     const res = await fastify.db.query(
-      `SELECT DISTINCT c.id AS crop_id, c.name AS crop_name
+      `SELECT NULL::int AS id, c.id AS crop_id, c.name AS crop_name, NULL::text AS variety, false AS manual
        FROM plantings p
        JOIN gardens g ON g.id = p.garden_id
        JOIN crops c ON c.id = p.crop_id
@@ -84,17 +91,22 @@ module.exports = async function (fastify, opts) {
            SELECT 1 FROM seeds s
            WHERE s.user_id = $1
              AND LOWER(TRIM(s.crop_name)) = LOWER(c.name)
-             AND (s.expires_on IS NULL OR s.expires_on >= CURRENT_DATE)
+             AND (s.wanted = true OR s.expires_on IS NULL OR s.expires_on >= CURRENT_DATE)
          )
-       ORDER BY c.name`,
+       UNION ALL
+       SELECT s.id, NULL::int AS crop_id, s.crop_name, s.variety, true AS manual
+       FROM seeds s
+       WHERE s.user_id = $1 AND s.wanted = true
+       ORDER BY crop_name`,
       [request.user.userId]
     )
     return res.rows
   })
 
-  // POST /seeds — { crop_name, variety?, expires_on? } (фото отдельным запросом)
+  // POST /seeds — { crop_name, variety?, expires_on?, wanted? } (фото отдельным запросом).
+  // wanted:true — позиция «хочу купить» (список покупок), не пакетик в коробке.
   fastify.post('/', auth, async (request, reply) => {
-    const { crop_name, variety } = request.body || {}
+    const { crop_name, variety, wanted } = request.body || {}
     if (!crop_name || !String(crop_name).trim()) {
       return reply.code(400).send({ error: 'crop_name_required' })
     }
@@ -107,17 +119,18 @@ module.exports = async function (fastify, opts) {
     }
 
     const res = await fastify.db.query(
-      `INSERT INTO seeds (user_id, crop_name, variety, expires_on) VALUES ($1,$2,$3,$4) RETURNING id`,
-      [request.user.userId, String(crop_name).trim(), variety ? String(variety).trim() : null, expiresOn]
+      `INSERT INTO seeds (user_id, crop_name, variety, expires_on, wanted) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+      [request.user.userId, String(crop_name).trim(), variety ? String(variety).trim() : null, expiresOn, !!wanted]
     )
     const created = await fastify.db.query(
       `SELECT ${SELECT_FIELDS} FROM seeds s WHERE s.id = $1`, [res.rows[0].id])
     return reply.code(201).send(withUrls(created.rows[0]))
   })
 
-  // PATCH /seeds/:id — правка культуры/сорта/срока (пакетик перебрали, дату разглядели)
+  // PATCH /seeds/:id — правка культуры/сорта/срока (пакетик перебрали, дату разглядели), а также
+  // wanted: true→false — «отметить купленным», позиция из списка покупок становится пакетиком.
   fastify.patch('/:id', auth, async (request, reply) => {
-    const { crop_name, variety } = request.body || {}
+    const { crop_name, variety, wanted } = request.body || {}
     let expiresOn
     if (request.body && 'expires_on' in request.body) {
       expiresOn = normalizeExpiry(request.body.expires_on)
@@ -127,13 +140,15 @@ module.exports = async function (fastify, opts) {
       `UPDATE seeds SET
          crop_name  = COALESCE($1::text, crop_name),
          variety    = CASE WHEN $2::boolean THEN $3::varchar ELSE variety END,
-         expires_on = CASE WHEN $4::boolean THEN $5::date ELSE expires_on END
-       WHERE id = $6 AND user_id = $7
+         expires_on = CASE WHEN $4::boolean THEN $5::date ELSE expires_on END,
+         wanted     = CASE WHEN $6::boolean THEN $7::boolean ELSE wanted END
+       WHERE id = $8 AND user_id = $9
        RETURNING id`,
       [
         crop_name ? String(crop_name).trim() : null,
         variety !== undefined, variety ? String(variety).trim() : null,
         expiresOn !== undefined, expiresOn ?? null,
+        wanted !== undefined, wanted === undefined ? null : !!wanted,
         request.params.id, request.user.userId
       ]
     )

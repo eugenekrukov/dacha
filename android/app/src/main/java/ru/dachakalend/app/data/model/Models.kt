@@ -681,6 +681,7 @@ data class Seed(
     @Json(name = "crop_name") val cropName: String,
     val variety: String? = null,
     @Json(name = "expires_on") val expiresOn: String? = null,     // YYYY-MM-DD (месяц с пакетика → последний день)
+    val wanted: Boolean = false,                                  // true — «хочу купить», не пакетик в коробке
     @Json(name = "created_at") val createdAt: String,
     val expired: Boolean = false,
     @Json(name = "expires_this_year") val expiresThisYear: Boolean = false,
@@ -688,18 +689,24 @@ data class Seed(
     @Json(name = "thumb_url") val thumbUrl: String? = null
 )
 
-// Культура из активной посадки без непросроченных семян в инвентаре — GET /seeds/shopping-list.
+// Позиция «Списка покупок» — GET /seeds/shopping-list. Либо автообнаруженный пробел
+// (manual=false, id=null — культура из активной посадки без семян, cropId указан), либо
+// вручную добавленная запись «хочу купить» (manual=true, id — реальная строка seeds).
 @JsonClass(generateAdapter = true)
 data class SeedShoppingItem(
-    @Json(name = "crop_id") val cropId: Int,
-    @Json(name = "crop_name") val cropName: String
+    val id: Int? = null,
+    @Json(name = "crop_id") val cropId: Int? = null,
+    @Json(name = "crop_name") val cropName: String,
+    val variety: String? = null,
+    val manual: Boolean = false
 )
 
 @JsonClass(generateAdapter = true)
 data class CreateSeedRequest(
     @Json(name = "crop_name") val cropName: String,
     val variety: String? = null,
-    @Json(name = "expires_on") val expiresOn: String? = null      // "YYYY-MM" или "YYYY-MM-DD"
+    @Json(name = "expires_on") val expiresOn: String? = null,     // "YYYY-MM" или "YYYY-MM-DD"
+    val wanted: Boolean? = null
 )
 
 // Moshi не сериализует null-поля, поэтому null здесь = «не трогать поле».
@@ -708,5 +715,6 @@ data class CreateSeedRequest(
 data class UpdateSeedRequest(
     @Json(name = "crop_name") val cropName: String? = null,
     val variety: String? = null,
-    @Json(name = "expires_on") val expiresOn: String? = null
+    @Json(name = "expires_on") val expiresOn: String? = null,
+    val wanted: Boolean? = null
 )

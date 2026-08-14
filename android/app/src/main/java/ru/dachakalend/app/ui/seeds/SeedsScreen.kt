@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -129,13 +130,14 @@ fun SeedsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (state.shoppingList.isNotEmpty()) {
-                        item {
-                            ShoppingListCard(
-                                items = state.shoppingList,
-                                onPick = { viewModel.openAdd(prefillCropName = it) }
-                            )
-                        }
+                    item {
+                        ShoppingListCard(
+                            items = state.shoppingList,
+                            onPick = { viewModel.openAdd(prefillCropName = it) },
+                            onAddWish = { viewModel.addWish(it) },
+                            onMarkBought = { viewModel.markBought(it) },
+                            onRemoveWish = { viewModel.removeWish(it) },
+                        )
                     }
                     if (state.expiredCount > 0) {
                         item {
@@ -176,10 +178,25 @@ fun SeedsScreen(
     }
 }
 
-/** «Список покупок» — культуры из активных посадок без семян в инвентаре, тап подставляет форму. */
+/**
+ * «Список покупок» — две группы: автообнаруженные пробелы (растёт на участке, семян нет —
+ * тап подставляет форму добавления пакетика) и вручную вписанные позиции «хочу купить»
+ * (своя строка в seeds, отмечается купленным или удаляется). Плюс поле для добавления
+ * произвольной культуры, не привязанной ни к одной посадке.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ShoppingListCard(items: List<SeedShoppingItem>, onPick: (String) -> Unit) {
+private fun ShoppingListCard(
+    items: List<SeedShoppingItem>,
+    onPick: (String) -> Unit,
+    onAddWish: (String) -> Unit,
+    onMarkBought: (Int) -> Unit,
+    onRemoveWish: (Int) -> Unit,
+) {
+    var wishInput by remember { mutableStateOf("") }
+    val auto = items.filter { !it.manual }
+    val manual = items.filter { it.manual }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -193,24 +210,73 @@ private fun ShoppingListCard(items: List<SeedShoppingItem>, onPick: (String) -> 
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                "Растёт на участке, но семян в коробке нет — возможно, стоит докупить на следующий сезон.",
+                "Растёт на участке без семян в коробке — само подсказало ниже. Плюс сюда можно " +
+                    "вписать что угодно, чего ещё нет: новый сорт, культуру на будущий сезон.",
                 fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items.forEach { item ->
-                    Box(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(50))
-                            .clickable { onPick(item.cropName) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            "+ ${item.cropName}",
-                            fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+
+            if (auto.isNotEmpty()) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    auto.forEach { item ->
+                        Box(
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(50))
+                                .clickable { onPick(item.cropName) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                "+ ${item.cropName}",
+                                fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
+                }
+            }
+
+            if (manual.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    manual.forEach { item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                item.cropName + (item.variety?.let { " · $it" } ?: ""),
+                                fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = { item.id?.let(onMarkBought) }) {
+                                Text("Куплено", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                            IconButton(
+                                onClick = { item.id?.let(onRemoveWish) },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Убрать «${item.cropName}» из списка", modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = wishInput,
+                    onValueChange = { wishInput = it },
+                    placeholder = { Text("Добавить культуру, например «Бархатцы»", fontFamily = NunitoFamily) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(
+                    enabled = wishInput.isNotBlank(),
+                    onClick = { onAddWish(wishInput); wishInput = "" }
+                ) {
+                    Text("Добавить", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold)
                 }
             }
         }

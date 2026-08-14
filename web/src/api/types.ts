@@ -460,6 +460,7 @@ export interface Seed {
   crop_name: string
   variety: string | null
   expires_on: string | null   // YYYY-MM-DD, срок с пакетика (месяц нормализован в последний день)
+  wanted: boolean              // true — позиция «хочу купить», не пакетик в коробке
   created_at: string
   expired: boolean
   expires_this_year: boolean
@@ -467,8 +468,13 @@ export interface Seed {
   thumb_url: string | null    // /seeds/:id/photo?thumb=1
 }
 
-// Культура из активной посадки без непросроченных семян в инвентаре — см. GET /seeds/shopping-list.
+// Позиция «Списка покупок» — см. GET /seeds/shopping-list. Либо автообнаруженный пробел
+// (manual: false, id: null — культура из активной посадки без семян, crop_id указан), либо
+// вручную добавленная запись «хочу купить» (manual: true, id — реальная строка seeds).
 export interface SeedShoppingItem {
-  crop_id: number
+  id: number | null
+  crop_id: number | null
   crop_name: string
+  variety: string | null
+  manual: boolean
 }

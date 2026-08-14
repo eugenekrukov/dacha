@@ -26,8 +26,10 @@ class SeedsRepository @Inject constructor(private val api: DachaApi) {
         errorResult(e, "Не удалось загрузить список покупок")
     }
 
-    suspend fun createSeed(cropName: String, variety: String?, expiresOn: String?): Result<Seed> = try {
-        Result.Success(api.createSeed(CreateSeedRequest(cropName, variety, expiresOn)))
+    suspend fun createSeed(
+        cropName: String, variety: String?, expiresOn: String?, wanted: Boolean? = null
+    ): Result<Seed> = try {
+        Result.Success(api.createSeed(CreateSeedRequest(cropName, variety, expiresOn, wanted)))
     } catch (e: Exception) {
         errorResult(e, "Не удалось добавить пакетик")
     }
@@ -37,9 +39,10 @@ class SeedsRepository @Inject constructor(private val api: DachaApi) {
         id: Int,
         cropName: String? = null,
         variety: String? = null,
-        expiresOn: String? = null
+        expiresOn: String? = null,
+        wanted: Boolean? = null
     ): Result<Seed> = try {
-        Result.Success(api.updateSeed(id, UpdateSeedRequest(cropName, variety, expiresOn)))
+        Result.Success(api.updateSeed(id, UpdateSeedRequest(cropName, variety, expiresOn, wanted)))
     } catch (e: Exception) {
         errorResult(e, "Не удалось сохранить изменения")
     }
