@@ -99,12 +99,16 @@ function isPlantingLocked(state, planting) {
 
 /**
  * Новая дата окончания подписки после оплаты на `days` дней.
- * Если подписка ещё активна — продлеваем от её конца (не теряем оплаченное);
- * иначе — от текущего момента.
+ * Продлеваем от максимума из «сейчас», текущей активной подписки и активного промо-доступа —
+ * иначе оплата обрубает ещё не выгоревший промо-период (баг 2026-08-14: пользователь оплатил
+ * поверх активного промокода, subscription_until встал по дате оплаты, а не суммарно).
+ * promoUntil опционален — вызывающий код без промо просто не передаёт третий аргумент.
  */
-function extendSubscription(currentUntil, days) {
-  const base = isSubscribed(currentUntil) ? new Date(currentUntil) : new Date()
-  return new Date(base.getTime() + days * 86_400_000)
+function extendSubscription(currentUntil, days, promoUntil) {
+  let base = Date.now()
+  if (isSubscribed(currentUntil)) base = Math.max(base, new Date(currentUntil).getTime())
+  if (hasPromo(promoUntil)) base = Math.max(base, new Date(promoUntil).getTime())
+  return new Date(base + days * 86_400_000)
 }
 
 /**

@@ -56,6 +56,10 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
         const u = s.users[params[0]]
         return { rows: u ? [{ id: params[0], email: u.email }] : [] }
       }
+      if (sql.includes('SELECT subscription_until, promo_until FROM users WHERE id')) {
+        const u = s.users[params[0]] || {}
+        return { rows: [{ subscription_until: u.subscription_until || null, promo_until: u.promo_until || null }] }
+      }
       if (sql.includes('SELECT subscription_until FROM users WHERE id')) {
         const u = s.users[params[0]] || {}
         return { rows: [{ subscription_until: u.subscription_until || null }] }
@@ -199,6 +203,19 @@ describe('POST /billing/webhook', () => {
     expect(u.plan).toBe('monthly')
     expect(u.payment_method_id).toBe('pm_card_1')
     expect(db.state.payments['pay_001'].status).toBe('succeeded')
+    await app.close()
+  })
+
+  it('оплата поверх активного промокода → срок суммируется, а не обрубается по дате оплаты', async () => {
+    const promoUntil = new Date(Date.now() + 60 * 86_400_000) // промо ещё на 60 дней
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c', promo_until: promoUntil } } })
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    await sendWebhook(app, yk, succeededWebhook({ id: 'pay_promo', plan: 'monthly' }))
+    const days = (new Date(db.state.users[1].subscription_until).getTime() - Date.now()) / 86_400_000
+    // База — конец промо (60 дней), + 30 дней оплаты = ~90, а не ~30 (баг: оплата поверх текущей даты)
+    expect(days).toBeGreaterThan(89)
+    expect(days).toBeLessThan(91)
     await app.close()
   })
 

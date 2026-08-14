@@ -159,9 +159,10 @@ module.exports = async function (fastify, opts) {
       const planCfg = yk.getPlan(plan) || yk.getPlan('monthly')
       const isRecurring = !!(object.metadata && object.metadata.recurring)
 
-      const userRes = await db.query('SELECT subscription_until FROM users WHERE id = $1', [userId])
+      const userRes = await db.query('SELECT subscription_until, promo_until FROM users WHERE id = $1', [userId])
       const current = userRes.rows[0] && userRes.rows[0].subscription_until
-      const until = extendSubscription(current, planCfg.days)
+      const promoUntil = userRes.rows[0] && userRes.rows[0].promo_until
+      const until = extendSubscription(current, planCfg.days, promoUntil)
 
       // Сохранённая карта для автосписаний (если ЮKassa вернула saved=true).
       const pm = object.payment_method

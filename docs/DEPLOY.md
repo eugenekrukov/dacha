@@ -109,6 +109,13 @@ backend и получает 404 оттуда. Грабли `llms.txt` (2026-08-1
 директориях на сервере не менее пары недель, но location-блок так и не добавили — раздавался 404.
 Добавить: `cp /etc/nginx/sites-available/dacha{,.bak}` → `sed -i '\#location = /sitemap.xml#a\    location = /имя.txt { root /var/www/dacha-landing; }' /etc/nginx/sites-available/dacha` → `nginx -t && systemctl reload nginx`.
 
+⚠️ **Если в `.txt`-файле есть кириллица — добавить `charset utf-8;` в тот же location-блок**
+(`location = /имя.txt { root /var/www/dacha-landing; charset utf-8; }`), иначе nginx отдаёт
+`Content-Type: text/plain` без charset, и клиент сам угадывает кодировку (часто промахивается
+на CP1251 → крякозябры), хотя сам файл на диске в порядке (UTF-8). HTML/XML эта проблема не
+касается — там кодировка объявлена внутри файла (`<meta charset>`, XML-декларация). Грабли
+`llms.txt` (2026-08-14, тем же заходом).
+
 ### Справочник `/spravochnik/` (SEO-страницы культур и проблем растений)
 
 Генерируется скриптом из БД, не редактируется руками. После изменения данных
