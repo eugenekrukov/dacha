@@ -192,7 +192,10 @@ fun PaywallScreen(
                     )
                 }
             } else if (!uiState.status.isSubscribed) {
-                // Бейдж бесплатного тарифа (бессрочно, лимит по числу посадок)
+                // Бейдж бесплатного тарифа (бессрочно, лимит по числу посадок). Раньше здесь
+                // фигурировало «1 сад/участок» — рядом со списком фич это читалось так, будто
+                // Про даёт больше и участков тоже (жалоба владельца 2026-08-14). Участков в
+                // продукте всегда один, упоминать их количество незачем.
                 Spacer(Modifier.height(16.dp))
                 Box(
                     modifier = Modifier
@@ -201,7 +204,7 @@ fun PaywallScreen(
                         .padding(horizontal = 16.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = "Бесплатно навсегда: 1 сад, до ${uiState.status.plantingsLimit} посадок",
+                        text = "Бесплатно навсегда: без карты и без рекламы, до ${uiState.status.plantingsLimit} посадок",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
@@ -209,20 +212,6 @@ fun PaywallScreen(
                     )
                 }
             }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Явно разводим сад и посадки: бейдж выше «1 сад, N посадок» рядом со списком фич
-            // читался так, будто Про даёт больше и садов тоже — участок всегда один, лимит
-            // снимается только на посадки (жалоба владельца 2026-08-14).
-            Text(
-                text = "Участок всегда один — и на бесплатном тарифе, и на «Дачник Про». " +
-                    "Лимит снимается только на число посадок.",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
 
             Spacer(Modifier.height(16.dp))
 
