@@ -48,11 +48,38 @@ fun capacityHint(bed: GardenBed?, spacingInRowCm: Int?, spacingBetweenRowsCm: In
     if (bed == null || bed.widthCm == null || bed.lengthCm == null ||
         spacingInRowCm == null || spacingBetweenRowsCm == null
     ) return null
-    val rows = bed.widthCm / spacingBetweenRowsCm
-    val perRow = bed.lengthCm / spacingInRowCm
+    return "На грядке «${bed.name}»: " + capacityText(bed.widthCm, bed.lengthCm, spacingInRowCm, spacingBetweenRowsCm)
+}
+
+/**
+ * Общее ядро расчёта — используется и для capacityHint у выбранной грядки, и для живого
+ * предпросмотра прямо в форме создания/правки размера (см. sizePreview), пока пользователь ещё
+ * печатает — иначе смысл вводить размер не виден, пока не пересоздашь грядку и не откроешь снова.
+ */
+fun capacityText(widthCm: Int, lengthCm: Int, spacingInRowCm: Int, spacingBetweenRowsCm: Int): String {
+    val rows = widthCm / spacingBetweenRowsCm
+    val perRow = lengthCm / spacingInRowCm
     val capacity = rows * perRow
-    if (capacity <= 0) return "Грядка меньше рекомендованной схемы посадки для этой культуры."
-    return "На грядке «${bed.name}» (${bed.widthCm}×${bed.lengthCm} см) поместится примерно $capacity раст."
+    if (capacity <= 0) {
+        return "$widthCm×$lengthCm см меньше рекомендованной схемы посадки для этой культуры — " +
+            "нужно хотя бы $spacingBetweenRowsCm×$spacingInRowCm см (между рядами × в ряду) на одно растение."
+    }
+    return "$widthCm×$lengthCm см — поместится примерно $capacity раст. " +
+        "(схема посадки: $spacingBetweenRowsCm×$spacingInRowCm см)"
+}
+
+/** Схема посадки видна сразу при открытии полей размера, ещё до ввода. */
+fun schemeLine(spacingInRowCm: Int?, spacingBetweenRowsCm: Int?): String? {
+    if (spacingInRowCm == null || spacingBetweenRowsCm == null) return null
+    return "Схема посадки культуры: $spacingBetweenRowsCm×$spacingInRowCm см (между рядами × в ряду)"
+}
+
+/** Живой предпросмотр вместимости из введённого текста, ещё до сохранения. */
+fun sizePreview(widthText: String, lengthText: String, spacingInRowCm: Int?, spacingBetweenRowsCm: Int?): String? {
+    val w = widthText.toIntOrNull()
+    val l = lengthText.toIntOrNull()
+    if (w == null || l == null || spacingInRowCm == null || spacingBetweenRowsCm == null) return null
+    return capacityText(w, l, spacingInRowCm, spacingBetweenRowsCm)
 }
 
 /**
@@ -144,6 +171,9 @@ fun BedPickerField(
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
+                            schemeLine(cropSpacingInRowCm, cropSpacingBetweenRowsCm)?.let {
+                                Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 OutlinedTextField(
                                     value = renameWidth,
@@ -167,6 +197,9 @@ fun BedPickerField(
                                     renamingId = null
                                     if (n.isNotEmpty()) onRename(bed, n, renameWidth.toIntOrNull(), renameLength.toIntOrNull())
                                 }) { Text("OK", fontFamily = NunitoFamily) }
+                            }
+                            sizePreview(renameWidth, renameLength, cropSpacingInRowCm, cropSpacingBetweenRowsCm)?.let {
+                                Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     } else {
@@ -235,6 +268,9 @@ fun BedPickerField(
                                 label = { Text("Теплица", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
                             )
                         }
+                        schemeLine(cropSpacingInRowCm, cropSpacingBetweenRowsCm)?.let {
+                            Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             OutlinedTextField(
                                 value = newWidth,
@@ -253,6 +289,9 @@ fun BedPickerField(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f)
                             )
+                        }
+                        sizePreview(newWidth, newLength, cropSpacingInRowCm, cropSpacingBetweenRowsCm)?.let {
+                            Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { creating = false; newName = ""; newType = "soil"; newWidth = ""; newLength = "" }) {

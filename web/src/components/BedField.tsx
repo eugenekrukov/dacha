@@ -158,6 +158,11 @@ export default function BedField({
                       if (e.key === 'Escape') setRenamingId(null)
                     }}
                   />
+                  {schemeLine(cropSpacingInRowCm, cropSpacingBetweenRowsCm) && (
+                    <p className="text-xs font-semibold text-muted">
+                      {schemeLine(cropSpacingInRowCm, cropSpacingBetweenRowsCm)}
+                    </p>
+                  )}
                   <div className="flex items-center gap-1.5">
                     <input
                       className="dacha-input w-20 py-1.5 text-sm"
@@ -187,6 +192,11 @@ export default function BedField({
                       Сохранить
                     </button>
                   </div>
+                  {sizePreview(renameWidth, renameLength, cropSpacingInRowCm, cropSpacingBetweenRowsCm) && (
+                    <p className="text-xs font-semibold text-muted">
+                      {sizePreview(renameWidth, renameLength, cropSpacingInRowCm, cropSpacingBetweenRowsCm)}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div key={bed.id} className="flex items-center gap-1">
@@ -249,6 +259,11 @@ export default function BedField({
                   </button>
                 ))}
               </div>
+              {schemeLine(cropSpacingInRowCm, cropSpacingBetweenRowsCm) && (
+                <p className="text-xs font-semibold text-muted">
+                  {schemeLine(cropSpacingInRowCm, cropSpacingBetweenRowsCm)}
+                </p>
+              )}
               <div className="flex items-center gap-1.5">
                 <input
                   className="dacha-input w-20 py-1.5 text-sm"
@@ -269,6 +284,11 @@ export default function BedField({
                 />
                 <span className="text-xs text-muted">(необязательно)</span>
               </div>
+              {sizePreview(newWidth, newLength, cropSpacingInRowCm, cropSpacingBetweenRowsCm) && (
+                <p className="text-xs font-semibold text-muted">
+                  {sizePreview(newWidth, newLength, cropSpacingInRowCm, cropSpacingBetweenRowsCm)}
+                </p>
+              )}
               <div className="flex gap-1.5">
                 <button
                   type="button"
@@ -311,17 +331,50 @@ export default function BedField({
 // Прикидка вместимости грядки: прямоугольная сетка по схеме посадки культуры (в ряду × между
 // рядами) и размеру грядки. Оценочная — реальная посадка не всегда идеальной сеткой (загущение
 // по краям, форма грядки), но ориентир «сколько примерно влезет» для планирования достаточен.
+// Общее ядро расчёта — используется и для подсказки у выбранной грядки (capacityHint), и для
+// живого предпросмотра прямо в форме создания/правки размера (см. SizePreview), пока пользователь
+// печатает — иначе смысл вводить размер вообще не виден, пока не пересоздашь грядку и не откроешь её снова.
+function capacityText(
+  widthCm: number, lengthCm: number, spacingInRowCm: number, spacingBetweenRowsCm: number,
+): string {
+  const rows = Math.floor(widthCm / spacingBetweenRowsCm)
+  const perRow = Math.floor(lengthCm / spacingInRowCm)
+  const capacity = rows * perRow
+  if (capacity <= 0) {
+    return `${widthCm}×${lengthCm} см меньше рекомендованной схемы посадки для этой культуры — ` +
+      `нужно хотя бы ${spacingBetweenRowsCm}×${spacingInRowCm} см (между рядами × в ряду) на одно растение.`
+  }
+  return `${widthCm}×${lengthCm} см — поместится примерно ${capacity} раст. ` +
+    `(схема посадки: ${spacingBetweenRowsCm}×${spacingInRowCm} см)`
+}
+
 function capacityHint(
   bed: GardenBed | null,
   spacingInRowCm?: number | null,
   spacingBetweenRowsCm?: number | null,
 ): string | null {
   if (!bed || !bed.width_cm || !bed.length_cm || !spacingInRowCm || !spacingBetweenRowsCm) return null
-  const rows = Math.floor(bed.width_cm / spacingBetweenRowsCm)
-  const perRow = Math.floor(bed.length_cm / spacingInRowCm)
-  const capacity = rows * perRow
-  if (capacity <= 0) return 'Грядка меньше рекомендованной схемы посадки для этой культуры.'
-  return `На грядке «${bed.name}» (${bed.width_cm}×${bed.length_cm} см) поместится примерно ${capacity} раст.`
+  return `На грядке «${bed.name}»: ${capacityText(bed.width_cm, bed.length_cm, spacingInRowCm, spacingBetweenRowsCm)}`
+}
+
+// Схема посадки видна сразу при открытии полей размера, ещё до ввода — иначе непонятно, зачем
+// вообще указывать размер грядки (жалоба владельца 2026-08-14: «ни схемы, ни какой должна быть
+// грядка я информацию не получаю»).
+function schemeLine(spacingInRowCm?: number | null, spacingBetweenRowsCm?: number | null): string | null {
+  if (!spacingInRowCm || !spacingBetweenRowsCm) return null
+  return `Схема посадки культуры: ${spacingBetweenRowsCm}×${spacingInRowCm} см (между рядами × в ряду)`
+}
+
+// Живой предпросмотр вместимости прямо под полями ширины/длины в форме — считается из введённого
+// текста, ещё до сохранения. null, если размер не введён или для культуры нет схемы посадки.
+function sizePreview(
+  widthText: string, lengthText: string,
+  spacingInRowCm?: number | null, spacingBetweenRowsCm?: number | null,
+): string | null {
+  const w = Number(widthText)
+  const l = Number(lengthText)
+  if (!w || !l || !spacingInRowCm || !spacingBetweenRowsCm) return null
+  return capacityText(w, l, spacingInRowCm, spacingBetweenRowsCm)
 }
 
 // Сравнение по семейству за 3 года истории грядки (история уже приходит с грядкой одним запросом).
