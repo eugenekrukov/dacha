@@ -49,8 +49,8 @@ describe('runNalogReceipts', () => {
     expect(db.updates.length).toBe(0)
   })
 
-  it('pending → регистрирует чек, помечает registered, шлёт письмо', async () => {
-    const db = makeDb({ pending: [{ id: 10, user_id: 1, email: 'a@b.c', amount: '299.00', plan: 'monthly', created_at: new Date('2026-06-18T09:00:00Z') }] })
+  it('pending → регистрирует чек, помечает registered, шлёт письмо (с датой окончания подписки)', async () => {
+    const db = makeDb({ pending: [{ id: 10, user_id: 1, email: 'a@b.c', amount: '299.00', plan: 'monthly', created_at: new Date('2026-06-18T09:00:00Z'), subscription_until: new Date('2026-07-18T09:00:00Z') }] })
     const email = makeEmail()
     await runNalogReceipts(db, makeNalog({ add: async () => 'rcpt_10' }), email)
     const reg = db.updates.find(u => u.sql.includes("npd_status = 'registered'"))
@@ -58,6 +58,7 @@ describe('runNalogReceipts', () => {
     expect(reg.params).toContain('rcpt_10')
     expect(email.sent.length).toBe(1)
     expect(email.sent[0][0]).toBe('a@b.c')
+    expect(email.sent[0][4]).toEqual(new Date('2026-07-18T09:00:00Z'))
   })
 
   it('cancel_pending → аннулирует чек, помечает canceled', async () => {

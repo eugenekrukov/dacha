@@ -101,6 +101,14 @@ ssh hetzner 'cp /var/www/dacha-api/landing/index.html /var/www/dacha-landing/ind
 Если правили `offer.html` или `privacy.html` — скопировать и их (команда выше их не трогает), а также
 **синхронизировать дублирующий текст в аккордеоне `#legal` внутри `index.html`** — см. `landing/README.md`.
 
+⚠️ **Новый файл в корне лендинга (`robots.txt`-подобный, не HTML-страница) не начинает отдаваться
+сам по себе**, даже если он есть и в `landing/`, и в `/var/www/dacha-landing/` — нужен отдельный
+`location = /имя.txt { root /var/www/dacha-landing; }` в `/etc/nginx/sites-available/dacha` (как для
+`robots.txt`/`sitemap.xml`/`og.png` выше по файлу), иначе запрос падает в catch-all `proxy_pass` на
+backend и получает 404 оттуда. Грабли `llms.txt` (2026-08-14): файл был закоммичен и лежал в обеих
+директориях на сервере не менее пары недель, но location-блок так и не добавили — раздавался 404.
+Добавить: `cp /etc/nginx/sites-available/dacha{,.bak}` → `sed -i '\#location = /sitemap.xml#a\    location = /имя.txt { root /var/www/dacha-landing; }' /etc/nginx/sites-available/dacha` → `nginx -t && systemctl reload nginx`.
+
 ### Справочник `/spravochnik/` (SEO-страницы культур и проблем растений)
 
 Генерируется скриптом из БД, не редактируется руками. После изменения данных

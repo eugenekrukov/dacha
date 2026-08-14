@@ -87,7 +87,8 @@ async function runNalogReceipts(db, nalog = nalogService, email = emailService) 
        WHERE npd_status = 'pending'
          AND id IN (SELECT id FROM payments WHERE npd_status = 'pending' ORDER BY created_at LIMIT $1)
        RETURNING id, user_id, amount, plan, created_at, npd_attempts,
-                 (SELECT email FROM users WHERE users.id = payments.user_id) AS email`,
+                 (SELECT email FROM users WHERE users.id = payments.user_id) AS email,
+                 (SELECT subscription_until FROM users WHERE users.id = payments.user_id) AS subscription_until`,
       [budget]
     )
 
@@ -114,7 +115,7 @@ async function runNalogReceipts(db, nalog = nalogService, email = emailService) 
         }
         registered++
         if (row.email) {
-          await email.sendReceiptLink(row.email, nalog.getReceiptUrl(uuid), description, row.amount)
+          await email.sendReceiptLink(row.email, nalog.getReceiptUrl(uuid), description, row.amount, row.subscription_until)
         }
       } catch (e) {
         const attempts = (row.npd_attempts || 0) + 1

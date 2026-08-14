@@ -183,17 +183,30 @@ async function sendPasswordResetCode(to, code) {
   )
 }
 
-async function sendReceiptLink(to, receiptUrl, description, amount) {
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto">
-    <h2 style="color:#FF7B00">${APP_NAME()}</h2>
-    <p>Спасибо за оплату! Сформирован чек на «${description}» на сумму ${amount} ₽.</p>
-    <p><a href="${receiptUrl}" style="color:#FF7B00">Открыть чек</a></p>
-    <p style="color:#888;font-size:13px">Чек сформирован в сервисе ФНС «Мой налог».</p>
-  </div>`
+/** «16 сентября 2026» из Date/ISO-строки. */
+function formatRuDate(d) {
+  return new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+// ponytail: список фич — синхронизирован вручную с блоком #pricing на лендинге (landing/index.html).
+// Если тарифные фичи поменяются там — поправить и здесь, отдельного источника правды нет.
+const PRO_FEATURES_TEXT = 'посадки без лимита (бесплатно — до 3), до 30 фото на посадку и ИИ-диагноз болезней/вредителей по фото'
+
+async function sendReceiptLink(to, receiptUrl, description, amount, subscriptionUntil) {
+  const untilText = subscriptionUntil ? formatRuDate(subscriptionUntil) : null
+  const html = lifecycleHtml(
+    'Спасибо за оплату! 🧾',
+    `<p>Сформирован чек на «${description}» на сумму ${amount} ₽ — в сервисе ФНС «Мой налог».</p>
+     <p>«Дачник Про» открывает: ${PRO_FEATURES_TEXT}.</p>
+     ${untilText ? `<p>Оплаченный период действует до <b>${untilText}</b>.</p>` : ''}`,
+    'Открыть чек', receiptUrl
+  )
   return sendMail(
     to,
     `Чек об оплате — ${APP_NAME()}`,
-    `Спасибо за оплату «${description}» на сумму ${amount} ₽.\nЧек: ${receiptUrl}`,
+    `Спасибо за оплату «${description}» на сумму ${amount} ₽.\nЧек: ${receiptUrl}\n` +
+      `«Дачник Про» открывает: ${PRO_FEATURES_TEXT}.` +
+      (untilText ? `\nОплаченный период действует до ${untilText}.` : ''),
     html
   )
 }

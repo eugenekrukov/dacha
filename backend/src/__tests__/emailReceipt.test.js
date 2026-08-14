@@ -13,4 +13,9 @@ describe('emailService.sendReceiptLink', () => {
   it('экспортируется как функция', () => {
     expect(typeof email.sendReceiptLink).toBe('function')
   })
+
+  it('с датой окончания подписки — не бросает при форматировании', async () => {
+    const ok = await email.sendReceiptLink('buyer@mail.ru', 'https://lknpd.nalog.ru/x/print', 'Подписка — 1 месяц', '299.00', '2026-09-16T00:00:00Z')
+    expect(ok).toBe(false)
+  })
 })
