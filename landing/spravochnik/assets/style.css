@@ -23,6 +23,16 @@ header{background:rgba(255,248,235,.9);border-bottom:1px solid var(--line);paddi
   transition:transform .18s,box-shadow .18s;flex:0 0 auto}
 .nav-cta:hover{text-decoration:none;transform:translateY(-1px);box-shadow:0 10px 20px -10px rgba(58,38,21,.7)}
 .nav-cta:active{transform:translateY(0) scale(.97)}
+/* залогиненный пользователь — та же «таблетка» с аватаром и email, что на главной (index.html) */
+.nav-cta.user{background:var(--paper);color:var(--ink);border:1px solid var(--line);
+  padding:6px 14px 6px 6px;gap:9px;display:inline-flex;align-items:center}
+.nav-cta.user:hover{box-shadow:0 12px 22px -14px rgba(58,38,21,.55);border-color:#f0d6a8}
+.nav-cta .ava{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;
+  font-weight:900;font-size:13px;background:linear-gradient(180deg,var(--amber),var(--orange));flex:0 0 auto;
+  box-shadow:0 4px 10px -4px rgba(255,123,0,.7)}
+.nav-cta .uemail{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;font-size:13.5px}
+@media(max-width:1060px){.nav-cta .uemail{display:none}}
+@media(max-width:920px){.nav-links{display:none}}
 .breadcrumbs{font-size:13px;font-weight:700;color:var(--muted);margin:20px 0}
 .breadcrumbs a{color:var(--muted)}
 .breadcrumbs a:hover{color:var(--orange-deep)}
