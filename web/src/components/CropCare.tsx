@@ -1,6 +1,12 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { FlaskConical, RotateCw, Check, X } from 'lucide-react'
-import type { Crop, FertilizingEntry, WateringDetails, WateringStage } from '../api/types'
+import { api } from '../api/client'
+import type { Crop, CropVariety, FertilizingEntry, WateringDetails, WateringStage } from '../api/types'
+
+const RIPENING_LABELS: Record<string, string> = {
+  early: 'ранний', mid: 'средний', late: 'поздний',
+  summer: 'летний', autumn: 'осенний', winter: 'зимний',
+}
 
 function Fact({ label, value }: { label: string; value: ReactNode }) {
   if (value == null || value === '') return null
@@ -46,6 +52,12 @@ export function CareSection({ crop }: { crop: Crop }) {
         .filter((s): s is { key: keyof typeof STAGE_LABELS; label: string; stage: WateringStage } => s.stage != null)
     : []
   const schedule = crop.fertilizing_schedule ?? []
+  const [varieties, setVarieties] = useState<CropVariety[]>([])
+  useEffect(() => {
+    let cancelled = false
+    api.getCropVarieties(crop.id).then((v) => { if (!cancelled) setVarieties(v) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [crop.id])
 
   return (
     <div className="flex flex-col gap-4">
@@ -91,6 +103,22 @@ export function CareSection({ crop }: { crop: Crop }) {
                   </p>
                 )}
                 {e.notes && <p className="text-sm font-semibold text-muted">{e.notes}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {varieties.length > 0 && (
+        <section className="dacha-card p-5">
+          <h2 className="mb-3 text-lg font-black">Сорта</h2>
+          <div className="flex flex-col gap-2">
+            {varieties.map((v) => (
+              <div key={v.id} className="flex items-center justify-between gap-3 border-b border-black/5 py-2 last:border-0">
+                <span className="font-bold">{v.name}{v.is_hybrid ? ' F1' : ''}</span>
+                <span className="text-right text-sm font-semibold text-muted">
+                  {v.harvest_days ? `${v.harvest_days} дн.` : v.ripening ? (RIPENING_LABELS[v.ripening] ?? v.ripening) : ''}
+                </span>
               </div>
             ))}
           </div>

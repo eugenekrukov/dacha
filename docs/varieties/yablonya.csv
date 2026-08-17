@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_doy_start,harvest_doy_end,is_hybrid,conditions,notes,source
+Яблоня,Белый налив,summer,206,220,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, kp.ru), 2026-08-17: конец июля — первая декада августа"
+Яблоня,Мельба,autumn,227,258,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, antonovsad.ru), 2026-08-17: середина августа — середина сентября"
+Яблоня,Антоновка,autumn,250,265,false,any,,"каталоги сортов (lenta.ru и др.), 2026-08-17: к середине сентября"

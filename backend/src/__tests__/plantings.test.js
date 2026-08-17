@@ -160,6 +160,50 @@ describe('POST /plantings', () => {
     expect(res.status).toBe(400)
     await app.close()
   })
+
+  it('принимает variety_id и подставляет имя сорта в variety', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        const gated = gateQuery(sql)
+        if (gated) return gated
+        if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
+        if (sql.includes('FROM crop_varieties')) return { rows: [{ name: 'Санька' }] }
+        if (sql.includes('INSERT INTO plantings')) return { rows: [{ ...PLANTING, variety: 'Санька', variety_id: 5 }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ garden_id: 1, crop_id: 1, variety_id: 5 })
+
+    expect(res.status).toBe(201)
+    expect(res.body.variety).toBe('Санька')
+    await app.close()
+  })
+
+  it('400 если variety_id принадлежит другой культуре', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        const gated = gateQuery(sql)
+        if (gated) return gated
+        if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
+        if (sql.includes('FROM crop_varieties')) return { rows: [] } // сорт другой культуры — не найден по паре (id, crop_id)
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ garden_id: 1, crop_id: 1, variety_id: 5 })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
 })
 
 describe('GET /plantings', () => {
@@ -237,6 +281,27 @@ describe('GET /plantings', () => {
     const got = new Date(res.body[0].expected_harvest_at)
     // ± сутки (сравниваем по дате, без точного совпадения миллисекунд)
     expect(Math.abs(got - expected)).toBeLessThan(86400000)
+    await app.close()
+  })
+
+  it('многолетник без harvest_days: expected_harvest_at считается по окну съёма (harvest_doy_*)', async () => {
+    const berryPlanting = {
+      ...PLANTING, harvest_days: null, is_perennial: true,
+      harvest_doy_start: 213, harvest_doy_end: 244, // 1-31 августа
+      planted_at: new Date('2024-05-01').toISOString(), // давно, чтобы не мешала anniversary-логика
+    }
+    const app = await buildApp(makeMockDb({
+      query: async () => ({ rows: [berryPlanting] }),
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .get('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.body[0].expected_harvest_at).not.toBeNull()
+    const got = new Date(res.body[0].expected_harvest_at)
+    expect(got.getMonth()).toBe(7) // август (0-indexed) — либо в этом, либо в следующем году
     await app.close()
   })
 
@@ -318,6 +383,71 @@ describe('PATCH /plantings/:id/info', () => {
 
     expect(res.status).toBe(200)
     expect(capturedParams[capturedParams.length - 1]).toBeNull()
+    await app.close()
+  })
+
+  it('variety_id принимает сорт из справочника и подставляет имя', async () => {
+    let capturedParams = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('UPDATE plantings')) { capturedParams = params; return { rows: [{ ...PLANTING, variety: 'Санька', variety_id: 5 }] } }
+        if (sql.includes('FROM crop_varieties')) return { rows: [{ name: 'Санька' }] }
+        if (sql.includes('FROM plantings p')) return { rows: [PLANTING] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ variety_id: 5 })
+
+    expect(res.status).toBe(200)
+    expect(res.body.variety).toBe('Санька')
+    // variety_id — последний $10, но т.к. добавили variety_id в params, проверяем позицию явно
+    expect(capturedParams[capturedParams.length - 1]).toBe(5)
+    await app.close()
+  })
+
+  it('clear_variety_id:true сбрасывает variety_id, даже если Moshi не может послать явный null', async () => {
+    let capturedParams = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('UPDATE plantings')) { capturedParams = params; return { rows: [{ ...PLANTING, variety_id: null }] } }
+        if (sql.includes('FROM plantings p')) return { rows: [PLANTING] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ variety: 'Мой сорт с дачи', clear_variety_id: true })
+
+    expect(res.status).toBe(200)
+    // varietyIdSet=true, varietyIdVal=null → последний параметр (variety_id) — null
+    expect(capturedParams[capturedParams.length - 1]).toBeNull()
+    await app.close()
+  })
+
+  it('400 если variety_id принадлежит другой культуре', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        if (sql.includes('FROM crop_varieties')) return { rows: [] }
+        if (sql.includes('FROM plantings p')) return { rows: [PLANTING] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ variety_id: 999 })
+
+    expect(res.status).toBe(400)
     await app.close()
   })
 })

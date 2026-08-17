@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks, formatTasks, TASK_LIMIT, RAIN_AS_WATERING_MM } = require('../utils/todayLogic')
+const { buildTasks, formatTasks, TASK_LIMIT, RAIN_AS_WATERING_MM, effectiveHarvestDays } = require('../utils/todayLogic')
 const { getZoneForRegion } = require('../utils/regionCoords')
 const { storedSeasonStart, storedSeasonEnd } = require('../services/seasonService')
 
@@ -53,14 +53,20 @@ module.exports = async function (fastify) {
       `SELECT p.id, p.planted_at, p.created_at, p.stage, p.quantity, p.conditions, p.sowing_method,
               c.name as crop_name, c.category,
               c.watering_freq_days, c.watering_details, c.transplant_days,
-              c.harvest_days, c.frost_sensitive, c.care_tasks, c.fertilizing_schedule, c.is_perennial
+              c.harvest_days, c.frost_sensitive, c.care_tasks, c.fertilizing_schedule, c.is_perennial,
+              c.harvest_doy_start, c.harvest_doy_end,
+              v.harvest_days AS variety_harvest_days,
+              v.harvest_doy_start AS variety_harvest_doy_start, v.harvest_doy_end AS variety_harvest_doy_end
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
+       LEFT JOIN crop_varieties v ON v.id = p.variety_id
        WHERE p.garden_id=$1 AND p.stage NOT IN ('done')
        ORDER BY p.planted_at ASC`,
       [garden_id]
     )
     const plantings = plantingsRes.rows
+    // Сорт перекрывает срок культуры — см. effectiveHarvestDays.
+    plantings.forEach(p => { p.harvest_days = effectiveHarvestDays(p) })
 
     // ── 3. ПОСЛЕДНИЙ ПОЛИВ ───────────────────────────────────────────────────
     let lastWateredMap = {}

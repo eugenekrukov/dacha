@@ -20,9 +20,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.dachakalend.app.data.model.Crop
+import ru.dachakalend.app.data.model.CropVariety
 import ru.dachakalend.app.data.model.FertilizingEntry
 import ru.dachakalend.app.data.model.WateringStage
 import ru.dachakalend.app.ui.theme.NunitoFamily
+
+private val RIPENING_LABELS = mapOf(
+    "early" to "ранний", "mid" to "средний", "late" to "поздний",
+    "summer" to "летний", "autumn" to "осенний", "winter" to "зимний",
+)
 
 // Общие секции карточки культуры — переиспользуются и в Справочнике культур, и на странице
 // «Информация о посадке». Без собственного скролла/фона: скролл даёт вызывающий экран.
@@ -50,7 +56,7 @@ private val STAGE_LABELS = mapOf(
 )
 
 @Composable
-fun CropCareSection(crop: Crop, climateZone: String? = null, modifier: Modifier = Modifier) {
+fun CropCareSection(crop: Crop, climateZone: String? = null, varieties: List<CropVariety> = emptyList(), modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         val zoneNames = mapOf("6" to "Юг РФ", "5" to "Средняя полоса", "4" to "Урал", "3" to "Сибирь")
         InfoCard(title = "Сроки посева") {
@@ -121,6 +127,16 @@ fun CropCareSection(crop: Crop, climateZone: String? = null, modifier: Modifier 
                 schedule.forEachIndexed { i, entry ->
                     if (i > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     FertilizingRow(entry)
+                }
+            }
+        }
+
+        if (varieties.isNotEmpty()) {
+            InfoCard(title = "Сорта") {
+                varieties.forEachIndexed { i, v ->
+                    if (i > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    val detail = v.harvestDays?.let { "$it дн." } ?: v.ripening?.let { RIPENING_LABELS[it] ?: it } ?: ""
+                    InfoRow(v.name + (if (v.isHybrid) " F1" else ""), detail)
                 }
             }
         }

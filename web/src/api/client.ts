@@ -9,6 +9,7 @@ import type {
   CreatePaymentResponse,
   CreatePlantingRequest,
   Crop,
+  CropVariety,
   FeedResponse,
   Garden,
   GardenBed,
@@ -143,6 +144,7 @@ export const api = {
   // --- crops ---
   getCrops: () => request<Crop[]>('/crops', { auth: false }),
   getCrop: (id: number) => request<Crop>(`/crops/${id}`, { auth: false }),
+  getCropVarieties: (cropId: number) => request<CropVariety[]>(`/crops/${cropId}/varieties`, { auth: false }),
 
   // --- guide (справочник проблем) ---
   getGuide: (params?: { kind?: GuideKind; crop_id?: number; q?: string }) => {

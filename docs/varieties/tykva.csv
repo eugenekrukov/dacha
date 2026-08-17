@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_days,is_hybrid,conditions,notes,source
+Тыква,Мускатная Прованская,late,112,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, orton.ru, agromarket.ru), 2026-08-17: 110-115 дней от всходов"
+Тыква,Улыбка,early,82,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, fermilon.ru, vhoz.ru), 2026-08-17: 80-85 дней от посадки"
+Тыква,Витаминная,late,130,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, tikvach.ru), 2026-08-17: 130 дней от всходов"

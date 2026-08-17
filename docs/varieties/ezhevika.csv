@@ -1,0 +1,3 @@
+crop_name,name,ripening,harvest_doy_start,harvest_doy_end,is_hybrid,conditions,notes,source
+Ежевика,Агавам,mid,220,232,false,any,,"каталоги сортов (fermilon.ru), 2026-08-17: середина августа"
+Ежевика,Торнфри,late,213,258,false,any,,"каталоги сортов, сверено 2+ источника (stroy-podskazka.ru, sazhaemvsadu.ru), 2026-08-17: август — середина сентября"

@@ -1,0 +1,3 @@
+crop_name,name,ripening,harvest_doy_start,harvest_doy_end,is_hybrid,conditions,notes,source
+Смородина красная,Йонкер ван Тетс,mid,196,213,false,any,,"каталоги сортов, сверено 2+ источника (vniispk.ru, nikogarden.ru), 2026-08-17: середина июля — начало августа"
+Смородина красная,Ненаглядная,mid,176,196,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, smorodina1.ru), 2026-08-17: конец июня — начало июля"

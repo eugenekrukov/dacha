@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_days,is_hybrid,conditions,notes,source
+Редис,18 дней,early,18,false,any,,"каталоги сортов, сверено 2+ источника (7dach.ru, sortoved.ru, rusfermer.net), 2026-08-17: 16-20 дней от всходов"
+Редис,Сакса,mid,23,false,any,,"каталоги сортов, сверено 2+ источника (stroy-podskazka.ru, dacha.expert, orton.ru), 2026-08-17: 20-25 дней от всходов, группа среднеспелых"
+Редис,Дуро,early,25,false,any,,"каталоги сортов, сверено 2+ источника (agronom.expert, rosegardening.org, fermerok.info), 2026-08-17: 23-30 дней от всходов"

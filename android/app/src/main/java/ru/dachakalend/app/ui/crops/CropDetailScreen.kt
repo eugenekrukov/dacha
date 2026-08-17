@@ -29,13 +29,15 @@ fun CropDetailScreen(
     onBack: () -> Unit,
     onPlant: ((Crop) -> Unit)? = null,
     onOpenGuide: (() -> Unit)? = null,
-    guideViewModel: GuideViewModel = hiltViewModel()
+    guideViewModel: GuideViewModel = hiltViewModel(),
+    cropsViewModel: CropsViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Уход", "Болезни", "Вредители", "Соседи")
 
     val guideState by guideViewModel.uiState.collectAsState()
-    LaunchedEffect(crop.id) { guideViewModel.load(cropId = crop.id) }
+    val cropsState by cropsViewModel.uiState.collectAsState()
+    LaunchedEffect(crop.id) { guideViewModel.load(cropId = crop.id); cropsViewModel.loadVarieties(crop.id) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -80,7 +82,7 @@ fun CropDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
             when (selectedTab) {
-                0 -> CropCareSection(crop, climateZone, modifier = scroll)
+                0 -> CropCareSection(crop, climateZone, varieties = cropsState.varieties, modifier = scroll)
                 1 -> ProblemList(guideState.entries, "disease", "Болезни не отмечены.") { onOpenGuide?.invoke() }
                 2 -> ProblemList(guideState.entries, "pest", "Вредители не отмечены.") { onOpenGuide?.invoke() }
                 3 -> CropNeighborsSection(crop, modifier = scroll)

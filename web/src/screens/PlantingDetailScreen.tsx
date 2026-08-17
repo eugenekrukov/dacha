@@ -68,7 +68,10 @@ export default function PlantingDetailScreen() {
     return buildSchedule({
       transplantDays: crop.transplant_days,
       careTasks: crop.care_tasks,
-      harvestDays: crop.harvest_days,
+      // Сорт посадки (planting.harvest_days, из GET /plantings/:id — уже с учётом variety_id
+      // на бэкенде) приоритетнее базового срока культуры, иначе карточка сорта на экране
+      // разъедется с «Сегодня»/календарём.
+      harvestDays: planting.harvest_days ?? crop.harvest_days,
       wateringFreqDays: crop.watering_freq_days,
       conditions: planting.conditions,
       sowingMethod: planting.sowing_method,

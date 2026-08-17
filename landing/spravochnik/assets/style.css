@@ -55,6 +55,11 @@ h1{font-size:clamp(26px,4vw,38px);margin-bottom:10px;color:var(--ink)}
 .faq summary{font-weight:800;font-size:15px;cursor:pointer;color:var(--ink)}
 .faq summary::marker{color:var(--orange-deep)}
 .faq details p{font-size:15px;color:#4a3a2a;margin-top:8px}
+table.varieties{width:100%;border-collapse:collapse;font-size:14px}
+table.varieties th{text-align:left;color:var(--muted);font-weight:800;font-size:12px;
+  text-transform:uppercase;letter-spacing:.3px;padding:8px 10px;border-bottom:2px solid var(--line)}
+table.varieties td{padding:9px 10px;border-bottom:1px solid var(--line);color:#4a3a2a}
+table.varieties tr:last-child td{border-bottom:none}
 .related{margin-top:24px}
 .related h2{font-size:16px;margin-bottom:10px}
 .related ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px}

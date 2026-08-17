@@ -1,0 +1,3 @@
+crop_name,name,ripening,harvest_doy_start,harvest_doy_end,is_hybrid,conditions,notes,source
+Крыжовник,Малахит,mid,206,227,false,any,,"каталоги сортов, сверено 2+ источника (fermilon.ru, profermu.com), 2026-08-17: конец июля — середина августа"
+Крыжовник,Финик,late,206,232,false,any,,"каталоги сортов, сверено 2+ источника (fermilon.ru, kryzhovnik.info), 2026-08-17: техническая спелость конец июля, полная — середина августа"

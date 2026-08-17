@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_days,is_hybrid,conditions,notes,source
+Томат,Санька,early,80,false,any,,"каталоги сортов, сверено 2+ источника (tomatland.ru, botanichka.ru), 2026-08-17: 75-85 дней от всходов"
+Томат,Дубрава,early,95,false,any,,"каталоги сортов, сверено 2+ источника (tomatland.ru, sortoved.ru), 2026-08-17: 85-105 дней от всходов"
+Томат,Бычье сердце,late,120,false,any,,"каталоги сортов, сверено 2+ источника (tomatland.ru, lenta.ru), 2026-08-17: 110-130 дней от всходов"

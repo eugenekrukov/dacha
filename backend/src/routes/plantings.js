@@ -1,6 +1,6 @@
 'use strict'
 
-const { getNextCareTask, getOverdueCareTask, effectivePlantedAt, seasonLengthDays, seasonStartDoy, seasonEndDoy } = require('../utils/todayLogic')
+const { getNextCareTask, getOverdueCareTask, effectivePlantedAt, seasonLengthDays, seasonStartDoy, seasonEndDoy, effectiveHarvestDays, effectiveHarvestWindow, nextHarvestWindowDate } = require('../utils/todayLogic')
 const { hasAccess, FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
 const { getZoneForRegion } = require('../utils/regionCoords')
 const { storedSeasonStart, storedSeasonEnd } = require('../services/seasonService')
@@ -17,10 +17,10 @@ module.exports = async function (fastify) {
     return res.rows.length > 0
   }
 
-  // Своя посадка ({id, stage}) или null — нужна и для 404, и для гейта read-only.
+  // Своя посадка ({id, stage, crop_id}) или null — нужна и для 404, и для гейта read-only.
   async function getOwnedPlanting(plantingId, userId) {
     const res = await fastify.db.query(
-      `SELECT p.id, p.stage FROM plantings p
+      `SELECT p.id, p.stage, p.crop_id FROM plantings p
        JOIN gardens g ON g.id = p.garden_id
        WHERE p.id = $1 AND g.user_id = $2`,
       [plantingId, userId]
@@ -31,13 +31,27 @@ module.exports = async function (fastify) {
   // POST /plantings — free-тариф: до FREE_PLANTING_LIMIT активных (stage<>'done') посадок,
   // без ограничения по времени. Выше лимита — только «Дачник Про» (402).
   fastify.post('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
-    const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes, sowing_method = 'seedling', variety, bed_id } = request.body
+    const { garden_id, crop_id, planted_at, quantity = 1, conditions = 'soil', notes, sowing_method = 'seedling', variety, variety_id, bed_id } = request.body
     const method = sowing_method === 'direct' ? 'direct' : 'seedling'
-    const varietyVal = typeof variety === 'string' && variety.trim() ? variety.trim().slice(0, 120) : null
+    let varietyVal = typeof variety === 'string' && variety.trim() ? variety.trim().slice(0, 120) : null
 
     // Защита от IDOR: нельзя создать посадку в чужом участке
     if (!garden_id || !(await userOwnsGarden(garden_id, request.user.userId))) {
       return reply.code(403).send({ error: 'Garden not found or not yours' })
+    }
+
+    // Сорт из справочника должен принадлежать той же культуре — иначе «Мельба» окажется у томата.
+    // При валидном variety_id заполняем variety именем сорта (старые клиенты/журнал/аналитика
+    // продолжают работать без изменений).
+    let varietyIdVal = null
+    if (variety_id != null) {
+      const varietyRes = await fastify.db.query(
+        'SELECT name FROM crop_varieties WHERE id = $1 AND crop_id = $2',
+        [variety_id, crop_id]
+      )
+      if (!varietyRes.rows[0]) return reply.code(400).send({ error: 'Invalid variety' })
+      varietyIdVal = variety_id
+      varietyVal = varietyRes.rows[0].name
     }
 
     const userRes = await fastify.db.query(
@@ -67,9 +81,9 @@ module.exports = async function (fastify) {
     }
 
     const result = await fastify.db.query(
-      `INSERT INTO plantings (garden_id, crop_id, planted_at, quantity, conditions, notes, stage, sowing_method, variety, bed_id)
-       VALUES ($1,$2,$3,$4,$5,$6,'sowing',$7,$8,$9) RETURNING *`,
-      [garden_id, crop_id, planted_at || new Date(), quantity, conditions, notes, method, varietyVal, bed_id ?? null]
+      `INSERT INTO plantings (garden_id, crop_id, planted_at, quantity, conditions, notes, stage, sowing_method, variety, bed_id, variety_id)
+       VALUES ($1,$2,$3,$4,$5,$6,'sowing',$7,$8,$9,$10) RETURNING *`,
+      [garden_id, crop_id, planted_at || new Date(), quantity, conditions, notes, method, varietyVal, bed_id ?? null, varietyIdVal]
     )
     return reply.code(201).send(result.rows[0])
   })
@@ -80,13 +94,17 @@ module.exports = async function (fastify) {
     const result = await fastify.db.query(
       `SELECT p.*, c.name as crop_name, c.category, c.watering_freq_days, c.frost_sensitive,
               c.care_tasks, c.harvest_days, c.watering_freq_days as watering_freq_days, c.yield_per_plant_kg, c.is_perennial,
+              c.harvest_doy_start, c.harvest_doy_end,
               g.climate_zone, g.region, g.season_start_doy, g.season_start_year, g.season_end_doy,
+              v.harvest_days AS variety_harvest_days,
+              v.harvest_doy_start AS variety_harvest_doy_start, v.harvest_doy_end AS variety_harvest_doy_end,
               (SELECT MAX(a.logged_at) FROM action_logs a WHERE a.planting_id = p.id) AS last_action_at,
               (SELECT a.action_type FROM action_logs a WHERE a.planting_id = p.id
                ORDER BY a.logged_at DESC LIMIT 1) AS last_action_type
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
        JOIN gardens g ON g.id = p.garden_id
+       LEFT JOIN crop_varieties v ON v.id = p.variety_id
        WHERE g.user_id = $1 ${garden_id ? 'AND p.garden_id = $2' : ''}
        ORDER BY p.planted_at DESC`,
       garden_id ? [request.user.userId, garden_id] : [request.user.userId]
@@ -131,6 +149,9 @@ module.exports = async function (fastify) {
     // Вычисляем next_care_task (будущие) и overdue_care_task (просроченные/сегодня) для каждой посадки
     const now = new Date()
     const rows = result.rows.map(p => {
+      // Сорт (если выбран) перекрывает срок культуры — один хелпер на все точки чтения
+      // harvest_days, иначе «Сегодня»/рекомендации разъедутся с календарём.
+      p.harvest_days = effectiveHarvestDays(p)
       // Многолетникам график ухода считаем от начала сезона в зоне участка (см. effectivePlantedAt).
       // Зона участка бывает не заполнена (создан до появления поля / регион не распознан) —
       // тогда берём её из региона тем же правилом, что и GET /gardens, иначе фикс сезонности
@@ -157,13 +178,18 @@ module.exports = async function (fastify) {
       // Ожидаемая дата урожая = эффективная дата посадки + harvest_days (для многолетников —
       // от текущего сезона, см. effectivePlantedAt). Клиенты (Android/web) показывают её в
       // календаре; раньше поле не отдавалось, и на Android событие «Урожай» не появлялось.
+      // Ягодные кусты/деревья: harvest_days нет — берём ближайшую дату окна съёма
+      // (effectiveHarvestWindow/nextHarvestWindowDate), сорт перекрывает окно культуры.
+      const harvestWindow = !p.harvest_days && p.is_perennial ? effectiveHarvestWindow(p) : null
       const expectedHarvestAt = p.harvest_days
         ? new Date(plantedAt.getTime() + p.harvest_days * 86400000).toISOString()
-        : null
+        : harvestWindow
+          ? nextHarvestWindowDate(harvestWindow, zone, now).toISOString()
+          : null
       // Не передаём care_tasks клиенту — это внутренние данные. climate_zones/climate_zone
       // подтянуты только для расчёта якоря сезона: справочник культур отдаёт их сам (/crops),
       // а здесь они лишь раздували бы ответ на каждую посадку.
-      const { care_tasks, climate_zone, region, season_start_doy, season_start_year, season_end_doy, ...rest } = p
+      const { care_tasks, climate_zone, region, season_start_doy, season_start_year, season_end_doy, variety_harvest_days, variety_harvest_doy_start, variety_harvest_doy_end, harvest_doy_start, harvest_doy_end, ...rest } = p
       return {
         ...rest,
         next_care_task: nextCareTask,
@@ -179,16 +205,23 @@ module.exports = async function (fastify) {
   // GET /plantings/:id
   fastify.get('/:id', auth, async (request, reply) => {
     const result = await fastify.db.query(
-      `SELECT p.*, c.name as crop_name, c.category, c.watering_freq_days, c.harvest_days, c.frost_sensitive, c.yield_per_plant_kg, c.is_perennial
+      `SELECT p.*, c.name as crop_name, c.category, c.watering_freq_days, c.harvest_days, c.frost_sensitive, c.yield_per_plant_kg, c.is_perennial,
+              c.harvest_doy_start, c.harvest_doy_end,
+              v.harvest_days AS variety_harvest_days,
+              v.harvest_doy_start AS variety_harvest_doy_start, v.harvest_doy_end AS variety_harvest_doy_end
        FROM plantings p
        JOIN crops c ON c.id = p.crop_id
        JOIN gardens g ON g.id = p.garden_id
+       LEFT JOIN crop_varieties v ON v.id = p.variety_id
        WHERE p.id = $1 AND g.user_id = $2`,
       [request.params.id, request.user.userId]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
+    const row = result.rows[0]
+    row.harvest_days = effectiveHarvestDays(row)
+    const { variety_harvest_days, variety_harvest_doy_start, variety_harvest_doy_end, harvest_doy_start, harvest_doy_end, ...rest } = row
     const state = await freeTierState(fastify.db, request.user.userId)
-    return { ...result.rows[0], locked: isPlantingLocked(state, result.rows[0]) }
+    return { ...rest, locked: isPlantingLocked(state, row) }
   })
 
   // PATCH /plantings/:id/stage
@@ -230,10 +263,10 @@ module.exports = async function (fastify) {
 
   // PATCH /plantings/:id/info
   fastify.patch('/:id/info', auth, async (request, reply) => {
-    const { planted_at, quantity, conditions, sowing_method, variety, bed_id } = request.body
+    const { planted_at, quantity, conditions, sowing_method, variety, variety_id, clear_variety_id, bed_id } = request.body
     const method = sowing_method === 'direct' || sowing_method === 'seedling' ? sowing_method : null
     // variety: строка → обрезаем; пустая строка '' → сброс в NULL; undefined → не трогаем.
-    const varietyVal = variety === undefined
+    let varietyVal = variety === undefined
       ? null
       : (typeof variety === 'string' && variety.trim() ? variety.trim().slice(0, 120) : '')
 
@@ -242,6 +275,27 @@ module.exports = async function (fastify) {
     const state = await freeTierState(fastify.db, request.user.userId)
     if (isPlantingLocked(state, planting)) {
       return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
+    }
+
+    // Сорт из справочника — та же проверка принадлежности культуре, что и в POST.
+    // variety_id === null (явный сброс) отдельно от undefined (не трогаем). clear_variety_id:true —
+    // тот же сброс, но отдельным булевым полем: Moshi (Android) по умолчанию не сериализует null
+    // отдельно от «поле отсутствует», поэтому клиенту нечем послать явный null для variety_id.
+    let varietyIdSet = false
+    let varietyIdVal = null
+    if (clear_variety_id === true) {
+      varietyIdSet = true
+    } else if (variety_id !== undefined) {
+      varietyIdSet = true
+      if (variety_id !== null) {
+        const varietyRes = await fastify.db.query(
+          'SELECT name FROM crop_varieties WHERE id = $1 AND crop_id = $2',
+          [variety_id, planting.crop_id]
+        )
+        if (!varietyRes.rows[0]) return reply.code(400).send({ error: 'Invalid variety' })
+        varietyIdVal = variety_id
+        varietyVal = varietyRes.rows[0].name
+      }
     }
 
     // Защита от IDOR: обновляем только посадку в участке текущего пользователя
@@ -265,10 +319,11 @@ module.exports = async function (fastify) {
                                 WHEN $7 = '' THEN NULL
                                 ELSE $7 END,
            bed_id        = COALESCE($8, bed_id),
+           variety_id    = CASE WHEN $9::boolean THEN $10::integer ELSE variety_id END,
            updated_at    = NOW()
        WHERE id = $5 AND garden_id IN (SELECT id FROM gardens WHERE user_id=$6)
        RETURNING *`,
-      [planted_at ?? null, quantity ?? null, conditions ?? null, method, request.params.id, request.user.userId, varietyVal, bed_id ?? null]
+      [planted_at ?? null, quantity ?? null, conditions ?? null, method, request.params.id, request.user.userId, varietyVal, bed_id ?? null, varietyIdSet, varietyIdVal]
     )
     if (!result.rows[0]) return reply.code(404).send({ error: 'Planting not found' })
     return result.rows[0]

@@ -99,6 +99,9 @@ interface DachaApi {
     @GET("crops/{id}")
     suspend fun getCrop(@Path("id") id: Int): Crop
 
+    @GET("crops/{id}/varieties")
+    suspend fun getCropVarieties(@Path("id") id: Int): List<CropVariety>
+
     // Guide (справочник проблем: дефициты/болезни/вредители)
     @GET("guide")
     suspend fun getGuide(

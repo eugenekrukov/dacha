@@ -228,7 +228,11 @@ data class Planting(
     @Json(name = "planted_at") val sownAt: String?,
     @Json(name = "created_at") val createdAt: String? = null,
     @Json(name = "expected_harvest_at") val expectedHarvestAt: String?,
+    // Эффективный срок до урожая (сорт посадки перекрывает срок культуры — см. бэкенд
+    // effectiveHarvestDays); null только если у самой культуры нет harvest_days.
+    @Json(name = "harvest_days") val harvestDays: Int? = null,
     val variety: String? = null,
+    @Json(name = "variety_id") val varietyId: Int? = null,
     @Json(name = "bed_id") val bedId: Int? = null,
     val notes: String?,
     @Json(name = "last_action_at") val lastActionAt: String? = null,
@@ -480,6 +484,7 @@ data class CreatePlantingRequest(
     val conditions: String = "soil",
     @Json(name = "sowing_method") val sowingMethod: String = "seedling",   // seedling | direct
     val variety: String? = null,
+    @Json(name = "variety_id") val varietyId: Int? = null,
     @Json(name = "bed_id") val bedId: Int? = null
 )
 
@@ -492,7 +497,23 @@ data class UpdatePlantingInfoRequest(
     val conditions: String? = null,
     @Json(name = "sowing_method") val sowingMethod: String? = null,
     val variety: String? = null,
+    @Json(name = "variety_id") val varietyId: Int? = null,
+    // Явный сброс variety_id: Moshi по умолчанию не сериализует null-поля, поэтому "varietyId=null"
+    // неотличимо от "поле не трогаем" — для сброса нужен отдельный флаг (см. бэкенд PATCH /info).
+    @Json(name = "clear_variety_id") val clearVarietyId: Boolean = false,
     @Json(name = "bed_id") val bedId: Int? = null
+)
+
+// --- CropVariety (GET /crops/{id}/varieties) ---
+
+@JsonClass(generateAdapter = true)
+data class CropVariety(
+    val id: Int,
+    @Json(name = "crop_id") val cropId: Int,
+    val name: String,
+    val ripening: String? = null,
+    @Json(name = "harvest_days") val harvestDays: Int? = null,
+    @Json(name = "is_hybrid") val isHybrid: Boolean = false,
 )
 
 // --- ActionLog ---

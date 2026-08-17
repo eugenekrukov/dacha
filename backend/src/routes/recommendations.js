@@ -1,7 +1,7 @@
 'use strict'
 
 const { getDailyLifehack, getSeasonalTip, getStageTip, getCropStageTip, getLunarTip, getDayOfYear, getZoneDayOffset, WEATHER_TIPS } = require('../data/tips')
-const { wateringIntervalDays } = require('../utils/todayLogic')
+const { wateringIntervalDays, effectiveHarvestDays } = require('../utils/todayLogic')
 
 const STAGE_LABELS = {
   sowing: 'Посев', sprouted: 'Всходы', transplanted: 'Высажено в грунт',
@@ -36,11 +36,15 @@ module.exports = async function (fastify) {
     const plantingsRes = await db.query(
       `SELECT p.*, c.name as crop_name, c.watering_freq_days, c.frost_sensitive,
               c.harvest_days, c.fertilizing_schedule, c.good_neighbors, c.bad_neighbors,
-              c.watering_details, c.diseases, c.pests
+              c.watering_details, c.diseases, c.pests,
+              v.harvest_days AS variety_harvest_days
        FROM plantings p JOIN crops c ON c.id=p.crop_id
+       LEFT JOIN crop_varieties v ON v.id = p.variety_id
        WHERE p.garden_id=$1 AND p.stage NOT IN ('done')`,
       [garden_id]
     )
+    // Сорт перекрывает срок культуры — см. effectiveHarvestDays.
+    plantingsRes.rows.forEach(p => { p.harvest_days = effectiveHarvestDays(p) })
 
     // 3. Погодный снимок
     const weatherRes = await db.query(

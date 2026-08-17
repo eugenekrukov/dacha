@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_days,is_hybrid,conditions,notes,source
+Баклажан,Алмаз,mid,115,false,any,"Разброс между источниками широкий (100-150 дней) — взято среднее по совпадающему диапазону 100-120.","каталоги сортов, сверено 2+ источника (ferma.expert, diz-cafe.com, bigsad.ru), 2026-08-17: 100-150 дней от всходов"
+Баклажан,Чёрный красавец,mid,118,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, stroy-podskazka.ru, tikvach.ru), 2026-08-17: 110-145 дней, чаще указывают 115-120"
+Баклажан,Робин Гуд,early,95,false,any,,"каталоги сортов, сверено 2+ источника (fermilon.ru, stroy-podskazka.ru, repka.online), 2026-08-17: 90-100 дней от всходов, очень ранний"

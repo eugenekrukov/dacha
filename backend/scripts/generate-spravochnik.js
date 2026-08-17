@@ -36,6 +36,10 @@ const CATEGORY_LABELS = {
 const KIND_LABELS = {
   deficiency: 'Дефициты микроэлементов', disease: 'Болезни', pest: 'Вредители'
 }
+const RIPENING_LABELS = {
+  early: 'ранний', mid: 'средний', late: 'поздний',
+  summer: 'летний', autumn: 'осенний', winter: 'зимний'
+}
 
 let cropsById = new Map()
 
@@ -116,7 +120,26 @@ function renderProblemyIndex(entries) {
   return html
 }
 
-function renderCropBody(crop, relatedEntries) {
+function renderVarietiesTable(varieties) {
+  if (!varieties.length) return ''
+  const hasRegions = varieties.some(v => v.regions && v.regions.length)
+  let html = '<div class="card"><h2>Сорта</h2><table class="varieties"><thead><tr>'
+  html += '<th>Сорт</th><th>Срок / группа спелости</th>'
+  if (hasRegions) html += '<th>Регионы допуска (Госреестр)</th>'
+  html += '</tr></thead><tbody>'
+  for (const v of varieties) {
+    const ripe = v.harvest_days
+      ? `${v.harvest_days} дн.`
+      : (v.ripening ? (RIPENING_LABELS[v.ripening] || v.ripening) : '—')
+    html += `<tr><td>${esc(v.name)}${v.is_hybrid ? ' F1' : ''}</td><td>${esc(ripe)}</td>`
+    if (hasRegions) html += `<td>${v.regions && v.regions.length ? esc(v.regions.join(', ')) : '—'}</td>`
+    html += '</tr>'
+  }
+  html += '</tbody></table></div>'
+  return html
+}
+
+function renderCropBody(crop, relatedEntries, varieties = []) {
   const sowing = (crop.sowing_start_day && crop.sowing_end_day)
     ? `с ${dayOfYearToDateLabel(crop.sowing_start_day)} по ${dayOfYearToDateLabel(crop.sowing_end_day)}`
     : null
@@ -134,6 +157,8 @@ function renderCropBody(crop, relatedEntries) {
   html += `<p>Полив: раз в ${crop.watering_freq_days || 3} дн.</p>`
   html += `<p>${crop.frost_sensitive ? 'Чувствительна к заморозкам' : 'Устойчива к лёгким заморозкам'}.</p>`
   html += '</div>'
+
+  html += renderVarietiesTable(varieties)
 
   if (crop.notes) html += `<div class="card"><h2>Заметки</h2>${textToHtml(crop.notes)}</div>`
 
@@ -236,6 +261,10 @@ async function main() {
   const linksRes = await pool.query(
     'SELECT crop_id, entry_id, signs, image_url, image_credit FROM crop_guide_entries'
   )
+  const varietiesRes = await pool.query(
+    `SELECT crop_id, name, ripening, harvest_days, is_hybrid, regions
+     FROM crop_varieties ORDER BY crop_id, name ASC`
+  )
   await pool.end()
 
   // slug + коллизии
@@ -279,6 +308,12 @@ async function main() {
     entryToLinks.get(link.entry_id).push(link)
   }
 
+  const cropToVarieties = new Map()
+  for (const v of varietiesRes.rows) {
+    if (!cropToVarieties.has(v.crop_id)) cropToVarieties.set(v.crop_id, [])
+    cropToVarieties.get(v.crop_id).push(v)
+  }
+
   // чистая пересборка каталога (только регенерируемые подпапки — assets/ и прочее в OUT_DIR не трогаем)
   fs.rmSync(path.join(OUT_DIR, 'kultury'), { recursive: true, force: true })
   fs.rmSync(path.join(OUT_DIR, 'problemy'), { recursive: true, force: true })
@@ -314,7 +349,7 @@ async function main() {
       description: `${crop.name}: сроки посева и высадки, полив, совместимость с другими культурами. Справочник «Календаря дачника».`,
       canonical: `${SITE}/spravochnik/kultury/${crop.slug}/`,
       breadcrumbs: `<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / <a href="/spravochnik/kultury/">Культуры</a> / ${esc(crop.name)}`,
-      bodyHtml: renderCropBody(crop, links),
+      bodyHtml: renderCropBody(crop, links, cropToVarieties.get(crop.id) || []),
       activeNav: 'spravochnik',
       jsonLdBlocks: [
         articleJsonLd(crop.name, `${SITE}/spravochnik/kultury/${crop.slug}/`),

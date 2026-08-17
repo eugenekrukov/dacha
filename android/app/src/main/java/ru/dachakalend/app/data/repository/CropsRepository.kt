@@ -3,6 +3,7 @@ package ru.dachakalend.app.data.repository
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.Crop
+import ru.dachakalend.app.data.model.CropVariety
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,5 +25,11 @@ class CropsRepository @Inject constructor(
         Result.Success(api.getCrop(id))
     } catch (e: Exception) {
         Result.Error(e.message ?: "Культура не найдена")
+    }
+
+    suspend fun getCropVarieties(cropId: Int): Result<List<CropVariety>> = try {
+        Result.Success(api.getCropVarieties(cropId))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Не удалось загрузить сорта")
     }
 }

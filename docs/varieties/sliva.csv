@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_doy_start,harvest_doy_end,is_hybrid,conditions,notes,source
+Слива,Венгерка московская,late,258,273,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, sortoved.ru), 2026-08-17: вторая половина сентября"
+Слива,Ренклод колхозный,mid,227,237,false,any,,"каталоги сортов, сверено 2+ источника (xn--80akvccf.xn--p1ai, stroy-podskazka.ru), 2026-08-17: 2 декада августа, 15-25 августа"
+Слива,Стенли,late,,,false,any,"Только качественное описание («позднеспелый»), числового окна не найдено.","каталоги сортов (glav-dacha.ru), 2026-08-17: без числового срока"

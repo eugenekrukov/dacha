@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_days,is_hybrid,conditions,notes,source
+Огурец,Конкурент,early,45,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, sortoved.ru), 2026-08-17: 40-50 дней от всходов"
+Огурец,Зозуля F1,early,47,true,any,,"каталоги сортов, сверено 2+ источника (sortoved.ru, osemenah.ru), 2026-08-17: 40-56 дней от всходов"
+Огурец,Нежинский,mid,50,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, gryadki.com), 2026-08-17: 46-65 дней от всходов"

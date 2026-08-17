@@ -1,0 +1,3 @@
+crop_name,name,ripening,harvest_doy_start,harvest_doy_end,is_hybrid,conditions,notes,source
+Смородина белая,Смольяниновская,mid,176,206,false,any,,"каталоги сортов, сверено 2+ источника (poferme.com, remontanta.ru), 2026-08-17: конец июня — июль"
+Смородина белая,Уральская белая,early,176,206,false,any,,"каталоги сортов, сверено 2+ источника (vniispk.ru, rastisad.ru), 2026-08-17: конец июня — июль"

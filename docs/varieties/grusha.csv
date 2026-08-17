@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_doy_start,harvest_doy_end,is_hybrid,conditions,notes,source
+Груша,Лада,summer,206,227,false,any,,"каталоги сортов, сверено 2+ источника (kp.ru, dachamechty.ru), 2026-08-17: конец июля — середина августа"
+Груша,Чижовская,summer,206,227,false,any,,"каталоги сортов, сверено 2+ источника (kp.ru, profermu.com), 2026-08-17: конец июля — август"
+Груша,Конференция,autumn,263,284,false,any,,"каталоги сортов (ferma.expert), 2026-08-17: конец сентября — октябрь"

@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_days,is_hybrid,conditions,notes,source
+Укроп,Грибовский,early,33,false,any,,"каталоги сортов, сверено 2+ источника (botanichka.ru, orchardo.ru), 2026-08-17: 30-35 дней от всходов"
+Укроп,Аврора,early,30,false,any,,"каталоги сортов, сверено 2+ источника (orchardo.ru, doma-v-sadu.ru), 2026-08-17: 25-35 дней"
+Укроп,Кибрай,mid,45,false,any,"Числовой срок косвенный (""через полтора месяца после первых стебельков""), а не прямая цифра каталога.","каталоги сортов, сверено 2+ источника (orchardo.ru, doma-v-sadu.ru), 2026-08-17"

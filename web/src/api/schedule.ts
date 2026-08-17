@@ -352,8 +352,10 @@ export function buildCalendarEvents(opts: {
     // Дата посева (реальная) — попадёт в окно только для свежих посадок
     if (inWindow(realSown)) push(realSown, `Посев: ${cropName}`, 'sowing')
 
-    // Ожидаемый урожай = посев + harvest_days
-    const harvestDays = crop?.harvest_days ?? p.harvest_days ?? null
+    // Ожидаемый урожай = посев + harvest_days. Сорт посадки (p.harvest_days, из GET /plantings —
+    // уже с учётом variety_id на бэкенде) приоритетнее базового срока культуры, иначе выбор
+    // сорта в форме менял бы дату в «Сегодня», но не в календаре.
+    const harvestDays = p.harvest_days ?? crop?.harvest_days ?? null
     if (harvestDays != null) {
       const d = addDays(sown, harvestDays)
       if (inWindow(d)) push(d, `Урожай: ${cropName}`, 'harvest')

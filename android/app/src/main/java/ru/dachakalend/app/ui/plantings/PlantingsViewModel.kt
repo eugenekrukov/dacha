@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.CreatePlantingRequest
+import ru.dachakalend.app.data.model.CropVariety
 import ru.dachakalend.app.data.model.GardenBed
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.UpdatePlantingInfoRequest
@@ -37,9 +38,11 @@ data class PlantingsUiState(
     val pendingCropFamily: String? = null,
     val pendingCropSpacingInRowCm: Int? = null,
     val pendingCropSpacingBetweenRowsCm: Int? = null,
+    val pendingCropVarieties: List<CropVariety> = emptyList(),
     val editingCropFamily: String? = null,
     val editingCropSpacingInRowCm: Int? = null,
     val editingCropSpacingBetweenRowsCm: Int? = null,
+    val editingCropVarieties: List<CropVariety> = emptyList(),
     val beds: List<GardenBed> = emptyList(),
     val editingPlanting: Planting? = null,
     val showInfoSheet: Planting? = null,
@@ -126,6 +129,8 @@ class PlantingsViewModel @Inject constructor(
                 pendingCropSpacingInRowCm = crop?.spacingInRowCm,
                 pendingCropSpacingBetweenRowsCm = crop?.spacingBetweenRowsCm
             )
+            val varieties = (cropsRepository.getCropVarieties(cropId) as? Result.Success)?.data ?: emptyList()
+            _uiState.value = _uiState.value.copy(pendingCropVarieties = varieties)
         }
     }
 
@@ -206,22 +211,22 @@ class PlantingsViewModel @Inject constructor(
         }
     }
 
-    fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null, bedId: Int? = null) {
+    fun confirmPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null, varietyId: Int? = null, bedId: Int? = null) {
         _uiState.value = _uiState.value.copy(
             pendingCropId = null, pendingCropTransplantDays = null, pendingCropFamily = null,
-            pendingCropSpacingInRowCm = null, pendingCropSpacingBetweenRowsCm = null
+            pendingCropSpacingInRowCm = null, pendingCropSpacingBetweenRowsCm = null, pendingCropVarieties = emptyList()
         )
-        createPlanting(cropId, date, quantity, conditions, sowingMethod, variety, bedId)
+        createPlanting(cropId, date, quantity, conditions, sowingMethod, variety, varietyId, bedId)
     }
 
     fun dismissSetupSheet() {
         _uiState.value = _uiState.value.copy(
             pendingCropId = null, pendingCropTransplantDays = null, pendingCropFamily = null,
-            pendingCropSpacingInRowCm = null, pendingCropSpacingBetweenRowsCm = null
+            pendingCropSpacingInRowCm = null, pendingCropSpacingBetweenRowsCm = null, pendingCropVarieties = emptyList()
         )
     }
 
-    private fun createPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null, bedId: Int? = null) {
+    private fun createPlanting(cropId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null, varietyId: Int? = null, bedId: Int? = null) {
         viewModelScope.launch {
             val gardenId = tokenStorage.getGardenId()
             if (gardenId == -1) {
@@ -236,6 +241,7 @@ class PlantingsViewModel @Inject constructor(
                 conditions = conditions,
                 sowingMethod = sowingMethod,
                 variety = variety,
+                varietyId = varietyId,
                 bedId = bedId
             )
             when (val result = plantingsRepository.createPlanting(request)) {
@@ -253,7 +259,7 @@ class PlantingsViewModel @Inject constructor(
     fun openEditSheet(planting: Planting) {
         _uiState.value = _uiState.value.copy(
             editingPlanting = planting, editingCropFamily = null,
-            editingCropSpacingInRowCm = null, editingCropSpacingBetweenRowsCm = null
+            editingCropSpacingInRowCm = null, editingCropSpacingBetweenRowsCm = null, editingCropVarieties = emptyList()
         )
         viewModelScope.launch {
             val crop = (cropsRepository.getCrop(planting.cropId) as? Result.Success)?.data
@@ -262,22 +268,25 @@ class PlantingsViewModel @Inject constructor(
                 editingCropSpacingInRowCm = crop?.spacingInRowCm,
                 editingCropSpacingBetweenRowsCm = crop?.spacingBetweenRowsCm
             )
+            val varieties = (cropsRepository.getCropVarieties(planting.cropId) as? Result.Success)?.data ?: emptyList()
+            _uiState.value = _uiState.value.copy(editingCropVarieties = varieties)
         }
     }
 
     fun dismissEditSheet() {
         _uiState.value = _uiState.value.copy(
-            editingPlanting = null, editingCropFamily = null,
+            editingPlanting = null, editingCropFamily = null, editingCropVarieties = emptyList(),
             editingCropSpacingInRowCm = null, editingCropSpacingBetweenRowsCm = null
         )
     }
 
-    fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null, bedId: Int? = null) {
+    fun saveEditedInfo(plantingId: Int, date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String? = null, varietyId: Int? = null, clearVarietyId: Boolean = false, bedId: Int? = null) {
         _uiState.value = _uiState.value.copy(editingPlanting = null, editingCropFamily = null)
         viewModelScope.launch {
             val request = UpdatePlantingInfoRequest(
                 plantedAt = date, quantity = quantity, conditions = conditions,
-                sowingMethod = sowingMethod, variety = variety ?: "", bedId = bedId
+                sowingMethod = sowingMethod, variety = variety ?: "", varietyId = varietyId,
+                clearVarietyId = clearVarietyId, bedId = bedId
             )
             when (plantingsRepository.updateInfo(plantingId, request)) {
                 is Result.Success -> {

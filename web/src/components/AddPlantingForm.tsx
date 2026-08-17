@@ -4,7 +4,7 @@ import { api, ApiError } from '../api/client'
 import Modal from './Modal'
 import SubscribeCta from './SubscribeCta'
 import { categoryLabel } from '../api/labels'
-import type { Crop, GardenBed } from '../api/types'
+import type { Crop, CropVariety, GardenBed } from '../api/types'
 import BedField from './BedField'
 
 interface Props {
@@ -26,6 +26,7 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  const [varieties, setVarieties] = useState<CropVariety[]>([])
   const [cropSearch, setCropSearch] = useState('')
   const [cropCategory, setCropCategory] = useState<string | null>(null)
   const [cropOpen, setCropOpen] = useState(false)
@@ -68,6 +69,15 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cropId])
 
+  // Список сортов справочника для выбранной культуры — подсказки в поле «Сорт»
+  // (нативный datalist: подсказка + свободный ввод в одном инпуте, без своего дропдауна).
+  useEffect(() => {
+    if (cropId === '') { setVarieties([]); return }
+    let cancelled = false
+    api.getCropVarieties(cropId).then((v) => { if (!cancelled) setVarieties(v) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [cropId])
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -76,6 +86,8 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
       return
     }
     setBusy(true)
+    // Сорт из справочника (точное совпадение по имени) → variety_id; иначе — свой сорт текстом.
+    const matchedVariety = varieties.find((v) => v.name.toLowerCase() === variety.trim().toLowerCase())
     try {
       await api.createPlanting({
         garden_id: gardenId,
@@ -84,7 +96,8 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
         quantity,
         conditions,
         sowing_method: sowingMethod,
-        variety: variety.trim() || undefined,
+        variety: matchedVariety ? undefined : variety.trim() || undefined,
+        variety_id: matchedVariety?.id,
         bed_id: bedId ?? undefined,
       })
       onCreated()
@@ -202,7 +215,14 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
             maxLength={120}
             value={variety}
             onChange={(e) => setVariety(e.target.value)}
+            list="variety-options"
+            autoComplete="off"
           />
+          {varieties.length > 0 && (
+            <datalist id="variety-options">
+              {varieties.map((v) => <option key={v.id} value={v.name} />)}
+            </datalist>
+          )}
 
           <label className="mt-2 text-sm font-bold text-muted">Дата посадки</label>
           <input

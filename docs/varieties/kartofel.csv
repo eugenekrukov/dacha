@@ -1,0 +1,4 @@
+crop_name,name,ripening,harvest_days,is_hybrid,conditions,notes,source
+Картофель,Ред Скарлетт,early,75,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, ogorodko.ru), 2026-08-17: 70-80 дней от всходов"
+Картофель,Невский,mid,82,false,any,,"каталоги сортов, сверено 2+ источника (antonovsad.ru, gryadki.com), 2026-08-17: 75-90 дней от всходов"
+Картофель,Синеглазка,mid,92,false,any,,"каталоги сортов, сверено 2+ источника (ferma.expert, ogorodko.ru), 2026-08-17: 85-100 дней от всходов"

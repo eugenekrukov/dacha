@@ -79,6 +79,7 @@ export interface Planting {
   conditions?: 'soil' | 'greenhouse'
   sowing_method?: 'seedling' | 'direct'
   variety?: string | null
+  variety_id?: number | null
   bed_id?: number | null
   quantity?: number
   planted_at?: string
@@ -312,6 +313,7 @@ export interface CreatePlantingRequest {
   conditions?: 'soil' | 'greenhouse'
   sowing_method?: 'seedling' | 'direct'
   variety?: string
+  variety_id?: number
   bed_id?: number
 }
 
@@ -321,7 +323,22 @@ export interface UpdatePlantingInfoRequest {
   conditions?: 'soil' | 'greenhouse'
   sowing_method?: 'seedling' | 'direct'
   variety?: string
+  variety_id?: number | null
   bed_id?: number
+}
+
+// Сорт из справочника (GET /crops/:id/varieties)
+export interface CropVariety {
+  id: number
+  crop_id: number
+  name: string
+  ripening?: string | null
+  harvest_days?: number | null
+  harvest_doy_start?: number | null
+  harvest_doy_end?: number | null
+  is_hybrid?: boolean
+  conditions?: string | null
+  regions?: number[] | null
 }
 
 export interface Harvest {

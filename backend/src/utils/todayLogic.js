@@ -50,6 +50,14 @@ function careTaskActionType(name) {
   return null
 }
 
+// Срок до урожая с учётом сорта: переопределение сорта (variety_harvest_days из JOIN
+// crop_varieties) перекрывает срок культуры. Один хелпер на все пять точек, где
+// используется harvest_days (plantings.js, today.js, recommendations.js) — иначе
+// переопределение сорта работало бы в календаре, но не в «Сегодня»/рекомендациях.
+function effectiveHarvestDays(row) {
+  return row.variety_harvest_days ?? row.harvest_days
+}
+
 // День года (1 = 1 января) → Date указанного года. Через setDate, поэтому високосный
 // год учитывается сам: setDate(60) в 2028-м даст 29 февраля, а не 1 марта.
 function dateFromDoy(doy, year) {
@@ -99,6 +107,42 @@ function seasonStartDoy(climateZone) {
 function seasonEndDoy(climateZone) {
   if (climateZone == null) return null
   return SEASON_END_DOY[String(climateZone)] ?? DEFAULT_SEASON_END_DOY
+}
+
+// День года для произвольной даты (инверсия dateFromDoy).
+function dayOfYear(date) {
+  const start = new Date(date.getFullYear(), 0, 0)
+  return Math.floor((date - start) / 86400000)
+}
+
+// Сдвиг календарного окна под зону участка: используем ту же дельту, что и для начала
+// сезона (SEASON_START_DOY) — окна созревания заданы «для зоны 5», задел под региональную
+// калибровку без отдельной таблицы на каждую культуру (см. риски плана 2026-08-17-crop-varieties.md).
+function zoneDoyShift(climateZone) {
+  if (climateZone == null) return 0
+  return seasonStartDoy(climateZone) - DEFAULT_SEASON_START_DOY
+}
+
+// Окно съёма многолетника (ягода/плодовое дерево): сорт (variety_harvest_doy_*) перекрывает
+// окно культуры, как effectiveHarvestDays — сорт для harvest_days. row.harvest_doy_end
+// отсутствует → одна дата (start=end).
+function effectiveHarvestWindow(row) {
+  const start = row.variety_harvest_doy_start ?? row.harvest_doy_start
+  if (start == null) return null
+  const end = row.variety_harvest_doy_end ?? row.harvest_doy_end ?? start
+  return { start, end }
+}
+
+// Ближайшая дата окна съёма (для expected_harvest_at — календарям нужна одна дата, не диапазон).
+// Если окно этого года уже закрылось — берём следующий год (тот же приём, что effectivePlantedAt).
+function nextHarvestWindowDate(window, climateZone, today) {
+  if (!window) return null
+  const shift = zoneDoyShift(climateZone)
+  const year = today.getFullYear()
+  const start = dateFromDoy(window.start + shift, year)
+  const end = dateFromDoy(window.end + shift, year)
+  if (end < today) return dateFromDoy(window.start + shift, year + 1)
+  return start
 }
 
 /**
@@ -639,6 +683,23 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
         crop_name: p.crop_name,
         message: `${p.crop_name} — пора убирать урожай!`,
       })
+    } else if (!p.harvest_days && p.is_perennial) {
+      // Многолетники (ягодные кусты, плодовые деревья): нет harvest_days — урожай приходит
+      // в календарное окно, а не через N дней от посадки (см. effectiveHarvestWindow).
+      const window = effectiveHarvestWindow(p)
+      if (window) {
+        const shift = zoneDoyShift(climateZone)
+        const todayDoy = dayOfYear(today)
+        if (todayDoy >= window.start + shift && todayDoy <= window.end + shift && daysSinceHarvest >= HARVEST_COOLDOWN_DAYS) {
+          tasks.push({
+            type: 'harvest_due',
+            priority: TASK_PRIORITY.harvest_due,
+            planting_id: p.id,
+            crop_name: p.crop_name,
+            message: `${p.crop_name} — пора убирать урожай!`,
+          })
+        }
+      }
     }
   }
 
@@ -812,6 +873,7 @@ const TASK_LIMIT = 7
 
 module.exports = {
   buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType,
+  effectiveHarvestDays, effectiveHarvestWindow, nextHarvestWindowDate, zoneDoyShift, dayOfYear,
   wateringIntervalDays, wateringStatus, rainOutlook, frostOutlook, effectivePlantedAt,
   seasonLengthDays, seasonStartDoy, seasonEndDoy, dateFromDoy, taskDayOffset,
   SEASON_START_DOY, SEASON_END_DOY,

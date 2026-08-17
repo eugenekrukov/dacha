@@ -25,6 +25,16 @@ module.exports = async function (fastify) {
     return result.rows[0]
   })
 
+  // GET /crops/:id/varieties (публичный) — не вкладываем в GET /crops: раздуло бы ответ,
+  // который оба клиента тянут при каждом открытии справочника.
+  fastify.get('/:id/varieties', async (request) => {
+    const result = await fastify.db.query(
+      'SELECT * FROM crop_varieties WHERE crop_id = $1 ORDER BY name ASC',
+      [request.params.id]
+    )
+    return result.rows
+  })
+
   // POST /crops — добавление в справочник (admin only)
   fastify.post('/', adminAuth, async (request, reply) => {
     const { name, category, sowing_start_day, sowing_end_day, transplant_days, harvest_days, watering_freq_days, frost_sensitive, companion_crops, notes } = request.body

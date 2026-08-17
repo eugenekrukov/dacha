@@ -1,0 +1,3 @@
+crop_name,name,ripening,harvest_doy_start,harvest_doy_end,is_hybrid,conditions,notes,source
+Жимолость съедобная,Голубое веретено,early,152,166,false,any,,"каталоги сортов (fermilon.ru), 2026-08-17: первая половина июня"
+Жимолость съедобная,Бакчарский великан,mid,161,171,false,any,,"каталоги сортов, сверено 2+ источника (7dach.ru, bigsad.ru), 2026-08-17: середина июня"

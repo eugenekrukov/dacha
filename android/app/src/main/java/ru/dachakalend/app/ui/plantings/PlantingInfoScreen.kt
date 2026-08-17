@@ -293,8 +293,10 @@ private fun AboutTab(
         val planted = plantedDate(planting.sownAt)
         val crop = state.crop
         if (planted != null && crop != null) {
+            // Сорт посадки (planting.harvestDays — уже эффективный на бэкенде) приоритетнее
+            // базового срока культуры, иначе расписание разъедется с «Сегодня»/календарём.
             val schedule = buildSchedule(
-                transplantDays = crop.transplantDays, careTasks = crop.careTasks, harvestDays = crop.harvestDays,
+                transplantDays = crop.transplantDays, careTasks = crop.careTasks, harvestDays = planting.harvestDays ?: crop.harvestDays,
                 wateringFreqDays = crop.wateringFreqDays, conditions = planting.conditions, sowingMethod = planting.sowingMethod,
                 planted = planted, actions = state.recentActions, today = LocalDate.now(),
                 createdAt = plantedDate(planting.createdAt), isPerennial = crop.isPerennial == true,

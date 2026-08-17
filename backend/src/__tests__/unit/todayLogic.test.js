@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt, seasonLengthDays, seasonStartDoy, seasonEndDoy, dateFromDoy, taskDayOffset, TASK_LIMIT } = require('../../utils/todayLogic')
+const { buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType, wateringIntervalDays, effectivePlantedAt, seasonLengthDays, seasonStartDoy, seasonEndDoy, dateFromDoy, taskDayOffset, TASK_LIMIT, effectiveHarvestDays, effectiveHarvestWindow, nextHarvestWindowDate, zoneDoyShift } = require('../../utils/todayLogic')
 
 // ─── Фабрики тестовых данных ─────────────────────────────────────────────────
 
@@ -447,6 +447,44 @@ describe('harvest_due', () => {
     const tasks = buildTasks(
       [makePlanting({ stage: 'growing', harvest_days: 10, planted_at: daysAgo(15, TODAY) })],
       makeWeather(), {}, {}, [], TODAY, {}, null, {}, lastHarvested
+    )
+    expect(tasks.some(t => t.type === 'harvest_due')).toBe(true)
+  })
+
+  // Многолетники (ягоды/деревья): harvest_days=null, окно съёма вместо дней от посадки.
+  // TODAY = 2026-06-01 → день года 152.
+  it('многолетник: появляется, когда сегодня внутри окна съёма культуры', () => {
+    const tasks = buildTasks(
+      [makePlanting({
+        stage: 'growing', harvest_days: null, is_perennial: true,
+        harvest_doy_start: 145, harvest_doy_end: 160, planted_at: daysAgo(400, TODAY),
+      })],
+      makeWeather(), {}, {}, [], TODAY
+    )
+    expect(tasks.some(t => t.type === 'harvest_due')).toBe(true)
+  })
+
+  it('многолетник: НЕ появляется, когда сегодня вне окна съёма', () => {
+    const tasks = buildTasks(
+      [makePlanting({
+        stage: 'growing', harvest_days: null, is_perennial: true,
+        harvest_doy_start: 200, harvest_doy_end: 220, planted_at: daysAgo(400, TODAY),
+      })],
+      makeWeather(), {}, {}, [], TODAY
+    )
+    expect(tasks.some(t => t.type === 'harvest_due')).toBe(false)
+  })
+
+  it('многолетник: сорт (variety_harvest_doy_*) перекрывает окно культуры', () => {
+    // Окно культуры не покрывает сегодня, но окно сорта — покрывает.
+    const tasks = buildTasks(
+      [makePlanting({
+        stage: 'growing', harvest_days: null, is_perennial: true,
+        harvest_doy_start: 200, harvest_doy_end: 220,
+        variety_harvest_doy_start: 145, variety_harvest_doy_end: 160,
+        planted_at: daysAgo(400, TODAY),
+      })],
+      makeWeather(), {}, {}, [], TODAY
     )
     expect(tasks.some(t => t.type === 'harvest_due')).toBe(true)
   })
@@ -1064,5 +1102,51 @@ describe('effectivePlantedAt', () => {
     // Не должно быть гигантской просрочки (>365); присутствие задачи зависит от фазы сезона
     const care = tasks.filter(t => t.type === 'care_task_due')
     care.forEach(t => expect(t.days_overdue).toBeLessThanOrEqual(21))
+  })
+
+  it('effectiveHarvestDays: сорт перекрывает срок культуры, если задан', () => {
+    expect(effectiveHarvestDays({ harvest_days: 110, variety_harvest_days: 80 })).toBe(80)
+  })
+
+  it('effectiveHarvestDays: без сорта — срок культуры как раньше', () => {
+    expect(effectiveHarvestDays({ harvest_days: 110, variety_harvest_days: null })).toBe(110)
+    expect(effectiveHarvestDays({ harvest_days: 110 })).toBe(110)
+  })
+
+  it('effectiveHarvestWindow: сорт перекрывает окно культуры, если задан', () => {
+    const w = effectiveHarvestWindow({
+      harvest_doy_start: 213, harvest_doy_end: 244,
+      variety_harvest_doy_start: 161, variety_harvest_doy_end: 191,
+    })
+    expect(w).toEqual({ start: 161, end: 191 })
+  })
+
+  it('effectiveHarvestWindow: без сорта — окно культуры; без данных вообще — null', () => {
+    expect(effectiveHarvestWindow({ harvest_doy_start: 213, harvest_doy_end: 244 })).toEqual({ start: 213, end: 244 })
+    expect(effectiveHarvestWindow({})).toBeNull()
+  })
+
+  it('effectiveHarvestWindow: harvest_doy_end не задан — окно схлопывается в одну дату', () => {
+    expect(effectiveHarvestWindow({ harvest_doy_start: 213 })).toEqual({ start: 213, end: 213 })
+  })
+
+  it('zoneDoyShift: зона 5 (эталон) — сдвиг 0; более тёплая/холодная зона — не 0', () => {
+    expect(zoneDoyShift('5')).toBe(0)
+    expect(zoneDoyShift(null)).toBe(0)
+    expect(zoneDoyShift('6')).toBeLessThan(0) // юг — сезон раньше
+    expect(zoneDoyShift('3')).toBeGreaterThan(0) // Сибирь — сезон позже
+  })
+
+  it('nextHarvestWindowDate: окно ещё не наступило в этом году — дата в этом году', () => {
+    const today = new Date('2026-06-01') // doy 152
+    const d = nextHarvestWindowDate({ start: 161, end: 191 }, '5', today)
+    expect(d.getFullYear()).toBe(2026)
+    expect(d.getMonth()).toBe(5) // июнь (0-indexed), doy 161 ≈ 10 июня
+  })
+
+  it('nextHarvestWindowDate: окно этого года уже закрылось — переносит на следующий год', () => {
+    const today = new Date('2026-09-01') // doy 244, позже окна 161-191
+    const d = nextHarvestWindowDate({ start: 161, end: 191 }, '5', today)
+    expect(d.getFullYear()).toBe(2027)
   })
 })

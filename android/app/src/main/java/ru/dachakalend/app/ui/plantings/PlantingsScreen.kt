@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.dachakalend.app.data.local.TokenStorage
+import ru.dachakalend.app.data.model.CropVariety
 import ru.dachakalend.app.data.model.GardenBed
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.ui.actions.ActionLogBottomSheet
@@ -326,13 +327,14 @@ fun PlantingsScreen(
         PlantingSetupBottomSheet(
             defaultSeedling = state.pendingCropTransplantDays != null,
             beds = state.beds,
+            varieties = state.pendingCropVarieties,
             cropFamily = state.pendingCropFamily,
             cropSpacingInRowCm = state.pendingCropSpacingInRowCm,
             cropSpacingBetweenRowsCm = state.pendingCropSpacingBetweenRowsCm,
             onCreateBed = { name, type, widthCm, lengthCm, onSelected -> viewModel.createBed(name, type, widthCm, lengthCm, onSelected) },
             onRenameBed = viewModel::renameBed,
             onDeleteBed = viewModel::deleteBed,
-            onConfirm = { date, qty, cond, method, variety, bedId -> viewModel.confirmPlanting(cropId, date, qty, cond, method, variety, bedId) },
+            onConfirm = { date, qty, cond, method, variety, varietyId, bedId -> viewModel.confirmPlanting(cropId, date, qty, cond, method, variety, varietyId, bedId) },
             onDismiss = { viewModel.dismissSetupSheet() }
         )
     }
@@ -439,13 +441,14 @@ fun PlantingsScreen(
         PlantingEditBottomSheet(
             planting = planting,
             beds = state.beds,
+            varieties = state.editingCropVarieties,
             cropFamily = state.editingCropFamily,
             cropSpacingInRowCm = state.editingCropSpacingInRowCm,
             cropSpacingBetweenRowsCm = state.editingCropSpacingBetweenRowsCm,
             onCreateBed = { name, type, widthCm, lengthCm, onSelected -> viewModel.createBed(name, type, widthCm, lengthCm, onSelected) },
             onRenameBed = viewModel::renameBed,
             onDeleteBed = viewModel::deleteBed,
-            onConfirm = { date, qty, cond, method, variety, bedId -> viewModel.saveEditedInfo(planting.id, date, qty, cond, method, variety, bedId) },
+            onConfirm = { date, qty, cond, method, variety, varietyId, clearVarietyId, bedId -> viewModel.saveEditedInfo(planting.id, date, qty, cond, method, variety, varietyId, clearVarietyId, bedId) },
             onDismiss = { viewModel.dismissEditSheet() }
         )
     }
@@ -818,13 +821,14 @@ private fun PlantingCard(
 private fun PlantingSetupBottomSheet(
     defaultSeedling: Boolean,
     beds: List<GardenBed>,
+    varieties: List<CropVariety> = emptyList(),
     cropFamily: String?,
     cropSpacingInRowCm: Int? = null,
     cropSpacingBetweenRowsCm: Int? = null,
     onCreateBed: (name: String, type: String, widthCm: Int?, lengthCm: Int?, onSelected: (GardenBed) -> Unit) -> Unit,
     onRenameBed: (bed: GardenBed, name: String, widthCm: Int?, lengthCm: Int?) -> Unit,
     onDeleteBed: (bed: GardenBed) -> Unit,
-    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?, bedId: Int?) -> Unit,
+    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?, varietyId: Int?, bedId: Int?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -887,14 +891,10 @@ private fun PlantingSetupBottomSheet(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            OutlinedTextField(
+            VarietyField(
                 value = variety,
-                onValueChange = { if (it.length <= 120) variety = it },
-                label = { Text("Сорт (необязательно)", fontFamily = NunitoFamily) },
-                placeholder = { Text("Например: Бычье сердце", fontFamily = NunitoFamily) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                onValueChange = { variety = it },
+                varieties = varieties,
             )
 
             BedPickerField(
@@ -950,7 +950,8 @@ private fun PlantingSetupBottomSheet(
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick = {
-                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, variety.trim().ifEmpty { null }, bedId)
+                    val matched = varieties.find { it.name.equals(variety.trim(), ignoreCase = true) }
+                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, if (matched != null) null else variety.trim().ifEmpty { null }, matched?.id, bedId)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
@@ -972,6 +973,45 @@ private fun PlantingSetupBottomSheet(
     }
 }
 
+// Поле «Сорт»: свободный ввод + подсказки из справочника (крупный список — выпадающее меню,
+// как CropsScreen; при выборе сорта из списка бэкенд сам подставит его имя в variety).
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VarietyField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    varieties: List<CropVariety>,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val filtered = remember(value, varieties) {
+        if (value.isBlank()) varieties else varieties.filter { it.name.contains(value, ignoreCase = true) }
+    }
+    ExposedDropdownMenuBox(expanded = expanded && filtered.isNotEmpty(), onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onValueChange(it.take(120)); expanded = true },
+            label = { Text("Сорт (необязательно)", fontFamily = NunitoFamily) },
+            placeholder = { Text("Например: Бычье сердце", fontFamily = NunitoFamily) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(),
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            trailingIcon = if (varieties.isNotEmpty()) {
+                { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+            } else null,
+        )
+        if (varieties.isNotEmpty()) {
+            ExposedDropdownMenu(expanded = expanded && filtered.isNotEmpty(), onDismissRequest = { expanded = false }) {
+                filtered.forEach { v ->
+                    DropdownMenuItem(
+                        text = { Text(v.name + (if (v.isHybrid) " F1" else ""), fontFamily = NunitoFamily) },
+                        onClick = { onValueChange(v.name); expanded = false }
+                    )
+                }
+            }
+        }
+    }
+}
+
 // ─── Шторка: редактирование существующей посадки ─────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -979,13 +1019,14 @@ private fun PlantingSetupBottomSheet(
 private fun PlantingEditBottomSheet(
     planting: Planting,
     beds: List<GardenBed>,
+    varieties: List<CropVariety> = emptyList(),
     cropFamily: String?,
     cropSpacingInRowCm: Int? = null,
     cropSpacingBetweenRowsCm: Int? = null,
     onCreateBed: (name: String, type: String, widthCm: Int?, lengthCm: Int?, onSelected: (GardenBed) -> Unit) -> Unit,
     onRenameBed: (bed: GardenBed, name: String, widthCm: Int?, lengthCm: Int?) -> Unit,
     onDeleteBed: (bed: GardenBed) -> Unit,
-    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?, bedId: Int?) -> Unit,
+    onConfirm: (date: String, quantity: Int, conditions: String, sowingMethod: String, variety: String?, varietyId: Int?, clearVarietyId: Boolean, bedId: Int?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1055,14 +1096,10 @@ private fun PlantingEditBottomSheet(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            OutlinedTextField(
+            VarietyField(
                 value = variety,
-                onValueChange = { if (it.length <= 120) variety = it },
-                label = { Text("Сорт (необязательно)", fontFamily = NunitoFamily) },
-                placeholder = { Text("Например: Бычье сердце", fontFamily = NunitoFamily) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                onValueChange = { variety = it },
+                varieties = varieties,
             )
 
             BedPickerField(
@@ -1146,7 +1183,14 @@ private fun PlantingEditBottomSheet(
 
             Spacer(Modifier.height(8.dp))
             Button(
-                onClick = { onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, variety.trim().ifEmpty { null }, bedId) },
+                onClick = {
+                    val matched = varieties.find { it.name.equals(variety.trim(), ignoreCase = true) }
+                    // Свободный текст, не совпавший ни с одним сортом справочника, явно снимает
+                    // старую привязку variety_id (clear_variety_id) — иначе расчёт срока молча
+                    // остался бы от прежнего выбранного сорта, хотя имя на экране уже другое.
+                    val clearVarietyId = matched == null && planting.varietyId != null
+                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, if (matched != null) null else variety.trim().ifEmpty { null }, matched?.id, clearVarietyId, bedId)
+                },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {

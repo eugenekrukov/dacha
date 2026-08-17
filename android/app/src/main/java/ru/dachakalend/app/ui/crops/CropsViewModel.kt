@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.Crop
+import ru.dachakalend.app.data.model.CropVariety
 import ru.dachakalend.app.data.repository.CropsRepository
 import ru.dachakalend.app.data.repository.Result
 import javax.inject.Inject
@@ -20,7 +21,8 @@ data class CropsUiState(
     val selectedCrop: Crop? = null,
     val climateZone: String? = null,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val varieties: List<CropVariety> = emptyList(),
 )
 
 val CROP_CATEGORIES = listOf(
@@ -95,5 +97,15 @@ class CropsViewModel @Inject constructor(
 
     fun clearSelectedCrop() {
         _uiState.value = _uiState.value.copy(selectedCrop = null)
+    }
+
+    fun loadVarieties(cropId: Int) {
+        viewModelScope.launch {
+            when (val result = cropsRepository.getCropVarieties(cropId)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(varieties = result.data)
+                is Result.Error   -> _uiState.value = _uiState.value.copy(varieties = emptyList())
+                is Result.Loading -> Unit
+            }
+        }
     }
 }
