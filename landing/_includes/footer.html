@@ -1,0 +1,61 @@
+<footer>
+  <div class="wrap">
+    <div class="brand" style="justify-content:center;margin-bottom:6px">
+      <span style="font-size:26px">🌻</span>
+      <span style="font-family:'Nunito';font-weight:900;font-size:18px;color:var(--ink)">Календарь дачника</span>
+    </div>
+    <div class="store-row">
+      <a class="store" href="/app/" aria-label="Открыть веб-версию «Календарь дачника»">🌱 Веб-версия</a>
+      <a class="store" href="https://www.rustore.ru/catalog/app/ru.dachakalend.app" target="_blank" rel="noopener" aria-label="Скачать «Календарь дачника» в RuStore">📲 RuStore</a>
+      <a class="store" href="https://play.google.com/store/apps/details?id=ru.dachakalend.app" target="_blank" rel="noopener" aria-label="Скачать «Календарь дачника» в Google Play">▶️ Google Play</a>
+    </div>
+    <div class="store-row" style="margin-top:4px">
+      <a class="store" href="/spravochnik/">Справочник</a>
+      <a class="store" href="/blog/">Блог</a>
+      <a class="store" href="/offer">Оферта</a>
+      <a class="store" href="/privacy">Политика конфиденциальности</a>
+      <a class="store" href="/account-deletion">Удаление аккаунта</a>
+    </div>
+    <div class="store-row" style="margin-top:4px">
+      <a class="store" href="https://vk.ru/calendacha" target="_blank" rel="noopener" aria-label="Сообщество «Календарь дачника» ВКонтакте">🌻 Мы в ВК</a>
+      <a class="store" href="https://t.me/calendacha" target="_blank" rel="noopener" aria-label="Канал «Календарь дачника» в Telegram">✈️ Telegram</a>
+      <a class="store" href="https://dzen.ru/calendacha" target="_blank" rel="noopener" aria-label="Канал «Календарь дачника» в Дзене">📰 Дзен</a>
+      <a class="store" href="https://ok.ru/group/70000052629058" target="_blank" rel="noopener" aria-label="Группа «Календарь дачника» в Одноклассниках">👥 Одноклассники</a>
+    </div>
+    <div>© 2026 «Календарь дачника». Все права защищены.</div>
+  </div>
+</footer>
+<script>
+(function(){
+  // подсветка текущего раздела в меню — сравниваем реальный путь страницы, а не серверный
+  // флаг: шапка теперь один и тот же статический файл на всех страницах (SSI-include).
+  var path = location.pathname;
+  document.querySelectorAll('.nav-links a').forEach(function(a){
+    var href = a.getAttribute('href');
+    if (href === '/spravochnik/' && path.indexOf('/spravochnik/') === 0) a.classList.add('active');
+    if (href === '/blog/' && path.indexOf('/blog/') === 0) a.classList.add('active');
+  });
+})();
+(function(){
+  // залогинен → показываем аватар+email вместо «Войти» (landing и API на одном домене,
+  // токен — зеркало web-клиента, ключ dacha_token)
+  const cta=document.getElementById('navCta');
+  if(!cta)return;
+  let token=null;
+  try{token=localStorage.getItem('dacha_token');}catch(e){return;}
+  if(!token)return;
+  fetch('/auth/me',{headers:{Authorization:'Bearer '+token}})
+    .then(r=>r.ok?r.json():null)
+    .then(u=>{
+      if(!u||!u.email)return;
+      const letter=u.email.trim().charAt(0).toUpperCase();
+      cta.classList.add('user');
+      cta.setAttribute('aria-label','Открыть кабинет: '+u.email);
+      cta.textContent='';
+      const ava=document.createElement('span');ava.className='ava';ava.textContent=letter;
+      const em=document.createElement('span');em.className='uemail';em.textContent=u.email;
+      cta.appendChild(ava);cta.appendChild(em);
+    })
+    .catch(()=>{});
+})();
+</script>

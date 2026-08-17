@@ -71,53 +71,14 @@ function breadcrumbJsonLd(items) {
   }
 }
 
-// Единое меню — те же пункты, в том же порядке, что и в landing/index.html (шапка сайта).
-// Держать в синхроне вручную: index.html — статический файл, не генерируется этим скриптом.
-// Якоря (#features и т.п.) — секции самой главной, поэтому с абсолютным /, чтобы работать
-// и со страниц справочника/блога, а не только с самой "/".
-const NAV_ITEMS = [
-  ['/#features', null, 'Возможности'],
-  ['/#how', null, 'Как работает'],
-  ['/#pricing', null, 'Подписка'],
-  ['/#faq', null, 'Вопросы'],
-  ['/spravochnik/', 'spravochnik', 'Справочник'],
-  ['/blog/', 'blog', 'Блог'],
-  ['/#legal', null, 'Документы'],
-  ['/#contacts', null, 'Контакты']
-]
-
-// Кнопка входа — тот же чип с аватаром/email при активной сессии, что на главной (index.html):
-// localStorage-токен (landing и API на одном домене) → GET /auth/me → подменяем содержимое.
-const AUTH_CTA_SCRIPT = `<script>
-(function(){
-  const cta=document.getElementById('navCta');
-  if(!cta)return;
-  let token=null;
-  try{token=localStorage.getItem('dacha_token');}catch(e){return;}
-  if(!token)return;
-  fetch('/auth/me',{headers:{Authorization:'Bearer '+token}})
-    .then(r=>r.ok?r.json():null)
-    .then(u=>{
-      if(!u||!u.email)return;
-      const letter=u.email.trim().charAt(0).toUpperCase();
-      cta.classList.add('user');
-      cta.setAttribute('aria-label','Открыть кабинет: '+u.email);
-      cta.textContent='';
-      const ava=document.createElement('span');ava.className='ava';ava.textContent=letter;
-      const em=document.createElement('span');em.className='uemail';em.textContent=u.email;
-      cta.appendChild(ava);cta.appendChild(em);
-    })
-    .catch(()=>{});
-})();
-</script>`
-
-function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jsonLdBlocks, stylesheet, activeNav }) {
+function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jsonLdBlocks, stylesheet }) {
   const jsonLdHtml = (jsonLdBlocks || [])
     .map(block => `<script type="application/ld+json">${JSON.stringify(block).replace(/</g, '\\u003c')}</script>`)
     .join('\n')
-  const navLinksHtml = NAV_ITEMS
-    .map(([href, key, label]) => `<a href="${href}"${activeNav && activeNav === key ? ' class="active"' : ''}>${label}</a>`)
-    .join('\n')
+  // Шапка/подвал — не здесь: nginx SSI подставляет их на каждый запрос из одного и того же
+  // файла landing/_includes/{header,footer}.html (server-side include, ssi on; в nginx-конфиге
+  // сайта — см. docs/DEPLOY.md). Правка меню/кнопки входа больше не требует перегенерации
+  // страниц: один файл меняется — сразу виден на всём сайте.
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -143,22 +104,12 @@ function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jso
 ${jsonLdHtml}
 </head>
 <body>
-<header><div class="wrap nav">
-<a class="brand" href="/">🌻 Календарь дачника</a>
-<nav class="nav-links">
-${navLinksHtml}
-</nav>
-<a class="nav-cta" id="navCta" href="/app/">Войти</a>
-</div></header>
+<!--#include virtual="/_includes/header.html" -->
 <main><div class="wrap">
 <div class="breadcrumbs">${breadcrumbs}</div>
 ${bodyHtml}
 </div></main>
-<footer><div class="wrap">
-<a href="/offer">Оферта</a> · <a href="/privacy">Политика конфиденциальности</a> · <a href="/">На главную</a>
-<div>© 2026 «Календарь дачника»</div>
-</div></footer>
-${AUTH_CTA_SCRIPT}
+<!--#include virtual="/_includes/footer.html" -->
 </body>
 </html>`
 }

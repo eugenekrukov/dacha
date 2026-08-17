@@ -101,6 +101,24 @@ ssh hetzner 'cp /var/www/dacha-api/landing/index.html /var/www/dacha-landing/ind
 Если правили `offer.html` или `privacy.html` — скопировать и их (команда выше их не трогает), а также
 **синхронизировать дублирующий текст в аккордеоне `#legal` внутри `index.html`** — см. `landing/README.md`.
 
+### Шапка/подвал сайта (`landing/_includes/`) — сквозные через nginx SSI
+
+Шапка (меню + кнопка входа) и подвал одинаковые на главной, `/spravochnik/` и `/blog/` — не
+запечены в каждую страницу, а подключаются в момент запроса через `<!--#include virtual="/_includes/header.html" -->`
+/ `.../footer.html` (nginx `ssi on;`, добавлено 2026-08-17). Страницы (включая уже
+сгенерированные `generate-spravochnik.js`/`generate-blog.js`) достаточно один раз выложить —
+правка меню/кнопки входа/подвала правит **два файла**, а не тысячи HTML.
+
+После правки `landing/_includes/header.html` или `footer.html`:
+```powershell
+ssh hetzner 'cp -r /var/www/dacha-api/landing/_includes /var/www/dacha-landing/_includes'
+```
+Перегенерировать существующие страницы **не нужно** — SSI резолвится при каждом запросе.
+
+nginx-конфиг (`/etc/nginx/sites-available/dacha`) уже содержит `ssi on;` (в `server{}`) и
+`location /_includes/ { root /var/www/dacha-landing; internal; }` (внутренний — доступен только
+из SSI-подзапроса, не по прямому URL). Ставится один раз, при первом деплое фичи уже сделано.
+
 ⚠️ **Новый файл в корне лендинга (`robots.txt`-подобный, не HTML-страница) не начинает отдаваться
 сам по себе**, даже если он есть и в `landing/`, и в `/var/www/dacha-landing/` — нужен отдельный
 `location = /имя.txt { root /var/www/dacha-landing; }` в `/etc/nginx/sites-available/dacha` (как для

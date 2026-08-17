@@ -433,44 +433,8 @@ _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
   <button class="btn btn-primary" id="cookieAccept" type="button">Понятно</button>
 </div>
 
-<!-- ===== NAV ===== -->
-<header>
-  <div class="wrap nav">
-    <div class="brand">
-      <svg class="logo" viewBox="0 0 100 100" aria-hidden="true">
-        <g>
-          <g>
-            <!-- sun rays -->
-            <g fill="#FF7B00">
-              <!-- generated petals -->
-              <g id="raypair"></g>
-            </g>
-          </g>
-        </g>
-        <circle cx="50" cy="50" r="34" fill="#FFB347"/>
-        <circle cx="50" cy="50" r="22" fill="#8a5a2a"/>
-        <circle cx="50" cy="50" r="22" fill="url(#seedlogo)"/>
-        <defs>
-          <pattern id="seedlogo" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(20)">
-            <circle cx="3" cy="3" r="1.5" fill="#6b3f17"/>
-          </pattern>
-        </defs>
-      </svg>
-      Календарь дачника
-    </div>
-    <nav class="nav-links">
-      <a href="#features">Возможности</a>
-      <a href="#how">Как работает</a>
-      <a href="#pricing">Подписка</a>
-      <a href="#faq">Вопросы</a>
-      <a href="/spravochnik/">Справочник</a>
-      <a href="/blog/">Блог</a>
-      <a href="#legal">Документы</a>
-      <a href="#contacts">Контакты</a>
-    </nav>
-    <a class="nav-cta" id="navCta" href="/app/">Войти</a>
-  </div>
-</header>
+<!-- ===== NAV (шапка сквозная по всему сайту — nginx SSI, см. docs/DEPLOY.md) ===== -->
+<!--#include virtual="/_includes/header.html" -->
 
 <main id="main">
 
@@ -830,34 +794,8 @@ _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
 </main>
 
 <!-- ===== FOOTER ===== -->
-<footer>
-  <div class="wrap">
-    <div class="brand" style="justify-content:center;margin-bottom:6px">
-      <span style="font-size:26px">🌻</span>
-      <span style="font-family:'Nunito';font-weight:900;font-size:18px;color:var(--ink)">Календарь дачника</span>
-    </div>
-    <div class="store-row">
-      <a class="store" href="/app/" aria-label="Открыть веб-версию «Календарь дачника»">🌱 Веб-версия</a>
-      <a class="store" href="https://www.rustore.ru/catalog/app/ru.dachakalend.app" target="_blank" rel="noopener" aria-label="Скачать «Календарь дачника» в RuStore">📲 RuStore</a>
-      <a class="store" href="https://play.google.com/store/apps/details?id=ru.dachakalend.app" target="_blank" rel="noopener" aria-label="Скачать «Календарь дачника» в Google Play">▶️ Google Play</a>
-    </div>
-    <div class="store-row" style="margin-top:4px">
-      <a class="store" href="/spravochnik/">Справочник</a>
-      <a class="store" href="/blog/">Блог</a>
-      <a class="store" href="/offer">Оферта</a>
-      <a class="store" href="/privacy">Политика конфиденциальности</a>
-      <a class="store" href="/account-deletion">Удаление аккаунта</a>
-    </div>
-    <div class="store-row" style="margin-top:4px">
-      <a class="store" href="https://vk.ru/calendacha" target="_blank" rel="noopener" aria-label="Сообщество «Календарь дачника» ВКонтакте">🌻 Мы в ВК</a>
-      <a class="store" href="https://t.me/calendacha" target="_blank" rel="noopener" aria-label="Канал «Календарь дачника» в Telegram">✈️ Telegram</a>
-      <a class="store" href="https://dzen.ru/calendacha" target="_blank" rel="noopener" aria-label="Канал «Календарь дачника» в Дзене">📰 Дзен</a>
-      <a class="store" href="https://ok.ru/group/70000052629058" target="_blank" rel="noopener" aria-label="Группа «Календарь дачника» в Одноклассниках">👥 Одноклассники</a>
-    </div>
-    <div>© 2026 «Календарь дачника». Все права защищены.</div>
-    <div class="fine">Дата последнего обновления: 18.07.2026</div>
-  </div>
-</footer>
+<!-- подвал сквозной по всему сайту — nginx SSI, см. docs/DEPLOY.md -->
+<!--#include virtual="/_includes/footer.html" -->
 
 <script>
 // build sun rays + flower petals procedurally (keeps markup small)
@@ -923,11 +861,11 @@ _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
   addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);upd();
 })();
 
-// scrollspy — highlight active nav link
+// scrollspy — highlight active nav link (href теперь абсолютный, "/#id" — общий инклюд шапки)
 (function(){
   const links=[...document.querySelectorAll('.nav-links a')];
   const map=new Map();
-  links.forEach(a=>{const id=a.getAttribute('href').slice(1);const s=document.getElementById(id);if(s)map.set(s,a);});
+  links.forEach(a=>{const hash=a.getAttribute('href').split('#')[1];if(!hash)return;const s=document.getElementById(hash);if(s)map.set(s,a);});
   if(!map.size||!('IntersectionObserver' in window))return;
   const io=new IntersectionObserver((ents)=>{
     ents.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));map.get(e.target).classList.add('active');}});
@@ -962,29 +900,8 @@ _tmr.push({id: "3787208", type: "pageView", start: (new Date()).getTime()});
     try{localStorage.setItem(KEY,'1');}catch(e){}
   });
 })();
-
-// logged-in state: show user's email in nav instead of «Войти»
-// (landing и API на одном домене в проде; токен — зеркало web-клиента, ключ dacha_token)
-(function(){
-  const cta=document.getElementById('navCta');
-  if(!cta)return;
-  let token=null;
-  try{token=localStorage.getItem('dacha_token');}catch(e){return;}
-  if(!token)return;
-  fetch('/auth/me',{headers:{Authorization:'Bearer '+token}})
-    .then(r=>r.ok?r.json():null)
-    .then(u=>{
-      if(!u||!u.email)return;
-      const letter=u.email.trim().charAt(0).toUpperCase();
-      cta.classList.add('user');
-      cta.setAttribute('aria-label','Открыть кабинет: '+u.email);
-      cta.textContent='';
-      const ava=document.createElement('span');ava.className='ava';ava.textContent=letter;
-      const em=document.createElement('span');em.className='uemail';em.textContent=u.email;
-      cta.appendChild(ava);cta.appendChild(em);
-    })
-    .catch(()=>{});
-})();
+// подсветка активного пункта меню + подмена «Войти» на аватар/email — теперь в
+// /_includes/footer.html (общий для всего сайта инклюд), см. docs/DEPLOY.md.
 </script>
 </body>
 </html>
