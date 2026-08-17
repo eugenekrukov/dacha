@@ -7,6 +7,7 @@
  * посты в соцсетях — то же самое + ссылка на статью.
  *
  *   node scripts/generate-blog.js <file.md>
+ *   node scripts/generate-blog.js <file.md> --refresh-existing   # только уже опубликованные посты
  *
  * По уточнению владельца (2026-08-13, отменяет решение от 2026-07-18): в блог идёт весь файл
  * целиком, включая уже опубликованные в ВК посты — сайт хранит архив, а не только анонсы
@@ -176,8 +177,9 @@ function renderIndex(pagePosts, page, totalPages) {
 
 function main() {
   const file = process.argv[2]
+  const refreshExisting = process.argv.includes('--refresh-existing')
   if (!file) {
-    console.error('Использование: node scripts/generate-blog.js <file.md>')
+    console.error('Использование: node scripts/generate-blog.js <file.md> [--refresh-existing]')
     process.exit(1)
   }
   const md = fs.readFileSync(file, 'utf8')
@@ -190,8 +192,17 @@ function main() {
   const manifest = loadManifest()
   fs.mkdirSync(OUT_DIR, { recursive: true })
 
-  // Весь файл, без фильтра по дате (см. комментарий к скрипту выше).
-  const eligible = parsed
+  // --refresh-existing: перегенерировать (новая обёртка renderShell и т.п.) только те посты
+  // из файла, что уже когда-то были опубликованы (совпадение по title в манифесте, а не по
+  // sourceFile — исходный файл мог с тех пор переименоваться/исчезнуть, см. docs/DEPLOY.md).
+  // Остальные посты файла не публикуются — иначе безобидное «обнови обёртку» тихо выложило бы
+  // в блог статьи, которые ещё не были для этого предназначены.
+  const existingTitles = new Set(Object.values(manifest).map(m => m.title))
+  const eligible = refreshExisting ? parsed.filter(p => existingTitles.has(p.title)) : parsed
+  if (refreshExisting && eligible.length === 0) {
+    console.log('Из этого файла ни одна статья ещё не публиковалась — нечего обновлять.')
+    return
+  }
 
   for (const post of eligible) {
     const slug = buildSlug(post.title, manifest)
