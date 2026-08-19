@@ -300,7 +300,8 @@ private fun EmptySeeds(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            "Сфотографируйте пакетик — и приложение подскажет, что уже куплено и у чего вышел срок",
+            "Добавьте первый пакетик кнопкой «+» — фото упаковки можно приложить, чтобы потом" +
+                " прочитать мелкий шрифт на этикетке, не роясь в коробке",
             fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
