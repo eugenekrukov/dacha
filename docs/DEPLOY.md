@@ -119,6 +119,20 @@ nginx-конфиг (`/etc/nginx/sites-available/dacha`) уже содержит 
 `location /_includes/ { root /var/www/dacha-landing; internal; }` (внутренний — доступен только
 из SSI-подзапроса, не по прямому URL). Ставится один раз, при первом деплое фичи уже сделано.
 
+⚠️ **`cp -r <src>/assets <dst>/assets` при уже существующей `<dst>/assets`** кладёт `<src>/assets`
+**внутрь** неё (`<dst>/assets/assets/`), а не поверх файлов — старая версия снаружи остаётся
+нетронутой (грабли 2026-08-17, при точечном обновлении `spravochnik/assets/style.css`). Для
+обновления одного файла — `cp file file` напрямую; для целой папки — либо `rm -rf <dst> && cp -r`
+(как в командах выше для `spravochnik/`/`blog/`), либо `cp -r <src>/. <dst>/` (точка после `src`).
+
+⚠️ **Правка nginx-конфига по SSH через PowerShell — не через `sed` с многострочной вставкой.**
+Многострочный `sed -i '...i\...\n...\n...'`, переданный из PowerShell, ловит BOM/мусор в начале
+героdoc-строки (см. правило про кавычки выше) и может тихо сломать файл на диске (грабли
+2026-08-17). Безопасный путь: собрать готовый файл целиком локально, сверить `diff` с текущим
+конфигом на сервере **до** применения, скопировать (`scp`) как замену, `nginx -t` — и только
+затем `systemctl reload nginx`. Backup (`cp dacha dacha.bak.<суффикс>`) — перед любой правкой,
+без исключений.
+
 ⚠️ **Новый файл в корне лендинга (`robots.txt`-подобный, не HTML-страница) не начинает отдаваться
 сам по себе**, даже если он есть и в `landing/`, и в `/var/www/dacha-landing/` — нужен отдельный
 `location = /имя.txt { root /var/www/dacha-landing; }` в `/etc/nginx/sites-available/dacha` (как для
@@ -171,6 +185,18 @@ location /spravochnik/ {
 ```powershell
 ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/generate-blog.js ../docs/vk-content/<файл>.md'
 ssh hetzner 'rm -rf /var/www/dacha-landing/blog && cp -r /var/www/dacha-api/landing/blog /var/www/dacha-landing/blog && cp /var/www/dacha-api/landing/sitemap.xml /var/www/dacha-landing/sitemap.xml'
+```
+
+**Нужно обновить обёртку (шапку/подвал/что-то в `renderShell`) на уже опубликованных постах, но
+не публиковать остальные статьи файла?** — флаг `--refresh-existing` (2026-08-17): фильтрует по
+совпадению `title` с уже существующей записью в `.blog-manifest.json`, не по имени файла (исходный
+`.md`, из которого пост когда-то публиковался, мог с тех пор переименоваться/исчезнуть — так и
+было с `filtered-part1-aug.md`/`filtered-part2-jul.md`, найти текущий файл-эквивалент можно только
+сверкой заголовков). Без флага «весь файл целиком» опубликовал бы и статьи, которых в блоге ещё нет —
+не всегда то, что нужно при простом обновлении шапки:
+
+```powershell
+ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/generate-blog.js ../docs/vk-content/<файл>.md --refresh-existing'
 ```
 
 **При подготовке каждого нового батча — секция `FAQ:` обязательна** (правило владельца,
