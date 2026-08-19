@@ -51,6 +51,22 @@ describe('POST /harvests', () => {
     expect(res.status).toBe(401)
     await app.close()
   })
+
+  // БАГ: у POST /harvests нет schema-валидации body (в отличие от auth/billing/promo) —
+  // отрицательный вес/количество урожая проходит на INSERT как есть и попадает в БД
+  // и в аналитику урожайности (weight_kg суммируется по grow-графикам в отчётах).
+  it('БАГ: отрицательный weight_kg должен отклоняться, а не создавать запись урожая', async () => {
+    const app = await buildApp(makeMockDb({ query: async () => ({ rows: [{ ...HARVEST, weight_kg: -5 }] }) }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/harvests')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ planting_id: 1, weight_kg: -5 })
+
+    expect(res.status).toBe(400)
+    await app.close()
+  })
 })
 
 describe('GET /harvests', () => {

@@ -133,7 +133,10 @@ function makeStatefulDb(rows) {
         const hasGuard = sql.includes('AND npd_status')
         const idParam = params[params.length - 1]
         const row = state.get(idParam)
-        if (row && (!hasGuard || row.npd_status === 'registering')) row.npd_status = newStatus
+        if (row && (!hasGuard || row.npd_status === 'registering')) {
+          row.npd_status = newStatus
+          if (newStatus === 'registered') row.npd_receipt_uuid = params[0]
+        }
         return { rows: [], rowCount: row ? 1 : 0 }
       }
       return { rows: [] }
@@ -154,5 +157,30 @@ describe('runNalogReceipts — защита от параллельного за
     ])
     expect(addIncomeCalls).toBe(1)
     expect(db.state.get(100).npd_status).toBe('registered')
+  })
+})
+
+// БАГ: после успешной регистрации в ФНС (addIncome + UPDATE → 'registered') письмо с чеком
+// шлётся ВНУТРИ того же try — если sendReceiptLink бросает, общий catch считает это
+// "ошибкой регистрации" и откатывает npd_status обратно в 'pending' (см. nalogJob.js:95-145).
+// Следующий прогон job'а увидит статус 'pending' и вызовет addIncome() ЕЩЁ РАЗ для того же
+// платежа — доход в ФНС регистрируется дважды по одной оплате (задвоенный чек НПД).
+describe('runNalogReceipts — сбой письма после успешной регистрации не должен трогать npd_status', () => {
+  it('сбой sendReceiptLink после успешного addIncome оставляет платёж registered (не переоткрывает для повторной регистрации)', async () => {
+    const db = makeStatefulDb([
+      { id: 200, user_id: 1, email: 'a@b.c', amount: '299.00', plan: 'monthly', created_at: new Date(), npd_status: 'pending' }
+    ])
+    let addIncomeCalls = 0
+    const nalog = makeNalog({ add: async () => { addIncomeCalls++; return 'rcpt_200' } })
+    const email = { sendReceiptLink: async () => { throw new Error('SMTP недоступен') }, sendMail: async () => true }
+
+    await runNalogReceipts(db, nalog, email)
+
+    expect(db.state.get(200).npd_status).toBe('registered')
+    expect(db.state.get(200).npd_receipt_uuid).toBe('rcpt_200')
+
+    // Следующий прогон не должен повторно слать доход в ФНС по уже зарегистрированному платежу.
+    await runNalogReceipts(db, nalog, email)
+    expect(addIncomeCalls).toBe(1)
   })
 })

@@ -115,7 +115,10 @@ async function runNalogReceipts(db, nalog = nalogService, email = emailService) 
         }
         registered++
         if (row.email) {
+          // Чек уже зарегистрирован в ФНС и отмечен в БД — сбой письма не должен откатывать статус
+          // и провоцировать повторную регистрацию дохода (задвоение). Best-effort, как и остальные письма.
           await email.sendReceiptLink(row.email, nalog.getReceiptUrl(uuid), description, row.amount, row.subscription_until)
+            .catch((e) => console.error(`[nalog-job] payment ${row.id}: чек ${uuid} зарегистрирован, но письмо не отправлено: ${e.message}`))
         }
       } catch (e) {
         const attempts = (row.npd_attempts || 0) + 1

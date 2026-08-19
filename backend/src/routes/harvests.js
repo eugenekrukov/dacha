@@ -26,6 +26,13 @@ module.exports = async function (fastify) {
   fastify.post('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
     const { planting_id, weight_kg, quantity, notes } = request.body
 
+    if (weight_kg != null && !(Number(weight_kg) >= 0)) {
+      return reply.code(400).send({ error: 'Invalid weight_kg' })
+    }
+    if (quantity != null && !(Number(quantity) >= 0)) {
+      return reply.code(400).send({ error: 'Invalid quantity' })
+    }
+
     // Защита от IDOR: нельзя добавить урожай к чужой посадке
     const planting = planting_id ? await getOwnedPlanting(planting_id, request.user.userId) : null
     if (!planting) {
