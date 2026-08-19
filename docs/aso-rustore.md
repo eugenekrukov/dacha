@@ -123,6 +123,38 @@
 > терминология — было вперемешку «сад»/«участок» (в одном предложении оба слова для одного и
 > того же), а в самом приложении везде «участок» («Мой участок», «Изменить участок»).
 
+## Что нового (текущий релиз — vc15, versionName 1.0.12)
+
+Общий текст для Google Play и RuStore (одинаковая версия в оба стора).
+
+Что нового:
+- Севооборот стал умнее: подсказка теперь учитывает и плохих предшественников — предупредит,
+  если культуре не подходит грядка, где недавно росла та же ботаническая семья.
+- Больше культур с подробными соседями по грядке — какие сажать рядом, а какие держать подальше.
+- Добавлен справочник сортов — около 120 сортов для 50 культур со своими сроками урожая,
+  плюс сорт, который вы вписали вручную, сразу пополняет справочник и помогает всем — а
+  опечатки вроде «Бычье серце» сами найдут «Бычье сердце».
+- Справочник болезней и вредителей стал заметно полнее — больше поражений на каждую культуру,
+  и весь список теперь всегда виден и доступен на карточке.
+- «Мои семена» стали ещё удобнее: фото пакетика можно добавить в один тап прямо из списка
+  покупок, без лишних шагов.
+- Полив и уход по группе грядок теперь отмечаются ещё более гладко, даже офлайн.
+
+English (для второй локали, если нужна):
+
+What's new:
+- Smarter crop rotation guidance: now also flags bad predecessors, warning you when a bed's
+  recent crop history doesn't suit what you're planting.
+- More crops now come with detailed companion-planting info — what to grow together, what to
+  keep apart.
+- Added a variety directory — about 120 varieties across 50 crops, each with its own harvest
+  timing; a variety you type in also joins the directory and helps everyone, with typos matched
+  automatically.
+- The disease and pest guide got a lot fuller — more issues covered per crop, and the full list
+  is now always visible and accessible on the crop card.
+- "My Seeds" got even smoother — add a packet photo in one tap right from the shopping list.
+- Watering and care logging across grouped beds now works even more smoothly offline.
+
 ## Часто задаваемые вопросы (карточка RuStore — блок «Вопросы и ответы»)
 
 RuStore, в отличие от Google Play, показывает на карточке отдельный FAQ-блок — заполняется
