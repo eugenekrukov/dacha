@@ -156,7 +156,8 @@ fun SeedsScreen(
                             SeedCard(
                                 seed = seed,
                                 onClick = { viewModel.openEdit(seed) },
-                                onDelete = { viewModel.delete(seed) }
+                                onDelete = { viewModel.delete(seed) },
+                                onUploadPhoto = { viewModel.uploadPhotoQuick(seed.id, it) }
                             )
                         }
                     }
@@ -310,12 +311,18 @@ private fun EmptySeeds(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SeedCard(seed: Seed, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun SeedCard(seed: Seed, onClick: () -> Unit, onDelete: () -> Unit, onUploadPhoto: (ByteArray) -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     // Тап по миниатюре открывает фото на весь экран, а не форму правки: на пакетике
     // мелким шрифтом напечатано то, ради чего его и снимали (сорт, производитель, срок),
     // и в 64 dp это не прочесть. Остальная карточка по-прежнему ведёт в редактирование.
     var showPhoto by remember { mutableStateOf(false) }
+    // Без фото — обычно пакетик пришёл из «Куплено» в списке покупок, минуя форму
+    // добавления. Плашка с камерой даёт снять/выбрать фото прямо тут, без похода в
+    // редактирование (см. onUploadPhoto). Клик по ней не всплывает до Card.onClick —
+    // как и у миниатюры выше, вложенный clickable перехватывает тап первым.
+    var sourceMenu by remember { mutableStateOf(false) }
+    val pickers = rememberPhotoPickers(onBytes = onUploadPhoto)
 
     if (showPhoto && seed.photoUrl != null) {
         FullScreenPhotoDialog(
@@ -347,17 +354,30 @@ private fun SeedCard(seed: Seed, onClick: () -> Unit, onDelete: () -> Unit) {
                         .clickable(enabled = seed.photoUrl != null) { showPhoto = true }
                 )
             } else {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.PhotoCamera, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.background)
+                            .clickable { sourceMenu = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.PhotoCamera, contentDescription = "Добавить фото пакетика: ${seed.cropName}",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(expanded = sourceMenu, onDismissRequest = { sourceMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Сделать фото", fontFamily = NunitoFamily) },
+                            onClick = { sourceMenu = false; pickers.camera() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Из галереи", fontFamily = NunitoFamily) },
+                            onClick = { sourceMenu = false; pickers.gallery() }
+                        )
+                    }
                 }
             }
             Spacer(Modifier.width(14.dp))

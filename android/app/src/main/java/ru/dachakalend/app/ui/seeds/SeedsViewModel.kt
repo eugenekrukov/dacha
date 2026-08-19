@@ -93,6 +93,20 @@ class SeedsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Быстрое фото прямо из карточки списка — для пакетиков, у которых его ещё нет (обычно
+     * попали в коробку через «Куплено» из списка покупок, минуя форму добавления с фото).
+     * Открывать ради этого полную шторку редактирования не нужно.
+     */
+    fun uploadPhotoQuick(seedId: Int, photoBytes: ByteArray) {
+        viewModelScope.launch {
+            when (val result = repository.uploadPhoto(seedId, photoBytes)) {
+                is Result.Error -> _uiState.value = _uiState.value.copy(error = result.message, errorIsSubscriptionRequired = result.isSubscriptionRequired)
+                else -> load()
+            }
+        }
+    }
+
     fun delete(seed: Seed) {
         viewModelScope.launch {
             when (val result = repository.deleteSeed(seed.id)) {
