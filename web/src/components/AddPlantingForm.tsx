@@ -211,7 +211,7 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }:
           <input
             type="text"
             className="dacha-input"
-            placeholder="Например: Бычье сердце"
+            placeholder={varieties[0] ? `Например: ${varieties[0].name}` : 'Введите сорт'}
             maxLength={120}
             value={variety}
             onChange={(e) => setVariety(e.target.value)}

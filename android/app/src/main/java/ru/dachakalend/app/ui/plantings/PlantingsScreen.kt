@@ -991,7 +991,12 @@ private fun VarietyField(
             value = value,
             onValueChange = { onValueChange(it.take(120)); expanded = true },
             label = { Text("Сорт (необязательно)", fontFamily = NunitoFamily) },
-            placeholder = { Text("Например: Бычье сердце", fontFamily = NunitoFamily) },
+            placeholder = {
+                Text(
+                    varieties.firstOrNull()?.name?.let { "Например: $it" } ?: "Введите сорт",
+                    fontFamily = NunitoFamily
+                )
+            },
             modifier = Modifier.fillMaxWidth().menuAnchor(),
             singleLine = true,
             shape = RoundedCornerShape(12.dp),

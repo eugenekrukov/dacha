@@ -28,6 +28,35 @@ module.exports = async function (fastify) {
     return res.rows[0] || null
   }
 
+  // Свободный текст сорта → id в общем справочнике crop_varieties, шаренном между всеми
+  // пользователями. Сначала нечёткий поиск (pg_trgm, миграция 084) среди уже существующих
+  // сортов ЭТОЙ культуры — опечатка («Бычье серце») сама подтягивается к существующей записи
+  // («Бычье сердце»), а не плодит дубль. Если похожего сорта нет — заводим новый: он сразу
+  // попадёт в подсказки всем пользователям при следующей посадке этой культуры. harvest_days
+  // для нового сорта не знаем — оставляем NULL (расчёт срока падает на общий crops.harvest_days,
+  // как для посадок вовсе без сорта).
+  const VARIETY_SIMILARITY_THRESHOLD = 0.4
+  async function resolveOrCreateVariety(cropId, text) {
+    const match = await fastify.db.query(
+      `SELECT id, name, similarity(lower(name), lower($1)) AS sim
+       FROM crop_varieties WHERE crop_id = $2
+       ORDER BY sim DESC LIMIT 1`,
+      [text, cropId]
+    )
+    const best = match.rows[0]
+    if (best && best.sim >= VARIETY_SIMILARITY_THRESHOLD) {
+      return { id: best.id, name: best.name }
+    }
+    const created = await fastify.db.query(
+      `INSERT INTO crop_varieties (crop_id, name, source)
+       VALUES ($1, $2, 'Добавлено пользователем в приложении')
+       ON CONFLICT (crop_id, name) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id, name`,
+      [cropId, text]
+    )
+    return created.rows[0] || null
+  }
+
   // POST /plantings — free-тариф: до FREE_PLANTING_LIMIT активных (stage<>'done') посадок,
   // без ограничения по времени. Выше лимита — только «Дачник Про» (402).
   fastify.post('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
@@ -52,6 +81,10 @@ module.exports = async function (fastify) {
       if (!varietyRes.rows[0]) return reply.code(400).send({ error: 'Invalid variety' })
       varietyIdVal = variety_id
       varietyVal = varietyRes.rows[0].name
+    } else if (varietyVal) {
+      // Сорт не из подсказок (свободный текст) — заводим/сопоставляем в общем справочнике.
+      const resolved = await resolveOrCreateVariety(crop_id, varietyVal)
+      if (resolved) { varietyIdVal = resolved.id; varietyVal = resolved.name }
     }
 
     const userRes = await fastify.db.query(
@@ -296,6 +329,11 @@ module.exports = async function (fastify) {
         varietyIdVal = variety_id
         varietyVal = varietyRes.rows[0].name
       }
+    }
+    // Свободный текст (не выбран из подсказок, variety_id не пришёл) — в общий справочник.
+    if (varietyIdVal == null && varietyVal) {
+      const resolved = await resolveOrCreateVariety(planting.crop_id, varietyVal)
+      if (resolved) { varietyIdVal = resolved.id; varietyVal = resolved.name; varietyIdSet = true }
     }
 
     // Защита от IDOR: обновляем только посадку в участке текущего пользователя

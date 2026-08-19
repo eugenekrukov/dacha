@@ -204,6 +204,32 @@ describe('POST /plantings', () => {
     expect(res.status).toBe(400)
     await app.close()
   })
+
+  it('свободный текст сорта без variety_id заводит новую запись в общем справочнике сортов', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql) => {
+        const gated = gateQuery(sql)
+        if (gated) return gated
+        if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
+        // Похожего сорта у культуры ещё нет.
+        if (sql.includes('similarity(lower(name)')) return { rows: [] }
+        if (sql.includes('INSERT INTO crop_varieties')) return { rows: [{ id: 42, name: 'Мой сорт с дачи' }] }
+        if (sql.includes('INSERT INTO plantings')) return { rows: [{ ...PLANTING, variety: 'Мой сорт с дачи', variety_id: 42 }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/plantings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ garden_id: 1, crop_id: 1, variety: 'Мой сорт с дачи' })
+
+    expect(res.status).toBe(201)
+    expect(res.body.variety_id).toBe(42)
+    expect(res.body.variety).toBe('Мой сорт с дачи')
+    await app.close()
+  })
 })
 
 describe('GET /plantings', () => {
@@ -410,7 +436,7 @@ describe('PATCH /plantings/:id/info', () => {
     await app.close()
   })
 
-  it('clear_variety_id:true сбрасывает variety_id, даже если Moshi не может послать явный null', async () => {
+  it('clear_variety_id:true без нового текста сорта сбрасывает variety_id, даже если Moshi не может послать явный null', async () => {
     let capturedParams = null
     const app = await buildApp(makeMockDb({
       query: async (sql, params) => {
@@ -424,11 +450,61 @@ describe('PATCH /plantings/:id/info', () => {
     const res = await supertest(app.server)
       .patch('/plantings/1/info')
       .set('Authorization', `Bearer ${token}`)
-      .send({ variety: 'Мой сорт с дачи', clear_variety_id: true })
+      .send({ variety: '', clear_variety_id: true })
 
     expect(res.status).toBe(200)
     // varietyIdSet=true, varietyIdVal=null → последний параметр (variety_id) — null
     expect(capturedParams[capturedParams.length - 1]).toBeNull()
+    await app.close()
+  })
+
+  it('свободный текст сорта без variety_id заводит/сопоставляет запись в общем справочнике сортов', async () => {
+    let capturedParams = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('FROM plantings p')) return { rows: [PLANTING] }
+        // Похожего сорта у культуры ещё нет — нечёткий поиск ничего не находит.
+        if (sql.includes('similarity(lower(name)')) return { rows: [] }
+        // Заводим новую запись в crop_varieties — общий справочник, доступный всем пользователям.
+        if (sql.includes('INSERT INTO crop_varieties')) return { rows: [{ id: 42, name: 'Мой сорт с дачи' }] }
+        if (sql.includes('UPDATE plantings')) { capturedParams = params; return { rows: [{ ...PLANTING, variety: 'Мой сорт с дачи', variety_id: 42 }] } }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ variety: 'Мой сорт с дачи' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.variety_id).toBe(42)
+    // variety_id — последний параметр UPDATE
+    expect(capturedParams[capturedParams.length - 1]).toBe(42)
+    await app.close()
+  })
+
+  it('опечатка в сорте автоматически сопоставляется с уже существующим в справочнике (без дубля)', async () => {
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('FROM plantings p')) return { rows: [PLANTING] }
+        // Нечёткое совпадение находит существующую запись — используем её id и каноничное имя.
+        if (sql.includes('similarity(lower(name)')) return { rows: [{ id: 3, name: 'Бычье сердце', sim: 0.78 }] }
+        if (sql.includes('UPDATE plantings')) return { rows: [{ ...PLANTING, variety: 'Бычье сердце', variety_id: 3 }] }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .patch('/plantings/1/info')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ variety: 'Бычье серце' }) // опечатка
+
+    expect(res.status).toBe(200)
+    expect(res.body.variety_id).toBe(3)
+    expect(res.body.variety).toBe('Бычье сердце') // исправленное написание
     await app.close()
   })
 
