@@ -83,8 +83,13 @@ fun CropDetailScreen(
                 .padding(16.dp)
             when (selectedTab) {
                 0 -> CropCareSection(crop, climateZone, varieties = cropsState.varieties, modifier = scroll)
-                1 -> ProblemList(guideState.entries, "disease", "Болезни не отмечены.") { onOpenGuide?.invoke() }
-                2 -> ProblemList(guideState.entries, "pest", "Вредители не отмечены.") { onOpenGuide?.invoke() }
+                // ProblemList сам не скроллится (Column без verticalScroll) — оборачиваем, как в
+                // PlantingInfoScreen. Без этого длинные списки (5+ болезней) упирались в нескроллящийся
+                // Column внутри Scaffold: контент, не влезающий в экран, получал нулевые constraints —
+                // последняя карточка и ссылка «Все проблемы…» рендерились пустыми (баг с 2026-08-19,
+                // когда справочник расширили миграцией 081 и списки перестали помещаться на экран).
+                1 -> Column(modifier = scroll) { ProblemList(guideState.entries, "disease", "Болезни не отмечены.") { onOpenGuide?.invoke() } }
+                2 -> Column(modifier = scroll) { ProblemList(guideState.entries, "pest", "Вредители не отмечены.") { onOpenGuide?.invoke() } }
                 3 -> CropNeighborsSection(crop, modifier = scroll)
             }
         }
