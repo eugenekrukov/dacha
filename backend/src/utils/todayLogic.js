@@ -31,6 +31,26 @@ const CARE_TASK_PRODUCT = {
   'Обработка от колорадского жука':    'Престиж, Командор',
 }
 
+// Подсказка «как делать» для care-задач без погодной зависимости (в отличие от treatment —
+// см. hint ниже). Ключ = action_type из careTaskActionType(), общая для всех культур (культура
+// уже названа в заголовке карточки). 'fertilizing' сюда не входит — подкормку care_tasks
+// на практике не используют (для неё отдельный тип задачи fertilizing_due).
+const CARE_TASK_HINTS = {
+  pinching:       'Обрывайте рано утром — срез подсохнет за день, меньше риск инфекции',
+  hilling:        'После полива или дождя, по влажной земле — сухая осыпается',
+  tying:          'Свободной петлёй восьмёркой — тугой узел передавит стебель по мере роста',
+  thinning:       'Оставляйте самое крепкое растение, остальные срезайте у земли — не выдёргивайте, повредите соседние корни',
+  staking:        'Ставьте у корня сразу, не когда растение уже полегло',
+  bolt_removal:   'Срезайте сразу — иначе растение уходит в семена',
+  runner_removal: 'У самого основания — иначе тянут силы от урожая',
+  deflowering:    'Стимулирует новое цветение',
+  pruning:        'Чистым секатором, срезанное убирайте с грядки',
+  loosening:      'После полива или дождя, пока верхний слой не заветрел',
+  weeding:        'Пока сорняки маленькие — у переросших корни уже переплелись с культурой',
+}
+
+const TRANSPLANT_HINT = 'Полейте лунку перед посадкой — рассада быстрее приживётся'
+
 function careTaskActionType(name) {
   if (!name) return null
   const n = name.toLowerCase()
@@ -563,6 +583,7 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
         crop_name: p.crop_name,
         message: `${p.crop_name} — пора высаживать в грунт (${daysSincePlanting} дней)`,
         days_overdue: daysSincePlanting - p.transplant_days,
+        hint: TRANSPLANT_HINT,
       })
     }
 
@@ -607,11 +628,13 @@ function buildTasks(plantings, weather, lastWateredMap, lastFertilizedMap, remin
       const diff = dueOffset - daysSincePlanting // <= 3; отрицательный = просрочено
       const when = diff <= 0 ? 'сегодня' : `через ${diff} дн.`
       // Опрыскивание перед дождём бессмысленно — препарат смоет; и никогда не по солнцу.
+      // Остальные типы (окучивание/подвязка/прищипка и т.д.) — статичная подсказка «как делать»,
+      // без погодной логики (см. CARE_TASK_HINTS).
       const hint = mappedAction === 'treatment'
         ? (rain.today || rain.tomorrow
             ? 'Ожидается дождь — перенесите, иначе смоет'
             : 'Не по солнцу — утром или вечером')
-        : null
+        : CARE_TASK_HINTS[mappedAction] || null
       careAccum.push({
         hint,
         type: 'care_task_due',
@@ -841,9 +864,6 @@ function formatTasks(tasks) {
       description = t.crop_name ? `Культура: ${t.crop_name}` : ''
     }
 
-    // Подсказка «когда/сколько/чем» — отдельного поля на клиентах нет, дописываем в description.
-    if (t.hint) description = description ? `${description} · ${t.hint}` : t.hint
-
     return {
       type: t.type,
       priority: t.priority,
@@ -852,6 +872,9 @@ function formatTasks(tasks) {
       urgency: urgencyLevel(t),
       title,
       description,
+      // Подсказка «как делать/чем/когда» — отдельное поле (раньше дописывалась в description
+      // через « · » одной строкой, из-за чего на узких экранах обрезалась вместе с ней).
+      hint: t.hint || null,
       planting_id: t.planting_id || null,
       crop_name: t.crop_name || null,
       days_overdue: t.days_overdue || null,

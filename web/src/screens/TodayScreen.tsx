@@ -343,6 +343,7 @@ function TaskCard({ t, onLog }: { t: TodayTask; onLog?: (t: TodayTask) => void }
       <div className="flex min-w-0 flex-col">
         <span className="font-bold">{t.title}</span>
         {t.description && <span className="text-sm font-semibold text-muted">{t.description}</span>}
+        {t.hint && <span className="text-sm font-semibold text-primary">{t.hint}</span>}
         {t.product && <span className="text-sm font-semibold text-tertiary">Препарат: {t.product}</span>}
         {clickable && t.planting_id != null && (
           <Link

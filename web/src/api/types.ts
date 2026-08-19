@@ -114,6 +114,8 @@ export interface TodayTask {
   urgency?: TaskUrgency
   title: string
   description?: string
+  // Подсказка «как делать/чем/когда» — отдельное поле, не часть description (не обрезать вместе).
+  hint?: string | null
   planting_id: number | null
   crop_name?: string | null
   days_overdue?: number | null

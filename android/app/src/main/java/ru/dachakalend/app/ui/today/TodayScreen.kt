@@ -1149,12 +1149,23 @@ private fun SunnyTaskCard(task: TodayTask, onClick: (() -> Unit)? = null) {
                     fontWeight = FontWeight.Bold,
                     fontSize   = 12.sp,
                     color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                    // 2 строки: бэкенд дописывает в description подсказку «сколько/когда/чем»
-                    // (норма л/м², вечерний полив в жару, «дождь смоет») — в одну не влезает.
                     maxLines   = 2,
                     overflow   = TextOverflow.Ellipsis,
                     lineHeight = 16.sp
                 )
+                // Подсказка «как делать/чем/когда» — отдельная строка, без maxLines/ellipsis:
+                // раньше бэкенд дописывал её в description через « · », из-за чего длинный текст
+                // обрезался вместе с самим description (жалоба владельца на «Не по солнцу…»).
+                task.hint?.let {
+                    Text(
+                        text       = it,
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize   = 12.sp,
+                        color      = MaterialTheme.colorScheme.primary,
+                        lineHeight = 16.sp
+                    )
+                }
             }
             // Пилюля просрочки. Цвет — по ступени срочности с сервера: раньше все просрочки
             // красились в error, и на экране одновременно горело 6+ одинаковых меток, где

@@ -85,6 +85,9 @@ data class TodayTask(
     val urgency: String = "normal",
     val title: String,
     val description: String,
+    // Подсказка «как делать/чем/когда» — отдельное поле (раньше бэкенд дописывал в description
+    // через « · », из-за чего на узких экранах текст обрезался вместе с ней).
+    val hint: String? = null,
     @Json(name = "planting_id") val plantingId: Int?,
     @Json(name = "crop_name") val cropName: String?,
     @Json(name = "days_overdue") val daysOverdue: Int?,

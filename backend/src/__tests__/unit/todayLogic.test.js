@@ -270,7 +270,7 @@ describe('интервал полива: испарение и стадия', ()
     expect(tasks.some(t => t.type === 'watering_due')).toBe(true)
   })
 
-  it('норма л/м² и вечерний полив в жару попадают в описание задачи', () => {
+  it('норма л/м² и вечерний полив в жару попадают в подсказку задачи', () => {
     const p = makePlanting({
       id: 1, stage: 'growing', watering_freq_days: 3, frost_sensitive: false,
       transplant_days: null, harvest_days: 200, planted_at: daysAgo(10, TODAY),
@@ -278,8 +278,8 @@ describe('интервал полива: испарение и стадия', ()
     })
     const tasks = formatTasks(buildTasks([p], makeWeather({ max_temp_c: 31 }), { 1: new Date(daysAgo(5, TODAY)) }, {}, [], TODAY))
     const t = tasks.find(t => t.type === 'watering_due')
-    expect(t.description).toContain('6 л/м²')
-    expect(t.description).toContain('после 19:00')
+    expect(t.hint).toContain('6 л/м²')
+    expect(t.hint).toContain('после 19:00')
   })
 })
 
@@ -333,23 +333,51 @@ describe('обработка перед дождём', () => {
   it('предупреждает, что дождь смоет препарат', () => {
     const w = makeWeather({ forecast_json: [{ precip_prob_pct: 5, precip_mm: 0 }, { precip_prob_pct: 90, precip_mm: 8 }] })
     const t = formatTasks(buildTasks([sprayed], w, {}, {}, [], TODAY)).find(t => t.type === 'care_task_due')
-    expect(t.description).toContain('смоет')
+    expect(t.hint).toContain('смоет')
   })
 
   it('в сухую погоду советует не опрыскивать по солнцу', () => {
     const w = makeWeather({ forecast_json: [{ precip_prob_pct: 5, precip_mm: 0 }, { precip_prob_pct: 5, precip_mm: 0 }] })
     const t = formatTasks(buildTasks([sprayed], w, {}, {}, [], TODAY)).find(t => t.type === 'care_task_due')
-    expect(t.description).toContain('утром или вечером')
+    expect(t.hint).toContain('утром или вечером')
   })
 
-  it('обычная care-задача подсказки про опрыскивание не получает', () => {
+  it('обычная care-задача получает свою подсказку, а не про опрыскивание', () => {
     const weeded = makePlanting({
       id: 1, watering_freq_days: null, transplant_days: null, harvest_days: 200,
       frost_sensitive: false, planted_at: daysAgo(10, TODAY),
       care_tasks: [{ name: 'Прополка', day_offset: 5 }],
     })
     const t = formatTasks(buildTasks([weeded], makeWeather(), {}, {}, [], TODAY)).find(t => t.type === 'care_task_due')
-    expect(t.description).not.toContain('утром или вечером')
+    expect(t.hint).not.toContain('утром или вечером')
+    expect(t.hint).toContain('переплелись')
+  })
+})
+
+describe('подсказки для остальных care-задач (не только обработка)', () => {
+  it.each([
+    ['Подвязка', 'петлёй восьмёркой'],
+    ['Пасынкование', 'срез подсохнет'],
+    ['Первое окучивание', 'по влажной земле'],
+    ['Прореживание (первое)', 'самое крепкое растение'],
+  ])('%s получает подсказку "как делать"', (name, expected) => {
+    const p = makePlanting({
+      id: 1, watering_freq_days: null, transplant_days: null, harvest_days: 200,
+      frost_sensitive: false, planted_at: daysAgo(10, TODAY),
+      care_tasks: [{ name, day_offset: 5 }],
+    })
+    const t = formatTasks(buildTasks([p], makeWeather(), {}, {}, [], TODAY)).find(t => t.type === 'care_task_due')
+    expect(t.hint).toContain(expected)
+  })
+})
+
+describe('подсказка при высадке в грунт', () => {
+  it('transplant_due советует полить лунку', () => {
+    const t = formatTasks(buildTasks(
+      [makePlanting({ stage: 'sowing', sowing_method: 'seedling', transplant_days: 7, planted_at: daysAgo(10, TODAY) })],
+      makeWeather(), {}, {}, [], TODAY
+    )).find(t => t.type === 'transplant_due')
+    expect(t.hint).toContain('лунку')
   })
 })
 
