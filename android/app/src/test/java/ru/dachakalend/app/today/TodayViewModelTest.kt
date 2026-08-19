@@ -26,6 +26,7 @@ import ru.dachakalend.app.data.repository.Result
 import ru.dachakalend.app.data.repository.TodayRepository
 import ru.dachakalend.app.ui.today.TodayUiState
 import ru.dachakalend.app.ui.today.TodayViewModel
+import ru.dachakalend.app.ui.today.taskClosedBy
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TodayViewModelTest {
@@ -192,5 +193,56 @@ class TodayViewModelTest {
             val state = awaitItem() as TodayUiState.Error
             assertTrue(state.message.contains("offline"))
         }
+    }
+
+    // ── taskClosedBy: офлайн-снуз после логирования действия ──────────────────
+    // Баг: полив посадки из карточки не закрывал ГРУППОВУЮ задачу «Полить: X, Y и ещё N»
+    // (planting_id=null у группы, id — только в plantingIds), потому что сверялись только
+    // с одиночным plantingId.
+
+    private fun groupedWateringTask(ids: List<Int>) = ru.dachakalend.app.data.model.TodayTask(
+        type = "watering_due", priority = 4, title = "Полить: …", description = "",
+        plantingId = null, cropName = null, daysOverdue = 5, plantingIds = ids,
+    )
+
+    private fun singleTask(type: String, plantingId: Int, careTaskName: String? = null) =
+        ru.dachakalend.app.data.model.TodayTask(
+            type = type, priority = 4, title = "", description = "",
+            plantingId = plantingId, cropName = "Огурец", daysOverdue = 5, careTaskName = careTaskName,
+        )
+
+    @Test
+    fun `taskClosedBy закрывает групповую задачу поливом одной из посадок`() {
+        val task = groupedWateringTask(listOf(31, 35, 32))
+        val info = ru.dachakalend.app.data.repository.LoggedActionInfo(plantingId = 35, type = "watering")
+        assertTrue(taskClosedBy(task, info))
+    }
+
+    @Test
+    fun `taskClosedBy не закрывает групповую задачу для чужой посадки`() {
+        val task = groupedWateringTask(listOf(31, 35, 32))
+        val info = ru.dachakalend.app.data.repository.LoggedActionInfo(plantingId = 99, type = "watering")
+        assertTrue(!taskClosedBy(task, info))
+    }
+
+    @Test
+    fun `taskClosedBy не закрывает задачу действием другого типа`() {
+        val task = singleTask("fertilizing_due", plantingId = 31)
+        val info = ru.dachakalend.app.data.repository.LoggedActionInfo(plantingId = 31, type = "watering")
+        assertTrue(!taskClosedBy(task, info))
+    }
+
+    @Test
+    fun `taskClosedBy закрывает одиночную задачу полива`() {
+        val task = singleTask("watering_due", plantingId = 31)
+        val info = ru.dachakalend.app.data.repository.LoggedActionInfo(plantingId = 31, type = "watering")
+        assertTrue(taskClosedBy(task, info))
+    }
+
+    @Test
+    fun `taskClosedBy закрывает care_task_due по совпадающему типу действия`() {
+        val task = singleTask("care_task_due", plantingId = 31, careTaskName = "Подкормка золой")
+        val info = ru.dachakalend.app.data.repository.LoggedActionInfo(plantingId = 31, type = "fertilizing")
+        assertTrue(taskClosedBy(task, info))
     }
 }

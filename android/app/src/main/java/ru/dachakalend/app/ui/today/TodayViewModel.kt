@@ -20,7 +20,9 @@ import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.RecommendationsRepository
 import ru.dachakalend.app.data.repository.Result
+import ru.dachakalend.app.data.repository.LoggedActionInfo
 import ru.dachakalend.app.data.repository.TodayRepository
+import ru.dachakalend.app.ui.actions.careTaskActionType
 import ru.dachakalend.app.ui.plantings.attentionCount
 import ru.dachakalend.app.BuildConfig
 import ru.rustore.sdk.pushclient.RuStorePushClient
@@ -126,8 +128,12 @@ class TodayViewModel @Inject constructor(
             actionsRepository.loggedActionEvents.collect { info ->
                 // Офлайн нельзя пересчитать задачи на сервере → закрываем подходящую локально
                 // (snooze: вернётся завтра / обратимо), затем перечитываем (офлайн — из кэша).
+                // Полив/подкормка нескольких посадок с одинаковым сроком приходят ОДНОЙ групповой
+                // задачей (planting_id=null, посадки — в plantingIds) — сверяться нужно и по ней,
+                // иначе полив из карточки одной посадки офлайн не закрывал общую карточку «Полить»
+                // (баг: задача держалась в «Сегодня» до следующего онлайн-обновления).
                 (_uiState.value as? TodayUiState.Success)?.data?.today?.tasks
-                    ?.filter { it.plantingId == info.plantingId }
+                    ?.filter { taskClosedBy(it, info) }
                     ?.forEach { snoozeTask(taskSnoozeKey(it)) }
                 loadToday(silent = true)
             }
@@ -258,3 +264,22 @@ class TodayViewModel @Inject constructor(
 
 internal fun recKey(rec: Recommendation) = "${rec.type}:${rec.cropName}:${rec.message.take(30)}"
 internal fun taskSnoozeKey(task: TodayTask) = "${task.type}:${task.plantingId}:${task.cropName}:${task.careTaskName}"
+
+/**
+ * Закрывает ли залогированное действие эту задачу «Сегодня» — посадка совпадает (одиночная
+ * ИЛИ входит в группу plantingIds) И тип действия реально закрывает именно этот тип задачи
+ * (иначе, например, «Полив» на грядке с параллельной «Подкормка» снял бы не ту карточку).
+ * Маппинг типов зеркалит PlantingsViewModel.onActionLogged.
+ */
+internal fun taskClosedBy(task: TodayTask, info: LoggedActionInfo): Boolean {
+    val plantingMatches = task.plantingId == info.plantingId ||
+        (task.plantingIds?.contains(info.plantingId) == true)
+    if (!plantingMatches) return false
+    return when (task.type) {
+        "watering_due"    -> info.type == "watering"
+        "fertilizing_due" -> info.type == "fertilizing"
+        "transplant_due"  -> info.type == "transplanting"
+        "care_task_due"   -> info.type == careTaskActionType(task.careTaskName)
+        else               -> false
+    }
+}
