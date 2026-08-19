@@ -52,7 +52,7 @@ module.exports = async function (fastify) {
       'name', 'category', 'sowing_start_day', 'sowing_end_day', 'transplant_days',
       'harvest_days', 'watering_freq_days', 'frost_sensitive', 'notes',
       'climate_zones', 'watering_details', 'fertilizing_schedule',
-      'diseases', 'pests', 'good_neighbors', 'bad_neighbors', 'good_predecessors',
+      'diseases', 'pests', 'good_neighbors', 'bad_neighbors', 'good_predecessors', 'bad_predecessors',
       'spacing_in_row_cm', 'spacing_between_rows_cm'
     ]
     const JSONB_FIELDS = new Set([

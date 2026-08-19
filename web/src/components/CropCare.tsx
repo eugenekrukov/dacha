@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { FlaskConical, RotateCw, Check, X } from 'lucide-react'
+import { FlaskConical, RotateCw, RotateCcw, Check, X } from 'lucide-react'
 import { api } from '../api/client'
 import type { Crop, CropVariety, FertilizingEntry, WateringDetails, WateringStage } from '../api/types'
 
@@ -137,7 +137,7 @@ export function CareSection({ crop }: { crop: Crop }) {
 
 // Вкладка/секция «Соседи»: совместимость и предшественники.
 export function NeighborsSection({ crop }: { crop: Crop }) {
-  const has = crop.good_neighbors?.length || crop.bad_neighbors?.length || crop.good_predecessors?.length
+  const has = crop.good_neighbors?.length || crop.bad_neighbors?.length || crop.good_predecessors?.length || crop.bad_predecessors?.length
   if (!has) return <p className="dacha-card p-4 font-semibold text-muted">Данные о совместимости не добавлены.</p>
   return (
     <section className="dacha-card p-5">
@@ -159,11 +159,19 @@ export function NeighborsSection({ crop }: { crop: Crop }) {
         </p>
       ) : null}
       {crop.good_predecessors?.length ? (
-        <p className="font-semibold">
+        <p className={crop.bad_predecessors?.length ? 'mb-1 font-semibold' : 'font-semibold'}>
           <span className="inline-flex items-center gap-1 align-middle text-tertiary">
             <RotateCw size={16} aria-hidden /> Хорошие предшественники:
           </span>{' '}
           {crop.good_predecessors.join(', ')}
+        </p>
+      ) : null}
+      {crop.bad_predecessors?.length ? (
+        <p className="font-semibold">
+          <span className="inline-flex items-center gap-1 align-middle text-red-600">
+            <RotateCcw size={16} aria-hidden /> Плохие предшественники:
+          </span>{' '}
+          {crop.bad_predecessors.join(', ')}
         </p>
       ) : null}
     </section>

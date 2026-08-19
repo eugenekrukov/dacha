@@ -415,6 +415,7 @@ data class Crop(
     @Json(name = "good_neighbors") val goodNeighbors: List<String>? = null,
     @Json(name = "bad_neighbors") val badNeighbors: List<String>? = null,
     @Json(name = "good_predecessors") val goodPredecessors: List<String>? = null,
+    @Json(name = "bad_predecessors") val badPredecessors: List<String>? = null,
     @Json(name = "care_tasks") val careTasks: List<CareTask>? = null
 )
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Science
@@ -149,7 +150,8 @@ fun CropNeighborsSection(crop: Crop, modifier: Modifier = Modifier) {
     val good = crop.goodNeighbors.orEmpty()
     val bad = crop.badNeighbors.orEmpty()
     val prev = crop.goodPredecessors.orEmpty()
-    if (good.isEmpty() && bad.isEmpty() && prev.isEmpty()) {
+    val badPrev = crop.badPredecessors.orEmpty()
+    if (good.isEmpty() && bad.isEmpty() && prev.isEmpty() && badPrev.isEmpty()) {
         Box(modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
             Text("Данные о совместимости\nпока не добавлены", fontFamily = NunitoFamily,
                 fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -163,6 +165,8 @@ fun CropNeighborsSection(crop: Crop, modifier: Modifier = Modifier) {
             MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
         if (prev.isNotEmpty()) NeighborSection(Icons.Default.Autorenew, "Хорошие предшественники", prev,
             MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+        if (badPrev.isNotEmpty()) NeighborSection(Icons.Default.Block, "Плохие предшественники", badPrev,
+            MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
     }
 }
 

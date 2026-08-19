@@ -263,6 +263,7 @@ export interface Crop {
   good_neighbors?: string[] | null
   bad_neighbors?: string[] | null
   good_predecessors?: string[] | null
+  bad_predecessors?: string[] | null
   diseases?: CropDisease[] | null
   pests?: CropPest[] | null
   watering_details?: WateringDetails | null
