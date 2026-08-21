@@ -34,7 +34,7 @@ class DachaPushService : RuStoreMessagingService() {
         ep().tokenStorage().getToken() ?: return
         scope.launch {
             try { ep().dachaApi().registerPushToken(mapOf("token" to token, "provider" to "rustore")) }
-            catch (_: Exception) {}
+            catch (e: Exception) { logPushError("DachaPushService.onNewToken/api", e) }
         }
     }
 
@@ -62,5 +62,7 @@ class DachaPushService : RuStoreMessagingService() {
 
     override fun onDeletedMessages() {}
 
-    override fun onError(errors: List<RuStorePushClientException>) {}
+    override fun onError(errors: List<RuStorePushClientException>) {
+        errors.forEach { logPushError("DachaPushService.onError", it) }
+    }
 }

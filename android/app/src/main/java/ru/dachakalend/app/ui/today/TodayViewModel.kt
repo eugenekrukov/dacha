@@ -27,6 +27,7 @@ import ru.dachakalend.app.ui.plantings.attentionCount
 import ru.dachakalend.app.BuildConfig
 import ru.rustore.sdk.pushclient.RuStorePushClient
 import com.google.firebase.messaging.FirebaseMessaging
+import ru.dachakalend.app.notification.logPushError
 import javax.inject.Inject
 
 data class TodayScreenData(
@@ -149,11 +150,13 @@ class TodayViewModel @Inject constructor(
                         tokenStorage.savePushToken(token)
                         viewModelScope.launch {
                             try { api.registerPushToken(mapOf("token" to token, "provider" to "rustore")) }
-                            catch (_: Exception) {}
+                            catch (e: Exception) { logPushError("registerPushToken/rustore/api", e) }
                         }
                     }
-            } catch (_: Exception) {
-                // RuStore SDK недоступен в unit-test окружении — игнорируем
+                    .addOnFailureListener { e -> logPushError("RuStorePushClient.getToken", e) }
+            } catch (e: Exception) {
+                // RuStore SDK недоступен в unit-test окружении — тут исключение синхронное
+                // (getToken() ещё не вызван), логировать в Crashlytics нечего.
             }
         } else {
             try {
@@ -162,11 +165,13 @@ class TodayViewModel @Inject constructor(
                         tokenStorage.savePushToken(token)
                         viewModelScope.launch {
                             try { api.registerPushToken(mapOf("token" to token, "provider" to "fcm")) }
-                            catch (_: Exception) {}
+                            catch (e: Exception) { logPushError("registerPushToken/fcm/api", e) }
                         }
                     }
-            } catch (_: Exception) {
-                // Firebase недоступен в unit-test окружении — игнорируем
+                    .addOnFailureListener { e -> logPushError("FirebaseMessaging.getInstance().token", e) }
+            } catch (e: Exception) {
+                // Firebase недоступен в unit-test окружении — тут исключение синхронное
+                // (getInstance() ещё не вызван), логировать в Crashlytics нечего.
             }
         }
     }

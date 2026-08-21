@@ -27,7 +27,7 @@ class DachaFcmService : FirebaseMessagingService() {
         ep().tokenStorage().getToken() ?: return
         scope.launch {
             try { ep().dachaApi().registerPushToken(mapOf("token" to token, "provider" to "fcm")) }
-            catch (_: Exception) {}
+            catch (e: Exception) { logPushError("DachaFcmService.onNewToken/api", e) }
         }
     }
 

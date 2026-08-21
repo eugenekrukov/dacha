@@ -7,8 +7,24 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import ru.dachakalend.app.MainActivity
 import ru.dachakalend.app.R
+
+/**
+ * Не-фатальная запись в Crashlytics — раньше ошибки регистрации push-токена (FCM/RuStore)
+ * тонули в пустых `catch (_: Exception) {}` без единого следа, и по продовой БД оказалось,
+ * что push-токен не сохранился НИ У ОДНОГО реального пользователя (разбор 2026-08-21). Сейчас
+ * хотя бы видно, на чём конкретно спотыкается getToken()/API-вызов, вместо гадания.
+ * `runCatching` снаружи — Crashlytics не инициализирован в JVM unit-тестах, там recordException
+ * сам бросит исключение.
+ */
+fun logPushError(tag: String, e: Throwable) {
+    runCatching {
+        FirebaseCrashlytics.getInstance().log(tag)
+        FirebaseCrashlytics.getInstance().recordException(e)
+    }
+}
 
 object NotificationHelper {
 
