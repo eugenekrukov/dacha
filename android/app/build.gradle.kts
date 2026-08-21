@@ -178,6 +178,11 @@ dependencies {
     // RuStore Reviews SDK — только rustore-флейвор (нативный запрос оценки). gplay — no-op AppReview.
     "rustoreImplementation"(libs.rustore.review)
 
+    // Install Referrer — атрибуция установки к рекламной ссылке (для InstallTracker).
+    // RuStore хранит значение 10 дней и отдаёт один раз — читаем при первом запуске.
+    "rustoreImplementation"(libs.rustore.installreferrer)
+    "gplayImplementation"(libs.play.installreferrer)
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")

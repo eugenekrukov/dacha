@@ -29,7 +29,21 @@ describe('POST /analytics/first-open', () => {
 
     expect(res.status).toBe(204)
     expect(queries[0].sql).toMatch(/INSERT INTO install_events/)
-    expect(queries[0].params).toEqual(['abcd1234', 'rustore', '1.0.7'])
+    expect(queries[0].params).toEqual(['abcd1234', 'rustore', '1.0.7', null])
+    await app.close()
+  })
+
+  it('принимает install_referrer', async () => {
+    const queries = []
+    const mockDb = { query: async (sql, params) => { queries.push({ sql, params }); return { rows: [] } } }
+    const app = await buildApp(mockDb)
+
+    const res = await supertest(app.server)
+      .post('/analytics/first-open')
+      .send({ device_id: 'abcd1234', store: 'rustore', app_version: '1.0.7', install_referrer: 'utm_source=vk_ads' })
+
+    expect(res.status).toBe(204)
+    expect(queries[0].params).toEqual(['abcd1234', 'rustore', '1.0.7', 'utm_source=vk_ads'])
     await app.close()
   })
 

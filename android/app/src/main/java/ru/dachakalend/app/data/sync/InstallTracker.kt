@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import ru.dachakalend.app.BuildConfig
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
+import ru.dachakalend.app.sync.InstallReferrer
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,18 +38,21 @@ class InstallTracker @Inject constructor(
         if (deviceId.isNullOrBlank()) return
         scope.launch {
             Log.d("InstallTracker", "coroutine started, calling api")
+            val referrer = runCatching { InstallReferrer.get(context) }.getOrNull()
             runCatching {
-                api.trackFirstOpen(
-                    mapOf(
-                        "device_id" to deviceId,
-                        "store" to BuildConfig.STORE,
-                        "app_version" to BuildConfig.VERSION_NAME
-                    )
-                )
+                api.trackFirstOpen(buildPayload(deviceId, BuildConfig.STORE, BuildConfig.VERSION_NAME, referrer))
             }.onSuccess {
                 Log.d("InstallTracker", "sent ok")
                 tokenStorage.setFirstOpenSent()
             }.onFailure { Log.w("InstallTracker", "first-open failed, will retry next launch", it) }
         }
     }
+
+    internal fun buildPayload(deviceId: String, store: String, appVersion: String, referrer: String?): Map<String, String> =
+        buildMap {
+            put("device_id", deviceId)
+            put("store", store)
+            put("app_version", appVersion)
+            if (!referrer.isNullOrBlank()) put("install_referrer", referrer)
+        }
 }

@@ -19,6 +19,8 @@ workManager = "2.9.0"
 hiltWork = "1.2.0"
 rustorePush = "6.0.0"
 rustoreReview = "9.1.0"
+rustoreInstallReferrer = "7.0.0"
+playInstallReferrer = "2.2"
 androidxBrowser = "1.8.0"
 yandexMobileAds = "7.12.0"
 googleServices = "4.4.2"
@@ -55,6 +57,8 @@ hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWo
 hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltWork" }
 rustore-push = { group = "ru.rustore.sdk", name = "pushclient", version.ref = "rustorePush" }
 rustore-review = { group = "ru.rustore.sdk", name = "review", version.ref = "rustoreReview" }
+rustore-installreferrer = { group = "ru.rustore.sdk", name = "installreferrer", version.ref = "rustoreInstallReferrer" }
+play-installreferrer = { group = "com.android.installreferrer", name = "installreferrer", version.ref = "playInstallReferrer" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "androidxBrowser" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }

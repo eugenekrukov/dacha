@@ -15,17 +15,18 @@ module.exports = async function (fastify) {
         properties: {
           device_id:   { type: 'string', minLength: 8, maxLength: 128 },
           store:       { type: 'string', enum: ['rustore', 'gplay', 'samsung', 'web'] },
-          app_version: { type: 'string', maxLength: 32 }
+          app_version: { type: 'string', maxLength: 32 },
+          install_referrer: { type: 'string', maxLength: 512 }  // RuStore referrerId / Google Play Install Referrer
         }
       }
     }
   }, async (request, reply) => {
-    const { device_id, store, app_version } = request.body
+    const { device_id, store, app_version, install_referrer } = request.body
     await fastify.db.query(
-      `INSERT INTO install_events (device_id, store, app_version)
-       VALUES ($1, $2, $3)
+      `INSERT INTO install_events (device_id, store, app_version, install_referrer)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (device_id) DO NOTHING`,
-      [device_id, store ?? null, app_version ?? null]
+      [device_id, store ?? null, app_version ?? null, install_referrer ?? null]
     )
     reply.code(204).send()
   })
