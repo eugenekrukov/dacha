@@ -45,13 +45,14 @@ module.exports = async function (fastify) {
           email:    { type: 'string', format: 'email' },
           password: { type: 'string', minLength: 6 },
           name:     { type: 'string' },   // опционально (имя больше не собирается клиентом)
-          store:    { type: 'string', enum: ['rustore', 'gplay', 'samsung', 'web'] }  // магазин установки (E5); web — браузерная версия
+          store:    { type: 'string', enum: ['rustore', 'gplay', 'samsung', 'web'] },  // магазин установки (E5); web — браузерная версия
+          install_referrer: { type: 'string', maxLength: 512 }  // сырой referrer установки (RuStore referrerId / Google Play Install Referrer), для атрибуции регистраций к рекламным кампаниям
         }
       }
     }
   }, async (request, reply) => {
     const email = request.body.email.toLowerCase()
-    const { password, name, store } = request.body
+    const { password, name, store, install_referrer } = request.body
     const db = fastify.db
 
     const existing = await db.query('SELECT id FROM users WHERE email = $1', [email])
@@ -61,8 +62,8 @@ module.exports = async function (fastify) {
 
     const passwordHash = await bcrypt.hash(password, 10)
     const result = await db.query(
-      'INSERT INTO users (email, password_hash, name, store) VALUES ($1, $2, $3, $4) RETURNING id, email, name, created_at, email_verified',
-      [email, passwordHash, name ?? null, store ?? null]
+      'INSERT INTO users (email, password_hash, name, store, install_referrer) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, created_at, email_verified',
+      [email, passwordHash, name ?? null, store ?? null, install_referrer ?? null]
     )
 
     const user = result.rows[0]
