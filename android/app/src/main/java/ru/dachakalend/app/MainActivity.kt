@@ -346,7 +346,8 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(Screen.Today.fromOnboarding()) {
                                         popUpTo(Screen.OnboardingCrops.route) { inclusive = true }
                                     }
-                                }
+                                },
+                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(Screen.GardenEdit.route) {

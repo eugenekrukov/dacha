@@ -31,18 +31,37 @@ import ru.dachakalend.app.ui.theme.NunitoFamily
 @Composable
 fun OnboardingCropsScreen(
     onDone: () -> Unit,
+    onOpenPaywall: () -> Unit = {},
     viewModel: OnboardingCropsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
+    // Если часть выбранных культур не создалась из-за free-лимита (сервер вернул 402) — не молчим:
+    // показываем, сколько добавилось, и предлагаем перейти на Про. Уходим на done в любом случае
+    // (после закрытия снекбара) — экран онбординга не блокирует продолжение.
     LaunchedEffect(state.done) {
-        if (state.done) onDone()
+        if (!state.done) return@LaunchedEffect
+        if (state.skippedForPaywall > 0) {
+            val added = state.selected.size - state.skippedForPaywall
+            val result = snackbarHostState.showSnackbar(
+                message = "Добавлено $added из ${state.selected.size} — бесплатно доступны 3 посадки одновременно",
+                actionLabel = "Перейти на Про",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) onOpenPaywall()
+        }
+        onDone()
     }
 
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .padding(innerPadding)
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -208,6 +227,7 @@ fun OnboardingCropsScreen(
         }
 
         Spacer(Modifier.height(24.dp))
+    }
     }
 }
 

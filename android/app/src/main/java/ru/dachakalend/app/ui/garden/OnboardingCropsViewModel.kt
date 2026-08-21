@@ -22,7 +22,10 @@ data class OnboardingCropsUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val done: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    // Сколько посадок не создалось из-за free-лимита (сервер вернул 402) — показываем
+    // предложение перейти на Про вместо того, чтобы тихо потерять выбор пользователя.
+    val skippedForPaywall: Int = 0
 )
 
 @HiltViewModel
@@ -70,10 +73,7 @@ class OnboardingCropsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true)
             val today = LocalDate.now().toString()
-            // ponytail: если выбрано больше free-лимита посадок, лишние тихо не создадутся (сервер
-            // вернёт 402) — экран онбординга не показывает предупреждение (уходит на done сразу).
-            // Апгрейд: показать snackbar с числом добавленных/пропущенных, если это станет частой жалобой.
-            var allOk = true
+            var skippedForPaywall = 0
             for (cropId in selected) {
                 val result = plantingsRepository.createPlanting(
                     CreatePlantingRequest(
@@ -82,12 +82,12 @@ class OnboardingCropsViewModel @Inject constructor(
                         sownAt = today
                     )
                 )
-                if (result is Result.Error) allOk = false
+                if (result is Result.Error && result.isSubscriptionRequired) skippedForPaywall++
             }
             // Даты выставлены = сегодня без явного выбора — попросим пользователя проверить их
             // на экране «Посадки» (баннер-подсказка).
             tokenStorage.setPlantingDatesNeedCheck(true)
-            _uiState.value = _uiState.value.copy(isSaving = false, done = true)
+            _uiState.value = _uiState.value.copy(isSaving = false, done = true, skippedForPaywall = skippedForPaywall)
         }
     }
 }
