@@ -66,6 +66,14 @@ ssh hetzner 'curl -s localhost:3002/health'        # {"status":"ok",...}
 - `npm install` — только если менялся `backend/package.json`.
 - Миграции (если есть): `ssh hetzner 'sudo -u postgres psql -d dacha_db -f /var/www/dacha-api/backend/src/db/migrations/0XX_*.sql'`
   (+ `ALTER TABLE <t> OWNER TO dacha_user;` если таблица создана под postgres).
+  ⚠️ **`npm run migrate` (backend/src/db/migrate.js) не годится** для точечного наката — он
+  прогоняет ВСЕ .sql из каталога по порядку и падает на первой же, где `dacha_user` не владелец
+  таблицы (например `073_crop_varieties.sql`: «must be owner of table crop_varieties» — старая,
+  не связанная с текущей миграцией проблема), не доходя до новой. Если новая миграция — чистый
+  DML (INSERT/UPDATE на уже существующих колонках, без ALTER TABLE/CREATE), её можно применить
+  точечно из-под `dacha_user`, без sudo: небольшой inline-скрипт с `pg.Pool` на креды `.env` (те
+  же, что использует сам бэкенд) и `pool.query(fs.readFileSync('<файл>.sql', 'utf8'))`. Если
+  миграция меняет схему (новая таблица/колонка) — sudo-psql остаётся обязательным.
 - **Новый батч ВК/Дзен (`docs/vk-content/*.md`)?** — загрузить в очередь, иначе `vkQueueJob`
   тихо простаивает (очередь пуста → публикаций нет, без ошибок в логах):
   `ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/vk-queue.js load ../docs/vk-content/<файл>.md'`
