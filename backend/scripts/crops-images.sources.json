@@ -63,6 +63,34 @@
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Phaseolus_Vulgaris.jpg"
   },
   {
+    "slug": "floks",
+    "credit": "Atilin, Public domain, Wikimedia Commons",
+    "bytes": 353663,
+    "fileTitle": "File:Phlox_Paniculata.jpg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Phlox_Paniculata.jpg"
+  },
+  {
+    "slug": "georgin",
+    "credit": "RoyaltyFreeStuff, CC BY-SA 4.0, Wikimedia Commons",
+    "bytes": 81415,
+    "fileTitle": "File:Longwood Gardens Sunrise Waterlily Dahlia Pennsylvania picture.jpg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Longwood_Gardens_Sunrise_Waterlily_Dahlia_Pennsylvania_picture.jpg"
+  },
+  {
+    "slug": "gladiolus",
+    "credit": "Jean-Pol GRANDMONT, CC BY-SA 3.0, Wikimedia Commons",
+    "bytes": 282819,
+    "fileTitle": "File:0_Gladiolus_italicus_-_Samoëns_(1).JPG",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:0_Gladiolus_italicus_-_Samo%C3%ABns_(1).JPG"
+  },
+  {
+    "slug": "golubika",
+    "credit": "The original Uploader was Oven Fresh at English Wikipedia, Public domain, Wikimedia Commons",
+    "bytes": 73715,
+    "fileTitle": "File:Blueberries.jpg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Blueberries.jpg"
+  },
+  {
     "slug": "goroh",
     "credit": "Bill Ebbesen, CC BY-SA 3.0, Wikimedia Commons",
     "bytes": 196292,
@@ -77,11 +105,32 @@
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Pears.jpg"
   },
   {
+    "slug": "hosta",
+    "credit": "CC BY-SA 3.0, Wikimedia Commons",
+    "bytes": 293267,
+    "fileTitle": "File:Hosta_Bressingham_Blue.JPG",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Hosta_Bressingham_Blue.JPG"
+  },
+  {
     "slug": "hren",
     "credit": "Pethan, CC BY-SA 3.0, Wikimedia Commons",
     "bytes": 345722,
     "fileTitle": "File:Armoracia_rusticana.jpg",
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Armoracia_rusticana.jpg"
+  },
+  {
+    "slug": "irga",
+    "credit": "Kurt Stüber [1], CC BY-SA 3.0, Wikimedia Commons",
+    "bytes": 40466,
+    "fileTitle": "File:Amelanchier_grandiflora2.jpg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Amelanchier_grandiflora2.jpg"
+  },
+  {
+    "slug": "iris-borodatyy",
+    "credit": "Diliff, CC BY-SA 3.0, Wikimedia Commons",
+    "bytes": 164040,
+    "fileTitle": "File:Iris_sanguinea_cultivar,_Wakehurst_Place,_UK_-_Diliff.jpg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Iris_sanguinea_cultivar,_Wakehurst_Place,_UK_-_Diliff.jpg"
   },
   {
     "slug": "kabachok",
@@ -154,6 +203,13 @@
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Maispflanze.jpg"
   },
   {
+    "slug": "liliya",
+    "credit": "Stan Shebs, CC BY-SA 3.0, Wikimedia Commons",
+    "bytes": 136340,
+    "fileTitle": "File:Lilium_candidum_1.jpg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Lilium_candidum_1.jpg"
+  },
+  {
     "slug": "luk-batun",
     "credit": "Farm, CC BY-SA 3.0, Wikimedia Commons",
     "bytes": 178950,
@@ -194,6 +250,13 @@
     "bytes": 218496,
     "fileTitle": "File:Mentha_spicata-IMG_6186.jpg",
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Mentha_spicata-IMG_6186.jpg"
+  },
+  {
+    "slug": "oblepiha",
+    "credit": "No machine-readable author provided. Svdmolen assumed (based on copyright claims)., CC BY-SA 3.0, Wikimedia Commons",
+    "bytes": 513744,
+    "fileTitle": "File:Hippophae_rhamnoides-01_(xndr).JPG",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Hippophae_rhamnoides-01_(xndr).JPG"
   },
   {
     "slug": "ogurec",
@@ -245,6 +308,13 @@
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Pet%C3%BAnia_(do_tupi_petyma,_%27tabaco%27).jpg"
   },
   {
+    "slug": "pion",
+    "credit": "Taken by Fanghong, CC BY 2.5, Wikimedia Commons",
+    "bytes": 153336,
+    "fileTitle": "File:PaeoniaSuffruticosa7.jpg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:PaeoniaSuffruticosa7.jpg"
+  },
+  {
     "slug": "redis",
     "credit": "Self, en:User:Jengod, CC BY-SA 3.0, Wikimedia Commons",
     "bytes": 352480,
@@ -271,6 +341,13 @@
     "bytes": 386859,
     "fileTitle": "File:Rheum_rhabarbarum.2006-04-27.uellue.jpg",
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Rheum_rhabarbarum.2006-04-27.uellue.jpg"
+  },
+  {
+    "slug": "roza",
+    "credit": "Stan Shebs, CC BY-SA 3.0, Wikimedia Commons",
+    "bytes": 205605,
+    "fileTitle": "File:Rosa_rubiginosa_1.jpg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Rosa_rubiginosa_1.jpg"
   },
   {
     "slug": "salat-listovoy",
@@ -362,6 +439,13 @@
     "bytes": 603668,
     "fileTitle": "File:Anethum_graveolens_02.jpg",
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Anethum_graveolens_02.jpg"
+  },
+  {
+    "slug": "vinograd",
+    "credit": "Vyacheslav Argenberg, CC BY 4.0, Wikimedia Commons",
+    "bytes": 132958,
+    "fileTitle": "File:Grapes,_Rostov-on-Don,_Russia.jpg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Grapes,_Rostov-on-Don,_Russia.jpg"
   },
   {
     "slug": "vishnya",

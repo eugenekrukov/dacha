@@ -109,6 +109,20 @@ const CROPS = {
   // цветы
   barhatcy:               { wiki: 'en', title: 'Tagetes' },
   petuniya:               { wiki: 'en', title: 'Petunia' },
+  roza:                   { wiki: 'en', title: 'Rose' },
+  pion:                   { wiki: 'en', title: 'Peony' },
+  floks:                  { wiki: 'en', title: 'Phlox' },
+  'iris-borodatyy':       { wiki: 'en', title: 'Bearded iris' },
+  hosta:                  { wiki: 'en', title: 'Hosta' },
+  liliya:                 { wiki: 'en', title: 'Lilium' },
+  // Ведущее фото Dahlia — GFDL 1.2 (несвободная для наших целей), берём категорию Commons.
+  georgin:                { category: 'Category:Dahlia', prefer: 'flower|bloom|garden' },
+  gladiolus:              { wiki: 'en', title: 'Gladiolus' },
+  // кустарники/лиана — новые (086/2026-08-23)
+  vinograd:               { wiki: 'en', title: 'Grape' },
+  oblepiha:               { wiki: 'en', title: 'Hippophae rhamnoides' },
+  golubika:               { wiki: 'en', title: 'Blueberry' },
+  irga:                   { wiki: 'en', title: 'Amelanchier' },
 }
 
 // Записи справочника проблем (guide_entries). Кадры подобраны и сверены вручную: для болезни
