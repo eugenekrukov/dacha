@@ -291,7 +291,7 @@ Telegram:
 #ежевика #крыжовник #сад
 
 Теги: #ежевика #крыжовник #сад #дача
-Картинка: https://images.pexels.com/photos/134581/pexels-photo-134581.jpeg?auto=compress&cs=tinysrgb&w=1280
+Картинка: https://images.pexels.com/photos/13270152/pexels-photo-13270152.jpeg?auto=compress&cs=tinysrgb&w=1280
 
 ## 2026-08-30 10:00 — Компост: как заложить кучу на зиму, чтобы весной получить готовую землю, а не сырьё
 
