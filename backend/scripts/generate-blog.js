@@ -220,6 +220,7 @@ function main() {
       breadcrumbs: `<a href="/">Главная</a> / <a href="/blog/">Блог</a> / ${esc(post.title)}`,
       bodyHtml: renderPostBody({ ...post, dateLabel }),
       activeNav: 'blog',
+      image: post.image || undefined,
       jsonLdBlocks: [
         articleJsonLd(post.title, canonical, {
           '@type': 'BlogPosting',

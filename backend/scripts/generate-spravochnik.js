@@ -372,8 +372,11 @@ async function main() {
       breadcrumbs: `<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / <a href="/spravochnik/kultury/">Культуры</a> / ${esc(crop.name)}`,
       bodyHtml: renderCropBody(crop, links, cropToVarieties.get(crop.id) || []),
       activeNav: 'spravochnik',
+      image: crop.image_url || undefined,
       jsonLdBlocks: [
-        articleJsonLd(crop.name, `${SITE}/spravochnik/kultury/${crop.slug}/`),
+        articleJsonLd(crop.name, `${SITE}/spravochnik/kultury/${crop.slug}/`, {
+          image: crop.image_url ? [crop.image_url] : undefined
+        }),
         breadcrumbJsonLd([
           { name: 'Главная', url: `${SITE}/` },
           { name: 'Справочник', url: `${SITE}/spravochnik/` },
@@ -406,8 +409,11 @@ async function main() {
       breadcrumbs: `<a href="/">Главная</a> / <a href="/spravochnik/">Справочник</a> / <a href="/spravochnik/problemy/">Проблемы</a> / ${esc(entry.name)}`,
       bodyHtml: renderEntryBody(entry, affectedCrops),
       activeNav: 'spravochnik',
+      image: entry.image_url || undefined,
       jsonLdBlocks: [
-        articleJsonLd(entry.name, `${SITE}/spravochnik/problemy/${entry.slug}/`),
+        articleJsonLd(entry.name, `${SITE}/spravochnik/problemy/${entry.slug}/`, {
+          image: entry.image_url ? [entry.image_url] : undefined
+        }),
         breadcrumbJsonLd([
           { name: 'Главная', url: `${SITE}/` },
           { name: 'Справочник', url: `${SITE}/spravochnik/` },

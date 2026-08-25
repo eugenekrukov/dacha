@@ -71,10 +71,15 @@ function breadcrumbJsonLd(items) {
   }
 }
 
-function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jsonLdBlocks, stylesheet }) {
+function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jsonLdBlocks, stylesheet, image }) {
   const jsonLdHtml = (jsonLdBlocks || [])
     .map(block => `<script type="application/ld+json">${JSON.stringify(block).replace(/</g, '\\u003c')}</script>`)
     .join('\n')
+  // og:image/twitter:image раньше вообще не рендерились здесь (баг, найден Вебмастер-валидатором
+  // микроразметки 2026-08-25: "поле og:image отсутствует или пусто" — при том что у поста/культуры/
+  // проблемы своя картинка часто есть). Без картинки — фолбэк на дефолтный og.png сайта, как у
+  // index.html/offer.html и т.п., чтобы превью в ВК/Telegram не были пустыми.
+  const ogImage = image || `${new URL(canonical).origin}/og.png`
   // Шапка/подвал — не здесь: nginx SSI подставляет их на каждый запрос из одного и того же
   // файла landing/_includes/{header,footer}.html (server-side include, ssi on; в nginx-конфиге
   // сайта — см. docs/DEPLOY.md). Правка меню/кнопки входа больше не требует перегенерации
@@ -97,6 +102,9 @@ function renderShell({ title, description, canonical, breadcrumbs, bodyHtml, jso
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${canonical}">
+<meta property="og:image" content="${esc(ogImage)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${esc(ogImage)}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
