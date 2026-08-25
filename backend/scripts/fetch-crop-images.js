@@ -109,15 +109,21 @@ const CROPS = {
   // цветы
   barhatcy:               { wiki: 'en', title: 'Tagetes' },
   petuniya:               { wiki: 'en', title: 'Petunia' },
-  roza:                   { wiki: 'en', title: 'Rose' },
+  // Ведущее фото en:Rose — Rosa rubiginosa (дикий шиповник), не садовая роза. Кадр — явный
+  // садовый сорт (полумахровый бутон), проверен глазами.
+  roza:                   { file: "File:Троянди сорту Red Intuition 02.jpg" },
   pion:                   { wiki: 'en', title: 'Peony' },
   floks:                  { wiki: 'en', title: 'Phlox' },
-  'iris-borodatyy':       { wiki: 'en', title: 'Bearded iris' },
+  // Ведущее фото en:Bearded iris — Iris sanguinea (сибирский, безбородый ирис). Нужен кадр
+  // с видимой «бородкой» на фолах.
+  'iris-borodatyy':       { file: "File:德國鳶尾-高大型 Iris germanica Flamenco -英格蘭 Wisley Gardens, England- (9255187636).jpg" },
   hosta:                  { wiki: 'en', title: 'Hosta' },
   liliya:                 { wiki: 'en', title: 'Lilium' },
   // Ведущее фото Dahlia — GFDL 1.2 (несвободная для наших целей), берём категорию Commons.
   georgin:                { category: 'Category:Dahlia', prefer: 'flower|bloom|garden' },
-  gladiolus:              { wiki: 'en', title: 'Gladiolus' },
+  // Ведущее фото en:Gladiolus — Gladiolus italicus (дикий полевой вид). Нужен садовый
+  // крупноцветковый гладиолус с высоким колосом.
+  gladiolus:              { file: 'File:Косарики у Немішаєві 01.jpg' },
   // кустарники/лиана — новые (086/2026-08-23)
   vinograd:               { wiki: 'en', title: 'Grape' },
   oblepiha:               { wiki: 'en', title: 'Hippophae rhamnoides' },

@@ -27,7 +27,7 @@ const {
   esc, writePage, renderShell, articleJsonLd, breadcrumbJsonLd, faqJsonLd, mergeSitemapUrls
 } = require('./lib/seoPage')
 
-const SITE = 'https://dacha.studio1008.com'
+const SITE = 'https://calendacha.ru'
 const OUT_DIR = path.join(__dirname, '..', '..', 'landing', 'blog')
 const SITEMAP_PATH = path.join(__dirname, '..', '..', 'landing', 'sitemap.xml')
 const MANIFEST_PATH = path.join(__dirname, '.blog-manifest.json')

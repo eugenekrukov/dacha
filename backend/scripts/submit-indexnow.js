@@ -17,7 +17,7 @@ require('dotenv').config()
 const fs = require('fs')
 const path = require('path')
 
-const SITE_HOST = 'dacha.studio1008.com'
+const SITE_HOST = 'calendacha.ru'
 const SITEMAP_PATH = path.join(__dirname, '..', '..', 'landing', 'sitemap.xml')
 const ENDPOINT = 'https://yandex.com/indexnow'
 

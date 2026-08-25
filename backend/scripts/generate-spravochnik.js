@@ -23,7 +23,7 @@ const {
   esc, writePage, countHtmlFiles, articleJsonLd, breadcrumbJsonLd, renderShell, mergeSitemapUrls
 } = require('./lib/seoPage')
 
-const SITE = 'https://dacha.studio1008.com'
+const SITE = 'https://calendacha.ru'
 const OUT_DIR = path.join(__dirname, '..', '..', 'landing', 'spravochnik')
 const SITEMAP_PATH = path.join(__dirname, '..', '..', 'landing', 'sitemap.xml')
 // Страницы вне /spravochnik/, которые этот генератор тоже считает «своими» в sitemap.xml
