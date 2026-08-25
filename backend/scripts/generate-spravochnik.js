@@ -30,10 +30,10 @@ const SITEMAP_PATH = path.join(__dirname, '..', '..', 'landing', 'sitemap.xml')
 // (перезаписывает каждый прогон) — см. mergeSitemapUrls в lib/seoPage.js.
 const STATIC_PAGES = [`${SITE}/`, `${SITE}/offer`, `${SITE}/privacy`, `${SITE}/account-deletion`]
 
-const CATEGORY_LABELS = {
-  vegetable: 'Овощи', berry: 'Ягоды', fruit: 'Фрукты', herb: 'Зелень', flower: 'Цветы',
-  shrub: 'Кусты', tree: 'Деревья'
-}
+// Источник — shared/categoryLabels.json, тот же файл читает web/src/api/labels.ts.
+// Раньше это были две независимые копии, и они разъехались (баг: "shrub"/"tree"
+// не переведены на статичных SEO-страницах справочника, 2026-08-25).
+const CATEGORY_LABELS = require('../../shared/categoryLabels.json')
 const KIND_LABELS = {
   deficiency: 'Дефициты микроэлементов', disease: 'Болезни', pest: 'Вредители'
 }

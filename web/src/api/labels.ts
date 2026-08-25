@@ -51,17 +51,12 @@ export function actionLabel(type: string): string {
   return ALL_ACTION_LABELS[type] ?? type
 }
 
-// Категории культур (в БД на английском)
-export const CATEGORY_LABELS: Record<string, string> = {
-  vegetable: 'Овощи',
-  herb: 'Зелень',
-  berry: 'Ягоды',
-  shrub: 'Кусты',
-  tree: 'Деревья',
-  flower: 'Цветы',
-  fruit: 'Фрукты',
-  green: 'Зелень',
-}
+// Категории культур (в БД на английском). Источник — shared/categoryLabels.json,
+// тот же файл читает backend/scripts/generate-spravochnik.js — раньше это были
+// две независимые копии, и они разъехались (баг: "shrub"/"tree" не переведены
+// на статичных SEO-страницах справочника, 2026-08-25).
+import categoryLabelsJson from '../../../shared/categoryLabels.json'
+export const CATEGORY_LABELS: Record<string, string> = categoryLabelsJson
 
 export function categoryLabel(cat?: string | null): string {
   if (!cat) return ''
