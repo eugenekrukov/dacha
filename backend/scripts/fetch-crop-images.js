@@ -318,7 +318,7 @@ async function main() {
   // Готовый SQL — вставить в миграцию после визуальной проверки кадров.
   const sqlPath = path.join(__dirname, `${mode}-images.generated.sql`)
   const sql = merged.map(d =>
-    `UPDATE ${target.table} SET image_url='https://dacha.studio1008.com/app/media/${target.dir}/${d.slug}.jpg', ` +
+    `UPDATE ${target.table} SET image_url='https://calendacha.ru/app/media/${target.dir}/${d.slug}.jpg', ` +
     `image_credit='${sqlEscape(d.credit)}' WHERE slug='${d.slug}';`
   ).join('\n')
   fs.writeFileSync(sqlPath, sql + '\n')

@@ -13,7 +13,7 @@
 set -euo pipefail
 
 DIR="${GUIDE_DIR:-/var/www/dacha-web/media/guide}"
-UA="DachaKalendar/1.0 (+https://dacha.studio1008.com)"
+UA="DachaKalendar/1.0 (+https://calendacha.ru)"
 mkdir -p "$DIR"
 cd "$DIR"
 

@@ -45,7 +45,7 @@ async function runTelegramQueue(db, { tg: tgSvc = telegramService, env = process
     try {
       // status='posted' в WHERE выше гарантирует vk_post_url — но на случай рассинхрона (пост
       // отметили posted вручную без URL) не валим публикацию, а подстраховываемся лендингом.
-      const continueUrl = row.vk_post_url || env.TELEGRAM_POST_LINK || 'https://dacha.studio1008.com'
+      const continueUrl = row.vk_post_url || env.TELEGRAM_POST_LINK || 'https://calendacha.ru'
       // telegram_body — короткая версия под формат канала (см. vkContent.js); без неё, как и
       // раньше, публикуем общий лонгрид-body.
       const body = row.telegram_body ? row.telegram_body.trim() : queueMessage({ body: row.body, tags: row.tags })

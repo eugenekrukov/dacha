@@ -278,7 +278,7 @@ ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/submit-indexnow.js'
 ```
 VK_GROUP_ID=239559357           # числовой id сообщества (calendacha), без минуса
 VK_ACCESS_TOKEN=vk1.a.XXXX       # ПОЛЬЗОВАТЕЛЬСКИЙ токен админа группы (НЕ community)
-VK_POST_LINK=https://dacha.studio1008.com   # опц., деф. = лендинг (уходит первым комментарием)
+VK_POST_LINK=https://calendacha.ru   # опц., деф. = лендинг (уходит первым комментарием)
 ```
 ⚠️ **Только пользовательский токен.** Community-токен не умеет загружать фото на стену
 (`photos.getWallUploadServer` → ошибка 27). Получить user-токен: implicit flow через **Kate Mobile**
@@ -342,7 +342,7 @@ sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/059_telegram_body
 ```
 TELEGRAM_BOT_TOKEN=8333482648:AAFY...        # токен от BotFather, бот @calendacha_bot
 TELEGRAM_CHANNEL_ID=@calendacha              # публичный канал → username вместо числового chat_id
-TELEGRAM_POST_LINK=https://dacha.studio1008.com   # опц., фолбэк «читать полностью» если vk_post_url ещё пуст
+TELEGRAM_POST_LINK=https://calendacha.ru   # опц., фолбэк «читать полностью» если vk_post_url ещё пуст
 ```
 Канал должен быть публичным (с `@username`) — тогда `chat_id` для Bot API это сам username, не
 нужно вычислять числовой id через `getUpdates`. Бот должен быть добавлен в канал администратором

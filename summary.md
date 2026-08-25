@@ -18,6 +18,10 @@
 - **Стек**: Node.js 20 + Fastify 4 + PostgreSQL · Android (Kotlin + Compose + Hilt) · Веб (React + Vite + TS + Tailwind).
 - **Бэкенд**: `https://dacha.studio1008.com/` · pm2 `dacha-api`.
 - **Веб**: `https://dacha.studio1008.com/app/` (папка `web/`, статика `/var/www/dacha-web`, nginx `location /app/`). Та же БД/API.
+- **Канонический маркетинговый домен** (2026-08-25): `https://calendacha.ru` — лендинг, `/blog/`,
+  `/spravochnik/`, оферта/приватность/удаление аккаунта. `dacha.studio1008.com` 301-редиректит эти
+  пути; `/app/` и API остаются на `dacha.studio1008.com` (Android `BASE_URL` вшит в уже
+  опубликованные APK, менять домен API — отдельный релиз). Детали — `session-note.md`.
 - **Android**: package `ru.dachakalend.app` · minSdk 26 · compileSdk/targetSdk **36** (Android 16) · флейворы `rustore`/`gplay` (samsung удалён 2026-06-30) (сборка `:app:compileGplayDebugKotlin` и т.п.).
 - **Справочник проблем растений**: в проде на всех платформах, **104 записи** (было 78, расширено
   2026-08-19, миграции 081/082) — среднее число болезней+вредителей на культуру выросло с ~4 до ~9.5

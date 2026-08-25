@@ -31,7 +31,8 @@ const SITEMAP_PATH = path.join(__dirname, '..', '..', 'landing', 'sitemap.xml')
 const STATIC_PAGES = [`${SITE}/`, `${SITE}/offer`, `${SITE}/privacy`, `${SITE}/account-deletion`]
 
 const CATEGORY_LABELS = {
-  vegetable: 'Овощи', berry: 'Ягоды', fruit: 'Фрукты', herb: 'Зелень', flower: 'Цветы'
+  vegetable: 'Овощи', berry: 'Ягоды', fruit: 'Фрукты', herb: 'Зелень', flower: 'Цветы',
+  shrub: 'Кусты', tree: 'Деревья'
 }
 const KIND_LABELS = {
   deficiency: 'Дефициты микроэлементов', disease: 'Болезни', pest: 'Вредители'
