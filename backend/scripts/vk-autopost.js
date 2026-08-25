@@ -4,8 +4,8 @@
 // Движок — src/services/vkService.js (его же использует джоб-зеркало Дзена).
 //
 // Запуск (из каталога backend):
-//   node scripts/vk-autopost.js --text-file post.txt --image cover.jpg --link https://dacha.studio1008.com
-//   node scripts/vk-autopost.js --text "Короткий пост" --link https://dacha.studio1008.com
+//   node scripts/vk-autopost.js --text-file post.txt --image cover.jpg --link https://calendacha.ru
+//   node scripts/vk-autopost.js --text "Короткий пост" --link https://calendacha.ru
 //   node scripts/vk-autopost.js --text-file post.txt --dry        # ничего не шлёт, печатает предпросмотр
 //
 // --image принимает локальный путь ИЛИ URL.

@@ -5,7 +5,7 @@
 //   node scripts/vk-queue.js list                      — показать очередь
 //
 // Формат файла — см. src/services/vkContent.js. Ссылку для всех постов берёт из
-// VK_POST_LINK (по умолчанию https://dacha.studio1008.com). Публикует их фоновый
+// VK_POST_LINK (по умолчанию https://calendacha.ru). Публикует их фоновый
 // джоб jobs/vkQueueJob.js по расписанию scheduled_at.
 
 require('dotenv').config()
@@ -13,7 +13,7 @@ const fs = require('fs')
 const { Pool } = require('pg')
 const { parseContentFile } = require('../src/services/vkContent')
 
-const LINK = process.env.VK_POST_LINK || 'https://dacha.studio1008.com'
+const LINK = process.env.VK_POST_LINK || 'https://calendacha.ru'
 
 function pool() {
   return new Pool({
