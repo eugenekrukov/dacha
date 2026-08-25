@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Leaf } from 'lucide-react'
+import { ArrowLeft, Leaf, Sprout } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { categoryLabel } from '../api/labels'
+import { useGardens } from '../garden/GardenContext'
 import ProblemList from '../components/ProblemList'
+import AddPlantingForm from '../components/AddPlantingForm'
 import { CareSection, NeighborsSection } from '../components/CropCare'
 import type { Crop, GuideEntry } from '../api/types'
 
@@ -18,11 +20,13 @@ const TABS: { key: Tab; label: string }[] = [
 export default function CropDetailScreen() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { gardenId } = useGardens()
   const [crop, setCrop] = useState<Crop | null>(null)
   const [problems, setProblems] = useState<GuideEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('care')
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     const cropId = Number(id)
@@ -84,6 +88,28 @@ export default function CropDetailScreen() {
         <ProblemList entries={problems} kind="pest" cropId={crop.id} cropName={crop.name} emptyText="Вредители не отмечены." />
       )}
       {tab === 'neighbors' && <NeighborsSection crop={crop} />}
+
+      {gardenId !== -1 && (
+        <button
+          className="dacha-btn flex items-center justify-center gap-2 py-3.5 text-base"
+          onClick={() => setAdding(true)}
+        >
+          <Sprout size={18} aria-hidden /> Добавить «{crop.name}» в свой Календарь дачника →
+        </button>
+      )}
+
+      {adding && (
+        <AddPlantingForm
+          gardenId={gardenId}
+          crops={[crop]}
+          initialCropId={crop.id}
+          onClose={() => setAdding(false)}
+          onCreated={() => {
+            setAdding(false)
+            navigate('/plantings')
+          }}
+        />
+      )}
     </div>
   )
 }

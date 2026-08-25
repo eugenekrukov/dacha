@@ -12,11 +12,12 @@ interface Props {
   crops: Crop[]
   onClose: () => void
   onCreated: () => void
+  initialCropId?: number
 }
 
-export default function AddPlantingForm({ gardenId, crops, onClose, onCreated }: Props) {
+export default function AddPlantingForm({ gardenId, crops, onClose, onCreated, initialCropId }: Props) {
   const today = new Date().toISOString().slice(0, 10)
-  const [cropId, setCropId] = useState<number | ''>('')
+  const [cropId, setCropId] = useState<number | ''>(initialCropId ?? '')
   const [plantedAt, setPlantedAt] = useState(today)
   const [variety, setVariety] = useState('')
   const [quantity, setQuantity] = useState(1)

@@ -90,6 +90,19 @@ function renderHub() {
 </div>`
 }
 
+// Карточка с фото — тот же .blog-card/.blog-grid, что у списка блога (visual parity
+// с приложением: фото сверху, подпись снизу, см. CropsScreen.tsx в web/).
+// Без фото — эмодзи-заглушка вместо пустого места, как у .blog-card-media-fallback.
+function photoCard(href, name, meta, imageUrl, fallbackEmoji) {
+  const media = imageUrl
+    ? `<img src="${esc(imageUrl)}" alt="${esc(name)}" loading="lazy">`
+    : `<div class="blog-card-media-fallback">${fallbackEmoji}</div>`
+  return `<a class="blog-card" href="${href}">${media}<div class="blog-card-body">
+    <div class="blog-card-title">${esc(name)}</div>
+    <div class="blog-card-date">${esc(meta)}</div>
+  </div></a>`
+}
+
 function renderKulturyIndex(crops) {
   const byCategory = new Map()
   for (const c of crops) {
@@ -99,8 +112,9 @@ function renderKulturyIndex(crops) {
   }
   let html = '<h1>Справочник культур</h1><p>Сроки посева, ухода и совместимость для культур из «Календаря дачника».</p>'
   for (const [cat, list] of byCategory) {
-    html += `<h2>${esc(CATEGORY_LABELS[cat] || cat)}</h2><div class="grid">`
-    html += list.map(c => `<a href="/spravochnik/kultury/${c.slug}/">${esc(c.name)}</a>`).join('')
+    const label = esc(CATEGORY_LABELS[cat] || cat)
+    html += `<h2>${label}</h2><div class="blog-grid">`
+    html += list.map(c => photoCard(`/spravochnik/kultury/${c.slug}/`, c.name, label, c.image_url, '🌱')).join('')
     html += '</div>'
   }
   return html
@@ -114,8 +128,9 @@ function renderProblemyIndex(entries) {
   }
   let html = '<h1>Справочник проблем растений</h1><p>Дефициты микроэлементов, болезни и вредители — признаки и лечение.</p>'
   for (const [kind, list] of byKind) {
-    html += `<h2>${esc(KIND_LABELS[kind] || kind)}</h2><div class="grid">`
-    html += list.map(e => `<a href="/spravochnik/problemy/${e.slug}/">${esc(e.name)}</a>`).join('')
+    const label = esc(KIND_LABELS[kind] || kind)
+    html += `<h2>${label}</h2><div class="blog-grid">`
+    html += list.map(e => photoCard(`/spravochnik/problemy/${e.slug}/`, e.name, label, e.image_url, '🩺')).join('')
     html += '</div>'
   }
   return html
@@ -150,6 +165,11 @@ function renderCropBody(crop, relatedEntries, varieties = []) {
   if (crop.category) html += `<span class="badge">${esc(CATEGORY_LABELS[crop.category] || crop.category)}</span>`
   if (crop.family) html += `<span class="badge">${esc(crop.family)}</span>`
   html += '</div>'
+
+  if (crop.image_url) {
+    html += `<img class="photo" src="${esc(crop.image_url)}" alt="${esc(crop.name)}" loading="lazy">`
+    if (crop.image_credit) html += `<div class="photo-credit">Фото: ${esc(crop.image_credit)}</div>`
+  }
 
   html += '<div class="card"><h2>Сроки и уход</h2>'
   html += `<p>Посев: ${sowing ? esc(sowing) : 'сроки индивидуальны для региона'}.</p>`
@@ -251,7 +271,7 @@ async function main() {
   const cropsRes = await pool.query(
     `SELECT id, slug, name, category, family, sowing_start_day, sowing_end_day,
             transplant_days, harvest_days, watering_freq_days, frost_sensitive,
-            companion_crops, notes
+            companion_crops, notes, image_url, image_credit
      FROM crops ORDER BY name ASC`
   )
   const entriesRes = await pool.query(
