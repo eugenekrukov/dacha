@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.CreatePlantingRequest
 import ru.dachakalend.app.data.model.CropVariety
@@ -93,6 +94,7 @@ class PlantingsViewModel @Inject constructor(
     private val cropsRepository: CropsRepository,
     private val bedsRepository: BedsRepository,
     private val tokenStorage: TokenStorage,
+    private val api: DachaApi,
     private val reminderScheduler: ReminderScheduler,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -193,7 +195,11 @@ class PlantingsViewModel @Inject constructor(
             if (!silent) _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             val gardenId = tokenStorage.getGardenId().takeIf { it != -1 }
             val pending = tokenStorage.getPendingTasks()
-            val snoozed = tokenStorage.getSnoozedTasksForToday()
+            // Отложенные/удалённые задачи дня — с сервера (общее состояние с вебом). Карточки
+            // «Посадок» приходят из /plantings, мимо фильтра GET /today, поэтому набор нужен
+            // здесь явно. Ошибка сети → пустой набор: подсветим лишнее, но не скроем нужное.
+            val snoozed = runCatching { api.getDismissedTaskKeys().taskKeys.toSet() }
+                .getOrDefault(emptySet())
             when (val result = plantingsRepository.getPlantings(gardenId)) {
                 is Result.Success -> {
                     _uiState.value = _uiState.value.copy(
@@ -391,10 +397,7 @@ class PlantingsViewModel @Inject constructor(
     fun closeActionSheet() {
         // Закрытие без записи НЕ снимает pending (иначе индикатор и счётчик
         // рассинхронятся, а после /today задача вернётся). Чистим только в onActionLogged.
-        _uiState.value = _uiState.value.copy(
-            showActionSheet = null,
-            snoozedTaskKeys = tokenStorage.getSnoozedTasksForToday()
-        )
+        _uiState.value = _uiState.value.copy(showActionSheet = null)
         loadPlantings(silent = true)
     }
 

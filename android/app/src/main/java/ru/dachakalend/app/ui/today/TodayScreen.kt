@@ -89,8 +89,7 @@ fun TodayScreen(
     val uiState       by viewModel.uiState.collectAsState()
     val dismissedRecs by viewModel.dismissedRecs.collectAsState()
     val deletedRecs   by viewModel.deletedRecs.collectAsState()
-    val snoozedTasks  by viewModel.snoozedTasks.collectAsState()
-    val deletedTasks  by viewModel.deletedTasks.collectAsState()
+    val pendingHiddenTasks by viewModel.pendingHiddenTasks.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(showOnboardingHint) {
@@ -140,9 +139,10 @@ fun TodayScreen(
                     queueSize     = queueSize,
                     weather       = state.data.today.weather,
                     forecast      = state.data.today.forecast,
-                    tasks         = state.data.today.tasks.filterNot { task ->
-                        val key = taskSnoozeKey(task)
-                        key in snoozedTasks || key in deletedTasks
+                    // Отложенные/удалённые режет сервер (GET /today). Здесь — только карточки,
+                    // скрытые оптимистично, пока ответ сервера ещё не пришёл.
+                    tasks         = state.data.today.tasks.filterNot {
+                        taskSnoozeKey(it) in pendingHiddenTasks
                     },
                     tasksHidden   = state.data.today.tasksHidden,
                     recommendations = state.data.recommendations.filterNot {
@@ -323,6 +323,7 @@ private fun TodayContent(
                     Box(Modifier.coachTargetUnion(coachMarkController, "tasks")) {
                         SwipeActionsBox(
                             itemLabel = task.cropName ?: task.type,
+                            enabled   = task.type != "reminder",
                             onSnooze  = { onSnoozeTask(task) },
                             onDelete  = { onDeleteTask(task) }
                         ) {
@@ -392,6 +393,7 @@ private fun TodayContent(
                 items(upcomingTasks, key = { taskSnoozeKey(it) }) { task ->
                     SwipeActionsBox(
                         itemLabel = task.cropName ?: task.type,
+                        enabled   = task.type != "reminder",
                         onSnooze  = { onSnoozeTask(task) },
                         onDelete  = { onDeleteTask(task) }
                     ) {
@@ -995,8 +997,13 @@ private fun SwipeActionsBox(
     itemLabel: String,
     onSnooze: () -> Unit,
     onDelete: () -> Unit,
+    // Напоминания не сворачиваются: у них своя строка в БД (reminders), сервер такие ключи
+    // не принимает — свайп бы просто вернул карточку обратно после перезагрузки.
+    enabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    if (!enabled) { content(); return }
+
     var pendingSnooze by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf(false) }
 

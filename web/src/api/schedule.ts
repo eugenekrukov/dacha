@@ -398,3 +398,10 @@ export function buildCalendarEvents(opts: {
 
   return result
 }
+
+// Ключ задачи дня для «отложить/удалить» — зеркало Kotlin taskSnoozeKey и серверного taskKey()
+// (backend/src/utils/todayLogic.js). null-поля дают литерал "null": сгруппированная карточка —
+// "watering_due:null:null:null".
+export function taskKey(t: TodayTask): string {
+  return `${t.type}:${t.planting_id}:${t.crop_name}:${t.care_task_name}`
+}

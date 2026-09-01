@@ -288,6 +288,10 @@ export const api = {
 
   // --- today / recommendations ---
   getToday: (gardenId: number) => request<TodayResponse>(`/today?garden_id=${gardenId}`),
+  // Отложить/удалить карточку задачи дня. Состояние серверное (today_task_dismissals) — то же
+  // самое видит Android: GET /today приходит уже отфильтрованным.
+  dismissTask: (taskKey: string, action: 'snooze' | 'delete') =>
+    request<void>('/today/tasks/dismiss', { method: 'POST', body: { task_key: taskKey, action } }),
   getRecommendations: (gardenId: number) =>
     request<Recommendation[]>(`/recommendations?garden_id=${gardenId}`),
   getMoonCalendar: (year: number, month: number) =>

@@ -233,6 +233,17 @@ interface DachaApi {
     @GET("today")
     suspend fun getToday(@Query("garden_id") gardenId: Int): TodayResponse
 
+    // Отложить/удалить карточку задачи дня. Состояние общее для Android и Web: сервер сам режет
+    // список в GET /today, поэтому локально (TokenStorage) оно больше не хранится.
+    // body: { "task_key": "type:plantingId:cropName:careTaskName", "action": "snooze"|"delete" }
+    @POST("today/tasks/dismiss")
+    suspend fun dismissTask(@Body body: Map<String, String>)
+
+    // Активные дисмиссалы — нужны экрану «Посадки»: его карточки приходят из /plantings,
+    // мимо фильтра GET /today, и без этого отложенная задача снова подсвечивалась бы.
+    @GET("today/tasks/dismissed")
+    suspend fun getDismissedTaskKeys(): DismissedTasksResponse
+
     // Moon calendar
     @GET("moon-calendar")
     suspend fun getMoonCalendar(@Query("year") year: Int, @Query("month") month: Int): MoonCalendarResponse

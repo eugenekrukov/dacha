@@ -245,4 +245,64 @@ class TodayViewModelTest {
         val info = ru.dachakalend.app.data.repository.LoggedActionInfo(plantingId = 31, type = "fertilizing")
         assertTrue(taskClosedBy(task, info))
     }
+
+    // ── Снуз/удаление задачи дня: состояние на сервере, локально — только оптимизм ─────
+
+    private fun stubEmptyLoad() {
+        coEvery { todayRepo.getToday() }              returns Result.Success(TodayResponse())
+        coEvery { recsRepo.getRecommendations() }     returns Result.Success(emptyList())
+        coEvery { plantingsRepo.getPlantings(any()) } returns Result.Success(emptyList())
+        coEvery { api.getDismissedTaskKeys() } returns
+            ru.dachakalend.app.data.model.DismissedTasksResponse(emptyList())
+    }
+
+    @Test
+    fun `snoozeTask прячет карточку и шлёт дисмиссал на сервер`() = runTest {
+        stubEmptyLoad()
+        coEvery { api.dismissTask(any()) } returns Unit
+        val vm = buildViewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.snoozeTask("watering_due:1:Помидор:null")
+        assertTrue("watering_due:1:Помидор:null" in vm.pendingHiddenTasks.value)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        io.mockk.coVerify {
+            api.dismissTask(mapOf("task_key" to "watering_due:1:Помидор:null", "action" to "snooze"))
+        }
+        // Запрос прошёл — карточка остаётся скрытой до следующего ответа сервера
+        // (в нём её уже не будет: GET /today фильтрует дисмиссалы).
+        assertTrue("watering_due:1:Помидор:null" in vm.pendingHiddenTasks.value)
+    }
+
+    @Test
+    fun `deleteTask шлёт action=delete`() = runTest {
+        stubEmptyLoad()
+        coEvery { api.dismissTask(any()) } returns Unit
+        val vm = buildViewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.deleteTask("harvest_due:2:Огурец:null")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        io.mockk.coVerify {
+            api.dismissTask(mapOf("task_key" to "harvest_due:2:Огурец:null", "action" to "delete"))
+        }
+    }
+
+    @Test
+    fun `ошибка дисмиссала возвращает карточку`() = runTest {
+        stubEmptyLoad()
+        coEvery { api.dismissTask(any()) } throws RuntimeException("нет сети")
+        // Ответ уходит в офлайн-ветку: без кэша состояние Error, карточка не скрыта
+        every { todayCache.load(any()) } returns null
+        val vm = buildViewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.snoozeTask("watering_due:1:Помидор:null")
+        assertTrue("watering_due:1:Помидор:null" in vm.pendingHiddenTasks.value)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.pendingHiddenTasks.value.isEmpty())
+    }
 }

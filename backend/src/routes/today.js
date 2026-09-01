@@ -1,6 +1,6 @@
 'use strict'
 
-const { buildTasks, formatTasks, TASK_LIMIT, RAIN_AS_WATERING_MM, effectiveHarvestDays } = require('../utils/todayLogic')
+const { buildTasks, formatTasks, taskKey, TASK_LIMIT, OVERDUE_WINDOW_DAYS, RAIN_AS_WATERING_MM, effectiveHarvestDays } = require('../utils/todayLogic')
 const { getZoneForRegion } = require('../utils/regionCoords')
 const { storedSeasonStart, storedSeasonEnd } = require('../services/seasonService')
 
@@ -181,7 +181,20 @@ module.exports = async function (fastify) {
       seasonStart: storedSeasonStart(garden, today),
       seasonEnd: storedSeasonEnd(garden, today),
     })
-    const topTasks = formatTasks(rawTasks.slice(0, TASK_LIMIT))
+
+    // ── 5.5. ОТЛОЖЕННЫЕ / УДАЛЁННЫЕ КАРТОЧКИ ────────────────────────────────
+    // Задачи дня — не строки в БД, а результат buildTasks(), поэтому «отложить/удалить»
+    // хранится отдельной таблицей и применяется здесь, один раз на сервере: Android и Web
+    // получают уже урезанный список и не расходятся (см. спеку unified-task-dismiss-design).
+    const dismissedRes = await fastify.db.query(
+      `SELECT task_key FROM today_task_dismissals WHERE user_id=$1 AND target_date > CURRENT_DATE`,
+      [request.user.userId]
+    )
+    const dismissed = new Set(dismissedRes.rows.map(r => r.task_key))
+    // Форматируем до среза: ключ считается по полям, которые видит клиент, а tasks_total
+    // должен быть числом задач ПОСЛЕ фильтрации (иначе «и ещё N» врёт на отложенные).
+    const visibleTasks = formatTasks(rawTasks).filter(t => !dismissed.has(taskKey(t)))
+    const topTasks = visibleTasks.slice(0, TASK_LIMIT)
 
     return {
       garden_id: garden.id,
@@ -200,12 +213,56 @@ module.exports = async function (fastify) {
       } : null,
       forecast: weather?.forecast_json ?? [],
       tasks:           topTasks,
-      // Полное число задач до среза — клиент показывает «и ещё N», чтобы срез не выглядел
-      // как «больше дел нет».
-      tasks_total:     rawTasks.length,
-      tasks_hidden:    Math.max(rawTasks.length - topTasks.length, 0),
+      // Полное число задач (после дисмиссалов, до среза) — клиент показывает «и ещё N»,
+      // чтобы срез не выглядел как «больше дел нет».
+      tasks_total:     visibleTasks.length,
+      tasks_hidden:    Math.max(visibleTasks.length - topTasks.length, 0),
       reminders_today: reminderTasks.length,
       generated_at:    today.toISOString(),
     }
+  })
+
+  // POST /today/tasks/dismiss — отложить («на завтра») или удалить карточку задачи дня.
+  // Идемпотентно: повторный свайп того же ключа перезаписывает строку (UNIQUE user_id+task_key).
+  fastify.post('/tasks/dismiss', auth, async (request, reply) => {
+    const { task_key, action, client_id } = request.body || {}
+    if (typeof task_key !== 'string' || !task_key || task_key.length > 150) {
+      return reply.code(400).send({ error: 'task_key required' })
+    }
+    if (action !== 'snooze' && action !== 'delete') {
+      return reply.code(400).send({ error: "action must be 'snooze' or 'delete'" })
+    }
+    // Напоминания вне скоупа v1: у них есть своя строка в БД (reminders.is_sent/remind_at),
+    // прятать их через эту таблицу — оставлять сирот в reminders.
+    if (task_key.startsWith('reminder:')) {
+      return reply.code(400).send({ error: 'reminder tasks are not dismissable' })
+    }
+
+    // target_date считает сервер, клиенту не доверяем: snooze → завтра, delete → +21 дн.
+    // (OVERDUE_WINDOW_DAYS — за этот срок buildTasks и так отбросила бы просрочку, так что
+    // «удалить» не может перекрыть подлинно новый цикл задачи дольше, чем она жила бы сама).
+    const days = action === 'snooze' ? 1 : OVERDUE_WINDOW_DAYS
+    await fastify.db.query(
+      `INSERT INTO today_task_dismissals (user_id, task_key, action, target_date, client_id)
+       VALUES ($1, $2, $3, CURRENT_DATE + $4::int, $5)
+       ON CONFLICT (user_id, task_key) DO UPDATE
+         SET action = EXCLUDED.action, target_date = EXCLUDED.target_date,
+             client_id = EXCLUDED.client_id, created_at = NOW()`,
+      [
+        request.user.userId, task_key, action, days,
+        typeof client_id === 'string' ? client_id.slice(0, 64) : null,
+      ]
+    )
+    return reply.code(204).send()
+  })
+
+  // GET /today/tasks/dismissed — активные дисмиссалы. Нужен экрану «Посадки»: бейдж
+  // «требует внимания» считается по своим данным, а не по отфильтрованному ответу GET /today.
+  fastify.get('/tasks/dismissed', auth, async (request) => {
+    const res = await fastify.db.query(
+      `SELECT task_key FROM today_task_dismissals WHERE user_id=$1 AND target_date > CURRENT_DATE`,
+      [request.user.userId]
+    )
+    return { task_keys: res.rows.map(r => r.task_key) }
   })
 }

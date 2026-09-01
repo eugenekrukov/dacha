@@ -51,11 +51,16 @@ function makeWeatherRow(overrides = {}) {
  *   4. SELECT action_logs (только если есть посадки)
  *   5. SELECT reminders
  */
-function buildTodayMockDb({ garden = GARDEN, weather = null, plantings = [], lastActions = [], reminders = [], lastRainAt = null } = {}) {
+function buildTodayMockDb({ garden = GARDEN, weather = null, plantings = [], lastActions = [], reminders = [], lastRainAt = null, dismissed = [] } = {}) {
   const calls = []
+  const writes = []
   return {
-    query: async (sql) => {
+    query: async (sql, params) => {
       calls.push(sql.trim().split('\n')[0])  // запоминаем для отладки
+      if (sql.includes('today_task_dismissals')) {
+        if (sql.includes('INSERT')) { writes.push(params); return { rows: [] } }
+        return { rows: dismissed.map(task_key => ({ task_key })) }
+      }
       if (sql.includes('FROM gardens')) return { rows: garden ? [garden] : [] }
       // Запрос последнего дождя — тоже по weather_snapshots, отличается агрегатом
       if (sql.includes('MAX(fetched_at)')) return { rows: [{ rained_at: lastRainAt }] }
@@ -66,6 +71,7 @@ function buildTodayMockDb({ garden = GARDEN, weather = null, plantings = [], las
       return { rows: [] }
     },
     _calls: calls,
+    _writes: writes,
   }
 }
 
@@ -276,5 +282,84 @@ describe('GET /today', () => {
     expect(res.body).toHaveProperty('tasks')
     expect(res.body).toHaveProperty('weather')
     expect(res.body).toHaveProperty('generated_at')
+  })
+})
+
+// ─── Отложить / удалить задачу дня (today_task_dismissals) ───────────────────
+// Задачи дня — не строки в БД (buildTasks), поэтому «отложено/удалено» фильтруется
+// на сервере, чтобы Android и Web видели одинаковый список.
+
+describe('дисмиссалы задач дня', () => {
+  it('GET /today не отдаёт задачу с активным дисмиссалом', async () => {
+    const localApp = await buildApp(buildTodayMockDb({
+      plantings: [makePlanting({ watering_freq_days: 1 })],
+    }))
+    const before = await supertest(localApp.server)
+      .get('/today?garden_id=1').set('Authorization', `Bearer ${makeToken(localApp)}`)
+    const watering = before.body.tasks.find(t => t.type === 'watering_due')
+    expect(watering).toBeTruthy()
+    const key = `${watering.type}:${watering.planting_id}:${watering.crop_name}:${watering.care_task_name}`
+    await localApp.close()
+
+    const filteredApp = await buildApp(buildTodayMockDb({
+      plantings: [makePlanting({ watering_freq_days: 1 })],
+      dismissed: [key],
+    }))
+    const res = await supertest(filteredApp.server)
+      .get('/today?garden_id=1').set('Authorization', `Bearer ${makeToken(filteredApp)}`)
+
+    expect(res.body.tasks.some(t => t.type === 'watering_due')).toBe(false)
+    // tasks_total считается ПОСЛЕ фильтрации, иначе «и ещё N» врёт на отложенные
+    expect(res.body.tasks_total).toBe(before.body.tasks_total - 1)
+    await filteredApp.close()
+  })
+
+  it('POST /tasks/dismiss: 204 и серверный target_date (snooze → +1, delete → +21)', async () => {
+    const db = buildTodayMockDb()
+    const localApp = await buildApp(db)
+    const localToken = makeToken(localApp)
+
+    const snooze = await supertest(localApp.server)
+      .post('/today/tasks/dismiss').set('Authorization', `Bearer ${localToken}`)
+      .send({ task_key: 'watering_due:1:Помидор:null', action: 'snooze' })
+    expect(snooze.status).toBe(204)
+    expect(db._writes[0].slice(0, 4)).toEqual([1, 'watering_due:1:Помидор:null', 'snooze', 1])
+
+    const del = await supertest(localApp.server)
+      .post('/today/tasks/dismiss').set('Authorization', `Bearer ${localToken}`)
+      .send({ task_key: 'harvest_due:2:Огурец:null', action: 'delete' })
+    expect(del.status).toBe(204)
+    expect(db._writes[1][3]).toBe(21)  // OVERDUE_WINDOW_DAYS
+    await localApp.close()
+  })
+
+  it('POST /tasks/dismiss: 400 на кривой action, пустой ключ и reminder', async () => {
+    const localApp = await buildApp(buildTodayMockDb())
+    const localToken = makeToken(localApp)
+    const post = body => supertest(localApp.server)
+      .post('/today/tasks/dismiss').set('Authorization', `Bearer ${localToken}`).send(body)
+
+    expect((await post({ task_key: 'watering_due:1:Помидор:null', action: 'hide' })).status).toBe(400)
+    expect((await post({ task_key: '', action: 'snooze' })).status).toBe(400)
+    expect((await post({ task_key: 'reminder:null:null:null', action: 'delete' })).status).toBe(400)
+    await localApp.close()
+  })
+
+  it('POST /tasks/dismiss: 401 без токена', async () => {
+    const localApp = await buildApp(buildTodayMockDb())
+    const res = await supertest(localApp.server)
+      .post('/today/tasks/dismiss').send({ task_key: 'watering_due:1:x:null', action: 'snooze' })
+    expect(res.status).toBe(401)
+    await localApp.close()
+  })
+
+  it('GET /tasks/dismissed отдаёт активные ключи', async () => {
+    const localApp = await buildApp(buildTodayMockDb({ dismissed: ['watering_due:1:Помидор:null'] }))
+    const res = await supertest(localApp.server)
+      .get('/today/tasks/dismissed').set('Authorization', `Bearer ${makeToken(localApp)}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.task_keys).toEqual(['watering_due:1:Помидор:null'])
+    await localApp.close()
   })
 })

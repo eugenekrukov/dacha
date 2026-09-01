@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Droplet, Snowflake, Flame, Clock, CircleCheck, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
-import { careTaskActionType, treatmentNote } from '../api/schedule'
+import { careTaskActionType, taskKey, treatmentNote } from '../api/schedule'
 import { actionLabel } from '../api/labels'
 import { taskIcon, actionIcon } from '../ui/icons'
 import ActionLogSheet from '../components/ActionLogSheet'
@@ -109,6 +109,13 @@ export default function TodayScreen() {
     localStorage.setItem(dismissKey(), JSON.stringify([...next]))
   }
 
+  // Отложить/удалить задачу дня. Состояние серверное — та же карточка исчезает и в Android.
+  // Прячем оптимистично, при ошибке просто перечитываем: задача вернётся, если запрос не дошёл.
+  const dismissTask = (t: TodayTask, action: 'snooze' | 'delete') => {
+    setToday((prev) => (prev ? { ...prev, tasks: prev.tasks.filter((x) => x !== t) } : prev))
+    api.dismissTask(taskKey(t), action).catch(() => load())
+  }
+
   const visibleRecs = recs.filter((r) => !dismissed.has(recKey(r)))
   const todayLabel = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 
@@ -202,7 +209,7 @@ export default function TodayScreen() {
             <section className="flex flex-col gap-2">
               <h2 className="text-lg font-black">Задачи на сегодня</h2>
               {currentTasks.length ? (
-                currentTasks.map((t, i) => <TaskCard key={i} t={t} onLog={setLogTask} />)
+                currentTasks.map((t, i) => <TaskCard key={i} t={t} onLog={setLogTask} onDismiss={dismissTask} />)
               ) : (
                 <div className="dacha-card flex items-center gap-2 p-4 font-semibold text-muted">
                   <CircleCheck size={20} aria-hidden className="text-tertiary" /> На сегодня задач нет
@@ -218,7 +225,7 @@ export default function TodayScreen() {
             {upcomingTasks.length > 0 && (
               <section className="flex flex-col gap-2">
                 <h2 className="text-lg font-black">Скоро</h2>
-                {upcomingTasks.map((t, i) => <TaskCard key={i} t={t} />)}
+                {upcomingTasks.map((t, i) => <TaskCard key={i} t={t} onDismiss={dismissTask} />)}
               </section>
             )}
           </>
@@ -329,7 +336,15 @@ const URGENCY_HINT: Record<TaskUrgency, string> = {
   normal:   'По плану',
 }
 
-function TaskCard({ t, onLog }: { t: TodayTask; onLog?: (t: TodayTask) => void }) {
+function TaskCard({
+  t,
+  onLog,
+  onDismiss,
+}: {
+  t: TodayTask
+  onLog?: (t: TodayTask) => void
+  onDismiss?: (t: TodayTask, action: 'snooze' | 'delete') => void
+}) {
   const overdue = (t.days_overdue ?? 0) > 0
   // Ступень берём с сервера; фолбэк — на случай ответа старого бэкенда без поля urgency.
   const urgency: TaskUrgency = t.urgency ?? (t.type === 'frost_alert' ? 'critical' : overdue ? 'soon' : 'normal')
@@ -355,14 +370,38 @@ function TaskCard({ t, onLog }: { t: TodayTask; onLog?: (t: TodayTask) => void }
           </Link>
         )}
       </div>
-      {overdue && (
-        <span
-          className={`ml-auto flex shrink-0 items-center gap-1 self-start rounded-pill px-2 py-0.5 text-xs font-bold ${URGENCY_PILL[urgency]}`}
-          title={URGENCY_HINT[urgency]}
-        >
-          <Clock size={13} aria-hidden /> {t.days_overdue} дн.
-        </span>
-      )}
+      <div className="ml-auto flex shrink-0 items-center gap-2 self-start">
+        {overdue && (
+          <span
+            className={`flex items-center gap-1 rounded-pill px-2 py-0.5 text-xs font-bold ${URGENCY_PILL[urgency]}`}
+            title={URGENCY_HINT[urgency]}
+          >
+            <Clock size={13} aria-hidden /> {t.days_overdue} дн.
+          </span>
+        )}
+        {/* Напоминания не сворачиваем: у них своя строка в БД, сервер такие ключи не принимает. */}
+        {onDismiss && t.type !== 'reminder' && (
+          <div className="flex items-center gap-1 text-muted">
+            <button
+              onClick={(e) => { e.stopPropagation(); onDismiss(t, 'snooze') }}
+              // Карточка-обёртка сама реагирует на Enter/Space — иначе кнопка заодно открыла бы лист записи.
+              onKeyDown={(e) => e.stopPropagation()}
+              title="Отложить на завтра"
+              aria-label="Отложить на завтра"
+            >
+              <Clock size={18} aria-hidden />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDismiss(t, 'delete') }}
+              onKeyDown={(e) => e.stopPropagation()}
+              title="Удалить задачу"
+              aria-label="Удалить задачу"
+            >
+              <X size={18} aria-hidden />
+            </button>
+          </div>
+        )}
+      </div>
     </>
   )
   const cls = 'flex items-start gap-3 p-4'

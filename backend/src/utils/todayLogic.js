@@ -890,12 +890,20 @@ function formatTasks(tasks) {
   })
 }
 
+// Ключ задачи дня для состояния «отложено/удалено» (today_task_dismissals) — зеркало Kotlin
+// taskSnoozeKey(). Считается по УЖЕ отформатированной задаче: в formatTasks у care_task_name
+// есть fallback на product_example, и именно эту строку клиент присылает обратно.
+// null-поля дают литерал "null" (сгруппированные карточки: "watering_due:null:null:null").
+function taskKey(t) {
+  return `${t.type}:${t.planting_id}:${t.crop_name}:${t.care_task_name}`
+}
+
 // Сколько задач показываем на экране «Сегодня». Срез делает вызывающий (routes/today.js),
 // чтобы отдать честное общее число: раньше tasks_total считался ПОСЛЕ среза и не мог быть > 7.
 const TASK_LIMIT = 7
 
 module.exports = {
-  buildTasks, formatTasks, getNextCareTask, getOverdueCareTask, careTaskActionType,
+  buildTasks, formatTasks, taskKey, getNextCareTask, getOverdueCareTask, careTaskActionType,
   effectiveHarvestDays, effectiveHarvestWindow, nextHarvestWindowDate, zoneDoyShift, dayOfYear,
   wateringIntervalDays, wateringStatus, rainOutlook, frostOutlook, effectivePlantedAt,
   seasonLengthDays, seasonStartDoy, seasonEndDoy, dateFromDoy, taskDayOffset,

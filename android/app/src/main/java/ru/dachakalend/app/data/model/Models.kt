@@ -76,6 +76,11 @@ data class TodayResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class DismissedTasksResponse(
+    @Json(name = "task_keys") val taskKeys: List<String> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
 data class TodayTask(
     val type: String,
     val priority: Int,

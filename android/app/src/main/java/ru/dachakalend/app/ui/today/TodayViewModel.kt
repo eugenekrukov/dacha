@@ -73,11 +73,11 @@ class TodayViewModel @Inject constructor(
     private val _deletedRecs = MutableStateFlow<Set<String>>(tokenStorage.getDeletedRecs())
     val deletedRecs: StateFlow<Set<String>> = _deletedRecs.asStateFlow()
 
-    private val _snoozedTasks = MutableStateFlow<Set<String>>(tokenStorage.getSnoozedTasksForToday())
-    val snoozedTasks: StateFlow<Set<String>> = _snoozedTasks.asStateFlow()
-
-    private val _deletedTasks = MutableStateFlow<Set<String>>(tokenStorage.getDeletedTasks())
-    val deletedTasks: StateFlow<Set<String>> = _deletedTasks.asStateFlow()
+    // «Отложено/удалено» для задач дня живёт на сервере (today_task_dismissals): GET /today
+    // приходит уже отфильтрованным, одинаково для Android и веба. Локально держим только
+    // оптимистично скрытые карточки — до следующего успешного ответа сервера.
+    private val _pendingHiddenTasks = MutableStateFlow<Set<String>>(emptySet())
+    val pendingHiddenTasks: StateFlow<Set<String>> = _pendingHiddenTasks.asStateFlow()
 
     fun snoozeRec(key: String) {
         tokenStorage.addDismissedRec(key)
@@ -89,20 +89,32 @@ class TodayViewModel @Inject constructor(
         _deletedRecs.value = _deletedRecs.value + key
     }
 
-    fun snoozeTask(key: String) {
-        tokenStorage.snoozeTask(key)
-        _snoozedTasks.value = _snoozedTasks.value + key
-        // Снуз влияет на бейдж — пересчитываем по текущим посадкам.
+    fun snoozeTask(key: String) = dismissTask(key, "snooze")
+
+    fun deleteTask(key: String) = dismissTask(key, "delete")
+
+    /**
+     * Свайп по карточке задачи дня. Онлайн-операция (в ActionQueue не кладём — как и остальные
+     * обычные действия до F1): карточку прячем сразу, при ошибке просто перечитываем — задача
+     * вернётся, если запрос не дошёл.
+     */
+    private fun dismissTask(key: String, action: String) {
+        _pendingHiddenTasks.value = _pendingHiddenTasks.value + key
+        // Дисмиссал влияет на бейдж — пересчитываем по текущим посадкам.
         (_uiState.value as? TodayUiState.Success)?.data?.let { data ->
             tokenStorage.saveAttentionCount(
-                attentionCount(data.plantings, tokenStorage.getPendingTasks(), tokenStorage.getSnoozedTasksForToday())
+                attentionCount(data.plantings, tokenStorage.getPendingTasks(), _pendingHiddenTasks.value)
             )
         }
-    }
-
-    fun deleteTask(key: String) {
-        tokenStorage.deleteTask(key)
-        _deletedTasks.value = _deletedTasks.value + key
+        viewModelScope.launch {
+            val ok = runCatching {
+                api.dismissTask(mapOf("task_key" to key, "action" to action))
+            }.isSuccess
+            if (!ok) {
+                _pendingHiddenTasks.value = _pendingHiddenTasks.value - key
+                loadToday(silent = true)
+            }
+        }
     }
 
     fun deleteAction(id: Int, clientId: String? = null) {
@@ -133,9 +145,11 @@ class TodayViewModel @Inject constructor(
                 // задачей (planting_id=null, посадки — в plantingIds) — сверяться нужно и по ней,
                 // иначе полив из карточки одной посадки офлайн не закрывал общую карточку «Полить»
                 // (баг: задача держалась в «Сегодня» до следующего онлайн-обновления).
+                // Это НЕ дисмиссал: задача закрыта действием, сервер сам перестанет её отдавать.
+                // Прячем локально до ближайшего успешного ответа (офлайн — до возврата сети).
                 (_uiState.value as? TodayUiState.Success)?.data?.today?.tasks
                     ?.filter { taskClosedBy(it, info) }
-                    ?.forEach { snoozeTask(taskSnoozeKey(it)) }
+                    ?.forEach { _pendingHiddenTasks.value = _pendingHiddenTasks.value + taskSnoozeKey(it) }
                 loadToday(silent = true)
             }
         }
@@ -187,6 +201,12 @@ class TodayViewModel @Inject constructor(
             val actionsDeferred  = async {
                 try { api.getActions(limit = 20) } catch (_: Exception) { emptyList() }
             }
+            // Дисмиссалы нужны только для бейджа: care-просрочка приходит из /plantings
+            // (Planting.overdueCareTask), мимо фильтра GET /today. Ошибка сети → пустой набор,
+            // бейдж максимум чуть завысит счётчик.
+            val dismissedDeferred = async {
+                runCatching { api.getDismissedTaskKeys().taskKeys.toSet() }.getOrDefault(emptySet())
+            }
 
             val todayResult     = todayDeferred.await()
             val recsResult      = recsDeferred.await()
@@ -218,13 +238,16 @@ class TodayViewModel @Inject constructor(
                 tokenStorage.savePendingTasks(pending)
                 // Бейдж = число посадок, требующих внимания (как на карточках «Посадок»).
                 tokenStorage.saveAttentionCount(
-                    attentionCount(plantingsList, pending, tokenStorage.getSnoozedTasksForToday())
+                    attentionCount(plantingsList, pending, dismissedDeferred.await())
                 )
             }
 
             val gardenIdForCache = gardenId ?: -1
             _uiState.value = when (todayResult) {
                 is Result.Success -> {
+                    // Сервер отдал актуальный список (дисмиссалы уже применены) — локальные
+                    // оптимистичные скрытия больше не нужны.
+                    _pendingHiddenTasks.value = emptySet()
                     val data = TodayScreenData(
                         today          = todayResult.data,
                         recommendations = if (recsResult is Result.Success) recsResult.data else emptyList(),

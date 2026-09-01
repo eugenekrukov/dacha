@@ -216,70 +216,6 @@ class TokenStorage @Inject constructor(
     fun getDeletedRecs(): Set<String> =
         prefs.getStringSet(KEY_DELETED_RECS, emptySet()) ?: emptySet()
 
-    // ─── Снуз / постоянное удаление задач ────────────────────────────────────────
-
-    // Формат записи: "snooze_date|target_date|task_key"
-    // snooze_date — день, когда задача отложена (сегодня)
-    // target_date — день, когда показать снова (обычно завтра)
-    // task_key    — "type:plantingId:cropName:careTaskName"
-    data class SnoozedCalendarTask(
-        val targetDate: java.time.LocalDate,
-        val key: String
-    )
-
-    fun snoozeTask(key: String, targetDate: java.time.LocalDate = java.time.LocalDate.now().plusDays(1)) {
-        val today = java.time.LocalDate.now().toString()
-        val raw = prefs.getString(KEY_SNOOZED_TASKS, "") ?: ""
-        // Оставляем только сегодняшние (автоматически чистим старые)
-        val todayEntries = if (raw.isBlank()) emptyList()
-                           else raw.split(",").filter { it.startsWith("$today|") }
-        val updated = (todayEntries + "$today|$targetDate|$key").distinct().joinToString(",")
-        prefs.edit { putString(KEY_SNOOZED_TASKS, updated) }
-        // Бейдж пересчитывает ViewModel (saveAttentionCount) после снуза — снуз влияет на счётчик.
-    }
-
-    fun getSnoozedTasksForToday(): Set<String> {
-        val today = java.time.LocalDate.now().toString()
-        val raw = prefs.getString(KEY_SNOOZED_TASKS, "") ?: return emptySet()
-        if (raw.isBlank()) return emptySet()
-        return raw.split(",")
-            .filter { it.startsWith("$today|") }
-            .mapNotNull { entry ->
-                val parts = entry.split("|", limit = 3)
-                when (parts.size) {
-                    3    -> parts[2]  // новый формат: snooze_date|target_date|key
-                    2    -> parts[1]  // старый формат: snooze_date|key
-                    else -> null
-                }
-            }
-            .toSet()
-    }
-
-    /** Возвращает отложенные задачи для показа в Calendar на их целевую дату. */
-    fun getSnoozedTasksForCalendar(): List<SnoozedCalendarTask> {
-        val raw = prefs.getString(KEY_SNOOZED_TASKS, "") ?: return emptyList()
-        if (raw.isBlank()) return emptyList()
-        return raw.split(",").mapNotNull { entry ->
-            val parts = entry.split("|", limit = 3)
-            if (parts.size == 3) runCatching {
-                SnoozedCalendarTask(
-                    targetDate = java.time.LocalDate.parse(parts[1]),
-                    key        = parts[2]
-                )
-            }.getOrNull()
-            else null  // старый формат без target_date — пропускаем
-        }
-    }
-
-    fun deleteTask(key: String) {
-        val current = prefs.getStringSet(KEY_DELETED_TASKS, emptySet())!!.toMutableSet()
-        current.add(key)
-        prefs.edit { putStringSet(KEY_DELETED_TASKS, current) }
-    }
-
-    fun getDeletedTasks(): Set<String> =
-        prefs.getStringSet(KEY_DELETED_TASKS, emptySet()) ?: emptySet()
-
     // ─── First launch date (для отсчёта запроса оценки) ───────────────────────────
 
     fun getFirstLaunchDate(): Long {
@@ -346,8 +282,6 @@ class TokenStorage @Inject constructor(
         private const val KEY_ATTENTION_COUNT = "attention_count"
         private const val KEY_DISMISSED_RECS  = "dismissed_recs"
         private const val KEY_DELETED_RECS    = "deleted_recs"
-        private const val KEY_SNOOZED_TASKS   = "snoozed_tasks"
-        private const val KEY_DELETED_TASKS   = "deleted_tasks"
         private const val KEY_FIRST_LAUNCH    = "first_launch_date"
         private const val KEY_REVIEW_REQUESTED = "review_requested"
         private const val KEY_INTRO_DONE      = "intro_done"
