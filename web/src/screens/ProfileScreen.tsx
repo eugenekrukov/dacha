@@ -56,6 +56,7 @@ export default function ProfileScreen() {
   // считаем на клиенте из уже существующего списка. Ошибку глотаем: шапка без строки
   // площади лучше, чем экран с ошибкой ради второстепенной подписи.
   useEffect(() => {
+    setBeds([])
     if (!active) return
     let cancelled = false
     api.getBeds(active.id)
