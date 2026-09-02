@@ -8,7 +8,11 @@
 
 **Tech Stack:** Backend — Fastify + PostgreSQL (vitest), Android — Kotlin/Compose/Hilt/Retrofit (JUnit+MockK), Web — React/TS (без юнит-тестов, только тайпчек+ручная проверка).
 
-**Spec:** `docs/superpowers/specs/2026-06-27-unified-task-dismiss-design.md`
+**Статус: ✅ СДЕЛАНО 2026-09-01** (коммит `caf1dd8`, задеплоено). Чекбоксы ниже не проставлялись —
+план исполнялся не по шагам; фактический разбор, включая два сознательных отступления от спеки, —
+в `session-note.md` (2026-09-01).
+
+**Spec:** `docs/archive/superpowers/specs/2026-06-27-unified-task-dismiss-design.md`
 
 ---
 
@@ -915,7 +919,7 @@ git commit -m "refactor(android): убрать мёртвый код отобр�
 ```
 
 (строки про `snoozeTask`/`deleteTask`/`getSnoozedTasksForToday`/`getDeletedTasks` убраны — снуз/удаление
-задач дня теперь серверные, см. `docs/superpowers/specs/2026-06-27-unified-task-dismiss-design.md`.)
+задач дня теперь серверные, см. `docs/archive/superpowers/specs/2026-06-27-unified-task-dismiss-design.md`.)
 
 - [ ] **Step 4: Скомпилировать**
 
