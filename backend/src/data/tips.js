@@ -303,9 +303,18 @@ function buildCropStageTips(crop, stage) {
   return tips
 }
 
+// Примечание про тип почвы участка — дополнение к агрономии по стадии, не замена.
+// Нет типа почвы у участка (подавляющее большинство участков сегодня) или нет текста под
+// него у культуры — возвращаем null, вызывающий не замечает разницы.
+function soilNote(crop, soilType) {
+  if (!crop || !soilType) return null
+  const note = (crop.soil_tips || {})[soilType]
+  return typeof note === 'string' && note.trim() ? note.trim() : null
+}
+
 // Совет именно про эту культуру; null — если агрономии по ней нет (вызывающий должен
 // откатиться на нейтральный getStageTip).
-function getCropStageTip(crop, stage, sowingMethod, daysSincePlanting, plantingId = 0) {
+function getCropStageTip(crop, stage, sowingMethod, daysSincePlanting, plantingId = 0, soilType = null) {
   // Стадию нормализуем так же, как в getStageTip: у прямого посева БД-стадия 'sowing'
   // висит всю жизнь, и советы про подкормку рассады ему не адресованы.
   let effectiveStage = stage
@@ -314,9 +323,12 @@ function getCropStageTip(crop, stage, sowingMethod, daysSincePlanting, plantingI
   }
   if (!effectiveStage) return null
 
+  const note = soilNote(crop, soilType)
   const tips = buildCropStageTips(crop, effectiveStage)
-  if (tips.length === 0) return null
-  return tips[(new Date().getDate() + plantingId) % tips.length]
+  // Агрономии по стадии нет, но почвенный совет культуро-специфичен — терять его незачем.
+  if (tips.length === 0) return note
+  const tip = tips[(new Date().getDate() + plantingId) % tips.length]
+  return note ? `${tip} ${note}` : tip
 }
 
 function getLunarTip(date) {
