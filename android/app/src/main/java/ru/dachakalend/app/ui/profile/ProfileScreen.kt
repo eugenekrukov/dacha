@@ -54,6 +54,28 @@ private fun feedDateShort(iso: String): String = try {
     } catch (_: Exception) { iso.take(10) }
 }
 
+/** Строки площади для шапки профиля: сумма и счётчик грядок без размеров. */
+data class BedsAreaLines(val area: String?, val missing: String?)
+
+// Площадь считаем только по грядкам, где заполнены ОБА размера: одна сторона без второй
+// площади не даёт. Такие грядки уходят в счётчик «без размера» — вместе с грядками вовсе
+// без размеров. Размеры вписываются в пикере грядок при посадке (BedPickerField).
+// Локаль форматирования не фиксируем: точку заменяем на запятую явно.
+fun bedsAreaLines(beds: List<ru.dachakalend.app.data.model.GardenBed>): BedsAreaLines {
+    val sized = beds.filter { it.widthCm != null && it.lengthCm != null }
+    val missing = beds.size - sized.size
+    val m2 = sized.sumOf { (it.widthCm!! * it.lengthCm!!) / 10000.0 }
+    return BedsAreaLines(
+        area = if (sized.isNotEmpty()) {
+            val m2Str = "%.1f".format(java.util.Locale.US, m2).replace('.', ',')
+            "Грядки: $m2Str м² (${sized.size} шт.)"
+        } else null,
+        missing = if (missing > 0)
+            "$missing ${if (missing == 1) "грядка" else "грядок"} без размера — укажите размер при посадке"
+        else null,
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -84,7 +106,7 @@ fun ProfileScreen(
         contentWindowInsets = WindowInsets(0),
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
-            ProfileHeader(state.gardenName, state.gardenRegion)
+            ProfileHeader(state.gardenName, state.gardenRegion, state.bedsArea, state.bedsMissing)
             TabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
                 tabs.forEachIndexed { i, t ->
                     Tab(selected = tab == i, onClick = { tab = i },
@@ -119,7 +141,7 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileHeader(name: String?, region: String?) {
+private fun ProfileHeader(name: String?, region: String?, bedsArea: String? = null, bedsMissing: String? = null) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
         Text(
             name?.takeIf { it.isNotBlank() } ?: "Мой участок",
@@ -128,6 +150,14 @@ private fun ProfileHeader(name: String?, region: String?) {
         )
         region?.takeIf { it.isNotBlank() }?.let {
             Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        bedsArea?.let {
+            Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        bedsMissing?.let {
+            Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

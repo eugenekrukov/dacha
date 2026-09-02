@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.model.FeedItem
 import ru.dachakalend.app.data.repository.ActionsRepository
+import ru.dachakalend.app.data.repository.BedsRepository
 import ru.dachakalend.app.data.repository.FeedRepository
 import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.PhotosRepository
@@ -23,6 +24,8 @@ data class FeedUiState(
     val nextOffset: Int? = 0,        // 0 — ещё не грузили; null — конец ленты
     val gardenName: String? = null,  // шапка профиля
     val gardenRegion: String? = null,
+    val bedsArea: String? = null,    // шапка профиля: сумма площадей грядок
+    val bedsMissing: String? = null, // шапка профиля: сколько грядок без размера
 )
 
 private const val PAGE = 30
@@ -33,6 +36,7 @@ class FeedViewModel @Inject constructor(
     private val gardenRepository: GardenRepository,
     private val photosRepository: PhotosRepository,
     private val actionsRepository: ActionsRepository,
+    private val bedsRepository: BedsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedUiState())
@@ -46,6 +50,12 @@ class FeedViewModel @Inject constructor(
         viewModelScope.launch {
             (gardenRepository.loadGardens() as? Result.Success)?.data?.firstOrNull()?.let { g ->
                 _uiState.value = _uiState.value.copy(gardenName = g.name, gardenRegion = g.region)
+                // Грядки нужны только ради строки площади в шапке — отдельного роута для
+                // суммы нет, считаем на клиенте. Ошибку глотаем: шапка без строки площади
+                // лучше, чем экран с ошибкой ради второстепенной подписи.
+                val beds = (bedsRepository.getBeds(g.id) as? Result.Success)?.data ?: return@let
+                val lines = bedsAreaLines(beds)
+                _uiState.value = _uiState.value.copy(bedsArea = lines.area, bedsMissing = lines.missing)
             }
         }
     }
