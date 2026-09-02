@@ -30,6 +30,8 @@ export interface Garden {
   region?: string | null
   city?: string | null
   climate_zone?: string | null
+  // loam | sandy | clay | peat | black_earth — см. SOIL_TYPES в EditGardenScreen.
+  soil_type?: string | null
   // Начало сезона ухода (день года) для зоны участка. Считает сервер (normalizeGarden):
   // клиенту не нужно знать ни про зоны, ни про пороги температуры.
   season_start_doy?: number | null
@@ -305,6 +307,7 @@ export interface CreateGardenRequest {
   city?: string
   region?: string
   climate_zone?: string
+  soil_type?: string
   garden_type?: 'soil' | 'greenhouse' | 'mixed'
 }
 

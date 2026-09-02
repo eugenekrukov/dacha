@@ -5,6 +5,16 @@ import { api, ApiError } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
 import type { GeocodeSuggestion } from '../api/types'
 
+// Пять типов из заготовки миграции 001 — теми же ключами их читают советы дня
+// (crops.soil_tips, миграция 088).
+const SOIL_TYPES: { value: string; label: string }[] = [
+  { value: 'loam', label: 'Суглинок' },
+  { value: 'sandy', label: 'Песчаная' },
+  { value: 'clay', label: 'Глинистая' },
+  { value: 'peat', label: 'Торфяная' },
+  { value: 'black_earth', label: 'Чернозём' },
+]
+
 // Редактирование активного участка: название + город (с автодополнением, как при создании).
 // Если город не меняли — сохраняем прежние city/region/climate_zone участка.
 export default function EditGardenScreen() {
@@ -14,6 +24,7 @@ export default function EditGardenScreen() {
   const [name, setName] = useState(active?.name ?? 'Мой участок')
   const [cityQuery, setCityQuery] = useState(active?.city ?? '')
   const [picked, setPicked] = useState<GeocodeSuggestion | null>(null)
+  const [soilType, setSoilType] = useState<string | null>(active?.soil_type ?? null)
   const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -57,12 +68,14 @@ export default function EditGardenScreen() {
       const body = picked
         ? {
             name: name.trim() || 'Мой участок',
+            soil_type: soilType ?? undefined,
             city: picked.name,
             region: picked.display_name.split(',').slice(1).join(',').trim() || undefined,
             climate_zone: picked.zone ?? undefined,
           }
         : {
             name: name.trim() || 'Мой участок',
+            soil_type: soilType ?? undefined,
             city: active.city ?? undefined,
             region: active.region ?? undefined,
             climate_zone: active.climate_zone ?? undefined,
@@ -129,6 +142,24 @@ export default function EditGardenScreen() {
               </ul>
             )}
           </div>
+
+          <label className="mt-2 text-sm font-bold text-muted">Тип почвы</label>
+          <div className="flex flex-wrap gap-2">
+            {SOIL_TYPES.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                aria-pressed={soilType === s.value}
+                onClick={() => setSoilType(soilType === s.value ? null : s.value)}
+                className={`dacha-chip ${soilType === s.value ? 'dacha-chip-active' : ''}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs font-semibold text-muted">
+            Учтём в советах дня: полив, подкормки и улучшение почвы зависят от её типа.
+          </p>
 
           {error && <p className="text-sm font-bold text-red-600">{error}</p>}
 
