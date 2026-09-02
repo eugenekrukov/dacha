@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -185,7 +186,18 @@ fun GardenEditScreen(
                                 selected = soilType == value,
                                 // Повторный тап по выбранному — снять выбор.
                                 onClick = { soilType = if (soilType == value) null else value },
-                                label = { Text(label) },
+                                shape = RoundedCornerShape(100.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = Color.White
+                                ),
+                                label = {
+                                    Text(
+                                        label,
+                                        fontFamily = NunitoFamily,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
                                 enabled = !isSaving
                             )
                         }

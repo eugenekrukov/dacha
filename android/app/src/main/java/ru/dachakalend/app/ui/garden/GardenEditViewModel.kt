@@ -126,7 +126,17 @@ class GardenEditViewModel @Inject constructor(
         if (gardenId == -1) { _uiState.value = GardenEditUiState.Error("Участок не найден"); return }
         viewModelScope.launch {
             _uiState.value = GardenEditUiState.Saving
-            when (val result = gardenRepository.updateGarden(gardenId, name, region, city, gardenType, pendingLat, pendingLon, pendingZone, soilType)) {
+            when (val result = gardenRepository.updateGarden(
+                id = gardenId,
+                name = name,
+                region = region,
+                city = city,
+                gardenType = gardenType,
+                lat = pendingLat,
+                lon = pendingLon,
+                climateZone = pendingZone,
+                soilType = soilType
+            )) {
                 is Result.Success -> _uiState.value = GardenEditUiState.Saved(saveMessage(city))
                 is Result.Error   -> _uiState.value = GardenEditUiState.Error(result.message)
                 is Result.Loading -> _uiState.value = GardenEditUiState.Saving
