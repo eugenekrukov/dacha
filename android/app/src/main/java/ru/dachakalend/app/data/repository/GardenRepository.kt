@@ -71,7 +71,8 @@ class GardenRepository @Inject constructor(
         gardenType: String? = null,
         lat: Double? = null,
         lon: Double? = null,
-        climateZone: String? = null
+        climateZone: String? = null,
+        soilType: String? = null
     ): Result<Garden> {
         return try {
             val garden = api.updateGarden(
@@ -83,7 +84,8 @@ class GardenRepository @Inject constructor(
                     lat = lat,
                     lon = lon,
                     gardenType = gardenType,
-                    climateZone = climateZone
+                    climateZone = climateZone,
+                    soilType = soilType
                 )
             )
             tokenStorage.saveClimateZone(garden.climateZone)

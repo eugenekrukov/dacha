@@ -116,7 +116,7 @@ class GardenEditViewModel @Inject constructor(
         _uiState.value = GardenEditUiState.Loaded(garden)
     }
 
-    fun saveGarden(name: String, region: String?, city: String?, gardenType: String? = null) {
+    fun saveGarden(name: String, region: String?, city: String?, gardenType: String? = null, soilType: String? = null) {
         if (name.isBlank()) { _uiState.value = GardenEditUiState.Error("Введите название участка"); return }
         if (city.isNullOrBlank() && pendingLat == null) {
             _uiState.value = GardenEditUiState.Error("Укажите населённый пункт или нажмите «Определить по GPS»")
@@ -126,7 +126,7 @@ class GardenEditViewModel @Inject constructor(
         if (gardenId == -1) { _uiState.value = GardenEditUiState.Error("Участок не найден"); return }
         viewModelScope.launch {
             _uiState.value = GardenEditUiState.Saving
-            when (val result = gardenRepository.updateGarden(gardenId, name, region, city, gardenType, pendingLat, pendingLon, pendingZone)) {
+            when (val result = gardenRepository.updateGarden(gardenId, name, region, city, gardenType, pendingLat, pendingLon, pendingZone, soilType)) {
                 is Result.Success -> _uiState.value = GardenEditUiState.Saved(saveMessage(city))
                 is Result.Error   -> _uiState.value = GardenEditUiState.Error(result.message)
                 is Result.Loading -> _uiState.value = GardenEditUiState.Saving
