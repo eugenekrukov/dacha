@@ -24,21 +24,55 @@ import ChangeEmailModal from '../components/ChangeEmailModal'
 import DeleteAccountModal from '../components/DeleteAccountModal'
 import SubscribeCta from '../components/SubscribeCta'
 import { useModalA11y } from '../components/Modal'
-import type { AiDiagnosisCandidate, FeedItem, MilestoneKind } from '../api/types'
+import type { AiDiagnosisCandidate, FeedItem, GardenBed, MilestoneKind } from '../api/types'
 
 type Tab = 'feed' | 'stats' | 'account'
+
+// Площадь считаем только по грядкам, где заполнены ОБА размера: одна сторона без второй
+// площади не даёт. Такие грядки уходят в счётчик «без размера» — вместе с грядками вовсе
+// без размеров. Размеры вписываются в пикере грядок при посадке (BedField).
+function bedsAreaLines(beds: GardenBed[]): { area: string | null; missing: string | null } {
+  const sized = beds.filter((b) => b.width_cm != null && b.length_cm != null)
+  const missing = beds.length - sized.length
+  const m2 = sized.reduce((sum, b) => sum + (b.width_cm! * b.length_cm!) / 10000, 0)
+  return {
+    area: sized.length > 0
+      ? `Грядки: ${m2.toFixed(1).replace('.', ',')} м² (${sized.length} шт.)`
+      : null,
+    missing: missing > 0
+      ? `${missing} ${missing === 1 ? 'грядка' : 'грядок'} без размера — укажите размер при посадке`
+      : null,
+  }
+}
 
 export default function ProfileScreen() {
   const { active } = useGardens()
   const [tab, setTab] = useState<Tab>('feed')
+  const [beds, setBeds] = useState<GardenBed[]>([])
 
   const region = [active?.city, active?.region].filter(Boolean).join(', ')
+
+  // Грядки нужны только ради строки площади в шапке — отдельного роута для суммы нет,
+  // считаем на клиенте из уже существующего списка. Ошибку глотаем: шапка без строки
+  // площади лучше, чем экран с ошибкой ради второстепенной подписи.
+  useEffect(() => {
+    if (!active) return
+    let cancelled = false
+    api.getBeds(active.id)
+      .then((res) => { if (!cancelled) setBeds(res) })
+      .catch(() => { if (!cancelled) setBeds([]) })
+    return () => { cancelled = true }
+  }, [active])
+
+  const { area, missing } = bedsAreaLines(beds)
 
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-col">
         <h1 className="text-2xl font-black">{active?.name?.trim() || 'Мой участок'}</h1>
         {region && <span className="text-sm font-semibold text-muted">{region}</span>}
+        {area && <span className="text-sm font-semibold text-muted">{area}</span>}
+        {missing && <span className="text-xs font-semibold text-muted">{missing}</span>}
       </header>
 
       <div className="flex gap-2">
