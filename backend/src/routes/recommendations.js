@@ -36,7 +36,7 @@ module.exports = async function (fastify) {
     const plantingsRes = await db.query(
       `SELECT p.*, c.name as crop_name, c.watering_freq_days, c.frost_sensitive,
               c.harvest_days, c.fertilizing_schedule, c.good_neighbors, c.bad_neighbors,
-              c.watering_details, c.diseases, c.pests,
+              c.watering_details, c.diseases, c.pests, c.soil_tips,
               v.harvest_days AS variety_harvest_days
        FROM plantings p JOIN crops c ON c.id=p.crop_id
        LEFT JOIN crop_varieties v ON v.id = p.variety_id
@@ -116,7 +116,9 @@ module.exports = async function (fastify) {
       // подписанным именем культуры, поэтому порядок именно такой.
       if (recommendations.filter(r => r.type === 'stage_tip').length < 2) {
         const stageTip =
-          getCropStageTip(planting, planting.stage, planting.sowing_method, daysSincePlanting, planting.id) ||
+          // Шестым аргументом — тип почвы участка: если у культуры есть текст под него,
+          // к совету по стадии добавится почвенное примечание (см. soilNote в data/tips.js).
+          getCropStageTip(planting, planting.stage, planting.sowing_method, daysSincePlanting, planting.id, gardenRes.rows[0].soil_type) ||
           getStageTip(planting.stage, planting.sowing_method, daysSincePlanting, planting.id)
         if (stageTip) {
           recommendations.push({

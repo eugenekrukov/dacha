@@ -5,7 +5,10 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -16,15 +19,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.local.LocationHelper
+import ru.dachakalend.app.ui.theme.NunitoFamily
 
+// Пять типов из заготовки миграции 001 — теми же ключами их читают советы дня
+// (crops.soil_tips, миграция 088).
+private val SOIL_TYPES = listOf(
+    "loam" to "Суглинок",
+    "sandy" to "Песчаная",
+    "clay" to "Глинистая",
+    "peat" to "Торфяная",
+    "black_earth" to "Чернозём",
+)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun GardenEditScreen(
     onSaved: () -> Unit,
@@ -45,6 +59,7 @@ fun GardenEditScreen(
     var isGettingGps    by remember { mutableStateOf(false) }
     var gpsStatus       by remember { mutableStateOf<String?>(null) }
     var cityError       by remember { mutableStateOf(false) }
+    var soilType        by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState) {
         val garden = when (val s = uiState) {
@@ -56,6 +71,7 @@ fun GardenEditScreen(
             gardenName     = garden.name
             selectedRegion = garden.region ?: ""
             cityName       = garden.city ?: ""
+            soilType       = garden.soilType
             formInitialized = true
         }
         when (val s = uiState) {
@@ -162,6 +178,36 @@ fun GardenEditScreen(
                         enabled = !isSaving
                     )
 
+                    Text("Тип почвы", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SOIL_TYPES.forEach { (value, label) ->
+                            FilterChip(
+                                selected = soilType == value,
+                                // Повторный тап по выбранному — снять выбор.
+                                onClick = { soilType = if (soilType == value) null else value },
+                                shape = RoundedCornerShape(100.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = Color.White
+                                ),
+                                label = {
+                                    Text(
+                                        label,
+                                        fontFamily = NunitoFamily,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                enabled = !isSaving
+                            )
+                        }
+                    }
+                    Text(
+                        "Учтём в советах дня: полив, подкормки и улучшение почвы зависят от её типа.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
                     (uiState as? GardenEditUiState.Error)?.message?.let {
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
@@ -171,7 +217,7 @@ fun GardenEditScreen(
                             if (cityName.isBlank() && uiState !is GardenEditUiState.LocationFound) {
                                 cityError = true
                             } else {
-                                viewModel.saveGarden(gardenName, selectedRegion.ifBlank { null }, cityName.ifBlank { null })
+                                viewModel.saveGarden(gardenName, selectedRegion.ifBlank { null }, cityName.ifBlank { null }, soilType = soilType)
                             }
                         },
                         modifier = Modifier.fillMaxWidth().height(52.dp), enabled = !isSaving

@@ -297,3 +297,56 @@ describe('POST /gardens/:id/beds', () => {
     await app.close()
   })
 })
+
+describe('PUT /gardens/:id — тип почвы', () => {
+  it('клиент не прислал soil_type — прежнее значение сохраняется (COALESCE)', async () => {
+    let updateSql = null
+    let updateParams = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('UPDATE gardens')) {
+          updateSql = sql
+          updateParams = params
+          return { rows: [{ ...GARDEN, soil_type: 'clay' }] }
+        }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .put('/gardens/1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Мой участок', region: 'Москва' })
+
+    expect(res.status).toBe(200)
+    expect(updateSql).toMatch(/soil_type\s*=\s*COALESCE/i)
+    expect(updateParams[4]).toBeNull()
+    expect(res.body.soil_type).toBe('clay')
+    await app.close()
+  })
+
+  it('клиент прислал soil_type — значение записывается', async () => {
+    let updateParams = null
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('UPDATE gardens')) {
+          updateParams = params
+          return { rows: [{ ...GARDEN, soil_type: 'sandy' }] }
+        }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .put('/gardens/1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Мой участок', region: 'Москва', soil_type: 'sandy' })
+
+    expect(res.status).toBe(200)
+    expect(updateParams[4]).toBe('sandy')
+    expect(res.body.soil_type).toBe('sandy')
+    await app.close()
+  })
+})

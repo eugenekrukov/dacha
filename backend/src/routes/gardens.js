@@ -136,10 +136,13 @@ module.exports = async function (fastify) {
 
     const result = await fastify.db.query(
       `UPDATE gardens
-       SET name=$1, lat=$2, lon=$3, region=$4, soil_type=$5, climate_zone=$6,
+       -- soil_type только через COALESCE: клиенты, которые поле не шлют (в том числе уже
+       -- установленные старые версии приложения), не должны обнулять выбранный тип почвы
+       -- при обычной правке названия. Сброса типа продуктом не предусмотрено.
+       SET name=$1, lat=$2, lon=$3, region=$4, soil_type=COALESCE($5, soil_type), climate_zone=$6,
            garden_type=$7, city=$8, updated_at=NOW()
        WHERE id=$9 AND user_id=$10 RETURNING *`,
-      [name, lat, lon, region, soil_type,
+      [name, lat, lon, region, soil_type ?? null,
        climate_zone ?? getZoneForRegion(region),
        garden_type ?? 'soil', city ?? null,
        request.params.id, request.user.userId]

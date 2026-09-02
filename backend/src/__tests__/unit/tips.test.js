@@ -23,6 +23,27 @@ const TOMATO = {
 // Культура без агрономических данных — в справочнике таких 23 из 55 (напр. Горох).
 const PEA = { watering_details: {}, fertilizing_schedule: [], diseases: [], pests: [] }
 
+// Культура с советами по почве (форма — как в миграции 088).
+const CUCUMBER = {
+  watering_details: { notes: 'Поливать только тёплой водой, холодная тормозит рост.' },
+  fertilizing_schedule: [],
+  diseases: [],
+  pests: [],
+  soil_tips: {
+    sandy: 'На песчаной почве вода уходит быстро — поливайте чаще и мельче, замульчируйте.',
+    clay: 'На глине не давайте корке схватываться — рыхлите после каждого полива.',
+  },
+}
+
+// Есть совет по почве, но никакой агрономии по стадии.
+const SOIL_ONLY = {
+  watering_details: {},
+  fertilizing_schedule: [],
+  diseases: [],
+  pests: [],
+  soil_tips: { peat: 'Торфяная почва кислая — раскислите золой перед посадкой.' },
+}
+
 describe('getStageTip', () => {
   it('рассадный посев (seedling) — совет по стадии как есть, дни не важны', () => {
     expect(getStageTip('sowing', 'seedling', 1)).toBeTruthy()
@@ -130,5 +151,39 @@ describe('getCropStageTip — советы про конкретную куль�
   it('прямой посев в грунт: до всходов советов нет, после — как для растущей', () => {
     expect(getCropStageTip(DILL, 'sowing', 'direct', 3, 1)).toBeNull()
     expect(getCropStageTip(DILL, 'sowing', 'direct', 14, 1)).toBeTruthy()
+  })
+})
+
+describe('getCropStageTip — почвенное примечание', () => {
+  it('тип почвы участка есть и текст под него есть — примечание добавляется к совету по стадии', () => {
+    const t = getCropStageTip(CUCUMBER, 'growing', 'seedling', 30, 1, 'sandy')
+    expect(t).toMatch(/тёплой водой/)
+    expect(t).toMatch(/песчаной почве/)
+  })
+
+  it('у участка тип почвы не указан — поведение ровно как сейчас', () => {
+    expect(getCropStageTip(CUCUMBER, 'growing', 'seedling', 30, 1, null))
+      .toBe(getCropStageTip(CUCUMBER, 'growing', 'seedling', 30, 1))
+  })
+
+  it('под этот тип почвы у культуры текста нет — поведение ровно как сейчас', () => {
+    expect(getCropStageTip(CUCUMBER, 'growing', 'seedling', 30, 1, 'black_earth'))
+      .toBe(getCropStageTip(CUCUMBER, 'growing', 'seedling', 30, 1))
+  })
+
+  it('пустая soil_tips (значение по умолчанию колонки) ничего не ломает', () => {
+    const empty = { ...CUCUMBER, soil_tips: {} }
+    expect(getCropStageTip(empty, 'growing', 'seedling', 30, 1, 'sandy'))
+      .toBe(getCropStageTip(empty, 'growing', 'seedling', 30, 1))
+  })
+
+  it('агрономии по стадии нет, а совет по почве есть — отдаём почвенный, а не null', () => {
+    expect(getCropStageTip(SOIL_ONLY, 'growing', 'seedling', 30, 1, 'peat'))
+      .toBe('Торфяная почва кислая — раскислите золой перед посадкой.')
+    expect(getCropStageTip(SOIL_ONLY, 'growing', 'seedling', 30, 1, 'loam')).toBeNull()
+  })
+
+  it('до всходов при прямом посеве почвенный совет тоже молчит', () => {
+    expect(getCropStageTip(CUCUMBER, 'sowing', 'direct', 3, 1, 'sandy')).toBeNull()
   })
 })
