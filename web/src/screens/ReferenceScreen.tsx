@@ -118,6 +118,13 @@ export default function ReferenceScreen() {
         ))}
       </div>
 
+      {tab === 'guide' && (
+        <p className="text-sm text-muted">
+          Определить болезнь или вредителя по фото можно в карточке своей посадки — на вкладке
+          «Болезни» или «Вредители».
+        </p>
+      )}
+
       {error && <ErrorCard message={error} />}
 
       {loading ? (

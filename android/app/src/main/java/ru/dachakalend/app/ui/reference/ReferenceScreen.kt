@@ -96,6 +96,17 @@ fun ReferenceScreen(
             }
         }
 
+        if (state.tab == ReferenceTab.GUIDE) {
+            Text(
+                "Определить болезнь или вредителя по фото можно в карточке своей посадки — " +
+                    "на вкладке «Болезни» или «Вредители».",
+                fontFamily = NunitoFamily,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
+
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
