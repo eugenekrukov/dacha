@@ -255,6 +255,10 @@ interface DachaApi {
     @GET("analytics/summary")
     suspend fun getAnalyticsSummary(): AnalyticsSummary
 
+    // Фиксирует первое открытие экрана пейволла (воронка регистрация→оплата).
+    @POST("analytics/paywall-opened")
+    suspend fun markPaywallOpened()
+
     @GET("actions/export")
     @Headers("Accept: text/csv")
     suspend fun exportActions(): okhttp3.ResponseBody

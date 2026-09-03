@@ -59,6 +59,11 @@ class PaywallViewModel @Inject constructor(
                 )
             } catch (_: Exception) { }
         }
+        // Воронка регистрация→оплата: фиксируем первое открытие пейволла. Best-effort,
+        // ошибку глотаем — второстепенное событие не должно мешать показу экрана.
+        viewModelScope.launch {
+            try { api.markPaywallOpened() } catch (_: Exception) { }
+        }
     }
 
     /** Создаёт платёж и отдаёт UI ссылку для открытия в Custom Tab. */
