@@ -35,7 +35,10 @@ async function main() {
     const src = path.join(SRC_DIR, file)
     const dest = path.join(OUT_DIR, file)
     const before = fs.statSync(src).size
-    await sharp(src).resize({ width: WIDTH, withoutEnlargement: true }).jpeg({ quality: QUALITY, mozjpeg: true }).toFile(dest)
+    // baseline JPEG, не progressive: mozjpeg:true у sharp включает progressive-скан, который
+    // не декодируется на части Android-устройств (пустая картинка без ошибки в сети —
+    // грабли 2026-09-03, воспроизведено на реальном телефоне поверх Wi-Fi и мобильных данных).
+    await sharp(src).resize({ width: WIDTH, withoutEnlargement: true }).jpeg({ quality: QUALITY, progressive: false }).toFile(dest)
     const after = fs.statSync(dest).size
     totalBefore += before
     totalAfter += after
