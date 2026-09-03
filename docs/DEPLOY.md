@@ -88,6 +88,15 @@ ssh hetzner 'cd /var/www/dacha-api/web && npm ci && npm run build && mkdir -p /v
 ```
 nginx-блок (один раз) — в `/etc/nginx/sites-available/dacha`, **до** catch-all `location / { proxy_pass ... }`:
 ```nginx
+# index.html — no-cache: без этого браузер может неделями не подтягивать новый деплой
+# (грабли 2026-09-03 — пользователь не видел свежий CSP-фикс до ручного Ctrl+Shift+R).
+# Хэшированные assets/*.js/*.css кэшируются как обычно — их имя меняется на каждой сборке,
+# так что этот блок ставится ОДИН РАЗ и больше не трогается.
+location = /app/index.html {
+    alias /var/www/dacha-web/index.html;
+    add_header Cache-Control "no-cache";
+}
+
 location /app/ {
     alias /var/www/dacha-web/;
     try_files $uri $uri/ /app/index.html;
