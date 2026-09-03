@@ -212,6 +212,23 @@ ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/generate-blog.js ../d
 Публикация статьи (шаги над этим блоком) автоматически появляется и в приложении: **отдельного
 шага деплоя нет**, фид просто перечитывает манифест при изменении его `mtime`.
 
+⚠️ **Требовал точечной правки nginx (сделано на проде 2026-09-03).** Публичные страницы блога
+редиректят на `calendacha.ru` префиксным `location /blog/ { return 301 ...; }` (см. ниже) — этот
+же префикс молча ловил и API-роут `/blog/feed`, 301-я его на статический лендинг вместо ответа
+от бэкенда (баг замечен и исправлен сразу при первом деплое фичи). Фикс — точный `location =`
+**перед** префиксным блоком (nginx матчит `=` вне зависимости от порядка, но так нагляднее):
+```nginx
+location = /blog/feed {
+    proxy_pass http://localhost:3002;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+Ставится один раз, уже в конфиге на проде. При переносе на другой домен/окружение — не забыть.
+
 **При подготовке каждого нового батча — секция `FAQ:` обязательна** (правило владельца,
 2026-08-13), по аналогии с `Telegram:`. 2–4 пары `В:`/`О:` на пост, отделены пустой строкой,
 ставится в тексте между основным телом и `Telegram:`:
@@ -232,13 +249,13 @@ FAQ:
 
 Идемпотентно — повторный прогон того же файла не плодит дублей (состояние в
 `backend/scripts/.blog-manifest.json`, не в git, живёт на VPS постоянно — `git reset --hard`
-его не трогает, т.к. файл untracked). Требуется свой location-блок в nginx (один раз,
-как для `/spravochnik/` выше):
+его не трогает, т.к. файл untracked). Публичные страницы блога (не путать с фидом приложения
+выше) обслуживаются `calendacha.ru`, а не `dacha.studio1008.com` — nginx-конфиг сайта редиректит
+префикс целиком (SEO-миграция 2026-08-25, уже в проде):
 
 ```nginx
 location /blog/ {
-    root /var/www/dacha-landing;
-    try_files $uri $uri/ =404;
+    return 301 https://calendacha.ru$request_uri;
 }
 ```
 
