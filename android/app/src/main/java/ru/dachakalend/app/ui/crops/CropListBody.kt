@@ -21,6 +21,13 @@ import androidx.compose.ui.unit.sp
 import ru.dachakalend.app.data.model.Crop
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
+// Сетка карточки ~48dp иконки/~точечный размер — полноразмерный оригинал (900px, 100–500 КБ)
+// на ~67 культурах разом на медленном канале ощутимо тормозит (грабли 2026-09-03, живой
+// репорт с Сербия→Германия). Превью (320px, ~10–30 КБ) — тот же файл в подпапке thumb/,
+// генерируется backend/scripts/resize-crop-thumbs.js. Деталь культуры (CropDetailScreen) —
+// один оригинал, не сетка, там превью не нужно.
+private fun cropThumbUrl(url: String) = url.replace("/media/crops/", "/media/crops/thumb/")
+
 // Список культур (однолетние/многолетние — отдельными группами) — вынесено из CropsScreen.kt,
 // чтобы переиспользовать в ReferenceScreen (см. spec §5 Android). LazyListScope-расширение,
 // а не composable с собственным LazyColumn: список встраивается в общий скролл экрана.
@@ -80,7 +87,7 @@ private fun CropCard(crop: Crop, onClick: () -> Unit) {
         ) {
             if (crop.imageUrl != null) {
                 AsyncImage(
-                    model = crop.imageUrl,
+                    model = cropThumbUrl(crop.imageUrl),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))

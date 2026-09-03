@@ -2,6 +2,12 @@ import { Link } from 'react-router-dom'
 import { categoryLabel } from '../api/labels'
 import type { Crop } from '../api/types'
 
+// Сетка рендерит карточку в ~230px — полноразмерный оригинал (900px, 100–500 КБ) на
+// ~67 культурах разом на медленном канале ощутимо тормозит (грабли 2026-09-03). Превью
+// (320px, ~10–30 КБ) — тот же файл в подпапке thumb/, генерируется resize-crop-thumbs.js.
+// Деталь культуры (CropDetailScreen) — один оригинал, не сетка, там превью не нужно.
+const cropThumbUrl = (url: string) => url.replace('/media/crops/', '/media/crops/thumb/')
+
 // Список культур (карточки-ссылки на деталь), однолетние/многолетние — отдельными группами.
 // Вынесено из CropsScreen.tsx, чтобы переиспользовать в ReferenceScreen (см. spec §5 web).
 export default function CropList({ crops }: { crops: Crop[] }) {
@@ -34,7 +40,7 @@ function CropGroup({ title, subtitle, crops }: { title?: string; subtitle?: stri
           <Link key={c.id} to={`/crops/${c.id}`} className="dacha-card-link flex flex-col gap-1 p-4">
             {c.image_url && (
               <img
-                src={c.image_url}
+                src={cropThumbUrl(c.image_url)}
                 alt={c.name}
                 loading="lazy"
                 className="mb-1 aspect-[4/3] w-full rounded-btn object-cover"
