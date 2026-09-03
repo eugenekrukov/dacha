@@ -105,9 +105,11 @@ describe('POST /photos', () => {
     await app.close()
   })
 
-  it('заблокированная посадка (сверх free-набора, без подписки) → 402, файл не обработан', async () => {
+  it('заблокированная посадка (сверх free-набора, без подписки) → 402, файл не обработан, отмечен limit_hit_at', async () => {
     const img = fakeImageService()
-    const db = makeDb({ freeIds: [1, 2, 3] })   // посадка 5 вне свободного набора
+    const queries = []
+    const baseDb = makeDb({ freeIds: [1, 2, 3] })   // посадка 5 вне свободного набора
+    const db = { ...baseDb, query: async (sql, params) => { queries.push(sql); return baseDb.query(sql, params) } }
     const app = await buildApp(db, { imageService: img })
     const res = await supertest(app.server)
       .post('/photos')
@@ -117,6 +119,7 @@ describe('POST /photos', () => {
     expect(res.status).toBe(402)
     expect(res.body.error).toBe('planting_locked')
     expect(img.processed).toHaveLength(0)
+    expect(queries.some((sql) => sql.includes('UPDATE users SET limit_hit_at'))).toBe(true)
     await app.close()
   })
 

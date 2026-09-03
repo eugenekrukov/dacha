@@ -2,7 +2,7 @@
 
 const fsPromises = require('fs/promises')
 const path = require('path')
-const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
+const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked, markLimitHit } = require('../utils/access')
 
 const PHOTO_LIMIT_FREE = 3
 const PHOTO_LIMIT_PAID = 30
@@ -57,6 +57,7 @@ module.exports = async function (fastify, opts) {
     const state = await freeTierState(fastify.db, userId)
     if (isPlantingLocked(state, planting)) {
       try { await data.toBuffer() } catch {}
+      await markLimitHit(fastify.db, userId)
       return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
     }
 
