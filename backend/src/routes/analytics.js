@@ -31,6 +31,16 @@ module.exports = async function (fastify) {
     reply.code(204).send()
   })
 
+  // POST /analytics/paywall-opened — фиксирует первое открытие экрана пейволла (воронка
+  // регистрация→оплата). Идемпотентно, тело не нужно.
+  fastify.post('/paywall-opened', auth, async (request, reply) => {
+    await fastify.db.query(
+      'UPDATE users SET paywall_opened_at = NOW() WHERE id = $1 AND paywall_opened_at IS NULL',
+      [request.user.userId]
+    )
+    reply.code(204).send()
+  })
+
   // GET /analytics/summary — метрики для экрана аналитики
   // Возвращает:
   //   total_actions   — всего действий

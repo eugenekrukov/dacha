@@ -55,6 +55,31 @@ describe('POST /analytics/first-open', () => {
   })
 })
 
+describe('POST /analytics/paywall-opened', () => {
+  it('без токена → 401', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server).post('/analytics/paywall-opened')
+    expect(res.status).toBe(401)
+    await app.close()
+  })
+
+  it('с токеном → 204, ставит paywall_opened_at один раз', async () => {
+    const queries = []
+    const mockDb = { query: async (sql, params) => { queries.push({ sql, params }); return { rows: [] } } }
+    const app = await buildApp(mockDb)
+    const token = makeToken(app)
+
+    const res = await supertest(app.server)
+      .post('/analytics/paywall-opened')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(204)
+    expect(queries[0].sql).toMatch(/UPDATE users SET paywall_opened_at = NOW\(\)/)
+    expect(queries[0].sql).toMatch(/WHERE id = \$1 AND paywall_opened_at IS NULL/)
+    await app.close()
+  })
+})
+
 describe('GET /analytics/summary', () => {
   it('возвращает структуру с обязательными полями', async () => {
     const app = await buildApp(makeMockDb())
