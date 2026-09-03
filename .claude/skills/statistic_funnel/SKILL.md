@@ -1,13 +1,14 @@
 ---
 name: statistic_funnel
-description: Use when the user runs /statistic_funnel or asks for the acquisition/activation funnel of Dacha — registrations → email confirmed → garden created → first planting → trial started → paid, computed over REAL users only (test accounts excluded).
+description: Use when the user runs /statistic_funnel or asks for the acquisition/activation funnel of Dacha — registrations → email confirmed → garden created → first planting → hit free limit → paywall opened → payment started → paid, computed over REAL users only (test accounts excluded).
 ---
 
 # /statistic_funnel — воронка Dacha (только реальные пользователи)
 
 Считает воронку в **проде** (Postgres `dacha_db` на VPS `hetzner`) из существующих таблиц,
 **исключая тест-аккаунты** (`users.is_test = false`):
-регистрации → подтв. email → создали участок → 1-я посадка → старт триала → оплатили.
+регистрации → подтв. email → создали участок → 1-я посадка → упёрся в лимит → paywall открыт →
+оплата начата → оплатили.
 
 > ⚠️ Требует миграцию `041_analytics_is_test.sql` (колонка `users.is_test`). Если запрос падает на
 > отсутствии колонки — миграция ещё не задеплоена на VPS (`npm run migrate`).
