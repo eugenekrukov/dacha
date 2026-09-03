@@ -11,11 +11,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -81,12 +85,15 @@ fun bedsAreaLines(beds: List<ru.dachakalend.app.data.model.GardenBed>): BedsArea
 fun ProfileScreen(
     onOpenAnalytics: () -> Unit,
     onOpenJournal: () -> Unit,
+    onOpenSeeds: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenPlanting: (Int) -> Unit,
     onEditGarden: () -> Unit,
     onLogout: () -> Unit,
     onVerifyEmail: (email: String?) -> Unit,
     viewModel: FeedViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Лента", "Статистика", "Аккаунт")
@@ -126,6 +133,18 @@ fun ProfileScreen(
                     listOf(
                         HubEntry(Icons.Default.Insights, "Статистика", "Серия дней, активность, экспорт в CSV", onOpenAnalytics),
                         HubEntry(Icons.AutoMirrored.Filled.MenuBook, "Журнал действий", "История действий с заметками и фото", onOpenJournal),
+                        HubEntry(Icons.Default.Inventory2, "Мои семена", "Что уже куплено и у чего вышел срок", onOpenSeeds),
+                        HubEntry(Icons.Default.Settings, "Настройки", "Подписка, уведомления, внешний вид", onOpenSettings),
+                        // Веб-версия — в самом приложении иначе о ней не узнают (замечание владельца
+                        // 2026-07-30), перенесено из удалённого таба «Ещё».
+                        HubEntry(Icons.Default.Computer, "Веб-версия", "Тот же аккаунт в браузере — удобно планировать с компьютера") {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("https://dacha.studio1008.com/app/")
+                                )
+                            )
+                        },
                     )
                 )
                 2 -> AccountSection(

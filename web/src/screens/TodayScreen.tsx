@@ -9,7 +9,9 @@ import { taskIcon, actionIcon } from '../ui/icons'
 import ActionLogSheet from '../components/ActionLogSheet'
 import HarvestLogModal from '../components/HarvestLogModal'
 import ErrorCard from '../components/ErrorCard'
-import type { ActionLog, Recommendation, TaskUrgency, TodayResponse, TodayTask } from '../api/types'
+import ArticleList from '../components/ArticleList'
+import { pickArticleOfDay } from '../lib/articleOfDay'
+import type { ActionLog, BlogPost, Recommendation, TaskUrgency, TodayResponse, TodayTask } from '../api/types'
 
 // Локальная дата (без времени) — для отбора действий, выполненных «сегодня».
 function isToday(iso: string): boolean {
@@ -75,6 +77,7 @@ export default function TodayScreen() {
   const [today, setToday] = useState<TodayResponse | null>(null)
   const [doneToday, setDoneToday] = useState<ActionLog[]>([])
   const [recs, setRecs] = useState<Recommendation[]>([])
+  const [articleOfDay, setArticleOfDay] = useState<BlogPost | null>(null)
   const [dismissed, setDismissed] = useState<Set<string>>(loadDismissed)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -88,11 +91,13 @@ export default function TodayScreen() {
       api.getToday(gardenId),
       api.getRecommendations(gardenId).catch(() => []),
       api.getGardenActions(gardenId).catch(() => [] as ActionLog[]),
+      api.getBlogFeed(50, 0).catch(() => ({ items: [] as BlogPost[], total: 0 })),
     ])
-      .then(([t, r, actions]) => {
+      .then(([t, r, actions, feed]) => {
         setToday(t)
         setRecs(r)
         setDoneToday(actions.filter((a) => isToday(a.logged_at)))
+        setArticleOfDay(pickArticleOfDay(feed.items, new Date()))
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Ошибка загрузки'))
       .finally(() => setLoading(false))
@@ -286,6 +291,13 @@ export default function TodayScreen() {
               {recsExpanded ? 'Свернуть' : `Показать ещё (${visibleRecs.length - 3})`}
             </button>
           )}
+        </section>
+      )}
+
+      {articleOfDay && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg font-black">Почитать</h2>
+          <ArticleList articles={[articleOfDay]} />
         </section>
       )}
 

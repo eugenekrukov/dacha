@@ -5,6 +5,7 @@ import type {
   AnalyticsSummary,
   AuthResponse,
   BillingPlan,
+  BlogPost,
   CreateGardenRequest,
   CreatePaymentResponse,
   CreatePlantingRequest,
@@ -156,6 +157,10 @@ export const api = {
     return request<GuideEntry[]>(`/guide${s ? `?${s}` : ''}`, { auth: false })
   },
   getGuideEntry: (slug: string) => request<GuideEntryDetail>(`/guide/${slug}`, { auth: false }),
+
+  // --- blog ---
+  getBlogFeed: (limit = 20, offset = 0) =>
+    request<{ items: BlogPost[]; total: number }>(`/blog/feed?limit=${limit}&offset=${offset}`, { auth: false }),
 
   // --- plantings ---
   getPlantings: (gardenId: number) => request<Planting[]>(`/plantings?garden_id=${gardenId}`),

@@ -366,6 +366,17 @@ export interface AnalyticsSummary {
 }
 
 // Справочник проблем растений (дефициты/болезни/вредители) — зеркало backend routes/guide.js.
+// Блог (GET /blog/feed) — зеркало backend/src/services/blogFeed.js. Статья открывается
+// на сайте (url), нативного рендера тела нет.
+export interface BlogPost {
+  slug: string
+  title: string
+  url: string
+  published_at: string
+  image?: string | null
+  lead?: string | null
+}
+
 export type GuideKind = 'deficiency' | 'disease' | 'pest'
 
 export interface GuideEntry {

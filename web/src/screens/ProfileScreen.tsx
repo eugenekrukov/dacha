@@ -11,6 +11,8 @@ import {
   Trash2,
   RefreshCw,
   MailWarning,
+  Package,
+  Settings,
   type LucideIcon,
 } from 'lucide-react'
 import { api, ApiError } from '../api/client'
@@ -507,6 +509,8 @@ function StatsTab() {
     <div className="flex flex-col gap-3">
       <HubCard icon={BarChart3} title="Статистика и урожай" subtitle="Серия дней, активность, сборы, экспорт CSV" to="/harvests" />
       <HubCard icon={BookOpen} title="Журнал действий" subtitle="История действий с заметками и фото" to="/journal" />
+      <HubCard icon={Package} title="Мои семена" subtitle="Каталог семян и покупки" to="/seeds" />
+      <HubCard icon={Settings} title="Настройки" subtitle="Аккаунт, уведомления, подписка" to="/settings" />
     </div>
   )
 }

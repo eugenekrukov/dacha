@@ -113,6 +113,13 @@ interface DachaApi {
     @GET("guide/{slug}")
     suspend fun getGuideEntry(@Path("slug") slug: String): GuideEntryDetail
 
+    // Blog (публичный фид блога — статья открывается на сайте)
+    @GET("blog/feed")
+    suspend fun getBlogFeed(
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): BlogFeedResponse
+
     // Plantings
     @GET("plantings")
     suspend fun getPlantings(@Query("garden_id") gardenId: Int? = null): List<Planting>

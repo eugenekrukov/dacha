@@ -17,8 +17,10 @@ import org.junit.Before
 import org.junit.Test
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
+import ru.dachakalend.app.data.model.BlogFeedResponse
 import ru.dachakalend.app.data.model.TodayResponse
 import ru.dachakalend.app.data.repository.ActionsRepository
+import ru.dachakalend.app.data.repository.BlogRepository
 import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.RecommendationsRepository
@@ -38,6 +40,7 @@ class TodayViewModelTest {
     private lateinit var plantingsRepo: PlantingsRepository
     private lateinit var gardenRepo: GardenRepository
     private lateinit var actionsRepo: ActionsRepository
+    private lateinit var blogRepo: BlogRepository
     private lateinit var tokenStorage: TokenStorage
     private lateinit var api: DachaApi
     private lateinit var todayCache: ru.dachakalend.app.data.local.TodayCache
@@ -52,6 +55,8 @@ class TodayViewModelTest {
         plantingsRepo = mockk()
         gardenRepo    = mockk(relaxed = true)
         actionsRepo   = mockk(relaxed = true)
+        blogRepo      = mockk()
+        coEvery { blogRepo.getBlogFeed(any(), any()) } returns Result.Success(BlogFeedResponse(emptyList(), 0))
         // relaxed: прочие save*/get*-вызовы кэша возвращают пустые значения по умолчанию
         tokenStorage  = mockk(relaxed = true)
         api           = mockk(relaxed = true)
@@ -74,7 +79,7 @@ class TodayViewModelTest {
     }
 
     private fun buildViewModel() = TodayViewModel(
-        todayRepo, recsRepo, plantingsRepo, gardenRepo, actionsRepo, tokenStorage, api, todayCache, syncManager, actionQueue
+        todayRepo, recsRepo, plantingsRepo, gardenRepo, actionsRepo, tokenStorage, api, blogRepo, todayCache, syncManager, actionQueue
     )
 
     // ── Базовые состояния ─────────────────────────────────────────────────────

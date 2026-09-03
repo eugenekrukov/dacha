@@ -71,6 +71,7 @@ async function buildApp(mockDb, billingOpts = {}) {
   fastify.register(require('../../routes/seeds'), { prefix: '/seeds', imageService: billingOpts.imageService })
   fastify.register(require('../../routes/feed'), { prefix: '/feed' })
   fastify.register(require('../../routes/moon-calendar'), { prefix: '/moon-calendar' })
+  fastify.register(require('../../routes/blog'), { prefix: '/blog' })
 
   await fastify.ready()
   return fastify

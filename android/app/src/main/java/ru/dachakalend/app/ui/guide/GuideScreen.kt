@@ -23,7 +23,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import ru.dachakalend.app.data.model.GuideEntry
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 @Composable
@@ -153,95 +152,8 @@ fun GuideScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Группируем по виду в порядке: дефициты → болезни → вредители
-                    listOf("deficiency", "disease", "pest").forEach { kind ->
-                        val group = state.filtered.filter { it.kind == kind }
-                        if (group.isNotEmpty()) {
-                            item(key = "h_$kind") {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
-                                ) {
-                                    Icon(guideKindIcon(kind), contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(18.dp))
-                                    Text(
-                                        GUIDE_KINDS.first { it.first == kind }.second,
-                                        fontFamily = NunitoFamily,
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 18.sp,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
-                                }
-                            }
-                            items(group, key = { it.id }) { entry ->
-                                GuideCard(entry = entry, onClick = { onEntryClick(entry.slug) })
-                            }
-                        }
-                    }
+                    guideListBody(state.filtered, onEntryClick)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DangerBadge(danger: Int?) {
-    if (danger == null || danger < 2) return
-    val high = danger >= 3
-    val container = if (high) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer
-    val content = if (high) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
-    Box(
-        modifier = Modifier
-            .background(container, RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-    ) {
-        Text(
-            if (high) "опасно" else "осторожно",
-            fontFamily = NunitoFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            color = content
-        )
-    }
-}
-
-@Composable
-private fun GuideCard(entry: GuideEntry, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    entry.name,
-                    fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.weight(1f)
-                )
-                DangerBadge(entry.danger)
-            }
-            entry.symptoms?.let {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    it,
-                    fontFamily = NunitoFamily,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }

@@ -2,6 +2,58 @@
 
 **Дата последней сессии**: 2026-09-03
 
+## Сессия 2026-09-03 (2) — Блог в приложении + раздел «Справочник»: бэкенд + web + Android
+
+Реализован план `docs/superpowers/plans/2026-09-03-blog-in-app-nav.md` по дизайну
+`docs/superpowers/specs/2026-09-03-blog-in-app-nav-design.md`, ветка `feature/blog-in-app-nav`.
+
+**Суть:** блог (`calendacha.ru/blog/`) стал виден из приложения; каркас меню починен — таб «Ещё»
+превратился в «Справочник» (культуры + болезни + статьи, общий поиск), личное и служебное уехало
+в «Профиль». Число табов не изменилось (5).
+
+**Бэкенд:** `GET /blog/feed?limit&offset` (публичный) — `backend/src/services/blogFeed.js` читает
+`.blog-manifest.json` + парсит `docs/vk-content/*.md` уже существующим `parseContentFile`,
+сопоставляет по `title`, лид — первый абзац тела (обрезка на границе слова, 200 символов). Кэш в
+памяти, инвалидация по `mtimeMs` манифеста. Ни таблицы, ни нового шага деплоя — см. `DEPLOY.md`.
+13 тестов (vitest), полный `npm test` зелёный (не считая одного предсуществующего несвязанного
+падения в `telegramQueue.test.js`, воспроизводится и на main).
+
+**Web:** новый `screens/ReferenceScreen.tsx` (`/reference`) — поле поиска + чипы сегментов
+(Все/Культуры/Болезни/Статьи); пустой запрос → список активного сегмента («Все» → статьи);
+непустой → поиск по всем трём корпусам сразу, группы с заголовками, сегмент фильтрует группу.
+Списки культур/проблем вынесены в переиспользуемые `components/CropList.tsx` / `GuideList.tsx`
+(были частью `CropsScreen`/`GuideScreen` — те стали тоньше). Новый `components/ArticleList.tsx`
+(карточка статьи + «Показать ещё»), `lib/articleOfDay.ts` (чистая функция). `Layout.tsx`: `PRIMARY`
+теперь 5 пунктов (Сегодня · Календарь · Посадки · Справочник · Профиль), `MORE`/`MoreMenu`/drop-up
+удалены целиком. `TodayScreen.tsx`: секция «Почитать» последней, после «Советов дня». `ProfileScreen.tsx`:
+карточки «Мои семена»/«Настройки» в «Статистике». CSP `img-src` +`images.pexels.com`/`ir.ozone.ru`.
+`npm run typecheck` — чисто; живая проверка в превью (логин demo@dacha.ru) — 5 табов, поиск находит
+культуру/статью, «Мои семена»/«Настройки» на месте.
+
+**Android:** новый `ui/reference/ReferenceScreen.kt` + `ReferenceViewModel.kt` — то же поведение,
+что на web (поиск по трём корпусам, FilterChip-сегменты вместо `SegmentedButton` — переиспользован
+существующий паттерн `CropsScreen`/`GuideScreen`, а не заведён новый компонент). Списковые части
+вынесены в `LazyListScope`-расширения `cropListBody`/`guideListBody` (`ui/crops/CropListBody.kt`,
+`ui/guide/GuideListBody.kt`) — переиспользуются и в `CropsScreen`/`GuideScreen`, и в новом экране.
+`ui/reference/ArticleListBody.kt` — карточка статьи, тап → `CustomTabsIntent` (как в
+`PaywallScreen.kt`), `runCatching` + тост при отсутствии браузера. `BlogRepository` + модели
+`BlogPost`/`BlogFeedResponse` + метод `DachaApi.getBlogFeed` (публичный). `Screen.More` →
+`Screen.Reference`, `bottomNavItems` (5 пунктов, тот же порядок, что на web), `ui/more/MoreScreen.kt`
+удалён. `ProfileScreen.kt`: карточки «Мои семена»/«Настройки»/«Веб-версия» в хабе «Статистика».
+`TodayViewModel`/`TodayScreen`: секция «Почитать» последней (см. web), `pickArticleOfDay` —
+`ui/today/ArticleOfDay.kt`, offline (`TodayCache`) → секция скрыта (`articleOfDay` не кэшируется).
+Новый `ArticleOfDayTest.kt` (JUnit). `:app:compileRustoreDebugKotlin` +
+`:app:testRustoreDebugUnitTest` — BUILD SUCCESSFUL (полный набор, не только новые тесты).
+
+**Осознанно упрощено:** нет отдельного search-эндпоинта (три корпуса и так грузятся целиком, кроме
+статей — только текущая страница); поиск по культурам/справочнику — только по `name` (клиент не
+получает `search_text`/синонимы с бэкенда, спека упоминала «синонимы», но поля для них в ответе нет);
+нет пагинации бесконечным скроллом у статей — кнопка «Показать ещё».
+
+**Открыто (Phase E из плана):** код НЕ задеплоен — ни на бэкенд/веб-прод, ни в Android-релиз
+(правило: не пересобирать/передеплоивать без явной просьбы). Ветка `feature/blog-in-app-nav`
+готова к ревью/деплою по `docs/DEPLOY.md`.
+
 ## Сессия 2026-09-03 — Инструментация воронки регистрация→оплата: бэкенд + web + Android
 
 Реализован план `docs/superpowers/plans/2026-09-02-funnel-instrumentation.md` по дизайну

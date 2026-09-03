@@ -11,11 +11,13 @@ import kotlinx.coroutines.launch
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.data.model.ActionLog
+import ru.dachakalend.app.data.model.BlogPost
 import ru.dachakalend.app.data.model.Planting
 import ru.dachakalend.app.data.model.Recommendation
 import ru.dachakalend.app.data.model.TodayResponse
 import ru.dachakalend.app.data.model.TodayTask
 import ru.dachakalend.app.data.repository.ActionsRepository
+import ru.dachakalend.app.data.repository.BlogRepository
 import ru.dachakalend.app.data.repository.GardenRepository
 import ru.dachakalend.app.data.repository.PlantingsRepository
 import ru.dachakalend.app.data.repository.RecommendationsRepository
@@ -38,6 +40,8 @@ data class TodayScreenData(
     // F1: данные показаны из кэша (нет сети), cachedAt — когда снят снимок.
     val offline: Boolean = false,
     val cachedAt: Long? = null,
+    // «Статья дня» (см. spec §6) — не кэшируется офлайн: секция просто не рисуется без сети.
+    val articleOfDay: BlogPost? = null,
 )
 
 sealed class TodayUiState {
@@ -55,6 +59,7 @@ class TodayViewModel @Inject constructor(
     private val actionsRepository: ActionsRepository,
     private val tokenStorage: TokenStorage,
     private val api: DachaApi,
+    private val blogRepository: BlogRepository,
     private val todayCache: ru.dachakalend.app.data.local.TodayCache,
     private val syncManager: ru.dachakalend.app.data.sync.ActionSyncManager,
     private val actionQueue: ru.dachakalend.app.data.local.ActionQueue,
@@ -198,6 +203,8 @@ class TodayViewModel @Inject constructor(
             val todayDeferred    = async { todayRepository.getToday() }
             val recsDeferred     = async { recommendationsRepository.getRecommendations() }
             val plantingsDeferred = async { plantingsRepository.getPlantings(gardenId) }
+            // «Статья дня» — не критична, ошибка не должна ронять экран «Сегодня».
+            val blogDeferred = async { blogRepository.getBlogFeed(50, 0) }
             val actionsDeferred  = async {
                 try { api.getActions(limit = 20) } catch (_: Exception) { emptyList() }
             }
@@ -248,12 +255,16 @@ class TodayViewModel @Inject constructor(
                     // Сервер отдал актуальный список (дисмиссалы уже применены) — локальные
                     // оптимистичные скрытия больше не нужны.
                     _pendingHiddenTasks.value = emptySet()
+                    val blogResult = blogDeferred.await()
+                    val articleOfDay = (blogResult as? Result.Success)?.data?.items
+                        ?.let { pickArticleOfDay(it, java.time.LocalDate.now()) }
                     val data = TodayScreenData(
                         today          = todayResult.data,
                         recommendations = if (recsResult is Result.Success) recsResult.data else emptyList(),
                         // Завершённые (архивные) посадки не показываем в быстрых действиях
                         plantings      = plantingsList.filter { it.stage != "done" },
                         todayActions   = todayActions,
+                        articleOfDay   = articleOfDay,
                     )
                     if (gardenIdForCache != -1) {
                         todayCache.save(ru.dachakalend.app.data.local.CachedToday(

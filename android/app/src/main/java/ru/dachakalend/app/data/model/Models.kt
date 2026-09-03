@@ -480,6 +480,24 @@ data class GuideEntryDetail(
     val crops: List<GuideCropLink> = emptyList()
 )
 
+// --- Блог (GET /blog/feed) — статья открывается на сайте, нативного рендера тела нет. ---
+
+@JsonClass(generateAdapter = true)
+data class BlogFeedResponse(
+    val items: List<BlogPost>,
+    val total: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class BlogPost(
+    val slug: String,
+    val title: String,
+    val url: String,
+    @Json(name = "published_at") val publishedAt: String,
+    val image: String? = null,
+    val lead: String? = null
+)
+
 // --- Planting requests ---
 
 @JsonClass(generateAdapter = true)

@@ -1,38 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, useLocation, Outlet } from 'react-router-dom'
 import { api } from '../api/client'
 import { useGardens } from '../garden/GardenContext'
-import { useModalA11y } from './Modal'
-import {
-  Home,
-  Sprout,
-  CalendarDays,
-  BookOpen,
-  User,
-  MoreHorizontal,
-  Package,
-  ShieldAlert,
-  Settings,
-  type LucideIcon,
-} from 'lucide-react'
+import { Home, Sprout, CalendarDays, BookOpen, User, type LucideIcon } from 'lucide-react'
 import Sunflower from '../ui/Sunflower'
 
 type Item = { to: string; label: string; icon: LucideIcon }
 
-// Частые разделы — на виду (верхний ряд / нижний бар). Зеркало Android bottom-nav
-// (Navigation.kt bottomNavItems): тот же порядок и та же метафора иконки «Сегодня».
+// Зеркало Android bottom-nav (Navigation.kt bottomNavItems): тот же порядок и та же
+// метафора иконок. «Ещё» больше нет — «Справочник» (общее) вместо него, личное/служебное
+// уехало в «Профиль» (см. spec §3).
 const PRIMARY: Item[] = [
   { to: '/today', label: 'Сегодня', icon: Home },
   { to: '/calendar', label: 'Календарь', icon: CalendarDays },
   { to: '/plantings', label: 'Посадки', icon: Sprout },
+  { to: '/reference', label: 'Справочник', icon: BookOpen },
   { to: '/profile', label: 'Профиль', icon: User },
-]
-// Редкие разделы — под «Ещё». Журнал/Аналитика переехали в «Профиль» → «Статистика».
-const MORE: Item[] = [
-  { to: '/seeds', label: 'Мои семена', icon: Package },
-  { to: '/crops', label: 'Справочник культур', icon: BookOpen },
-  { to: '/guide', label: 'Болезни и дефициты', icon: ShieldAlert },
-  { to: '/settings', label: 'Настройки', icon: Settings },
 ]
 
 // Иконка навигации с опциональным красным бейджем-счётчиком (зеркало Android BadgedBox
@@ -57,79 +40,6 @@ const bottomItem = (isActive: boolean) =>
   `mx-0.5 my-1.5 flex flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl text-[11px] font-bold transition ${
     isActive ? 'bg-primary/10 text-primary' : 'text-muted'
   }`
-
-function MoreMenu({ dropUp = false }: { dropUp?: boolean }) {
-  const [open, setOpen] = useState(false)
-  const loc = useLocation()
-  const active = MORE.some((i) => loc.pathname.startsWith(i.to))
-  const menuRef = useRef<HTMLDivElement | null>(null)
-  useModalA11y(menuRef, () => setOpen(false), open)
-
-  const menu = open && (
-    <>
-      <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-      <div
-        ref={menuRef}
-        role="menu"
-        className={
-          dropUp
-            ? 'fixed inset-x-3 bottom-20 z-30 mx-auto flex max-w-xs flex-col gap-1 rounded-card border border-black/10 bg-white p-2 shadow-card'
-            : 'absolute right-0 z-30 mt-1 flex min-w-[210px] flex-col gap-1 rounded-card border border-black/10 bg-white p-2 shadow-card'
-        }
-      >
-        {MORE.map((m) => {
-          const Icon = m.icon
-          return (
-            <NavLink
-              key={m.to}
-              to={m.to}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-2 rounded-btn px-3 py-2 font-bold transition hover:bg-background ${
-                  isActive ? 'bg-primary/10 text-primary' : 'text-[#3a2a1a]'
-                }`
-              }
-            >
-              <Icon size={18} aria-hidden /> {m.label}
-            </NavLink>
-          )
-        })}
-      </div>
-    </>
-  )
-
-  if (dropUp) {
-    return (
-      <>
-        <button
-          onClick={() => setOpen((o) => !o)}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          className={bottomItem(active)}
-        >
-          <MoreHorizontal size={20} aria-hidden />
-          <span>Ещё</span>
-        </button>
-        {menu}
-      </>
-    )
-  }
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className={`dacha-chip flex items-center gap-1.5 ${active ? 'dacha-chip-active' : ''}`}
-      >
-        <MoreHorizontal size={18} aria-hidden /> Ещё
-      </button>
-      {menu}
-    </div>
-  )
-}
 
 export default function Layout() {
   const { gardenId } = useGardens()
@@ -180,7 +90,6 @@ export default function Layout() {
               </NavLink>
             )
           })}
-          <MoreMenu />
         </nav>
       </header>
 
@@ -198,7 +107,6 @@ export default function Layout() {
             </NavLink>
           )
         })}
-        <MoreMenu dropUp />
       </nav>
     </div>
   )

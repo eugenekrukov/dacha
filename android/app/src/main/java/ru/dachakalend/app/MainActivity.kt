@@ -54,7 +54,7 @@ import ru.dachakalend.app.ui.guide.GuideScreen
 import ru.dachakalend.app.ui.guide.GuideDetailScreen
 import ru.dachakalend.app.ui.plantings.PlantingInfoScreen
 import ru.dachakalend.app.ui.profile.ProfileScreen
-import ru.dachakalend.app.ui.more.MoreScreen
+import ru.dachakalend.app.ui.reference.ReferenceScreen
 import ru.dachakalend.app.ui.seeds.SeedsScreen
 import ru.dachakalend.app.ui.journal.JournalScreen
 import ru.dachakalend.app.ui.plantings.PlantingsScreen
@@ -429,6 +429,8 @@ class MainActivity : ComponentActivity() {
                             ProfileScreen(
                                 onOpenAnalytics = { navController.navigate(Screen.Analytics.route) },
                                 onOpenJournal   = { navController.navigate(Screen.Journal.route) },
+                                onOpenSeeds     = { navController.navigate(Screen.Seeds.route) },
+                                onOpenSettings  = { navController.navigate(Screen.Settings.route) },
                                 onOpenPlanting  = { id -> navController.navigate(Screen.PlantingInfo.route(id)) },
                                 onEditGarden    = { navController.navigate(Screen.GardenEdit.route) },
                                 onLogout        = {
@@ -448,12 +450,10 @@ class MainActivity : ComponentActivity() {
                                 onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
-                        composable(Screen.More.route) {
-                            MoreScreen(
-                                onOpenSeeds    = { navController.navigate(Screen.Seeds.route) },
-                                onOpenCrops    = { navController.navigate(Screen.Crops.route) },
-                                onOpenGuide    = { navController.navigate(Screen.Guide.route) },
-                                onOpenSettings = { navController.navigate(Screen.Settings.route) },
+                        composable(Screen.Reference.route) {
+                            ReferenceScreen(
+                                onCropClick = { crop -> navController.navigate(Screen.CropDetail.route(crop.id)) },
+                                onGuideEntryClick = { slug -> navController.navigate(Screen.GuideDetail.route(slug)) }
                             )
                         }
                         // Справочник проблем — без фильтра (из «Информации»)

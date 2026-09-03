@@ -1,10 +1,10 @@
 package ru.dachakalend.app.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -61,8 +61,9 @@ sealed class Screen(val route: String) {
     // Хаб «Информация» (таб): лента + статистика + аккаунт
     object Profile : Screen("profile")
 
-    // Таб «Ещё»: справочник культур + болезни + настройки (зеркало web-меню «Ещё»)
-    object More : Screen("more")
+    // Таб «Справочник»: культуры + болезни + статьи блога с общим поиском (см. spec §3/§5).
+    // Личное и служебное («Мои семена», «Настройки», «Веб-версия») уехало в «Профиль».
+    object Reference : Screen("reference")
 
     // Инвентарь семян (что уже лежит в коробке с пакетиками)
     object Seeds : Screen("seeds")
@@ -109,8 +110,8 @@ val bottomNavItems = listOf(
     BottomNavItem(Screen.Today, "Сегодня", Icons.Default.Home),
     BottomNavItem(Screen.Calendar, "Календарь", Icons.Default.CalendarMonth),
     BottomNavItem(Screen.Plantings, "Посадки", Icons.Default.Grass),
+    BottomNavItem(Screen.Reference, "Справочник", Icons.AutoMirrored.Filled.MenuBook),
     BottomNavItem(Screen.Profile, "Профиль", Icons.Default.Person),
-    BottomNavItem(Screen.More, "Ещё", Icons.Default.MoreHoriz),
 )
 
 val screensWithoutBottomBar = setOf(

@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -150,6 +151,7 @@ fun TodayScreen(
                     },
                     plantings     = state.data.plantings,
                     todayActions  = state.data.todayActions,
+                    articleOfDay  = state.data.articleOfDay,
                     onDeleteAction  = { action -> viewModel.deleteAction(action.id, action.clientId) },
                     onSnoozeRec     = { rec -> viewModel.snoozeRec(recKey(rec)) },
                     onDeleteRec     = { rec -> viewModel.deleteRec(recKey(rec)) },
@@ -178,6 +180,7 @@ private fun TodayContent(
     recommendations: List<Recommendation>,
     plantings: List<Planting>,
     todayActions: List<ActionLog> = emptyList(),
+    articleOfDay: ru.dachakalend.app.data.model.BlogPost? = null,
     offline: Boolean = false,
     cachedAt: Long? = null,
     queueSize: Int = 0,
@@ -493,6 +496,19 @@ private fun TodayContent(
                         )
                     }
                 }
+            }
+
+            // «Почитать» — статья дня (см. spec §6), последняя секция экрана. Офлайн/ошибка/
+            // пустой фид → articleOfDay = null, секция просто не рисуется.
+            if (articleOfDay != null) {
+                item {
+                    SectionTitle(
+                        icon     = Icons.AutoMirrored.Filled.MenuBook,
+                        title    = "Почитать",
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+                item { ru.dachakalend.app.ui.reference.ArticleCard(articleOfDay) }
             }
         }
     }
