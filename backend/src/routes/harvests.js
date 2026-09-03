@@ -1,6 +1,6 @@
 'use strict'
 
-const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
+const { FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked, markLimitHit } = require('../utils/access')
 
 // pg возвращает DECIMAL как строку — нормализуем weight_kg в число
 function normalizeHarvest(h) {
@@ -41,6 +41,7 @@ module.exports = async function (fastify) {
 
     const state = await freeTierState(fastify.db, request.user.userId)
     if (isPlantingLocked(state, planting)) {
+      await markLimitHit(fastify.db, request.user.userId)
       return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
     }
 
