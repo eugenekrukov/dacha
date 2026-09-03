@@ -1,7 +1,7 @@
 'use strict'
 
 const { getNextCareTask, getOverdueCareTask, effectivePlantedAt, seasonLengthDays, seasonStartDoy, seasonEndDoy, effectiveHarvestDays, effectiveHarvestWindow, nextHarvestWindowDate } = require('../utils/todayLogic')
-const { hasAccess, FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked } = require('../utils/access')
+const { hasAccess, FREE_PLANTING_LIMIT, freeTierState, isPlantingLocked, markLimitHit } = require('../utils/access')
 const { getZoneForRegion } = require('../utils/regionCoords')
 const { storedSeasonStart, storedSeasonEnd } = require('../services/seasonService')
 
@@ -99,6 +99,7 @@ module.exports = async function (fastify) {
         [request.user.userId]
       )
       if (parseInt(countRes.rows[0].count, 10) >= FREE_PLANTING_LIMIT) {
+        await markLimitHit(fastify.db, request.user.userId)
         return reply.code(402).send({ error: 'plan_limit_reached', limit: FREE_PLANTING_LIMIT })
       }
     }
@@ -268,6 +269,7 @@ module.exports = async function (fastify) {
       if (!planting) return reply.code(404).send({ error: 'Planting not found' })
       const state = await freeTierState(fastify.db, request.user.userId)
       if (isPlantingLocked(state, planting)) {
+        await markLimitHit(fastify.db, request.user.userId)
         return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
       }
     }
@@ -307,6 +309,7 @@ module.exports = async function (fastify) {
     if (!planting) return reply.code(404).send({ error: 'Planting not found' })
     const state = await freeTierState(fastify.db, request.user.userId)
     if (isPlantingLocked(state, planting)) {
+      await markLimitHit(fastify.db, request.user.userId)
       return reply.code(402).send({ error: 'planting_locked', limit: FREE_PLANTING_LIMIT })
     }
 

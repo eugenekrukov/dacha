@@ -52,9 +52,11 @@ describe('POST /plantings', () => {
     await app.close()
   })
 
-  it('free-пользователь на лимите (3 активных посадки) → 402 plan_limit_reached', async () => {
+  it('free-пользователь на лимите (3 активных посадки) → 402 plan_limit_reached + отметка limit_hit_at', async () => {
+    const queries = []
     const app = await buildApp(makeMockDb({
-      query: async (sql) => {
+      query: async (sql, params) => {
+        queries.push(sql)
         const gated = gateQuery(sql, { plantingCount: 3 })
         if (gated) return gated
         if (sql.includes('FROM gardens')) return { rows: [{ ok: 1 }] }
@@ -70,6 +72,7 @@ describe('POST /plantings', () => {
 
     expect(res.status).toBe(402)
     expect(res.body.error).toBe('plan_limit_reached')
+    expect(queries.some((sql) => sql.includes('UPDATE users SET limit_hit_at'))).toBe(true)
     await app.close()
   })
 
@@ -598,8 +601,14 @@ describe('read-only гейт free-тарифа (посадки сверх free-�
     }
   }
 
-  it('PATCH /:id/info по заблокированной посадке → 402 planting_locked', async () => {
-    const app = await buildApp(lockedDb())
+  it('PATCH /:id/info по заблокированной посадке → 402 planting_locked + отметка limit_hit_at', async () => {
+    const queries = []
+    const app = await buildApp({
+      query: async (sql, params) => {
+        queries.push(sql)
+        return lockedDb().query(sql, params)
+      },
+    })
     const res = await supertest(app.server)
       .patch('/plantings/1/info')
       .set('Authorization', `Bearer ${makeToken(app)}`)
@@ -607,17 +616,25 @@ describe('read-only гейт free-тарифа (посадки сверх free-�
 
     expect(res.status).toBe(402)
     expect(res.body.error).toBe('planting_locked')
+    expect(queries.some((sql) => sql.includes('UPDATE users SET limit_hit_at'))).toBe(true)
     await app.close()
   })
 
-  it('PATCH /:id/stage по заблокированной посадке → 402', async () => {
-    const app = await buildApp(lockedDb())
+  it('PATCH /:id/stage по заблокированной посадке → 402 + отметка limit_hit_at', async () => {
+    const queries = []
+    const app = await buildApp({
+      query: async (sql, params) => {
+        queries.push(sql)
+        return lockedDb().query(sql, params)
+      },
+    })
     const res = await supertest(app.server)
       .patch('/plantings/1/stage')
       .set('Authorization', `Bearer ${makeToken(app)}`)
       .send({ stage: 'flowering' })
 
     expect(res.status).toBe(402)
+    expect(queries.some((sql) => sql.includes('UPDATE users SET limit_hit_at'))).toBe(true)
     await app.close()
   })
 
