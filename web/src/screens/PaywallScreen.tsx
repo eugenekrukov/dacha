@@ -45,6 +45,12 @@ export default function PaywallScreen() {
       .catch(() => {})
   }, [])
 
+  // Воронка регистрация→оплата: фиксируем первое открытие пейволла. Best-effort, ошибку
+  // не показываем — второстепенное событие не должно мешать основному сценарию оплаты.
+  useEffect(() => {
+    api.markPaywallOpened().catch(() => {})
+  }, [])
+
   const buy = async (plan: BillingPlan) => {
     setBusy(plan)
     setError(null)

@@ -259,6 +259,9 @@ export const api = {
 
   // --- analytics ---
   getAnalytics: () => request<AnalyticsSummary>('/analytics/summary'),
+  // Фиксирует первое открытие экрана пейволла (воронка регистрация→оплата). Best-effort —
+  // вызывающий код глотает ошибку, показ пейволла не должен от этого зависеть.
+  markPaywallOpened: () => request<void>('/analytics/paywall-opened', { method: 'POST' }),
 
   // --- billing / promo ---
   createPayment: (plan: BillingPlan) =>
