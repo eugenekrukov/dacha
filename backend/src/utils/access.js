@@ -98,6 +98,16 @@ function isPlantingLocked(state, planting) {
 }
 
 /**
+ * Отмечает первый упор пользователя в free-лимит (для воронки регистрация→оплата) —
+ * таймстамп ставится один раз, повторные вызовы не перезаписывают. Вызывается рядом с
+ * каждым существующим 402-ответом по лимиту посадок / isPlantingLocked, саму проверку
+ * не меняет — см. docs/superpowers/specs/2026-09-02-funnel-instrumentation-design.md.
+ */
+async function markLimitHit(db, userId) {
+  await db.query('UPDATE users SET limit_hit_at = NOW() WHERE id = $1 AND limit_hit_at IS NULL', [userId])
+}
+
+/**
  * Новая дата окончания подписки после оплаты на `days` дней.
  * Продлеваем от максимума из «сейчас», текущей активной подписки и активного промо-доступа —
  * иначе оплата обрубает ещё не выгоревший промо-период (баг 2026-08-14: пользователь оплатил
@@ -124,5 +134,5 @@ function revokeSubscription(currentUntil, days) {
 module.exports = {
   SUBSCRIPTION_WINDOW_DAYS, PROMO_MONTH_DAYS, LIFETIME_UNTIL, FREE_PLANTING_LIMIT,
   isSubscribed, hasPromo, isLifetimePromo, hasAccess, extendSubscription,
-  revokeSubscription, isAdSupportedStore, freeTierState, isPlantingLocked
+  revokeSubscription, isAdSupportedStore, freeTierState, isPlantingLocked, markLimitHit
 }

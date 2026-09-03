@@ -1,6 +1,6 @@
 'use strict'
 
-const { hasAccess, isSubscribed, hasPromo, isLifetimePromo, LIFETIME_UNTIL, isAdSupportedStore, FREE_PLANTING_LIMIT, isPlantingLocked, freeTierState } = require('../utils/access')
+const { hasAccess, isSubscribed, hasPromo, isLifetimePromo, LIFETIME_UNTIL, isAdSupportedStore, FREE_PLANTING_LIMIT, isPlantingLocked, freeTierState, markLimitHit } = require('../utils/access')
 
 const daysAgo = (n) => new Date(Date.now() - n * 86_400_000)
 const daysAhead = (n) => new Date(Date.now() + n * 86_400_000)
@@ -113,5 +113,18 @@ describe('access.freeTierState', () => {
     const state = await freeTierState({ query: async () => ({ rows: [] }) }, 1)
     expect(state.paid).toBe(false)
     expect(state.freeIds.size).toBe(0)
+  })
+})
+
+describe('access.markLimitHit (воронка: первый упор в free-лимит)', () => {
+  it('ставит limit_hit_at, если он ещё не был установлен', async () => {
+    let captured = null
+    const db = { query: async (sql, params) => { captured = { sql, params }; return { rows: [] } } }
+
+    await markLimitHit(db, 42)
+
+    expect(captured.sql).toMatch(/UPDATE users SET limit_hit_at = NOW\(\)/)
+    expect(captured.sql).toMatch(/WHERE id = \$1 AND limit_hit_at IS NULL/)
+    expect(captured.params).toEqual([42])
   })
 })
