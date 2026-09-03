@@ -140,9 +140,13 @@ describe('POST /actions', () => {
     await app.close()
   })
 
-  it('заблокированная посадка (сверх free-набора, без подписки) → 402 planting_locked', async () => {
+  it('заблокированная посадка (сверх free-набора, без подписки) → 402 planting_locked + отметка limit_hit_at', async () => {
+    const queries = []
     const app = await buildApp({
-      query: async (sql) => freeTierQuery(sql, { freeIds: [7, 8, 9] }) || { rows: [{ id: 1, stage: 'growing' }] },
+      query: async (sql) => {
+        queries.push(sql)
+        return freeTierQuery(sql, { freeIds: [7, 8, 9] }) || { rows: [{ id: 1, stage: 'growing' }] }
+      },
     })
     const token = makeToken(app)
 
@@ -153,6 +157,7 @@ describe('POST /actions', () => {
 
     expect(res.status).toBe(402)
     expect(res.body.error).toBe('planting_locked')
+    expect(queries.some((sql) => sql.includes('UPDATE users SET limit_hit_at'))).toBe(true)
     await app.close()
   })
 
