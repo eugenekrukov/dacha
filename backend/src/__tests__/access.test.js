@@ -127,4 +127,10 @@ describe('access.markLimitHit (воронка: первый упор в free-л�
     expect(captured.sql).toMatch(/WHERE id = \$1 AND limit_hit_at IS NULL/)
     expect(captured.params).toEqual([42])
   })
+
+  it('не бросает исключение, если db.query падает', async () => {
+    const db = { query: async () => { throw new Error('connection lost') } }
+
+    await expect(markLimitHit(db, 42)).resolves.not.toThrow()
+  })
 })

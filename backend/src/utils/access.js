@@ -102,9 +102,16 @@ function isPlantingLocked(state, planting) {
  * таймстамп ставится один раз, повторные вызовы не перезаписывают. Вызывается рядом с
  * каждым существующим 402-ответом по лимиту посадок / isPlantingLocked, саму проверку
  * не меняет — см. docs/superpowers/specs/2026-09-02-funnel-instrumentation-design.md.
+ *
+ * Fire-and-forget аналитика: ошибку БД глотаем внутри, чтобы вызывающий 402-ответ
+ * никогда не превращался в 500 из-за сбоя этой отметки. Вызывающему коду try/catch не нужен.
  */
 async function markLimitHit(db, userId) {
-  await db.query('UPDATE users SET limit_hit_at = NOW() WHERE id = $1 AND limit_hit_at IS NULL', [userId])
+  try {
+    await db.query('UPDATE users SET limit_hit_at = NOW() WHERE id = $1 AND limit_hit_at IS NULL', [userId])
+  } catch {
+    // ponytail: аналитика необязательна — молча проглатываем, лимит и 402 не должны от неё зависеть
+  }
 }
 
 /**
