@@ -123,7 +123,7 @@
 > терминология — было вперемешку «сад»/«участок» (в одном предложении оба слова для одного и
 > того же), а в самом приложении везде «участок» («Мой участок», «Изменить участок»).
 
-## Что нового (текущий релиз — vc15, versionName 1.0.12)
+## Что нового — vc15, versionName 1.0.12 (архив, опубликован 2026-08-19)
 
 Общий текст для Google Play и RuStore (одинаковая версия в оба стора).
 
@@ -154,6 +154,32 @@ What's new:
   is now always visible and accessible on the crop card.
 - "My Seeds" got even smoother — add a packet photo in one tap right from the shopping list.
 - Watering and care logging across grouped beds now works even more smoothly offline.
+
+## Что нового (текущий релиз — vc16, versionName 1.0.13)
+
+Общий текст для Google Play и RuStore (одинаковая версия в оба стора). Один пункт из черновика
+(«плохие предшественники») сюда не попал — это уже было объявлено в vc15 выше, повторно не
+анонсируем.
+
+Что нового:
+- Новый раздел «Справочник»: культуры, болезни и статьи блога в одном месте, с общим поиском
+  по всем сразу.
+- «Статья дня» на экране «Сегодня» — свежий совет из блога каждый день.
+- Советы по уходу теперь учитывают тип почвы участка.
+- Общая площадь грядок видна прямо в шапке профиля.
+- Отложенные задачи больше не дублируются между телефоном и веб-версией.
+- Подсказки «как делать» добавлены для задач ухода и высадки.
+
+English (для второй локали, если нужна):
+
+What's new:
+- New "Reference" section: crops, diseases/pests, and blog articles in one place, with unified
+  search across all three.
+- "Article of the day" card on the Today screen — a fresh tip from the blog every day.
+- Care tips now factor in your garden's soil type.
+- Total bed area now shown right in your profile header.
+- Snoozed tasks no longer duplicate between phone and web.
+- "How to" tips added for care tasks and transplanting.
 
 ## Часто задаваемые вопросы (карточка RuStore — блок «Вопросы и ответы»)
 
