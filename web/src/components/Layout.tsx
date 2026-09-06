@@ -19,14 +19,14 @@ const PRIMARY: Item[] = [
 ]
 
 // Иконка навигации с опциональным красным бейджем-счётчиком (зеркало Android BadgedBox
-// на табе «Посадки»: число посадок, требующих ухода). Цвет = error/FrostRed (#D32F2F).
+// на табе «Посадки»: число посадок, требующих ухода). Цвет ошибки — единый red-600 (см. UI_MANIFEST §7).
 function NavIcon({ icon: Icon, size, badge }: { icon: LucideIcon; size: number; badge?: number }) {
   return (
     <span className="relative inline-flex">
       <Icon size={size} aria-hidden />
       {badge != null && badge > 0 && (
         <span
-          className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#D32F2F] px-1 text-[10px] font-black leading-none text-white"
+          className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black leading-none text-white"
           aria-label={`${badge} требуют ухода`}
         >
           {badge}

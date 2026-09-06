@@ -171,12 +171,12 @@ export default function SeedsScreen() {
       </p>
 
       {expiredCount > 0 && (
-        <div className="rounded-card bg-[#D32F2F]/10 px-4 py-3 font-bold text-[#B71C1C]">
+        <div className="rounded-card bg-red-100 px-4 py-3 font-bold text-red-700">
           Просрочено пакетиков: {expiredCount}. Всхожесть уже не та — проверьте перед посевом.
         </div>
       )}
 
-      {error && <p className="font-bold text-[#D32F2F]">{error}</p>}
+      {error && <p className="font-bold text-red-600">{error}</p>}
 
       <div className="dacha-card flex flex-col gap-2 p-4">
         <h2 className="font-black">Список покупок</h2>
@@ -335,7 +335,7 @@ export default function SeedsScreen() {
                 {seed.variety && <span className="truncate text-sm font-bold text-muted">{seed.variety}</span>}
                 <span
                   className={`text-sm font-bold ${
-                    seed.expired ? 'text-[#D32F2F]' : seed.expires_this_year ? 'text-[#B26A00]' : 'text-muted'
+                    seed.expired ? 'text-red-600' : seed.expires_this_year ? 'text-[#B26A00]' : 'text-muted'
                   }`}
                 >
                   {seed.expired
