@@ -105,6 +105,23 @@ describe('getBlogFeedItems', () => {
     expect(getBlogFeedItems()[0].lead).toBeNull()
   })
 
+  it('статья появляется в фиде по наступлению времени БЕЗ изменения манифеста (регрессия 2026-09-06: время не должно застревать в закэшированном computeItems)', () => {
+    const soon = new Date(Date.now() + 2000).toISOString()
+    setup({
+      manifest: {
+        soon: { title: 'Скоро', scheduledAt: soon, image: null, sourceFile: 'batch.md' },
+        past: { title: 'Уже вышла', scheduledAt: '2020-01-01T10:00:00+03:00', image: null, sourceFile: 'batch.md' }
+      }
+    })
+    // Кэш строится сейчас, пока «Скоро» ещё в будущем — раньше это навсегда прятало статью
+    // из фида, даже когда её время наступало, пока манифест не менялся заново.
+    expect(getBlogFeedItems().map((i) => i.slug)).toEqual(['past'])
+
+    vi.spyOn(Date, 'now').mockReturnValue(new Date(soon).getTime() + 1000)
+    expect(getBlogFeedItems().map((i) => i.slug).sort()).toEqual(['past', 'soon'])
+    vi.restoreAllMocks()
+  })
+
   it('пересчитывает при изменении mtime манифеста', () => {
     const { manifestPath } = setup({
       manifest: { a: { title: 'A', scheduledAt: '2026-01-01T10:00:00+03:00', image: null, sourceFile: 'batch.md' } }

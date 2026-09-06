@@ -13,31 +13,36 @@ class ArticleOfDayTest {
         BlogPost(slug = slug, title = slug, url = "https://calendacha.ru/blog/$slug/", publishedAt = publishedAt)
 
     @Test
-    fun `одинаковая дата даёт одну и ту же статью`() {
+    fun `есть статья на сегодня — берём её`() {
         val items = listOf(
             post("a", "2026-07-01T10:00:00+03:00"),
-            post("b", "2026-07-05T10:00:00+03:00"),
-            post("c", "2026-07-10T10:00:00+03:00"),
+            post("b", "2026-07-15T10:00:00+03:00"),
         )
-        val today = LocalDate.of(2026, 7, 15)
-        assertEquals(pickArticleOfDay(items, today)?.slug, pickArticleOfDay(items, today)?.slug)
+        assertEquals("b", pickArticleOfDay(items, LocalDate.of(2026, 7, 15))?.slug)
     }
 
     @Test
-    fun `пул фильтруется по месяцу публикации`() {
+    fun `на сегодня статьи нет — берём последнюю опубликованную`() {
         val items = listOf(
-            post("july", "2026-07-01T10:00:00+03:00"),
-            post("august", "2026-08-01T10:00:00+03:00"),
+            post("a", "2026-07-01T10:00:00+03:00"),
+            post("b", "2026-07-10T10:00:00+03:00"),
         )
-        val today = LocalDate.of(2026, 7, 20)
-        assertEquals("july", pickArticleOfDay(items, today)?.slug)
+        assertEquals("b", pickArticleOfDay(items, LocalDate.of(2026, 7, 15))?.slug)
     }
 
     @Test
-    fun `нет статей за месяц — берём весь список, а не null`() {
-        val items = listOf(post("august", "2026-08-01T10:00:00+03:00"))
-        val today = LocalDate.of(2026, 7, 20)
-        assertEquals("august", pickArticleOfDay(items, today)?.slug)
+    fun `будущие статьи не показываем заранее`() {
+        val items = listOf(
+            post("past", "2026-07-01T10:00:00+03:00"),
+            post("future", "2026-07-20T10:00:00+03:00"),
+        )
+        assertEquals("past", pickArticleOfDay(items, LocalDate.of(2026, 7, 15))?.slug)
+    }
+
+    @Test
+    fun `все статьи в будущем — null`() {
+        val items = listOf(post("future", "2026-08-01T10:00:00+03:00"))
+        assertNull(pickArticleOfDay(items, LocalDate.of(2026, 7, 20)))
     }
 
     @Test

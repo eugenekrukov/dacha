@@ -50,7 +50,6 @@ function computeItems(manifest, dir) {
     bySource.get(entry.sourceFile).push({ slug, ...entry })
   }
 
-  const now = Date.now()
   const items = []
   for (const [sourceFile, entries] of bySource) {
     const filePath = path.join(dir, sourceFile)
@@ -60,7 +59,10 @@ function computeItems(manifest, dir) {
       postsByTitle = new Map(posts.map((p) => [p.title, p]))
     }
     for (const entry of entries) {
-      if (new Date(entry.scheduledAt).getTime() > now) continue // «на завтра» — ещё не в фиде
+      // «На завтра» отфильтровывается в getBlogFeedItems() при каждом запросе, не здесь —
+      // этот список кэшируется по mtime манифеста, а "не наступило" зависит от текущего
+      // времени и должно проверяться заново на каждый вызов, иначе статья, ещё не наступившая
+      // на момент пересчёта кэша, застревает вне фида навсегда (баг, 2026-09-06).
       const post = postsByTitle.get(entry.title) // заголовок правили после публикации → лида нет
       items.push({
         slug: entry.slug,
@@ -94,7 +96,10 @@ function getBlogFeedItems() {
     const manifest = JSON.parse(fs.readFileSync(mPath, 'utf8'))
     cache = { path: mPath, mtimeMs, items: computeItems(manifest, contentDir()) }
   }
-  return cache.items
+  // «На завтра» — ещё не в фиде. Проверяется на каждый вызов (не в закэшированном
+  // computeItems), иначе статья остаётся скрытой и после того, как её время настало.
+  const now = Date.now()
+  return cache.items.filter((item) => new Date(item.published_at).getTime() <= now)
 }
 
 module.exports = { getBlogFeedItems, extractLead }

@@ -1,19 +1,27 @@
 import type { BlogPost } from '../api/types'
 
 // «Статья дня» на экране «Сегодня» — чистая функция, без состояния на сервере.
-// Одинаковая реализация на web и Android (см. spec §6): один и тот же день →
-// одна и та же статья на обеих платформах и при перезаходе.
+// Одинаковая реализация на web и Android: один и тот же день → одна и та же статья
+// на обеих платформах и при перезаходе.
 //
-//   pool = статьи с месяцем публикации == месяц(today), сезонный контент
-//   pool пуст → берём весь список; список пуст → null (секция не рисуется)
-//   pool[dayOfYear(today) % pool.length]
+// Контент блога уже сезонный (публикуется под текущие дачные работы) — просто берём
+// статью, опубликованную сегодня, а если сегодня ничего не вышло — последнюю из уже
+// опубликованных. Будущие (запланированные) статьи не показываем заранее.
 export function pickArticleOfDay(items: BlogPost[], today: Date): BlogPost | null {
-  const month = today.getMonth()
-  const pool = items.filter((a) => new Date(a.published_at).getMonth() === month)
-  const source = pool.length > 0 ? pool : items
-  if (source.length === 0) return null
+  const todayKey = dateKey(today)
+  let best: BlogPost | null = null
+  let bestKey = -1
+  for (const item of items) {
+    const key = dateKey(new Date(item.published_at))
+    if (key > todayKey) continue
+    if (key > bestKey) {
+      best = item
+      bestKey = key
+    }
+  }
+  return best
+}
 
-  const startOfYear = new Date(today.getFullYear(), 0, 0)
-  const dayOfYear = Math.floor((today.getTime() - startOfYear.getTime()) / 86_400_000)
-  return source[dayOfYear % source.length]
+function dateKey(d: Date): number {
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
 }
