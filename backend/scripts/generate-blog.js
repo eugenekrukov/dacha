@@ -136,7 +136,7 @@ function renderFaq(faq) {
 // чтобы сетка не «прыгала» из-за карточек разной формы.
 function renderCardMedia(post) {
   return post.image
-    ? `<img src="${esc(post.image)}" alt="${esc(post.title)}" loading="lazy">`
+    ? `<img src="${esc(post.image)}" alt="${esc(post.seoTitle || post.title)}" loading="lazy">`
     : `<div class="blog-card-media-fallback">🌱</div>`
 }
 
@@ -166,7 +166,7 @@ function renderIndex(pagePosts, page, totalPages) {
     <a class="blog-card" href="/blog/${p.slug}/">
       ${renderCardMedia(p)}
       <div class="blog-card-body">
-        <div class="blog-card-title">${esc(p.title)}</div>
+        <div class="blog-card-title">${esc(p.seoTitle || p.title)}</div>
         <div class="blog-card-date">${esc(p.dateLabel)}</div>
       </div>
     </a>`).join('')
@@ -205,24 +205,30 @@ function main() {
   }
 
   for (const post of eligible) {
+    // Слаг — всегда от заголовка-хука (post.title), не от seoTitle: слаг уже проиндексирован
+    // Яндексом/пользователями, менять его при добавлении SEO-заголовка нельзя (сломает URL).
     const slug = buildSlug(post.title, manifest)
     const dateLabel = new Date(post.scheduledAt).toLocaleDateString('ru-RU', {
       day: 'numeric', month: 'long', year: 'numeric'
     })
     const canonical = `${SITE}/blog/${slug}/`
+    // pageTitle — то, что видят поиск и пользователь на странице (<title>/H1/JSON-LD/карточка).
+    // post.title остаётся хуком для соцсетей; pageTitle = seoTitle, если задан в секции "SEO:"
+    // контент-файла, иначе прежнее поведение — тот же хук.
+    const pageTitle = post.seoTitle || post.title
 
     const dir = path.join(OUT_DIR, slug)
     fs.mkdirSync(dir, { recursive: true })
     writePage(path.join(dir, 'index.html'), renderShell({
-      title: buildTitle(post.title),
+      title: buildTitle(pageTitle),
       description: buildDescription(post.body),
       canonical,
-      breadcrumbs: `<a href="/">Главная</a> / <a href="/blog/">Блог</a> / ${esc(post.title)}`,
-      bodyHtml: renderPostBody({ ...post, dateLabel }),
+      breadcrumbs: `<a href="/">Главная</a> / <a href="/blog/">Блог</a> / ${esc(pageTitle)}`,
+      bodyHtml: renderPostBody({ ...post, title: pageTitle, dateLabel }),
       activeNav: 'blog',
       image: post.image || undefined,
       jsonLdBlocks: [
-        articleJsonLd(post.title, canonical, {
+        articleJsonLd(pageTitle, canonical, {
           '@type': 'BlogPosting',
           description: buildDescription(post.body),
           datePublished: post.scheduledAt,
@@ -235,15 +241,15 @@ function main() {
         breadcrumbJsonLd([
           { name: 'Главная', url: `${SITE}/` },
           { name: 'Блог', url: `${SITE}/blog/` },
-          { name: post.title, url: canonical }
+          { name: pageTitle, url: canonical }
         ]),
         ...(post.faq && post.faq.length ? [faqJsonLd(post.faq)] : [])
       ]
     }))
 
     manifest[slug] = {
-      title: post.title, scheduledAt: post.scheduledAt, dateLabel, image: post.image || null,
-      sourceFile: path.basename(file)
+      title: post.title, seoTitle: post.seoTitle || null, scheduledAt: post.scheduledAt,
+      dateLabel, image: post.image || null, sourceFile: path.basename(file)
     }
   }
 

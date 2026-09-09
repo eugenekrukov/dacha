@@ -200,6 +200,9 @@ Telegram:
 
 #тыква #урожай #огород
 
+SEO:
+Тыква: сколько завязей оставлять на плети
+
 Теги: #тыква #урожай #огород #дача
 Картинка: https://images.pexels.com/photos/1549629/pexels-photo-1549629.jpeg?auto=compress&cs=tinysrgb&w=1280
 

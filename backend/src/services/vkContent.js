@@ -18,6 +18,14 @@
 //   Короткая версия для Telegram-канала (необязательно). Хук, эмодзи, короткие абзацы —
 //   без markdown-заголовков. Если секции нет — в Telegram уйдёт общий body (см. telegramQueueJob.js).
 //
+//   SEO:
+//   Заголовок страницы блога, если он должен отличаться от заголовка поста (необязательно).
+//   Заголовок поста ("## ... — Заголовок") — хук для ленты ВК/Дзен (контраст, интрига), под
+//   поисковые запросы не заточен. Секция SEO — то же самое, но в формулировке реального запроса
+//   ("Фитофтора картофеля: что делать и когда скашивать ботву", а не "...когда скосить ботву
+//   выгоднее, чем лечить"). Используется только для <title>/H1/JSON-LD блога, см. generate-blog.js.
+//   Если секции нет — используется заголовок поста, как раньше.
+//
 //   Теги: #дача #огород #полив
 //   Картинка: https://images.pexels.com/...
 //
@@ -46,17 +54,19 @@ function parseContentFile(md) {
 
     let tags = null
     let image = null
-    let section = 'body' // 'body' | 'faq' | 'telegram' — переключается маркерами "FAQ:"/"Telegram:"
+    let section = 'body' // 'body' | 'faq' | 'telegram' | 'seo' — переключается маркерами "FAQ:"/"Telegram:"/"SEO:"
     const bodyLines = []
     const faqLines = []
     const tgLines = []
-    const sectionLines = { body: bodyLines, faq: faqLines, telegram: tgLines }
+    const seoLines = []
+    const sectionLines = { body: bodyLines, faq: faqLines, telegram: tgLines, seo: seoLines }
     for (const ln of lines.slice(1)) {
       const t = ln.trim()
       if (/^Теги:/i.test(t)) { tags = t.replace(/^Теги:\s*/i, '').trim() || null; continue }
       if (/^Картинка:/i.test(t)) { image = t.replace(/^Картинка:\s*/i, '').trim() || null; continue }
       if (/^FAQ:\s*$/i.test(t)) { section = 'faq'; continue }
       if (/^Telegram:\s*$/i.test(t)) { section = 'telegram'; continue }
+      if (/^SEO:\s*$/i.test(t)) { section = 'seo'; continue }
       sectionLines[section].push(ln)
     }
     posts.push({
@@ -65,6 +75,7 @@ function parseContentFile(md) {
       body: bodyLines.join('\n').trim(),
       faq: parseFaq(faqLines.join('\n').trim()),
       telegramBody: tgLines.join('\n').trim() || null,
+      seoTitle: seoLines.join('\n').trim() || null,
       tags,
       image
     })
