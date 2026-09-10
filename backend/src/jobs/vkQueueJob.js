@@ -3,6 +3,13 @@
 // Агент-автопостер ВК: фоновый джоб публикует «созревшие» посты из очереди (vk_post_queue)
 // по расписанию. Очередь наполняется заранее через CLI scripts/vk-queue.js load <file>.
 // Движок постинга — services/vkService.js. Включается заданием VK_GROUP_ID + VK_ACCESS_TOKEN.
+//
+// ponytail: VK-баг — ключ сообщества (VK_ACCESS_TOKEN) не может вызывать photos.getWallUploadServer
+// (ошибка 27 "Group authorization failed", воспроизводится стабильно, см. github.com/VKCOM/vk-api-schema#242),
+// а wall.post/wall.createComment ключом сообщества работают нормально. Поэтому загрузка фото идёт
+// через отдельный пользовательский OAuth-токен (VK_USER_ACCESS_TOKEN, права wall+photos), а сам
+// постинг — как раньше, ключом сообщества. Если VK_USER_ACCESS_TOKEN не задан — фото не грузится
+// (публикуется текстовый пост без фото), апгрейд — когда VK починит баг или появится другой источник токена.
 
 const cron = require('node-cron')
 const vkService = require('../services/vkService')
@@ -23,7 +30,7 @@ async function runVkQueue(db, { vk: vkSvc = vkService, fetchImpl = fetch, env = 
     console.log('[vk-queue] отключён (нет VK_GROUP_ID / VK_ACCESS_TOKEN)')
     return { posted: 0, failed: 0 }
   }
-  const { VK_GROUP_ID: groupId, VK_ACCESS_TOKEN: token } = env
+  const { VK_GROUP_ID: groupId, VK_ACCESS_TOKEN: token, VK_USER_ACCESS_TOKEN: userToken } = env
 
   // Расчёт на один инстанс pm2 и непересекающийся cron (то же допущение, что в nalogJob): строки
   // не клеймятся через FOR UPDATE SKIP LOCKED, поэтому параллельные прогоны теоретически могут взять
@@ -38,13 +45,14 @@ async function runVkQueue(db, { vk: vkSvc = vkService, fetchImpl = fetch, env = 
   if (due.rows.length === 0) return { posted: 0, failed: 0 }
 
   const vk = vkSvc.createVk({ token, fetchImpl })
+  const vkPhoto = userToken ? vkSvc.createVk({ token: userToken, fetchImpl }) : vk
   let posted = 0
   let failed = 0
   for (const row of due.rows) {
     try {
       let photo = null
       if (row.image_url) {
-        photo = await vkSvc.uploadWallPhoto(vk, groupId, await vkSvc.loadImageBytes(row.image_url, fetchImpl))
+        photo = await vkSvc.uploadWallPhoto(vkPhoto, groupId, await vkSvc.loadImageBytes(row.image_url, fetchImpl))
       }
       const message = queueMessage({ body: row.body, tags: row.tags })
       const postId = await vkSvc.postToWall(vk, {
