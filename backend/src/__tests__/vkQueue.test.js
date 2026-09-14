@@ -66,6 +66,7 @@ Telegram:
         { q: 'Как часто поливать в жару?', a: 'Ориентируйтесь на почву, а не на календарь.' }
       ],
       telegramBody: '🚿 короткая версия для канала',
+      seoTitle: null,
       tags: '#дача #огород',
       image: 'https://img/x.jpg'
     })
@@ -93,7 +94,7 @@ describe('vkQueueJob', () => {
   it('публикует созревший пост (фото + теги) и помечает posted', async () => {
     const db = fakeDb([{ id: 1, body: 'текст', tags: '#дача', image_url: 'https://img/x.jpg', link: 'https://dacha.studio1008.com', attempts: 0 }])
     const vk = fakeVkSvc(900)
-    const r = await runVkQueue(db, { vk, fetchImpl: async () => ({}), env: ENV })
+    const r = await runVkQueue(db, { vk, fetchImpl: async () => ({}), env: ENV, getUserToken: async () => 'utok' })
     expect(r.posted).toBe(1)
     expect(vk.calls.uploadWallPhoto).toEqual(['50'])
     const post = vk.calls.postToWall[0]
@@ -103,9 +104,37 @@ describe('vkQueueJob', () => {
     expect(upd.args).toEqual(['https://vk.com/wall-50_900', 1])
   })
 
+  it('фото не загрузилось (протух токен) → пост уходит без фото, status=posted', async () => {
+    const db = fakeDb([{ id: 3, body: 'текст', tags: null, image_url: 'https://img/x.jpg', attempts: 0 }])
+    const vk = fakeVkSvc(901)
+    vk.uploadWallPhoto = async () => { throw new Error('VK photos.getWallUploadServer: ошибка 5') }
+    const r = await runVkQueue(db, { vk, fetchImpl: async () => ({}), env: ENV, getUserToken: async () => 'expired' })
+    expect(r.posted).toBe(1)
+    expect(vk.calls.postToWall[0].photo).toBeNull()
+    expect(db.updates.some((u) => /status='posted'/.test(u.sql))).toBe(true)
+  })
+
+  it('токен VK ID не получен (ошибка рефреша) → без фото, без попытки загрузки', async () => {
+    const db = fakeDb([{ id: 4, body: 'текст', tags: null, image_url: 'https://img/x.jpg', attempts: 0 }])
+    const vk = fakeVkSvc(902)
+    const r = await runVkQueue(db, { vk, fetchImpl: async () => ({}), env: ENV, getUserToken: async () => { throw new Error('invalid_token') } })
+    expect(r.posted).toBe(1)
+    expect(vk.calls.uploadWallPhoto).toHaveLength(0)
+  })
+
+  it('VK ID не подключён → фолбэк на VK_USER_ACCESS_TOKEN из env', async () => {
+    const db = fakeDb([{ id: 5, body: 'текст', tags: null, image_url: 'https://img/x.jpg', attempts: 0 }])
+    const vk = fakeVkSvc(903)
+    const tokens = []
+    vk.createVk = ({ token }) => { tokens.push(token); return {} }
+    await runVkQueue(db, { vk, fetchImpl: async () => ({}), env: { ...ENV, VK_USER_ACCESS_TOKEN: 'legacy' }, getUserToken: async () => null })
+    expect(tokens).toContain('legacy')
+    expect(vk.calls.uploadWallPhoto).toEqual(['50'])
+  })
+
   it('нет созревших — ничего не постит', async () => {
     const vk = fakeVkSvc()
-    const r = await runVkQueue(fakeDb([]), { vk, fetchImpl: async () => ({}), env: ENV })
+    const r = await runVkQueue(fakeDb([]), { vk, fetchImpl: async () => ({}), env: ENV, getUserToken: async () => null })
     expect(r.posted).toBe(0)
     expect(vk.calls.postToWall).toHaveLength(0)
   })
@@ -114,7 +143,7 @@ describe('vkQueueJob', () => {
     const db = fakeDb([{ id: 2, body: 'x', tags: null, image_url: null, attempts: 2 }])
     const vk = fakeVkSvc()
     vk.postToWall = async () => { throw new Error('boom') }
-    const r = await runVkQueue(db, { vk, fetchImpl: async () => ({}), env: ENV })
+    const r = await runVkQueue(db, { vk, fetchImpl: async () => ({}), env: ENV, getUserToken: async () => null })
     expect(r.failed).toBe(1)
     expect(db.updates[0].args[0]).toBe(3)        // attempts
     expect(db.updates[0].args[2]).toBe('failed') // status
