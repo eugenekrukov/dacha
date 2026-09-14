@@ -150,6 +150,22 @@ nginx-конфиг (`/etc/nginx/sites-available/dacha`) уже содержит 
 затем `systemctl reload nginx`. Backup (`cp dacha dacha.bak.<суффикс>`) — перед любой правкой,
 без исключений.
 
+⚠️ **В `return 301` никогда не используй `$request_uri` — только `$uri$is_args$args`** (грабли
+2026-09-07, `calendacha` конфиг). `$request_uri` содержит сырой URI как пришёл от клиента или
+от проксирующего nginx-а: в цепочке двойного проксирования (внешний nginx 443 → внутренний
+nginx 10443) переменная может прийти искажённой — в частности, с обрезанным последним символом.
+`$uri` нормализуется самим nginx-ом и всегда корректен. Симптом бага: Яндекс.Вебмастер
+фиксирует недоступность `robots.txt` («файл robots.txt недоступен, сайт ведёт на другой адрес»)
+из-за `Location: https://calendacha.ru/robots.tx` (без `t` на конце) → 404 → полная блокировка
+индексации.
+```nginx
+# ПЛОХО — $request_uri искажается в цепочке прокси:
+return 301 https://calendacha.ru$request_uri;
+
+# ХОРОШО — $uri нормализован nginx-ом, $is_args$args сохраняет query-параметры:
+return 301 https://calendacha.ru$uri$is_args$args;
+```
+
 ⚠️ **Новый файл в корне лендинга (`robots.txt`-подобный, не HTML-страница) не начинает отдаваться
 сам по себе**, даже если он есть и в `landing/`, и в `/var/www/dacha-landing/` — нужен отдельный
 `location = /имя.txt { root /var/www/dacha-landing; }` в `/etc/nginx/sites-available/dacha` (как для
@@ -344,6 +360,19 @@ https://oauth.vk.com/authorize?client_id=2685278&redirect_uri=https://oauth.vk.c
 админа** (без `from_group` — community-комментарий требует community-токена, ошибка 15). После смены
 токена в `.env` — `pm2 restart dacha-api`.
 
+**Токен для фото — VK ID с автообновлением (2026-09-14, миграция 090).** Ключ сообщества не умеет
+`photos.getWallUploadServer` (ошибка 27), а offline-токенов ВК больше не выдаёт: access token VK ID живёт
+1 час, refresh token — 180 дней и ротируется при каждом обмене. Пара хранится в таблице `vk_auth`,
+`services/vkIdAuth.js` сам рефрешит access перед загрузкой фото. Если токена нет или фото не загрузилось —
+пост уходит без фото (не `failed`). `.env`: `VK_ID_CLIENT_ID=54651185` (+ опц. `VK_ID_REDIRECT_URI`,
+по умолчанию `https://calendacha.ru/` — должен быть в «Доверенных redirect URL» приложения на id.vk.ru).
+Старый `VK_USER_ACCESS_TOKEN` — только фолбэк, пока VK ID не подключён.
+Разовое подключение (и повторное, если refresh протух — ВК не постил 180 дней или токен отозван):
+```
+node scripts/vk-id-auth.js url                         # ссылка → открыть под админом сообщества
+node scripts/vk-id-auth.js exchange '<адрес после редиректа>'   # в течение ~10 минут
+```
+
 **Управление очередью** (на сервере, `cd /var/www/dacha-api/backend`):
 ```
 node scripts/vk-queue.js load ../docs/vk-content/<файл>.md   # загрузить посты в очередь
@@ -405,6 +434,14 @@ TELEGRAM_POST_LINK=https://calendacha.ru   # опц., фолбэк «читат�
 ---
 
 ## История
+
+- **2026-09-07** — фикс robots.txt / индексации Яндекса (`calendacha` конфиг). `$request_uri`
+  в `return 301` обрезал последний символ пути в цепочке двойного nginx-проксирования (внешний
+  443 → внутренний 10443) → `Location: https://calendacha.ru/robots.tx` → 404 → Яндекс.Вебмастер
+  блокировал всю индексацию сайта. Исправлено заменой `$request_uri` → `$uri$is_args$args` в двух
+  `return 301` блоках (HTTP→HTTPS и www→non-www). Деплой: `scp` нового конфига + `nginx -t &&
+  systemctl reload nginx`. Проверено: `curl -I http://calendacha.ru/robots.txt` даёт корректный
+  `Location`, `https://calendacha.ru/robots.txt` → 200.
 
 - **2026-07-27 (2)** — Telegram-автопостер: короткий формат постов вместо репоста ВК-лонгрида.
   Миграция **059** (`telegram_body` в `vk_post_queue`), секция `Telegram:` в формате файла контента
