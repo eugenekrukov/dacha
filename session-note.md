@@ -17,6 +17,13 @@ refresh token (180 дней, VK ID). Пока токен не обновлён, 
 а Telegram-джоб их не публикует (ждёт `status='posted'`). Уже упали: #76, #100, #101, #103.
 После починки — `UPDATE vk_post_queue SET status='pending', attempts=0 WHERE id IN (...)`.
 
+**Итог по ВК (выяснено в конце сессии):** корень поломки с 10.09 — **ВК заблокировал аккаунт админа
+сообщества (id 3158226)**, пользователь подтвердил. Любой токен этого аккаунта, даже свежий Kate Mobile,
+получает `Flood control` или `user is blocked`. Обходы 10–14.09 (ключ сообщества, суточный токен,
+VK ID `bc77949`) лечили не ту причину. VK ID к тому же выдаёт только `vkid.personal_info`, без стены и фото.
+Осталось полезное: пост без фото вместо `failed`. После разблокировки нужен новый вечный токен Kate
+(`client_id=2685278`, `scope=wall,photos,groups,offline`) в `VK_USER_ACCESS_TOKEN`.
+
 **Попутный фикс:** в `landing/sitemap.xml` 4 основные страницы были на `dacha.studio1008.com`
 (301 на calendacha.ru) — IndexNow отклонял всю пачку (422). Заменены на calendacha.ru.
 
