@@ -24,7 +24,7 @@ const vkService = require('../src/services/vkService')
 
 const PKCE_FILE = path.join(os.tmpdir(), 'dacha-vk-id-pkce.json')
 const clientId = process.env.VK_ID_CLIENT_ID
-const redirectUri = process.env.VK_ID_REDIRECT_URI || 'https://calendacha.ru/'
+const redirectUri = process.env.VK_ID_REDIRECT_URI || 'https://calendacha.ru' // без слеша: VK ID хранит redirect без него и сверяет символ в символ
 const SCOPE = 'wall photos'
 
 function stepUrl() {

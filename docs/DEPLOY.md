@@ -364,8 +364,8 @@ https://oauth.vk.com/authorize?client_id=2685278&redirect_uri=https://oauth.vk.c
 `photos.getWallUploadServer` (ошибка 27), а offline-токенов ВК больше не выдаёт: access token VK ID живёт
 1 час, refresh token — 180 дней и ротируется при каждом обмене. Пара хранится в таблице `vk_auth`,
 `services/vkIdAuth.js` сам рефрешит access перед загрузкой фото. Если токена нет или фото не загрузилось —
-пост уходит без фото (не `failed`). `.env`: `VK_ID_CLIENT_ID=54651185` (+ опц. `VK_ID_REDIRECT_URI`,
-по умолчанию `https://calendacha.ru/` — должен быть в «Доверенных redirect URL» приложения на id.vk.ru).
+пост уходит без фото (не `failed`). `.env`: `VK_ID_CLIENT_ID=54770619` (приложение VK ID «Calendacha» в бизнес-кабинете id.vk.ru, не мини-приложение 54651185 из dev.vk.ru) (+ опц. `VK_ID_REDIRECT_URI`,
+по умолчанию `https://calendacha.ru` без слеша — VK ID хранит redirect без него и сверяет символ в символ, иначе «redirect_uri is missing or invalid»).
 Старый `VK_USER_ACCESS_TOKEN` — только фолбэк, пока VK ID не подключён.
 Разовое подключение (и повторное, если refresh протух — ВК не постил 180 дней или токен отозван):
 ```
