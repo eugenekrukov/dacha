@@ -155,7 +155,24 @@ What's new:
 - "My Seeds" got even smoother — add a packet photo in one tap right from the shopping list.
 - Watering and care logging across grouped beds now works even more smoothly offline.
 
-## Что нового (текущий релиз — vc16, versionName 1.0.13)
+## Что нового (текущий релиз — vc17, versionName 1.0.14)
+
+Общий текст для Google Play и RuStore. Главное для пользователя — стабильность и напоминания;
+технические изменения (аналитика открытий, новый проект RuStore Push, правило R8) не анонсируем.
+
+Что нового:
+- Исправлено закрытие приложения на экране «Сегодня», когда на участке нет интернета: задачи и советы теперь открываются из сохранённых данных.
+- Напоминания о поливе, подкормке и заморозках снова приходят на телефон.
+- Мелкие исправления и улучшения стабильности.
+
+English:
+
+What's new:
+- Fixed the app closing on the Today screen when there's no internet: tasks and tips now open from saved data.
+- Watering, feeding and frost reminders arrive on your phone again.
+- Minor fixes and stability improvements.
+
+## Что нового (архив — vc16, versionName 1.0.13)
 
 Общий текст для Google Play и RuStore (одинаковая версия в оба стора). Один пункт из черновика
 («плохие предшественники») сюда не попал — это уже было объявлено в vc15 выше, повторно не
