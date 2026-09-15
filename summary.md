@@ -364,7 +364,7 @@ Backend `GET /feed` (UNION, пагинация, без миграции). Фун
 и им потребуется правка геокодера.
 
 **Google Play (при публикации):**
-- ✅ **Третий SHA-1** (App signing key certificate) получен и встроен в ограничение Firebase API-key — FCM на Play-сборке регистрируется. Debug+release SHA-1 тоже добавлены.
+- ⚠️ **ИСПРАВЛЕНО 2026-09-15: утверждение ниже было ложным** — SHA-1 ключа подписи Play `00:79:7C:…:DB:EB` в ограничении Firebase API-key отсутствовал, FCM у установок из Google Play давал `FIS_AUTH_ERROR`; добавлен 15.09 (`docs/strategy-2026-09.md`, п. 1.5). Было: **Третий SHA-1** (App signing key certificate) получен и встроен в ограничение Firebase API-key — FCM на Play-сборке регистрируется. Debug+release SHA-1 тоже добавлены.
 - Заменить кнопки магазинов «Скоро» (`#download` `.store-btn[aria-disabled]`) и store-ссылки футера на реальные URL.
 - Гайд: `docs/gplay-publishing-guide.md`. ASO-карточки: `docs/aso-gplay-samsung.md` (актуальна, платная модель), `docs/aso-rustore.md`.
 - **Название Play** (лимит 30): «Календарь дачника: сад, огород». **Категория**: «Дом и сад» / «Книги и справочники» (Lifestyle в списке нет). Package `ru.dachakalend.app`.
@@ -385,7 +385,7 @@ Backend `GET /feed` (UNION, пагинация, без миграции). Фун
 - ✅ Гигиена доставки (2026-06-17): мёртвые токены (`registration-token-not-registered`) удаляются из
   `push_tokens`; `care_alert_log` помечается только при фактической доставке (см. session-note).
 - ✅ FCM re-register на тест-устройстве — токен живой (improvement-plan 1.3).
-- ✅ **Третий SHA-1** (App signing key) получен и встроен в ограничение Firebase API-key — FCM на
+- ⚠️ **ИСПРАВЛЕНО 2026-09-15: утверждение ниже было ложным** — SHA-1 ключа подписи Play `00:79:7C:…:DB:EB` в ограничении Firebase API-key отсутствовал, FCM у установок из Google Play давал `FIS_AUTH_ERROR`; добавлен 15.09 (`docs/strategy-2026-09.md`, п. 1.5). Было: **Третий SHA-1** (App signing key) получен и встроен в ограничение Firebase API-key — FCM на
   Play-сборке регистрируется.
 
 **P4 «Аккаунт и безопасность» — хвост (отдельные циклы):**
