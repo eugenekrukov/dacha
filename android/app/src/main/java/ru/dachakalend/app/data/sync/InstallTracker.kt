@@ -13,6 +13,8 @@ import ru.dachakalend.app.BuildConfig
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
 import ru.dachakalend.app.sync.InstallReferrer
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -47,6 +49,28 @@ class InstallTracker @Inject constructor(
             }.onFailure { Log.w("InstallTracker", "first-open failed, will retry next launch", it) }
         }
     }
+
+    /**
+     * Открытие приложения (метрика удержания D1/D7/D30, app_opens). Зовётся из MainActivity.onStart
+     * на каждый выход на передний план, но на сервер уходит не чаще раза в день на каждое состояние
+     * входа: сервер хранит одну строку на устройство в день, а смена «гость → вошёл» дописывает user_id.
+     * Ключ сохраняем только после успешной отправки — при сбое сети повторим на следующем старте.
+     */
+    @SuppressLint("HardwareIds")
+    fun trackOpen() {
+        val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+        if (deviceId.isNullOrBlank()) return
+        val key = appOpenKey(LocalDate.now(ZoneId.of("Europe/Moscow")), tokenStorage.getToken() != null)
+        if (tokenStorage.getLastAppOpenKey() == key) return
+        scope.launch {
+            runCatching {
+                api.trackAppOpen(mapOf("device_id" to deviceId, "store" to BuildConfig.STORE, "app_version" to BuildConfig.VERSION_NAME))
+            }.onSuccess { tokenStorage.setLastAppOpenKey(key) }
+                .onFailure { Log.w("InstallTracker", "app-open failed, will retry next start", it) }
+        }
+    }
+
+    internal fun appOpenKey(date: LocalDate, loggedIn: Boolean): String = "$date|$loggedIn"
 
     internal fun buildPayload(deviceId: String, store: String, appVersion: String, referrer: String?): Map<String, String> =
         buildMap {

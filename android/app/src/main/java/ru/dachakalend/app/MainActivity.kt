@@ -68,6 +68,13 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var tokenStorage: TokenStorage
     @Inject lateinit var subscriptionManager: SubscriptionManager
+    @Inject lateinit var installTracker: ru.dachakalend.app.data.sync.InstallTracker
+
+    // Открытие приложения для метрики удержания — на каждый выход на передний план (дедуп внутри).
+    override fun onStart() {
+        super.onStart()
+        installTracker.trackOpen()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -248,6 +248,10 @@ class TokenStorage @Inject constructor(
     fun isFirstOpenSent(): Boolean = prefs.getBoolean(KEY_FIRST_OPEN_SENT, false)
     fun setFirstOpenSent()         = prefs.edit { putBoolean(KEY_FIRST_OPEN_SENT, true) }
 
+    // Ключ последнего отправленного открытия приложения («дата|вошёл ли») — не слать чаще раза в день.
+    fun getLastAppOpenKey(): String? = prefs.getString(KEY_LAST_APP_OPEN, null)
+    fun setLastAppOpenKey(key: String) = prefs.edit { putString(KEY_LAST_APP_OPEN, key) }
+
     fun isCoachDone(): Boolean = prefs.getBoolean(KEY_COACH_DONE, false)
     fun setCoachDone()         = prefs.edit { putBoolean(KEY_COACH_DONE, true) }
 
@@ -286,6 +290,7 @@ class TokenStorage @Inject constructor(
         private const val KEY_REVIEW_REQUESTED = "review_requested"
         private const val KEY_INTRO_DONE      = "intro_done"
         private const val KEY_FIRST_OPEN_SENT = "first_open_sent"
+        private const val KEY_LAST_APP_OPEN   = "last_app_open_key"
         private const val KEY_COACH_DONE      = "coach_done"
         private const val KEY_NOTIF_PERM_ASKED = "notif_permission_asked"
         private const val KEY_LARGE_FONT       = "large_font"

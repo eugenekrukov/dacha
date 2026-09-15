@@ -31,6 +31,43 @@ module.exports = async function (fastify) {
     reply.code(204).send()
   })
 
+  // POST /analytics/app-open — открытие приложения (метрика удержания D1/D7/D30, таблица
+  // app_opens). Публичный: открытие до регистрации тоже считается. Токен необязателен — если
+  // валиден, привязываем user_id; протухший токен не даёт 401 (иначе веб-клиент разлогинит).
+  // Одна строка на устройство в день (по Москве), повторы за день только дописывают user_id.
+  fastify.post('/app-open', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    schema: {
+      body: {
+        type: 'object',
+        required: ['device_id'],
+        properties: {
+          device_id:   { type: 'string', minLength: 8, maxLength: 128 },
+          store:       { type: 'string', enum: ['rustore', 'gplay', 'samsung', 'web'] },
+          app_version: { type: 'string', maxLength: 32 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    let userId = null
+    if (request.headers.authorization) {
+      try {
+        await request.jwtVerify()
+        userId = request.user.userId ?? null
+      } catch { /* ponytail: гость или протухший токен — открытие всё равно считаем */ }
+    }
+    const { device_id, store, app_version } = request.body
+    await fastify.db.query(
+      `INSERT INTO app_opens (device_id, opened_on, user_id, store, app_version)
+       VALUES ($1, (NOW() AT TIME ZONE 'Europe/Moscow')::date, $2, $3, $4)
+       ON CONFLICT (device_id, opened_on)
+       DO UPDATE SET user_id = COALESCE(EXCLUDED.user_id, app_opens.user_id),
+                     app_version = COALESCE(EXCLUDED.app_version, app_opens.app_version)`,
+      [device_id, userId, store ?? null, app_version ?? null]
+    )
+    reply.code(204).send()
+  })
+
   // POST /analytics/paywall-opened — фиксирует первое открытие экрана пейволла (воронка
   // регистрация→оплата). Идемпотентно, тело не нужно.
   fastify.post('/paywall-opened', auth, async (request, reply) => {

@@ -268,6 +268,11 @@ export const api = {
   // вызывающий код глотает ошибку, показ пейволла не должен от этого зависеть.
   markPaywallOpened: () => request<void>('/analytics/paywall-opened', { method: 'POST' }),
 
+  // Открытие приложения — метрика удержания (app_opens). Токен необязателен: сервер считает и
+  // гостей, на битый токен 401 не отдаёт. Best-effort, вызывающий глотает ошибку.
+  trackAppOpen: (deviceId: string) =>
+    request<void>('/analytics/app-open', { method: 'POST', body: { device_id: deviceId, store: 'web' } }),
+
   // --- billing / promo ---
   createPayment: (plan: BillingPlan) =>
     request<CreatePaymentResponse>('/billing/create-payment', { method: 'POST', body: { plan } }),

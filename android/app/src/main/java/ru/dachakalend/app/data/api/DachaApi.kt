@@ -259,6 +259,10 @@ interface DachaApi {
     @POST("analytics/first-open")
     suspend fun trackFirstOpen(@Body body: Map<String, String>)
 
+    // Открытие приложения — метрика удержания (app_opens). Токен необязателен, 401 не бывает.
+    @POST("analytics/app-open")
+    suspend fun trackAppOpen(@Body body: Map<String, String>)
+
     @GET("analytics/summary")
     suspend fun getAnalyticsSummary(): AnalyticsSummary
 

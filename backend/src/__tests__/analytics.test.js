@@ -55,6 +55,58 @@ describe('POST /analytics/first-open', () => {
   })
 })
 
+describe('POST /analytics/app-open', () => {
+  function recordingDb() {
+    const queries = []
+    return { queries, db: { query: async (sql, params) => { queries.push({ sql, params }); return { rows: [] } } } }
+  }
+
+  it('без токена — пишет открытие с user_id=null, 204', async () => {
+    const { queries, db } = recordingDb()
+    const app = await buildApp(db)
+    const res = await supertest(app.server)
+      .post('/analytics/app-open')
+      .send({ device_id: 'abcd1234', store: 'gplay', app_version: '1.0.14' })
+    expect(res.status).toBe(204)
+    expect(queries[0].sql).toMatch(/INSERT INTO app_opens/)
+    expect(queries[0].sql).toMatch(/ON CONFLICT \(device_id, opened_on\)/)
+    expect(queries[0].params).toEqual(['abcd1234', null, 'gplay', '1.0.14'])
+    await app.close()
+  })
+
+  it('с валидным токеном — привязывает user_id', async () => {
+    const { queries, db } = recordingDb()
+    const app = await buildApp(db)
+    const token = makeToken(app, 42)
+    const res = await supertest(app.server)
+      .post('/analytics/app-open')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ device_id: 'abcd1234', store: 'rustore' })
+    expect(res.status).toBe(204)
+    expect(queries[0].params).toEqual(['abcd1234', 42, 'rustore', null])
+    await app.close()
+  })
+
+  it('с протухшим/битым токеном — не 401, считаем как гостя', async () => {
+    const { queries, db } = recordingDb()
+    const app = await buildApp(db)
+    const res = await supertest(app.server)
+      .post('/analytics/app-open')
+      .set('Authorization', 'Bearer garbage')
+      .send({ device_id: 'abcd1234', store: 'web' })
+    expect(res.status).toBe(204)
+    expect(queries[0].params[1]).toBeNull()
+    await app.close()
+  })
+
+  it('без device_id → 400', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server).post('/analytics/app-open').send({})
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+})
+
 describe('POST /analytics/paywall-opened', () => {
   it('без токена → 401', async () => {
     const app = await buildApp(makeMockDb())
