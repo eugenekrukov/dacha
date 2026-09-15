@@ -48,10 +48,10 @@ describe('vkIdAuth.getUserToken', () => {
     expect(db.updates[0].slice(0, 3)).toEqual(['a2', 'r2', 'd1'])
   })
 
-  it('ошибка VK ID → бросает с кодом ошибки, пару не трогает', async () => {
+  it('ошибка VK ID при рефреше → null (не роняет вызывающий код), пара сбрасывается', async () => {
     const fetchImpl = async () => ({ ok: false, status: 400, json: async () => ({ error: 'invalid_grant', error_description: 'expired' }) })
     const db = fakeDb({ access_token: null, refresh_token: 'r1', device_id: 'd1', expires_at: null })
-    await expect(getUserToken(db, { env, fetchImpl, now: () => NOW })).rejects.toThrow(/invalid_grant/)
-    expect(db.updates).toHaveLength(0)
+    expect(await getUserToken(db, { env, fetchImpl, now: () => NOW })).toBeNull()
+    expect(db.updates).toHaveLength(1)
   })
 })

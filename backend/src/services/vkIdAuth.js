@@ -43,13 +43,24 @@ async function getUserToken(db, { env = process.env, fetchImpl = fetch, now = Da
   if (!row || !row.refresh_token) return null
   if (row.access_token && row.expires_at && new Date(row.expires_at).getTime() - SKEW_MS > now()) return row.access_token
   if (!env.VK_ID_CLIENT_ID) throw new Error('VK ID: не задан VK_ID_CLIENT_ID')
-  const data = await authPost({
-    grant_type: 'refresh_token',
-    refresh_token: row.refresh_token,
-    client_id: env.VK_ID_CLIENT_ID,
-    device_id: row.device_id,
-    state: randomState()
-  }, fetchImpl)
+  let data
+  try {
+    data = await authPost({
+      grant_type: 'refresh_token',
+      refresh_token: row.refresh_token,
+      client_id: env.VK_ID_CLIENT_ID,
+      device_id: row.device_id,
+      state: randomState()
+    }, fetchImpl)
+  } catch (e) {
+    // Протухший/отозванный refresh token — не роняем публикацию, даём вызывающему коду
+    // упасть на фолбэк VK_USER_ACCESS_TOKEN. Чистим пару, чтобы не рефрешить её впустую каждый раз.
+    console.error(`[vk-id-auth] рефреш не удался, сбрасываю пару: ${e.message}`)
+    await db.query(
+      `UPDATE vk_auth SET access_token=NULL, refresh_token=NULL, device_id=NULL, expires_at=NULL, updated_at=NOW() WHERE id=1`
+    )
+    return null
+  }
   return saveTokens(db, data, row.device_id)
 }
 
