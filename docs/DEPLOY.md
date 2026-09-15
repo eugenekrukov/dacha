@@ -8,6 +8,14 @@
 
 ---
 
+
+> ⏸ **Автопостинг ВК + Telegram (+ еженедельный промо-пост) на паузе с 2026-09-15** — решение
+> стратегии `docs/strategy-2026-09.md` (п. 1.3). На проде в `backend/.env` строки `VK_GROUP_ID`,
+> `VK_ACCESS_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHANNEL_ID` закомментированы префиксом
+> `#PAUSED-2026-09-15 ` (значения сохранены, бэкап `.env.bak.autopost-20260915`). Включить обратно —
+> только решением владельца: `sed -i 's/^#PAUSED-2026-09-15 //' .env && pm2 restart dacha-api`.
+> Скрипт `vk-id-auth.js` без `VK_GROUP_ID` тоже не проверит загрузку фото — это ожидаемо.
+
 ## ⚠️ Как подключаться: только через PowerShell
 
 `ssh hetzner` (alias в `~/.ssh/config` → `root@78.47.58.211`, `IdentityFile ~/.ssh/hetzner`) работает
