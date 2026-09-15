@@ -9,6 +9,14 @@
 ---
 
 
+
+> 🔔 **RuStore Push переключён на новый проект 2026-09-15.** Старый проект (`HG8uxj8n…`) был привязан к
+> SHA-256 debug-ключа — релизные APK из RuStore не получали токен (`Timed out waiting for 180000 ms`).
+> Новый проект «Календарь дачника prod» — ID `dKeO8b93V45KF3S4jWsqrcXWB1lyBKDI`, SHA-256 релизного ключа
+> `25:D8:D3:…:DD:4A`, отмечен production. На проде в `backend/.env` заменены `RUSTORE_PUSH_PROJECT_ID` и
+> `RUSTORE_PUSH_SERVICE_TOKEN` (бэкап `.env.bak.rustore-push-20260915`); в Android — `build.gradle.kts`
+> (с vc17). Debug-сборка rustore push больше не получает (другой ключ подписи) — проверять релизной.
+
 > ⏸ **Автопостинг ВК + Telegram (+ еженедельный промо-пост) на паузе с 2026-09-15** — решение
 > стратегии `docs/strategy-2026-09.md` (п. 1.3). На проде в `backend/.env` строки `VK_GROUP_ID`,
 > `VK_ACCESS_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHANNEL_ID` закомментированы префиксом
