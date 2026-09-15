@@ -71,3 +71,6 @@ docs/store-assets/presentation/fonts.css
 backend/scripts/*-images.generated.sql
 
 .worktrees/
+
+# Релизные артефакты, собранные из CLI (AAB/APK)
+android/release-*/
