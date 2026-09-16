@@ -114,15 +114,16 @@ async function main() {
     user: process.env.DB_USER, password: process.env.DB_PASSWORD,
   })
 
+  // --only: адрес указан явно (проверка вёрстки на себе) — общие фильтры не применяем,
+  // иначе тест-аккаунт с is_test=true в выборку не попадёт.
+  const where = only
+    ? 'lower(u.email) = lower($1)'
+    : 'u.is_test = false AND u.email_optout = false AND u.email_verified = true AND u.email IS NOT NULL'
   const { rows } = await pool.query(
     `SELECT u.id, u.email, u.name, u.email_verified,
             (SELECT g.region FROM gardens g WHERE g.user_id = u.id ORDER BY g.id LIMIT 1) AS region
        FROM users u
-      WHERE u.is_test = false
-        AND u.email_optout = false
-        AND u.email_verified = true
-        AND u.email IS NOT NULL
-        ${only ? 'AND lower(u.email) = lower($1)' : ''}
+      WHERE ${where}
       ORDER BY u.id`,
     only ? [only] : []
   )
