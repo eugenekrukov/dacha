@@ -457,6 +457,7 @@ function autoRenewReminderContent(amount, periodLabel) {
 
 module.exports = {
   generateCode,
+  lifecycleHtml,
   sendMail,
   sendReceiptLink,
   sendVerificationCode,
