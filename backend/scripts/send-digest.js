@@ -80,10 +80,7 @@ function html(name, region, unsubUrl) {
           Задачи уже расставлены по вашим культурам и срокам. Открывается на телефоне и на компьютере, вход по тому же логину.
         </td></tr>
         <tr><td style="border-top:1px solid #EDE3D4;padding:16px 24px;font:12px/1.6 Arial,sans-serif;color:${MUTED}">
-          Вы получаете это письмо, потому что зарегистрировались в «Календаре дачника».<br>
-          Мы в <a href="https://vk.ru/calendacha" style="color:${MUTED}">ВКонтакте</a>,
-          <a href="https://t.me/calendacha" style="color:${MUTED}">Telegram</a> и
-          <a href="https://dzen.ru/calendacha" style="color:${MUTED}">Дзене</a>.
+          Вы получаете это письмо, потому что зарегистрировались в «Календаре дачника».
           <a href="${unsubUrl}" style="color:${MUTED}">Отписаться от писем</a>.
         </td></tr>
       </table>
