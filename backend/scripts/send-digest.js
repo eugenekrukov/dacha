@@ -7,6 +7,7 @@
 //
 // Запуск (на сервере, /var/www/dacha-api/backend):
 //   node scripts/send-digest.js --dry-run            # только список получателей, писем не шлёт
+//   node scripts/send-digest.js --preview > /tmp/d.html    # HTML письма без БД и отправки
 //   node scripts/send-digest.js --limit 1 --only <email>   # проверка на себе
 //   node scripts/send-digest.js                      # боевая отправка
 //
@@ -15,7 +16,7 @@
 
 const { Pool } = require('pg')
 require('dotenv').config()
-const { sendMail, lifecycleHtml } = require('../src/services/emailService')
+const { sendMail } = require('../src/services/emailService')
 const { buildUrl } = require('../src/utils/unsubscribe')
 
 const CAMPAIGN = '2026-09-16-digest'
@@ -30,20 +31,65 @@ const TASKS = [
   ['Подкормить многолетники и деревья', 'Осенью — только фосфор и калий: азот разгонит рост, и побеги не вызреют к зиме.'],
 ]
 
+// Вёрстка письма: таблицы + инлайновые стили (Mail.ru/Яндекс режут <style> и flex/grid),
+// одна колонка 600px, картинок нет — письмо читается и с отключённой графикой.
+const BRAND = '#FF7B00', DARK = '#2D1500', CREAM = '#FFF8EB', MUTED = '#8A7B6B'
+
+function taskRow(i, title, body) {
+  return `<tr><td style="padding:0 0 12px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${CREAM};border-radius:14px">
+      <tr>
+        <td width="44" valign="top" style="padding:16px 0 16px 16px">
+          <div style="width:28px;height:28px;border-radius:14px;background:${BRAND};color:#fff;
+                      font:bold 15px/28px Arial,sans-serif;text-align:center">${i}</div>
+        </td>
+        <td style="padding:16px 16px 16px 10px;font:15px/1.5 Arial,sans-serif;color:${DARK}">
+          <b>${title}</b><br><span style="color:#5B4636">${body}</span>
+        </td>
+      </tr>
+    </table>
+  </td></tr>`
+}
+
 function html(name, region, unsubUrl) {
-  const where = region ? ` (${region})` : ''
-  const items = TASKS.map(([t, d]) => `<li style="margin:0 0 10px"><b>${t}</b><br>${d}</li>`).join('')
-  return lifecycleHtml(
-    'Дела на участке на этой неделе',
-    `<p>${name ? name + ', здравствуйте!' : 'Здравствуйте!'} Сентябрь${where} — время закрывать сезон,
-     и от того, что сделать сейчас, зависит следующий урожай.</p>
-     <ul style="padding-left:18px;margin:0">${items}</ul>
-     <p style="margin-top:16px">В приложении задачи уже расставлены по вашим культурам и срокам:
-     открывается на телефоне и на компьютере, вход по тому же логину.</p>
-     <p style="font-size:12px;color:#888;margin-top:18px"><a href="${unsubUrl}" style="color:#888">Отписаться от писем</a></p>`,
-    'Посмотреть мои задачи',
-    CTA_URL
-  )
+  const where = region ? `${region}, сентябрь` : 'Сентябрь'
+  const hi = name ? `${name}, здравствуйте!` : 'Здравствуйте!'
+  const rows = TASKS.map(([t, d], i) => taskRow(i + 1, t, d)).join('')
+  return `<!doctype html><html lang="ru"><body style="margin:0;padding:0;background:#F3EDE3">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0">Уборка урожая, сидераты и осенняя подкормка — четыре дела, которые решают урожай следующего года.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3EDE3;padding:24px 12px">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:18px;overflow:hidden">
+        <tr><td style="background:${BRAND};padding:20px 24px;font:bold 17px Arial,sans-serif;color:#fff">
+          🌻 Календарь дачника
+        </td></tr>
+        <tr><td style="padding:24px 24px 8px;font:bold 22px/1.3 Arial,sans-serif;color:${DARK}">
+          Дела на участке на этой неделе
+        </td></tr>
+        <tr><td style="padding:0 24px 16px;font:15px/1.6 Arial,sans-serif;color:#5B4636">
+          ${hi} ${where} — время закрывать сезон. От того, что сделать сейчас, зависит урожай следующего года.
+        </td></tr>
+        <tr><td style="padding:0 24px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>
+        </td></tr>
+        <tr><td align="center" style="padding:20px 24px 8px">
+          <a href="${CTA_URL}" style="background:${BRAND};color:#fff;text-decoration:none;display:inline-block;
+             padding:14px 28px;border-radius:12px;font:bold 16px Arial,sans-serif">Посмотреть мои задачи</a>
+        </td></tr>
+        <tr><td style="padding:8px 24px 24px;font:13px/1.5 Arial,sans-serif;color:${MUTED};text-align:center">
+          Задачи уже расставлены по вашим культурам и срокам. Открывается на телефоне и на компьютере, вход по тому же логину.
+        </td></tr>
+        <tr><td style="border-top:1px solid #EDE3D4;padding:16px 24px;font:12px/1.6 Arial,sans-serif;color:${MUTED}">
+          Вы получаете это письмо, потому что зарегистрировались в «Календаре дачника».<br>
+          Мы в <a href="https://vk.ru/calendacha" style="color:${MUTED}">ВКонтакте</a>,
+          <a href="https://t.me/calendacha" style="color:${MUTED}">Telegram</a> и
+          <a href="https://dzen.ru/calendacha" style="color:${MUTED}">Дзене</a>.
+          <a href="${unsubUrl}" style="color:${MUTED}">Отписаться от писем</a>.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+  </body></html>`
 }
 
 function text(name, region) {
@@ -58,6 +104,11 @@ async function main() {
   const limit = Number(args[args.indexOf('--limit') + 1]) || null
   const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null
 
+  if (args.includes('--preview')) {
+    process.stdout.write(html('Евгений', 'Московская область', 'https://calendacha.ru/unsubscribe?u=0&t=preview'))
+    return
+  }
+
   const pool = new Pool({
     host: process.env.DB_HOST, port: process.env.DB_PORT, database: process.env.DB_NAME,
     user: process.env.DB_USER, password: process.env.DB_PASSWORD,
@@ -69,6 +120,7 @@ async function main() {
        FROM users u
       WHERE u.is_test = false
         AND u.email_optout = false
+        AND u.email_verified = true
         AND u.email IS NOT NULL
         ${only ? 'AND lower(u.email) = lower($1)' : ''}
       ORDER BY u.id`,
