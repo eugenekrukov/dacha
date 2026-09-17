@@ -76,6 +76,9 @@ Telegram:
 
 #облепиха #сбор_урожая #сад
 
+SEO:
+Как правильно собрать облепиху, не повредив куст
+
 Теги: #облепиха #ягоды #сад
 Картинка: https://images.pexels.com/photos/5312378/pexels-photo-5312378.jpeg?auto=compress&cs=tinysrgb&w=1280
 
@@ -123,6 +126,9 @@ Telegram:
 📖 Разборы подробнее — на Дзене: dzen.ru/calendacha
 
 #пионы #сад #цветник
+
+SEO:
+Когда делить пионы: сроки и правила
 
 Теги: #пионы #цветы #сад
 Картинка: https://images.pexels.com/photos/7693943/pexels-photo-7693943.jpeg?auto=compress&cs=tinysrgb&w=1280
@@ -172,6 +178,9 @@ Telegram:
 
 #голубика #сад #ягоды
 
+SEO:
+Уход за голубикой после сбора урожая: кислотность почвы
+
 Теги: #голубика #ягоды #сад
 Картинка: https://images.pexels.com/photos/1395958/pexels-photo-1395958.jpeg?auto=compress&cs=tinysrgb&w=1280
 
@@ -219,6 +228,9 @@ Telegram:
 📖 Разборы подробнее — на Дзене: dzen.ru/calendacha
 
 #ирис #флокс #цветник
+
+SEO:
+Когда делить ирисы и флоксы осенью
 
 Теги: #ирис #флокс #цветы
 Картинка: https://images.pexels.com/photos/24821967/pexels-photo-24821967.jpeg?auto=compress&cs=tinysrgb&w=1280
@@ -268,6 +280,9 @@ Telegram:
 
 #розы #сад #цветник
 
+SEO:
+Чем подкормить розы в сентябре и что нельзя делать
+
 Теги: #розы #цветы #сад
 Картинка: https://images.pexels.com/photos/12700659/pexels-photo-12700659.jpeg?auto=compress&cs=tinysrgb&w=1280
 
@@ -316,6 +331,9 @@ Telegram:
 
 #репа #редька #урожай
 
+SEO:
+Когда убирать репу и редьку на хранение
+
 Теги: #репа #редька #огород
 Картинка: https://images.pexels.com/photos/12612096/pexels-photo-12612096.jpeg?auto=compress&cs=tinysrgb&w=1280
 
@@ -363,6 +381,9 @@ Telegram:
 📖 Разборы подробнее — на Дзене: dzen.ru/calendacha
 
 #виноград #сад #урожай
+
+SEO:
+Как определить зрелость винограда: признаки, кроме цвета
 
 Теги: #виноград #сад #урожай
 Картинка: https://images.pexels.com/photos/12507785/pexels-photo-12507785.jpeg?auto=compress&cs=tinysrgb&w=1280

@@ -72,6 +72,9 @@ Telegram:
 
 #сельдерей #урожай #огород
 
+SEO:
+Когда убирать корневой сельдерей на хранение
+
 Теги: #сельдерей #урожай #огород
 Картинка: https://images.pexels.com/photos/10112735/pexels-photo-10112735.jpeg?auto=compress&cs=tinysrgb&w=1280
 
@@ -119,6 +122,9 @@ Telegram:
 📖 Разборы подробнее — на Дзене: dzen.ru/calendacha
 
 #смородина #сад #ягоды
+
+SEO:
+Как обрезать красную и белую смородину осенью
 
 Теги: #смородина #ягоды #сад
 Картинка: https://images.pexels.com/photos/13105748/pexels-photo-13105748.jpeg?auto=compress&cs=tinysrgb&w=1280
@@ -168,6 +174,9 @@ Telegram:
 
 #черешня #сад #обрезка
 
+SEO:
+Когда и как обрезать черешню в сентябре
+
 Теги: #черешня #сад #обрезка
 Картинка: https://images.pexels.com/photos/966416/pexels-photo-966416.jpeg?auto=compress&cs=tinysrgb&w=1280
 
@@ -215,6 +224,9 @@ Telegram:
 📖 Разборы подробнее — на Дзене: dzen.ru/calendacha
 
 #дыня #урожай #огород
+
+SEO:
+Как определить зрелость дыни без разреза
 
 Теги: #дыня #урожай #огород
 Картинка: https://images.pexels.com/photos/5945779/pexels-photo-5945779.jpeg?auto=compress&cs=tinysrgb&w=1280
@@ -264,5 +276,8 @@ Telegram:
 
 #патиссон #урожай #огород
 
+SEO:
+Когда снимать патиссоны: признаки зрелости
+
 Теги: #патиссон #урожай #огород
-Картинка: https://images.pexels.com/photos/10705641/pexels-photo-10705641.jpeg?auto=compress&cs=tinysrgb&w=1280
+Картинка: https://images.pexels.com/photos/37404929/pexels-photo-37404929.jpeg?auto=compress&cs=tinysrgb&w=1280
