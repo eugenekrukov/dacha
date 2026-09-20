@@ -34,8 +34,9 @@ async function main() {
     return
   }
 
-  const xml = fs.readFileSync(SITEMAP_PATH, 'utf8')
-  const urlList = extractUrls(xml)
+  // Аргументы — конкретные URL (только новые страницы, как просит протокол); без аргументов — весь sitemap.
+  const args = process.argv.slice(2)
+  const urlList = args.length ? args : extractUrls(fs.readFileSync(SITEMAP_PATH, 'utf8'))
   if (!urlList.length) {
     console.error('В sitemap.xml не найдено ни одного <loc> — нечего отправлять')
     process.exitCode = 1

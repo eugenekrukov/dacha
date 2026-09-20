@@ -8,6 +8,10 @@
  *
  *   node scripts/generate-blog.js <file.md>
  *   node scripts/generate-blog.js <file.md> --refresh-existing   # только уже опубликованные посты
+ *   node scripts/generate-blog.js <file.md> --due                # только новые, чьё время (scheduledAt) настало
+ *
+ * Публикация по таймеру: cron на VPS ежедневно в 00:00 МСК запускает scripts/publish-blog-due.sh,
+ * а тот — этот скрипт с --due. Дата в заголовке поста = день и час выхода статьи.
  *
  * По уточнению владельца (2026-08-13, отменяет решение от 2026-07-18): в блог идёт весь файл
  * целиком, включая уже опубликованные в ВК посты — сайт хранит архив, а не только анонсы
@@ -178,8 +182,9 @@ function renderIndex(pagePosts, page, totalPages) {
 function main() {
   const file = process.argv[2]
   const refreshExisting = process.argv.includes('--refresh-existing')
+  const due = process.argv.includes('--due')
   if (!file) {
-    console.error('Использование: node scripts/generate-blog.js <file.md> [--refresh-existing]')
+    console.error('Использование: node scripts/generate-blog.js <file.md> [--refresh-existing | --due]')
     process.exit(1)
   }
   const md = fs.readFileSync(file, 'utf8')
@@ -198,9 +203,18 @@ function main() {
   // Остальные посты файла не публикуются — иначе безобидное «обнови обёртку» тихо выложило бы
   // в блог статьи, которые ещё не были для этого предназначены.
   const existingTitles = new Set(Object.values(manifest).map(m => m.title))
-  const eligible = refreshExisting ? parsed.filter(p => existingTitles.has(p.title)) : parsed
+  // --due: публикация по таймеру — только новые статьи, у которых scheduledAt уже наступил
+  // (BLOG_NOW — подмена «сейчас» для проверки). Без флага публикуется весь файл, как раньше.
+  const now = process.env.BLOG_NOW ? new Date(process.env.BLOG_NOW) : new Date()
+  const eligible = due
+    ? parsed.filter(p => !existingTitles.has(p.title) && new Date(p.scheduledAt) <= now)
+    : refreshExisting ? parsed.filter(p => existingTitles.has(p.title)) : parsed
   if (refreshExisting && eligible.length === 0) {
     console.log('Из этого файла ни одна статья ещё не публиковалась — нечего обновлять.')
+    return
+  }
+  if (due && eligible.length === 0) {
+    console.log(`Нет статей к публикации (${path.basename(file)}).`)
     return
   }
 
@@ -208,8 +222,9 @@ function main() {
     // Слаг — всегда от заголовка-хука (post.title), не от seoTitle: слаг уже проиндексирован
     // Яндексом/пользователями, менять его при добавлении SEO-заголовка нельзя (сломает URL).
     const slug = buildSlug(post.title, manifest)
+    // Часовой пояс МСК явно: сервер в UTC, а статья на 00:00 МСК иначе получила бы вчерашнюю дату.
     const dateLabel = new Date(post.scheduledAt).toLocaleDateString('ru-RU', {
-      day: 'numeric', month: 'long', year: 'numeric'
+      day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow'
     })
     const canonical = `${SITE}/blog/${slug}/`
     // pageTitle — то, что видят поиск и пользователь на странице (<title>/H1/JSON-LD/карточка).
@@ -251,6 +266,7 @@ function main() {
       title: post.title, seoTitle: post.seoTitle || null, scheduledAt: post.scheduledAt,
       dateLabel, image: post.image || null, sourceFile: path.basename(file)
     }
+    if (due) console.log(`NEW_URL: ${canonical}`) // publish-blog-due.sh отправляет их в IndexNow
   }
 
   saveManifest(manifest)
