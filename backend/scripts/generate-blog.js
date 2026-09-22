@@ -67,6 +67,13 @@ function inlineMd(s) {
   return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
 }
 
+// Упоминание приложения в тексте статьи → ссылка на вход в веб-версию (блог живёт на сайте
+// приложения, 2026-09-22). Только первое упоминание в абзаце — без ссылочной каши.
+const APP_MENTION_RE = /«Календар[а-яё]* дачника»|приложени[а-яё]+/i
+function linkAppMention(html) {
+  return html.replace(APP_MENTION_RE, m => `<a href="/app/">${m}</a>`)
+}
+
 // Тело поста → секции по подзаголовкам "### " (единственный уровень вложенности
 // в контент-плане, см. docs/vk-content/*.md). Абзац до первого подзаголовка — лид-абзац.
 // В исходниках заголовок и следующий за ним текст НЕ разделены пустой строкой
@@ -113,7 +120,7 @@ function renderPostBody(post) {
     const body = s.paragraphs.map(p => {
       const cls = leadDone ? '' : ' class="lead"'
       leadDone = true
-      return `<p${cls}>${inlineMd(p).replace(/\n/g, '<br>')}</p>`
+      return `<p${cls}>${linkAppMention(inlineMd(p)).replace(/\n/g, '<br>')}</p>`
     }).join('')
     html += s.heading ? `<h2>${inlineMd(s.heading)}</h2>${body}` : body
   }
