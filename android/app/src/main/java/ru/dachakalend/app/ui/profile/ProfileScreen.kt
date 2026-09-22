@@ -91,6 +91,7 @@ fun ProfileScreen(
     onEditGarden: () -> Unit,
     onLogout: () -> Unit,
     onVerifyEmail: (email: String?) -> Unit,
+    onOpenPaywall: () -> Unit,
     viewModel: FeedViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -134,7 +135,7 @@ fun ProfileScreen(
                         HubEntry(Icons.Default.Insights, "Статистика", "Серия дней, активность, экспорт в CSV", onOpenAnalytics),
                         HubEntry(Icons.AutoMirrored.Filled.MenuBook, "Журнал действий", "История действий с заметками и фото", onOpenJournal),
                         HubEntry(Icons.Default.Inventory2, "Мои семена", "Что уже куплено и у чего вышел срок", onOpenSeeds),
-                        HubEntry(Icons.Default.Settings, "Настройки", "Подписка, уведомления, внешний вид", onOpenSettings),
+                        HubEntry(Icons.Default.Settings, "Настройки", "Уведомления, внешний вид", onOpenSettings),
                         // Веб-версия — в самом приложении иначе о ней не узнают (замечание владельца
                         // 2026-07-30), перенесено из удалённого таба «Ещё».
                         HubEntry(Icons.Default.Computer, "Веб-версия", "Тот же аккаунт в браузере — удобно планировать с компьютера") {
@@ -153,6 +154,7 @@ fun ProfileScreen(
                     onVerifyEmail = onVerifyEmail,
                     onEditGarden = onEditGarden,
                     onLogout = onLogout,
+                    onOpenPaywall = onOpenPaywall,
                 )
             }
         }

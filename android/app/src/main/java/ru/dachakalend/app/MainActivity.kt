@@ -364,10 +364,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Screen.Settings.route) {
-                            SettingsScreen(
-                                onBack = { navController.popBackStack() },
-                                onOpenPaywall = { navController.navigate(Screen.Paywall.route) }
-                            )
+                            SettingsScreen(onBack = { navController.popBackStack() })
                         }
                         composable(Screen.Journal.route) {
                             JournalScreen(onBack = { navController.popBackStack() })
@@ -448,7 +445,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onVerifyEmail   = { email ->
                                     navController.navigate(Screen.VerifyEmail.route(email, fromRegister = false))
-                                }
+                                },
+                                onOpenPaywall   = { navController.navigate(Screen.Paywall.route) }
                             )
                         }
                         composable(Screen.Seeds.route) {

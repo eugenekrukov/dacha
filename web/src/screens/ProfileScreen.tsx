@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { formatDate } from '../api/labels'
 import { useGardens } from '../garden/GardenContext'
 import AuthImage from '../components/AuthImage'
 import EntryCard from '../components/EntryCard'
@@ -510,13 +511,64 @@ function StatsTab() {
       <HubCard icon={BarChart3} title="Статистика и урожай" subtitle="Серия дней, активность, сборы, экспорт CSV" to="/harvests" />
       <HubCard icon={BookOpen} title="Журнал действий" subtitle="История действий с заметками и фото" to="/journal" />
       <HubCard icon={Package} title="Мои семена" subtitle="Каталог семян и покупки" to="/seeds" />
-      <HubCard icon={Settings} title="Настройки" subtitle="Аккаунт, уведомления, подписка" to="/settings" />
+      <HubCard icon={Settings} title="Настройки" subtitle="Внешний вид, о приложении" to="/settings" />
     </div>
   )
 }
 
+// Подписка — перенесена из «Настроек» 2026-09-22 (логичнее рядом с аккаунтом).
+function SubscriptionCard() {
+  const { user, refresh } = useAuth()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const statusText = user?.subscribed
+    ? `Подписка активна${user.subscription_until ? ` до ${formatDate(user.subscription_until)}` : ''}`
+    : user?.promo_active
+      ? user.promo_lifetime
+        ? 'Промокод активен (навсегда)'
+        : `Промокод активен${user.promo_until ? ` до ${formatDate(user.promo_until)}` : ''}`
+      : `Бесплатный тариф: 1 сад, до ${user?.plantings_limit ?? 3} посадок`
+
+  const cancelAutoRenew = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.cancelAutoRenew()
+      await refresh()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось отключить автопродление')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="dacha-card flex flex-col gap-3 p-5">
+      <h2 className="font-black">Подписка</h2>
+      <p className="font-semibold text-tertiary">{statusText}</p>
+      {error && <p className="text-sm font-bold text-red-600">{error}</p>}
+      {!user?.subscribed && (
+        <Link to="/paywall" className="dacha-btn flex items-center justify-center">
+          Оформить «Дачник Про»
+        </Link>
+      )}
+      {user?.subscribed && user?.auto_renew && (
+        <button className="dacha-chip py-3" disabled={busy} onClick={cancelAutoRenew}>
+          Отключить автопродление
+        </button>
+      )}
+      {user?.subscribed && !user?.auto_renew && (
+        <Link to="/paywall" className="text-link">
+          Продлить подписку →
+        </Link>
+      )}
+    </section>
+  )
+}
+
 // --- Аккаунт: данные аккаунта + участок + выход (перенесено из «Настроек»,
-// чтобы «Профиль» соответствовал названию). Подписка/внешний вид остались в «Настройках». ---
+// чтобы «Профиль» соответствовал названию). Подписка — тоже здесь, внешний вид — в «Настройках». ---
 
 function AccountTab() {
   const { user, logout, refresh } = useAuth()
@@ -526,6 +578,8 @@ function AccountTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <SubscriptionCard />
+
       <section className="dacha-card flex flex-col gap-1 p-5">
         <h2 className="font-black">Аккаунт</h2>
         <p className="font-semibold text-muted">{user?.email}</p>

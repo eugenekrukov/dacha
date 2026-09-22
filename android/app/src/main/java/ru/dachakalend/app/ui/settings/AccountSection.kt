@@ -10,20 +10,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.MarkEmailUnread
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.dachakalend.app.BuildConfig
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 /**
- * Блок «Аккаунт + участок + выход». Переехал из «Настроек» на вкладку «Аккаунт» экрана «Профиль»
+ * Блок «Подписка + аккаунт + участок + выход». Переехал из «Настроек» на вкладку «Аккаунт» экрана «Профиль»
  * (чтобы «Профиль» соответствовал названию). Логика — общий [SettingsViewModel].
  */
 @Composable
@@ -33,6 +36,7 @@ fun AccountSection(
     onVerifyEmail: (email: String?) -> Unit,
     onEditGarden: () -> Unit,
     onLogout: () -> Unit,
+    onOpenPaywall: (() -> Unit)? = null,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val loggedOut by viewModel.loggedOut.collectAsState()
@@ -40,6 +44,7 @@ fun AccountSection(
     val email by viewModel.email.collectAsState()
     val pendingEmail by viewModel.pendingEmail.collectAsState()
     val accountMessage by viewModel.accountMessage.collectAsState()
+    val subStatus by viewModel.subscriptionStatus.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
     var showEmailDialog by remember { mutableStateOf(false) }
@@ -202,6 +207,103 @@ fun AccountSection(
             }
             Spacer(Modifier.height(8.dp))
         }
+
+        // ─── Подписка (перенесена из «Настроек» 2026-09-22) — только в платных сборках (PAYMENTS_ENABLED: rustore, gplay) ───
+        if (BuildConfig.PAYMENTS_ENABLED) {
+        Text("ПОДПИСКА", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(vertical = 8.dp))
+
+        // Пастельный фон карточки — только для светлой темы; в тёмной он остаётся светлым,
+        // а текст на нём светлеет вместе с темой (см. фикс карточек 2026-07-27).
+        val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = when {
+                    isDark -> MaterialTheme.colorScheme.surfaceVariant
+                    subStatus.isSubscribed || subStatus.isPromo -> androidx.compose.ui.graphics.Color(0xFFE8F5E9)
+                    else -> androidx.compose.ui.graphics.Color(0xFFFFF3E0)
+                }
+            ),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = when {
+                            subStatus.isSubscribed  -> "Дачник Про"
+                            subStatus.isPromo       -> "Дачник Про"
+                            else                    -> "Бесплатный тариф"
+                        },
+                        fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = when {
+                            subStatus.isSubscribed     -> "Активна" +
+                                (formatPromoDate(subStatus.subscriptionUntil)?.let { " до $it" } ?: "")
+                            subStatus.isPromoLifetime  -> "Доступ навсегда (промокод)"
+                            subStatus.isPromo          -> "Доступ по промокоду" +
+                                (formatPromoDate(subStatus.promoUntil)?.let { " до $it" } ?: "")
+                            else                       -> "1 сад, до ${subStatus.plantingsLimit} посадок"
+                        },
+                        fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (!subStatus.isSubscribed) {
+                    TextButton(onClick = { onOpenPaywall?.invoke() }) {
+                        Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Купить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+
+        if (subStatus.isSubscribed) {
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(
+                        if (subStatus.autoRenew) "Автопродление" else "Срок подписки",
+                        fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = if (subStatus.autoRenew)
+                            "Подписка продлится автоматически" +
+                                (formatPromoDate(subStatus.subscriptionUntil)?.let { " $it" } ?: "")
+                        else "Действует до " + (formatPromoDate(subStatus.subscriptionUntil) ?: "—") +
+                            " · продлите повторной оплатой",
+                        fontFamily = NunitoFamily, fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (subStatus.autoRenew) {
+                    Switch(checked = true, onCheckedChange = { if (!it) viewModel.cancelAutoRenew() })
+                } else {
+                    TextButton(onClick = { onOpenPaywall?.invoke() }) {
+                        Text("Продлить", fontFamily = NunitoFamily, fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        } // конец блока подписки (PAYMENTS_ENABLED)
 
         // ─── Аккаунт ───
         Text("АККАУНТ", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp,
