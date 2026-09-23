@@ -9,6 +9,8 @@ interface AuthState {
   isAuthed: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
+  startGuest: () => Promise<void>
+  isGuest: boolean
   logout: () => void
   refresh: () => Promise<void>
 }
@@ -43,12 +45,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const res = await api.login(email, password)
     tokenStore.setToken(res.token)
+    tokenStore.setGuest(false)
     setUser(res.user)
   }
 
-  const register = async (email: string, password: string) => {
-    const res = await api.register(email, password)
+  // Гостевой режим: учётка без email по device_id из localStorage (повтор вернёт того же гостя).
+  const startGuest = async () => {
+    const res = await api.guest(tokenStore.getGuestDeviceId())
     tokenStore.setToken(res.token)
+    tokenStore.setGuest(true)
+    setUser(await api.me())
+  }
+
+  // Гость регистрируется через claim: та же учётка получает email и пароль, данные остаются.
+  const register = async (email: string, password: string) => {
+    const res = tokenStore.isGuest() ? await api.claimGuest(email, password) : await api.register(email, password)
+    tokenStore.setToken(res.token)
+    tokenStore.setGuest(false)
     setUser(res.user)
     // Цель Метрики "trial_start" — старт триала, для оценки рекламных кампаний
     ;(window as unknown as { ym?: (...args: unknown[]) => void }).ym?.(110118201, 'reachGoal', 'trial_start')
@@ -67,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthCtx.Provider
-      value={{ user, loading, isAuthed: !!user, login, register, logout, refresh }}
+      value={{ user, loading, isAuthed: !!user, isGuest: !!user?.is_guest, login, register, startGuest, logout, refresh }}
     >
       {children}
     </AuthCtx.Provider>

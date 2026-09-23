@@ -1,14 +1,17 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { ApiError } from '../api/client'
 import Sunflower from '../ui/Sunflower'
 
-export default function LoginScreen() {
-  const { login, register } = useAuth()
+// initialMode='register' + next — экран регистрации гостя (claim) из «Аккаунта» и пейволла.
+export default function LoginScreen({ initialMode = 'login' }: { initialMode?: 'login' | 'register' } = {}) {
+  const { login, register, startGuest, isGuest } = useAuth()
   const navigate = useNavigate()
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [params] = useSearchParams()
+  const next = params.get('next')?.startsWith('/') ? params.get('next')! : '/today'
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -22,13 +25,15 @@ export default function LoginScreen() {
     try {
       if (mode === 'login') await login(email.trim(), password)
       else await register(email.trim(), password)
-      navigate('/today', { replace: true })
+      navigate(next, { replace: true })
     } catch (err) {
       const msg =
         err instanceof ApiError
           ? err.status === 401
             ? 'Неверный email или пароль'
-            : err.message
+            : err.status === 409
+              ? 'Этот email уже зарегистрирован'
+              : err.message
           : 'Ошибка сети'
       setError(msg)
     } finally {
@@ -43,7 +48,7 @@ export default function LoginScreen() {
           <Sunflower size={28} /> Календарь дачника
         </h1>
         <p className="mb-6 font-semibold text-muted">
-          {mode === 'login' ? 'Вход в веб-версию' : 'Регистрация'}
+          {mode === 'login' ? 'Вход в веб-версию' : isGuest ? 'Создайте аккаунт — записи сохранятся' : 'Регистрация'}
         </p>
 
         <form onSubmit={submit} className="flex flex-col gap-3">
@@ -90,15 +95,38 @@ export default function LoginScreen() {
           </button>
         </form>
 
-        <button
-          className="mt-4 w-full text-sm font-bold text-muted"
-          onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login')
-            setError(null)
-          }}
-        >
-          {mode === 'login' ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
-        </button>
+        {!isGuest && (
+          <button
+            className="mt-4 w-full text-sm font-bold text-muted"
+            onClick={() => {
+              setMode(mode === 'login' ? 'register' : 'login')
+              setError(null)
+            }}
+          >
+            {mode === 'login' ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
+          </button>
+        )}
+        {/* Гостевой режим (стратегия 2.1): из блога по ссылке на /app/ — два тапа до «Сегодня». */}
+        {!isGuest && (
+          <button
+            className="dacha-chip mt-3 w-full py-3"
+            disabled={busy}
+            onClick={async () => {
+              setError(null)
+              setBusy(true)
+              try {
+                await startGuest()
+                navigate('/today', { replace: true })
+              } catch {
+                setError('Не удалось начать, попробуйте ещё раз')
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            Попробовать без регистрации
+          </button>
+        )}
       </div>
     </div>
   )

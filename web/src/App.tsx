@@ -77,6 +77,8 @@ export default function App() {
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="/paywall" element={<PaywallScreen />} />
             <Route path="/verify-email" element={<VerifyEmailScreen />} />
+            {/* Регистрация гостя (claim) — доступна и залогиненному гостю */}
+            <Route path="/register" element={<LoginScreen initialMode="register" />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/today" replace />} />

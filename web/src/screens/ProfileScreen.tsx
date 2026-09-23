@@ -567,11 +567,62 @@ function SubscriptionCard() {
   )
 }
 
+// Гость (POST /auth/guest): вместо email/пароля — «Создать аккаунт». Выход для гостя = потеря
+// данных, поэтому «Войти в существующий» и «Удалить» оба явно удаляют гостевую учётку
+// (слияние двух аккаунтов не делаем — спека §2.1, вопрос 2).
+function GuestAccountCard({ onDeleted }: { onDeleted: () => void }) {
+  const [confirm, setConfirm] = useState<null | 'login' | 'delete'>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const remove = async () => {
+    setError(null)
+    try {
+      await api.deleteAccount()
+      onDeleted()
+    } catch {
+      setError('Не удалось удалить данные')
+    }
+  }
+
+  return (
+    <section className="dacha-card flex flex-col gap-2 p-5">
+      <h2 className="font-black">Вы без регистрации</h2>
+      <p className="text-sm font-semibold text-muted">
+        Записи привязаны к этому браузеру. Создайте аккаунт, чтобы не потерять их и открыть их в приложении на телефоне.
+      </p>
+      <Link to="/register?next=/profile" className="dacha-btn mt-2 flex items-center justify-center">
+        Создать аккаунт
+      </Link>
+      {confirm ? (
+        <div className="mt-2 flex flex-col gap-2 rounded-2xl bg-red-50 p-3">
+          <p className="text-sm font-semibold">
+            Участок, посадки и записи, сделанные без регистрации, будут удалены. Чтобы сохранить их, сначала создайте аккаунт.
+          </p>
+          <div className="flex gap-2">
+            <button className="dacha-chip flex-1 py-2 font-bold text-red-600" onClick={remove}>
+              {confirm === 'login' ? 'Удалить и войти' : 'Удалить'}
+            </button>
+            <button className="dacha-chip flex-1 py-2" onClick={() => setConfirm(null)}>Отмена</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <button className="dacha-chip py-3" onClick={() => setConfirm('login')}>Войти в существующий аккаунт</button>
+          <button className="dacha-chip py-3 font-bold text-red-600" onClick={() => setConfirm('delete')}>
+            Удалить гостевые данные
+          </button>
+        </>
+      )}
+      {error && <p className="text-sm font-bold text-red-600">{error}</p>}
+    </section>
+  )
+}
+
 // --- Аккаунт: данные аккаунта + участок + выход (перенесено из «Настроек»,
 // чтобы «Профиль» соответствовал названию). Подписка — тоже здесь, внешний вид — в «Настройках». ---
 
 function AccountTab() {
-  const { user, logout, refresh } = useAuth()
+  const { user, logout, refresh, isGuest } = useAuth()
   const { active } = useGardens()
   const navigate = useNavigate()
   const [modal, setModal] = useState<null | 'password' | 'email' | 'delete'>(null)
@@ -580,6 +631,14 @@ function AccountTab() {
     <div className="flex flex-col gap-4">
       <SubscriptionCard />
 
+      {isGuest ? (
+        <GuestAccountCard
+          onDeleted={() => {
+            logout()
+            navigate('/login', { replace: true })
+          }}
+        />
+      ) : (
       <section className="dacha-card flex flex-col gap-1 p-5">
         <h2 className="font-black">Аккаунт</h2>
         <p className="font-semibold text-muted">{user?.email}</p>
@@ -599,6 +658,7 @@ function AccountTab() {
           </button>
         </div>
       </section>
+      )}
 
       {active && (
         <section className="dacha-card flex flex-col gap-1 p-5">
@@ -611,15 +671,17 @@ function AccountTab() {
         </section>
       )}
 
-      <button
-        className="dacha-chip py-3 font-bold text-red-600"
-        onClick={() => {
-          logout()
-          navigate('/login', { replace: true })
-        }}
-      >
-        Выйти из аккаунта
-      </button>
+      {!isGuest && (
+        <button
+          className="dacha-chip py-3 font-bold text-red-600"
+          onClick={() => {
+            logout()
+            navigate('/login', { replace: true })
+          }}
+        >
+          Выйти из аккаунта
+        </button>
+      )}
 
       {modal === 'password' && <ChangePasswordModal onClose={() => setModal(null)} />}
       {modal === 'email' && <ChangeEmailModal onClose={() => setModal(null)} onChanged={() => refresh()} />}

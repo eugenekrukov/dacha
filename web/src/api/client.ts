@@ -24,6 +24,7 @@ import type {
   PlantingPhoto,
   PlantingStage,
   Recommendation,
+  SeasonWorksResponse,
   Seed,
   SeedShoppingItem,
   TodayResponse,
@@ -59,9 +60,26 @@ export const AI_DIAGNOSIS_FREE_LIMIT_MESSAGE =
 
 type Json = Record<string, unknown>
 
+// У гостя нет пароля: истёкший JWT обновляем тем же device_id (POST /auth/guest идемпотентен).
+async function renewGuestToken(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE}/auth/guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_id: tokenStore.getGuestDeviceId(), store: 'web' }),
+    })
+    if (!res.ok) return false
+    tokenStore.setToken(((await res.json()) as { token: string }).token)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function request<T>(
   path: string,
   opts: { method?: string; body?: Json; auth?: boolean } = {},
+  retried = false,
 ): Promise<T> {
   const { method = 'GET', body, auth = true } = opts
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -78,6 +96,9 @@ async function request<T>(
   })
 
   if (res.status === 401) {
+    if (auth && !retried && tokenStore.isGuest() && (await renewGuestToken())) {
+      return request<T>(path, opts, true)
+    }
     // токен протух/невалиден — выходим
     tokenStore.clearAll()
     throw new ApiError(401, 'Требуется вход', 'unauthorized')
@@ -117,6 +138,11 @@ export const api = {
   register: (email: string, password: string) =>
     request<AuthResponse>('/auth/register', { method: 'POST', body: { email, password, store: 'web' }, auth: false }),
   me: () => request<UserProfile>('/auth/me'),
+  // Гостевой режим: учётка без email по device_id; claim — та же учётка получает email/пароль.
+  guest: (device_id: string) =>
+    request<AuthResponse>('/auth/guest', { method: 'POST', body: { device_id, store: 'web' }, auth: false }),
+  claimGuest: (email: string, password: string) =>
+    request<AuthResponse>('/auth/guest/claim', { method: 'POST', body: { email, password } }),
   forgotPassword: (email: string) =>
     request<{ ok: boolean }>('/auth/forgot-password', { method: 'POST', body: { email }, auth: false }),
   resetPassword: (email: string, code: string, password: string) =>
@@ -296,8 +322,9 @@ export const api = {
     request<{ ok: boolean }>('/auth/change-email', { method: 'POST', body: { new_email, password } }),
   confirmEmailChange: (code: string) =>
     request<{ email: string }>('/auth/confirm-email-change', { method: 'POST', body: { code } }),
-  deleteAccount: (password: string) =>
-    request<{ ok: boolean }>('/auth/me', { method: 'DELETE', body: { password } }),
+  // password не нужен только гостю (сервер проверяет is_guest).
+  deleteAccount: (password?: string) =>
+    request<{ ok: boolean }>('/auth/me', { method: 'DELETE', body: password ? { password } : {} }),
 
   // --- today / recommendations ---
   getToday: (gardenId: number) => request<TodayResponse>(`/today?garden_id=${gardenId}`),
@@ -307,6 +334,7 @@ export const api = {
     request<void>('/today/tasks/dismiss', { method: 'POST', body: { task_key: taskKey, action } }),
   getRecommendations: (gardenId: number) =>
     request<Recommendation[]>(`/recommendations?garden_id=${gardenId}`),
+  getSeasonWorks: (gardenId: number) => request<SeasonWorksResponse>(`/season-works?garden_id=${gardenId}`),
   getMoonCalendar: (year: number, month: number) =>
     request<MoonCalendarResponse>(`/moon-calendar?year=${year}&month=${month}`),
 }

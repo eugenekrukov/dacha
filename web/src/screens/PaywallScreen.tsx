@@ -29,8 +29,10 @@ const BENEFITS = [
 ]
 
 export default function PaywallScreen() {
-  const { user, refresh } = useAuth()
+  const { user, refresh, isGuest } = useAuth()
   const navigate = useNavigate()
+  // Гостю оплата и промокод закрыты (сервер: 403 account_required — для чека нужен email).
+  const needAccount = () => navigate('/register?next=/paywall')
   const [busy, setBusy] = useState<BillingPlan | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [promo, setPromo] = useState('')
@@ -52,6 +54,7 @@ export default function PaywallScreen() {
   }, [])
 
   const buy = async (plan: BillingPlan) => {
+    if (isGuest) return needAccount()
     setBusy(plan)
     setError(null)
     try {
@@ -72,6 +75,7 @@ export default function PaywallScreen() {
   }
 
   const redeem = async () => {
+    if (isGuest) return needAccount()
     setPromoMsg(null)
     setError(null)
     try {

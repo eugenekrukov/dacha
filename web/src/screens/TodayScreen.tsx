@@ -10,8 +10,9 @@ import ActionLogSheet from '../components/ActionLogSheet'
 import HarvestLogModal from '../components/HarvestLogModal'
 import ErrorCard from '../components/ErrorCard'
 import ArticleList from '../components/ArticleList'
+import SeasonWorks from '../components/SeasonWorks'
 import { pickArticleOfDay } from '../lib/articleOfDay'
-import type { ActionLog, BlogPost, Recommendation, TaskUrgency, TodayResponse, TodayTask } from '../api/types'
+import type { ActionLog, BlogPost, Recommendation, SeasonWorksResponse, TaskUrgency, TodayResponse, TodayTask } from '../api/types'
 
 // Локальная дата (без времени) — для отбора действий, выполненных «сегодня».
 function isToday(iso: string): boolean {
@@ -78,6 +79,7 @@ export default function TodayScreen() {
   const [doneToday, setDoneToday] = useState<ActionLog[]>([])
   const [recs, setRecs] = useState<Recommendation[]>([])
   const [articleOfDay, setArticleOfDay] = useState<BlogPost | null>(null)
+  const [seasonWorks, setSeasonWorks] = useState<SeasonWorksResponse | null>(null)
   const [dismissed, setDismissed] = useState<Set<string>>(loadDismissed)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -92,10 +94,14 @@ export default function TodayScreen() {
       api.getRecommendations(gardenId).catch(() => []),
       api.getGardenActions(gardenId).catch(() => [] as ActionLog[]),
       api.getBlogFeed(50, 0).catch(() => ({ items: [] as BlogPost[], total: 0 })),
+      // Не критично для экрана: ошибка — блок просто не рисуется.
+      api.getSeasonWorks(gardenId).catch(() => null),
     ])
-      .then(([t, r, actions, feed]) => {
+      .then(([t, r, actions, feed, season]) => {
         setToday(t)
-        setRecs(r)
+        // Совет месяца заменён блоком «На этой неделе» — не дублируем.
+        setRecs(r.filter((x) => x.type !== 'seasonal_tip'))
+        setSeasonWorks(season)
         setDoneToday(actions.filter((a) => isToday(a.logged_at)))
         setArticleOfDay(pickArticleOfDay(feed.items, new Date()))
       })
@@ -236,6 +242,8 @@ export default function TodayScreen() {
           </>
         )
       })()}
+
+      {seasonWorks && <SeasonWorks works={seasonWorks} />}
 
       {doneToday.length > 0 && (
         <section className="flex flex-col gap-2">

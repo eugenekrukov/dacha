@@ -8,7 +8,8 @@ export interface AuthResponse {
 
 export interface UserProfile {
   id: number
-  email: string
+  email: string | null // null у гостя (POST /auth/guest)
+  is_guest?: boolean
   name?: string | null
   email_verified?: boolean
   plantings_limit?: number
@@ -162,6 +163,24 @@ export interface TodayResponse {
   forecast: ForecastDay[]
   garden_name?: string
   [key: string]: unknown
+}
+
+// «Работы на этой неделе» (GET /season-works)
+export interface SeasonWork {
+  id: string
+  key: string // id:год — ключ для «Сделано/Не актуально»
+  title: string
+  details: string
+  category: 'plan' | 'prep' | 'sow' | 'plant' | 'care' | 'prune' | 'harvest'
+  crop: string | null
+  in_garden: boolean
+  days_left: number
+  link: string | null
+}
+
+export interface SeasonWorksResponse {
+  region: string | null
+  items: SeasonWork[]
 }
 
 export interface Recommendation {
