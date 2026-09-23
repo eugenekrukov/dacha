@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Grass
@@ -147,40 +146,49 @@ private fun SeasonWorkRow(
     }
 }
 
-/** Гость записал ≥ 3 действий — предлагаем сохранить данные регистрацией (закрывается навсегда). */
+/**
+ * Гость записал 3-е действие — один раз предлагаем сохранить данные регистрацией (спека 2.1).
+ * Показывается на «Сегодня», когда закрыта шторка записи действия: шторка поверх шторки
+ * выглядела бы как наказание за запись. Любое закрытие = больше не показываем.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GuestNudgeCard(onRegister: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+fun GuestNudgeSheet(onRegister: () -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Сохраните свои записи", modifier = Modifier.weight(1f),
-                    fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Закрыть",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(18.dp))
-                }
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                "Сохраните свои записи",
+                fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             Text(
                 "Вы пользуетесь приложением без регистрации. Создайте аккаунт — посадки и журнал " +
                     "не потеряются при смене телефона, и откроется веб-версия.",
-                fontFamily = NunitoFamily, fontSize = 13.sp, lineHeight = 18.sp,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                fontFamily = NunitoFamily, fontSize = 15.sp, lineHeight = 21.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Button(
-                onClick = onRegister,
+                onClick = { onDismiss(); onRegister() },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Создать аккаунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Black,
                     maxLines = 1, softWrap = false)
+            }
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                Text("Позже", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

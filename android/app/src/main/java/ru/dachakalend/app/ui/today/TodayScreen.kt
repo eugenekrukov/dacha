@@ -229,6 +229,11 @@ private fun TodayContent(
         )
     }
 
+    // Подсказка гостю после 3-го действия — только когда не открыта ни одна шторка записи.
+    if (guestNudge && selectedPlanting == null && harvestPlanting == null && multiTask == null) {
+        GuestNudgeSheet(onRegister = onRegister, onDismiss = onCloseGuestNudge)
+    }
+
     harvestPlanting?.let { planting ->
         HarvestLogBottomSheet(
             planting  = planting,
@@ -466,12 +471,6 @@ private fun TodayContent(
                             )
                         }
                     }
-                }
-            }
-
-            if (guestNudge) {
-                item(key = "guest_nudge") {
-                    GuestNudgeCard(onRegister = onRegister, onClose = onCloseGuestNudge)
                 }
             }
 
