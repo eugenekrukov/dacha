@@ -150,7 +150,27 @@ What's new:
 - "My Seeds" got even smoother — add a packet photo in one tap right from the shopping list.
 - Watering and care logging across grouped beds now works even more smoothly offline.
 
-## Что нового (текущий релиз — vc17, versionName 1.0.14)
+## Что нового (текущий релиз — vc18, versionName 1.0.15)
+
+Общий текст для Google Play и RuStore (≤ 500 знаков — лимит Google Play). Анонсируем гостевой режим
+и «На этой неделе» (стратегия 2.1 + 2.3); перенос подписки — одной строкой, удаление ссылок на соцсети
+и технические правки (продление токена гостя, account_required) не анонсируем.
+
+Что нового:
+- Можно начать без регистрации: выберите город и сразу смотрите, что делать на участке. Аккаунт заведёте, когда захотите, записи сохранятся.
+- На экране «Сегодня» появился блок «На этой неделе»: сезонные работы для вашего региона, от посадки чеснока под зиму до заказа семян. Сроки подстраиваются под погоду на вашем участке.
+- Подписка переехала в «Профиль» → «Аккаунт».
+- Мелкие исправления.
+
+English:
+
+What's new:
+- Start without signing up: pick your town and see right away what to do in your garden. Create an account whenever you like, and your notes will be kept.
+- New "This week" block on the Today screen: seasonal jobs for your region, from planting winter garlic to ordering seeds. Timing adapts to the weather at your plot.
+- Subscription has moved to Profile → Account.
+- Minor fixes.
+
+## Что нового (архив — vc17, versionName 1.0.14)
 
 Общий текст для Google Play и RuStore. Главное для пользователя — стабильность и напоминания;
 технические изменения (аналитика открытий, новый проект RuStore Push, правило R8) не анонсируем.
