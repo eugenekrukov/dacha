@@ -3,9 +3,14 @@
 const { WORKS, worksForWeek, workWindow } = require('../data/seasonalWorks')
 const { SEASON_START_DOY, SEASON_END_DOY } = require('../utils/todayLogic')
 
-const CROP_NAMES = new Set(['Арбуз', 'Виноград', 'Георгин', 'Гладиолус', 'Капуста белокочанная', 'Картофель',
-  'Клубника', 'Лилия', 'Лук репчатый', 'Малина', 'Морковь', 'Огурец', 'Перец', 'Петуния', 'Пион', 'Редис',
-  'Роза', 'Сельдерей', 'Смородина чёрная', 'Томат', 'Тыква', 'Фасоль стручковая', 'Чеснок', 'Яблоня'])
+// crops.name на проде (GET /crops, 67 культур, 2026-09-23) — опечатка в названии молча выключила бы «у вас есть».
+const CROP_NAMES = new Set(('Арбуз Базилик Баклажан Бархатцы Виноград Вишня Георгин Гладиолус Голубика Горох Груша Дыня ' +
+  'Ежевика Ирга Кабачок Картофель Кинза Клубника Крыжовник Кукуруза Лилия Лук-батун Лук-порей Малина Морковь Мята ' +
+  'Облепиха Огурец Пастернак Патиссон Перец Петрушка Петуния Пион Ревень Редис Редька Репа Роза Свёкла Сельдерей ' +
+  'Слива Тимьян Томат Тыква Укроп Флокс Хоста Хрен Черешня Чеснок Шпинат Щавель Яблоня').split(' ')
+  .concat(['Жимолость съедобная', 'Ирис бородатый', 'Капуста белокочанная', 'Капуста брокколи', 'Капуста пекинская',
+    'Капуста цветная', 'Лук репчатый', 'Перец острый', 'Салат листовой', 'Смородина белая', 'Смородина красная',
+    'Смородина чёрная', 'Фасоль стручковая']))
 
 describe('seasonalWorks — контент', () => {
   it('id уникальны, поля заполнены, crop — существующая культура', () => {
@@ -16,7 +21,7 @@ describe('seasonalWorks — контент', () => {
       expect(w.title.length).toBeGreaterThan(5)
       expect(w.details.length).toBeGreaterThan(20)
       expect(['spring', 'autumn', 'fixed']).toContain(w.anchor)
-      if (w.crop) expect(CROP_NAMES.has(w.crop)).toBe(true)
+      for (const c of [].concat(w.crop || [])) expect([w.id, CROP_NAMES.has(c)]).toEqual([w.id, true])
     }
   })
 
@@ -26,7 +31,7 @@ describe('seasonalWorks — контент', () => {
       const thin = []
       for (let doy = 1; doy <= 365; doy += 7) {
         const today = new Date(2027, 0, doy)
-        const n = worksForWeek({ today, seasonStart: SEASON_START_DOY[zone], seasonEnd: SEASON_END_DOY[zone], limit: 99 }).length
+        const n = worksForWeek({ today, seasonStart: SEASON_START_DOY[zone], seasonEnd: SEASON_END_DOY[zone], zone, limit: 99 }).length
         if (n < 3) thin.push(`${today.toISOString().slice(5, 10)}:${n}`)
       }
       expect(thin).toEqual([])
@@ -64,6 +69,20 @@ describe('worksForWeek', () => {
   it('ключ скрытия — год закрытия окна (зимняя работа из декабря не всплывает 1 января)', () => {
     const items = worksForWeek({ today: new Date(2026, 11, 20), ...zone4, limit: 99 })
     expect(items.find(w => w.id === 'plan-rotation').key).toBe('plan-rotation:2027')
+  })
+
+  it('работы про снег не показываются на юге (zones)', () => {
+    const jan = new Date(2027, 0, 20)
+    const ids = z => worksForWeek({ today: jan, seasonStart: SEASON_START_DOY[z], seasonEnd: SEASON_END_DOY[z], zone: z, limit: 99 }).map(w => w.id)
+    expect(ids('4')).toContain('snow-retention')
+    expect(ids('6')).not.toContain('snow-retention')
+  })
+
+  it('crop-список: «у вас есть» по любой культуре из списка, ссылка — по первой', () => {
+    const items = worksForWeek({ today: new Date(2026, 8, 25), ...zone4, gardenCrops: new Set(['Смородина красная']), limit: 99 })
+    const shrubs = items.find(w => w.id === 'shrubs-plant')
+    expect(shrubs.in_garden).toBe(true)
+    expect(shrubs.crop).toBe('Смородина чёрная')
   })
 
   it('limit ограничивает выдачу', () => {

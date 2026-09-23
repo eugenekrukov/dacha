@@ -34,7 +34,7 @@ module.exports = async function (fastify) {
     )
     const gardenCrops = new Set(cropsRes.rows.map(r => r.name))
 
-    const items = worksForWeek({ today, seasonStart, seasonEnd, gardenCrops })
+    const items = worksForWeek({ today, seasonStart, seasonEnd, zone, gardenCrops })
 
     // Ссылка на справочник — по slug культуры (одним запросом на все культуры выдачи).
     const cropNames = [...new Set(items.map(i => i.crop).filter(Boolean))]
