@@ -99,6 +99,7 @@ app.register(require('./routes/seeds'), { prefix: '/seeds' })
 app.register(require('./routes/feed'), { prefix: '/feed' })
 app.register(require('./routes/moon-calendar'), { prefix: '/moon-calendar' })
 app.register(require('./routes/blog'), { prefix: '/blog' })
+app.register(require('./routes/season-works'), { prefix: '/season-works' })
 
 // Health check
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
