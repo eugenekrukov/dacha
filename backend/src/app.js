@@ -56,6 +56,11 @@ app.decorate('authenticate', async function (request, reply) {
   }
 })
 
+// Гостю (POST /auth/guest, JWT с guest:true) закрыто то, что требует email: оплата (чек),
+// промокод, смена пароля/email, подтверждение email. Ставится ПОСЛЕ authenticate.
+app.decorate('requireAccount', async function (request, reply) {
+  if (request.user?.guest) return reply.code(403).send({ error: 'account_required' })
+})
 
 // Admin guard decorator
 app.decorate('requireAdmin', async function (request, reply) {

@@ -590,7 +590,7 @@ describe('DELETE /auth/me', () => {
     const app = await buildApp(makeMockDb({
       query: async (sql) => {
         calls.push(sql)
-        if (sql.includes('SELECT password_hash FROM users')) return { rows: [{ password_hash: hash }] }
+        if (sql.includes('SELECT password_hash')) return { rows: [{ password_hash: hash }] }
         return { rows: [] }
       },
     }))
@@ -610,7 +610,7 @@ describe('DELETE /auth/me', () => {
     const hash = await bcrypt.hash('mypass', 10)
     const app = await buildApp(makeMockDb({
       query: async (sql) => {
-        if (sql.includes('SELECT password_hash FROM users')) return { rows: [{ password_hash: hash }] }
+        if (sql.includes('SELECT password_hash')) return { rows: [{ password_hash: hash }] }
         return { rows: [] }
       },
     }))

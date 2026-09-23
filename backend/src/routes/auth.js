@@ -131,10 +131,89 @@ module.exports = async function (fastify) {
     return { token, user: { id: user.id, email: user.email, name: user.name } }
   })
 
+  // POST /auth/guest — гостевой режим (миграция 092): учётка без email/пароля по device_id.
+  // Идемпотентен: тот же device_id → тот же гость (так клиент и «перелогинивается», когда истёк JWT).
+  // device_id уже привязан к зарегистрированному (claim) аккаунту → 409, клиент ведёт на вход по email.
+  fastify.post('/guest', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    schema: {
+      body: {
+        type: 'object',
+        required: ['device_id'],
+        properties: {
+          device_id: { type: 'string', minLength: 16, maxLength: 64 },
+          store:     { type: 'string', enum: ['rustore', 'gplay', 'samsung', 'web'] },
+          install_referrer: { type: 'string', maxLength: 512 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { device_id, store, install_referrer } = request.body
+    // ON CONFLICT … DO UPDATE (no-op) нужен, чтобы RETURNING отдал строку и в случае
+    // существующего гостя — одним запросом и без гонки двух параллельных первых запусков.
+    const r = await fastify.db.query(
+      `INSERT INTO users (is_guest, guest_device_id, store, install_referrer)
+       VALUES (true, $1, $2, $3)
+       ON CONFLICT (guest_device_id) DO UPDATE SET guest_device_id = EXCLUDED.guest_device_id
+       RETURNING id, is_guest, created_at`,
+      [device_id, store ?? null, install_referrer ?? null]
+    )
+    const user = r.rows[0]
+    if (!user.is_guest) return reply.code(409).send({ error: 'guest_claimed' })
+
+    const token = fastify.jwt.sign({ userId: user.id, email: null, guest: true })
+    return { token, user: { id: user.id, email: null, is_guest: true, plantings_limit: FREE_PLANTING_LIMIT } }
+  })
+
+  // POST /auth/guest/claim — гость становится обычным пользователем: email и пароль пишутся
+  // в ту же строку users, все участки/посадки/журнал остаются на месте.
+  fastify.post('/guest/claim', {
+    onRequest: [fastify.authenticate],
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    schema: {
+      body: {
+        type: 'object',
+        required: ['email', 'password'],
+        properties: {
+          email:    { type: 'string', format: 'email' },
+          password: { type: 'string', minLength: 6 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const email = request.body.email.toLowerCase()
+    const db = fastify.db
+    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email])
+    if (existing.rows.length > 0) return reply.code(409).send({ error: 'Email already registered' })
+
+    const passwordHash = await bcrypt.hash(request.body.password, 10)
+    // trial_started_at сбрасываем на момент регистрации: письма онбординга (trialEmailsJob)
+    // считают дни от него, а до регистрации писать было некуда.
+    const r = await db.query(
+      `UPDATE users SET email = $1, password_hash = $2, is_guest = false, trial_started_at = NOW()
+       WHERE id = $3 AND is_guest = true
+       RETURNING id, email, name, created_at, email_verified`,
+      [email, passwordHash, request.user.userId]
+    )
+    const user = r.rows[0]
+    if (!user) return reply.code(409).send({ error: 'not_guest' })
+
+    try {
+      const code = await issueCode(db, user.id, 'verify')
+      sendVerificationCode(user.email, code).catch(e =>
+        fastify.log.warn(`[auth] claim: не удалось отправить код подтверждения: ${e.message}`))
+    } catch (e) {
+      fastify.log.warn(`[auth] claim issueCode (verify) failed: ${e.message}`)
+    }
+
+    const token = fastify.jwt.sign({ userId: user.id, email: user.email })
+    return { token, user: { ...user, is_guest: false, plantings_limit: FREE_PLANTING_LIMIT } }
+  })
+
   // GET /auth/me
   fastify.get('/me', { onRequest: [fastify.authenticate] }, async (request) => {
     const result = await fastify.db.query(
-      'SELECT id, email, name, push_token, notification_settings, created_at, subscription_until, promo_until, email_verified, auto_renew, plan, payment_method_id, pending_email FROM users WHERE id = $1',
+      'SELECT id, email, name, is_guest, push_token, notification_settings, created_at, subscription_until, promo_until, email_verified, auto_renew, plan, payment_method_id, pending_email FROM users WHERE id = $1',
       [request.user.userId]
     )
     const user = result.rows[0]
@@ -178,7 +257,7 @@ module.exports = async function (fastify) {
 
   // POST /auth/verify-email — подтверждение email кодом из письма (текущий пользователь).
   fastify.post('/verify-email', {
-    onRequest: [fastify.authenticate],
+    onRequest: [fastify.authenticate, fastify.requireAccount],
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: {
       body: { type: 'object', required: ['code'], properties: { code: { type: 'string' } } }
@@ -196,7 +275,7 @@ module.exports = async function (fastify) {
 
   // POST /auth/resend-verification — повторно отправить код подтверждения (текущий пользователь).
   fastify.post('/resend-verification', {
-    onRequest: [fastify.authenticate],
+    onRequest: [fastify.authenticate, fastify.requireAccount],
     config: { rateLimit: { max: 3, timeWindow: '10 minutes' } }
   }, async (request) => {
     const db = fastify.db
@@ -271,7 +350,7 @@ module.exports = async function (fastify) {
 
   // PATCH /auth/password — смена пароля залогиненным (нужно знать текущий).
   fastify.patch('/password', {
-    onRequest: [fastify.authenticate],
+    onRequest: [fastify.authenticate, fastify.requireAccount],
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: {
       body: {
@@ -297,7 +376,7 @@ module.exports = async function (fastify) {
 
   // POST /auth/change-email — шаг 1: проверка пароля, запись pending_email, код на новый адрес.
   fastify.post('/change-email', {
-    onRequest: [fastify.authenticate],
+    onRequest: [fastify.authenticate, fastify.requireAccount],
     config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
     schema: {
       body: {
@@ -338,7 +417,7 @@ module.exports = async function (fastify) {
 
   // POST /auth/confirm-email-change — шаг 2: код из письма на новый адрес → переключение email.
   fastify.post('/confirm-email-change', {
-    onRequest: [fastify.authenticate],
+    onRequest: [fastify.authenticate, fastify.requireAccount],
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: { body: { type: 'object', required: ['code'], properties: { code: { type: 'string' } } } }
   }, async (request, reply) => {
@@ -365,13 +444,15 @@ module.exports = async function (fastify) {
   // DELETE /auth/me — удаление аккаунта. Каскад через FK; payments сохраняем (анонимизация).
   fastify.delete('/me', {
     onRequest: [fastify.authenticate],
-    schema: { body: { type: 'object', required: ['password'], properties: { password: { type: 'string' } } } }
+    // password не обязателен только гостю (у него пароля нет) — проверяется по is_guest в БД ниже.
+    schema: { body: { type: 'object', properties: { password: { type: 'string' } } } }
   }, async (request, reply) => {
     const db = fastify.db
     const userId = request.user.userId
-    const r = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId])
+    const r = await db.query('SELECT password_hash, is_guest FROM users WHERE id = $1', [userId])
     const user = r.rows[0]
-    if (!user || !(await bcrypt.compare(request.body.password, user.password_hash))) {
+    if (!user) return reply.code(401).send({ error: 'invalid_password' })
+    if (!user.is_guest && !(request.body?.password && await bcrypt.compare(request.body.password, user.password_hash))) {
       return reply.code(401).send({ error: 'invalid_password' })
     }
     await db.query('UPDATE payments SET user_id = NULL WHERE user_id = $1', [userId])

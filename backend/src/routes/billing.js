@@ -14,7 +14,7 @@ module.exports = async function (fastify, opts) {
 
   // POST /billing/create-payment {plan} — создаёт платёж, возвращает ссылку на оплату.
   fastify.post('/create-payment', {
-    onRequest: [fastify.authenticate],
+    onRequest: [fastify.authenticate, fastify.requireAccount],
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: {
       body: {

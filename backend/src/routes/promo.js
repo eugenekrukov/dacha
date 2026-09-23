@@ -8,7 +8,7 @@ module.exports = async function (fastify) {
   // не дважды одним пользователем. Гонки исключены атомарным UPDATE ... WHERE uses < max_uses
   // (claim-first) плюс PK (code, user_id) в promo_redemptions.
   fastify.post('/redeem', {
-    onRequest: [fastify.authenticate],
+    onRequest: [fastify.authenticate, fastify.requireAccount],
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: {
       body: {

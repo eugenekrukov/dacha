@@ -34,6 +34,11 @@ async function buildApp(mockDb, billingOpts = {}) {
     }
   })
 
+  // Гостевой гейт — зеркало app.js
+  fastify.decorate('requireAccount', async function (request, reply) {
+    if (request.user?.guest) return reply.code(403).send({ error: 'account_required' })
+  })
+
   // Admin guard — зеркало app.js: пускает только request.user.email === ADMIN_EMAIL.
   fastify.decorate('requireAdmin', async function (request, reply) {
     try {
