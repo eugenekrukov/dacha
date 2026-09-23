@@ -12,7 +12,8 @@ export function pickArticleOfDay(items: BlogPost[], today: Date): BlogPost | nul
   let best: BlogPost | null = null
   let bestKey = -1
   for (const item of items) {
-    const key = dateKey(new Date(item.published_at))
+    // Дата выхода — из строки, а не через часовой пояс браузера (см. ArticleList.dateLabel).
+    const key = Number(item.published_at.slice(0, 10).replace(/-/g, ''))
     if (key > todayKey) continue
     if (key > bestKey) {
       best = item

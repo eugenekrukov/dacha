@@ -44,6 +44,16 @@ fun ReferenceScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
+    // Свежие статьи блога при каждом возврате на вкладку (см. ReferenceViewModel.refreshArticles).
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) viewModel.refreshArticles()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()

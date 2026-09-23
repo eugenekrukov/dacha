@@ -1,7 +1,10 @@
 import type { BlogPost } from '../api/types'
 
+// Дата выхода — календарная дата из самой строки ("2026-09-23T00:00:00+03:00" → 23 сентября), как
+// на сайте и в Android. new Date(iso) переводил 00:00 МСК в часовой пояс браузера и в UTC+2 и западнее
+// показывал предыдущий день (статья от 23.09 была подписана 22.09).
 const dateLabel = (iso: string) =>
-  new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+  new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
 
 // Карточка статьи блога → открывается на сайте (calendacha.ru), нативного рендера тела нет.
 export default function ArticleList({

@@ -80,6 +80,22 @@ class ReferenceViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Экран живёт в нижней навигации с saveState — ViewModel переживает уход и возврат на вкладку,
+     * и init { load() } больше не срабатывает. Без этого статья, вышедшая в 00:00 МСК, не появлялась
+     * в «Статьях», пока система не выгрузит приложение (при этом на сайте и на «Сегодня» она уже была).
+     * Вызывается на ON_RESUME; список меняется, только если появилась новая первая статья.
+     */
+    fun refreshArticles() {
+        if (_uiState.value.isLoading) return
+        viewModelScope.launch {
+            val blog = (blogRepository.getBlogFeed(ARTICLES_PAGE, 0) as? Result.Success)?.data ?: return@launch
+            val current = _uiState.value
+            if (blog.items.firstOrNull()?.slug == current.articles.firstOrNull()?.slug) return@launch
+            _uiState.value = current.copy(articles = blog.items, articlesTotal = blog.total)
+        }
+    }
+
     fun setQuery(query: String) {
         _uiState.value = _uiState.value.copy(query = query)
     }
