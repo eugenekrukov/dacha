@@ -159,6 +159,20 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // Гость (POST /auth/guest): вместо email/пароля — «Создать аккаунт»; выход = потеря данных,
+    // поэтому вместо «Выйти» — явное удаление гостевых данных.
+    val isGuest: Boolean get() = tokenStorage.isGuest()
+
+    fun deleteGuestData() {
+        viewModelScope.launch {
+            when (val r = authRepository.deleteGuest()) {
+                is Result.Success -> { todayCache.clear(); actionQueue.clear(); _loggedOut.value = true }
+                is Result.Error -> _accountMessage.value = r.message
+                else -> Unit
+            }
+        }
+    }
+
     fun logout() {
         // Отвязываем push-токен на сервере ДО очистки auth-токена (DELETE требует авторизации),
         // иначе на устройстве останется мёртвая привязка и care-job будет слать чужие пуши.

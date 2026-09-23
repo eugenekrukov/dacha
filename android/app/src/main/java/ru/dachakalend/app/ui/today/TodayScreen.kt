@@ -85,6 +85,7 @@ fun TodayScreen(
     onOpenJournal: () -> Unit = {},
     onAddPlanting: () -> Unit = {},
     onOpenPaywall: () -> Unit = {},
+    onRegister: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel()
 ) {
     val uiState       by viewModel.uiState.collectAsState()
@@ -152,6 +153,11 @@ fun TodayScreen(
                     plantings     = state.data.plantings,
                     todayActions  = state.data.todayActions,
                     articleOfDay  = state.data.articleOfDay,
+                    seasonWorks   = state.data.seasonWorks,
+                    guestNudge    = state.data.guestNudge,
+                    onHideSeasonWork = { work -> viewModel.hideSeasonWork(work.key) },
+                    onCloseGuestNudge = viewModel::closeGuestNudge,
+                    onRegister    = onRegister,
                     onDeleteAction  = { action -> viewModel.deleteAction(action.id, action.clientId) },
                     onSnoozeRec     = { rec -> viewModel.snoozeRec(recKey(rec)) },
                     onDeleteRec     = { rec -> viewModel.deleteRec(recKey(rec)) },
@@ -181,6 +187,11 @@ private fun TodayContent(
     plantings: List<Planting>,
     todayActions: List<ActionLog> = emptyList(),
     articleOfDay: ru.dachakalend.app.data.model.BlogPost? = null,
+    seasonWorks: ru.dachakalend.app.data.model.SeasonWorksResponse? = null,
+    guestNudge: Boolean = false,
+    onHideSeasonWork: (ru.dachakalend.app.data.model.SeasonWork) -> Unit = {},
+    onCloseGuestNudge: () -> Unit = {},
+    onRegister: () -> Unit = {},
     offline: Boolean = false,
     cachedAt: Long? = null,
     queueSize: Int = 0,
@@ -252,7 +263,8 @@ private fun TodayContent(
     // Compute stable LazyColumn indices for coach mark scroll targets
     val weatherVisible = weather != null || forecast.isNotEmpty()
     val recsVisible    = recommendations.isNotEmpty()
-    val coachScrollIdx = remember(weatherVisible, currentTasks.size, upcomingTasks.size, recsVisible, tasksHidden) {
+    val seasonVisible  = !seasonWorks?.items.isNullOrEmpty()
+    val coachScrollIdx = remember(weatherVisible, currentTasks.size, upcomingTasks.size, recsVisible, tasksHidden, seasonVisible) {
         var i = 0
         buildMap {
             if (weatherVisible) { put("weather", i); i++ }
@@ -261,6 +273,7 @@ private fun TodayContent(
                 i += 1 + currentTasks.size
                 if (tasksHidden > 0) i++   // строка «Ещё задач: N»
             } else if (plantings.isEmpty()) i++   // empty card
+            if (seasonVisible) i++                 // «На этой неделе» — один элемент
             if (upcomingTasks.isNotEmpty()) i += 1 + upcomingTasks.size
             if (recsVisible) { put("recs", i) }
         }
@@ -384,6 +397,14 @@ private fun TodayContent(
             }
             // Если посадки есть, но текущих задач нет — ничего не показываем (нормальный день)
 
+            // «На этой неделе · регион» — сезонные работы (стратегия 2.3). После задач: в сезон
+            // главное — свои посадки, в межсезонье блок оказывается первым после погоды.
+            if (seasonVisible) {
+                item(key = "season_works") {
+                    SeasonWorksCard(works = seasonWorks!!, onHide = onHideSeasonWork)
+                }
+            }
+
             // Скоро (care-задачи через 1–3 дня, только просмотр)
             if (upcomingTasks.isNotEmpty()) {
                 item {
@@ -445,6 +466,12 @@ private fun TodayContent(
                             )
                         }
                     }
+                }
+            }
+
+            if (guestNudge) {
+                item(key = "guest_nudge") {
+                    GuestNudgeCard(onRegister = onRegister, onClose = onCloseGuestNudge)
                 }
             }
 

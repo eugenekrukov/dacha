@@ -42,6 +42,10 @@ data class TodayScreenData(
     val cachedAt: Long? = null,
     // «Статья дня» (см. spec §6) — не кэшируется офлайн: секция просто не рисуется без сети.
     val articleOfDay: BlogPost? = null,
+    // «Работы на этой неделе» (GET /season-works) — не кэшируется офлайн, как и статья дня.
+    val seasonWorks: ru.dachakalend.app.data.model.SeasonWorksResponse? = null,
+    // Гость записал ≥ 3 действий → карточка «Сохраните данные: создайте аккаунт».
+    val guestNudge: Boolean = false,
 )
 
 sealed class TodayUiState {
@@ -87,6 +91,20 @@ class TodayViewModel @Inject constructor(
     fun snoozeRec(key: String) {
         tokenStorage.addDismissedRec(key)
         _dismissedRecs.value = _dismissedRecs.value + key
+    }
+
+    /** «Сделано» / «Не актуально» у сезонной работы: скрываем до следующего года (ключ id:год). */
+    fun hideSeasonWork(key: String) {
+        tokenStorage.hideSeasonWork(key)
+        val s = _uiState.value as? TodayUiState.Success ?: return
+        val works = s.data.seasonWorks ?: return
+        _uiState.value = s.copy(data = s.data.copy(seasonWorks = works.copy(items = works.items.filterNot { it.key == key })))
+    }
+
+    fun closeGuestNudge() {
+        tokenStorage.closeGuestNudge()
+        val s = _uiState.value as? TodayUiState.Success ?: return
+        _uiState.value = s.copy(data = s.data.copy(guestNudge = false))
     }
 
     fun deleteRec(key: String) {
@@ -205,6 +223,7 @@ class TodayViewModel @Inject constructor(
             val plantingsDeferred = async { plantingsRepository.getPlantings(gardenId) }
             // «Статья дня» — не критична, ошибка не должна ронять экран «Сегодня».
             val blogDeferred = async { blogRepository.getBlogFeed(50, 0) }
+            val seasonDeferred = async { recommendationsRepository.getSeasonWorks() }
             val actionsDeferred  = async {
                 try { api.getActions(limit = 20) } catch (_: Exception) { emptyList() }
             }
@@ -260,11 +279,14 @@ class TodayViewModel @Inject constructor(
                         ?.let { pickArticleOfDay(it, java.time.LocalDate.now()) }
                     val data = TodayScreenData(
                         today          = todayResult.data,
-                        recommendations = if (recsResult is Result.Success) recsResult.data else emptyList(),
+                        // Совет месяца заменён блоком «Работы на этой неделе» — не дублируем.
+                        recommendations = if (recsResult is Result.Success) recsResult.data.filter { it.type != "seasonal_tip" } else emptyList(),
                         // Завершённые (архивные) посадки не показываем в быстрых действиях
                         plantings      = plantingsList.filter { it.stage != "done" },
                         todayActions   = todayActions,
                         articleOfDay   = articleOfDay,
+                        seasonWorks    = (seasonDeferred.await() as? Result.Success)?.data,
+                        guestNudge     = tokenStorage.isGuestNudgeDue(),
                     )
                     if (gardenIdForCache != -1) {
                         todayCache.save(ru.dachakalend.app.data.local.CachedToday(

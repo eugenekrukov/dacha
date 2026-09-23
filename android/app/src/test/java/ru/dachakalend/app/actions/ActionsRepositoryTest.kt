@@ -29,7 +29,7 @@ class ActionsRepositoryTest {
         val cache = mockk<TodayCache>(relaxed = true)
         coEvery { api.createAction(any()) } returns saved
 
-        val repo = ActionsRepository(api, queue, cache)
+        val repo = ActionsRepository(api, queue, cache, mockk(relaxed = true))
         val res = repo.logAction(1, "watering")
 
         assertTrue(res is Result.Success)
@@ -44,7 +44,7 @@ class ActionsRepositoryTest {
         val cache = mockk<TodayCache>(relaxed = true)
         coEvery { api.createAction(any()) } throws IOException("offline")
 
-        val repo = ActionsRepository(api, queue, cache)
+        val repo = ActionsRepository(api, queue, cache, mockk(relaxed = true))
         val res = repo.logAction(1, "watering")
 
         assertTrue(res is Result.Success)
@@ -64,7 +64,7 @@ class ActionsRepositoryTest {
         val cache = mockk<TodayCache>(relaxed = true)
         coEvery { queue.removeByTargetClientId("c1") } returns true
 
-        val repo = ActionsRepository(api, queue, cache)
+        val repo = ActionsRepository(api, queue, cache, mockk(relaxed = true))
         val res = repo.deleteAction(-7, clientId = "c1")
 
         assertTrue(res is Result.Success)
@@ -78,7 +78,7 @@ class ActionsRepositoryTest {
         val cache = io.mockk.mockk<ru.dachakalend.app.data.local.TodayCache>(relaxed = true)
         coEvery { api.updatePlantingStage(any(), any()) } throws java.io.IOException("offline")
 
-        val repo = ActionsRepository(api, queue, cache)
+        val repo = ActionsRepository(api, queue, cache, mockk(relaxed = true))
         val res = repo.changeStage(3, "transplanted")
 
         assertTrue(res is Result.Success)
@@ -95,7 +95,7 @@ class ActionsRepositoryTest {
         val cache = io.mockk.mockk<ru.dachakalend.app.data.local.TodayCache>(relaxed = true)
         coEvery { api.deleteAction(any()) } throws java.io.IOException("offline")
 
-        val repo = ActionsRepository(api, queue, cache)
+        val repo = ActionsRepository(api, queue, cache, mockk(relaxed = true))
         val res = repo.deleteAction(42)
 
         assertTrue(res is Result.Success)

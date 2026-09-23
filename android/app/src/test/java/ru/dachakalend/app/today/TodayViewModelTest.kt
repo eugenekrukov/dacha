@@ -71,6 +71,8 @@ class TodayViewModelTest {
 
         every { tokenStorage.getGardenId() }    returns 1
         every { tokenStorage.getClimateZone() } returns "4"
+        // «Работы на этой неделе» не критичны для экрана — по умолчанию нет данных.
+        coEvery { recsRepo.getSeasonWorks() } returns Result.Error("нет")
     }
 
     @After

@@ -11,6 +11,13 @@ interface DachaApi {
     @POST("auth/register")
     suspend fun register(@Body request: RegisterRequest): AuthResponse
 
+    // Гостевой режим: учётка без email по device_id; claim — та же учётка получает email/пароль.
+    @POST("auth/guest")
+    suspend fun guest(@Body request: GuestRequest): AuthResponse
+
+    @POST("auth/guest/claim")
+    suspend fun claimGuest(@Body request: RegisterRequest): AuthResponse
+
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): AuthResponse
 
@@ -221,6 +228,9 @@ interface DachaApi {
     // Recommendations
     @GET("recommendations")
     suspend fun getRecommendations(@Query("garden_id") gardenId: Int): List<Recommendation>
+
+    @GET("season-works")
+    suspend fun getSeasonWorks(@Query("garden_id") gardenId: Int): SeasonWorksResponse
 
     // Push tokens
     @POST("push-tokens")

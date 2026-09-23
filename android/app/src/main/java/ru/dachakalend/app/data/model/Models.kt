@@ -22,7 +22,8 @@ data class AuthResponse(
 data class UserProfile(
     val id: Int,
     val name: String? = null,   // имя больше не собирается при регистрации; старые записи могут содержать
-    val email: String,
+    val email: String? = null,  // null у гостя (POST /auth/guest)
+    @Json(name = "is_guest") val isGuest: Boolean = false,
     // Лимит бесплатного тарифа (1 сад / N посадок одновременно, без ограничения по времени).
     @Json(name = "plantings_limit") val plantingsLimit: Int = 3,
     // Промо-доступ (только /auth/me). promoActive — активен сейчас, promoLifetime — навсегда,
@@ -193,6 +194,35 @@ data class RegisterRequest(
     val email: String,
     val password: String,
     val store: String? = null   // магазин установки (E5): rustore/gplay
+)
+
+// --- Гостевой режим ---
+
+@JsonClass(generateAdapter = true)
+data class GuestRequest(
+    @Json(name = "device_id") val deviceId: String,
+    val store: String? = null
+)
+
+// --- «Работы на этой неделе» (GET /season-works) ---
+
+@JsonClass(generateAdapter = true)
+data class SeasonWorksResponse(
+    val region: String? = null,
+    val items: List<SeasonWork> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class SeasonWork(
+    val id: String,
+    val key: String,              // id:год — для «Сделано/Не актуально» (TokenStorage.hideSeasonWork)
+    val title: String,
+    val details: String,
+    val category: String,         // plan | prep | sow | plant | care | prune | harvest
+    val crop: String? = null,
+    @Json(name = "in_garden") val inGarden: Boolean = false,
+    @Json(name = "days_left") val daysLeft: Int = 0,
+    val link: String? = null
 )
 
 // --- Reminder ---

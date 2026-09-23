@@ -13,6 +13,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import ru.dachakalend.app.BuildConfig
 import ru.dachakalend.app.data.api.AuthInterceptor
 import ru.dachakalend.app.data.api.DachaApi
+import ru.dachakalend.app.data.api.GuestAuthenticator
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -28,9 +29,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient =
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor, guestAuthenticator: GuestAuthenticator): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
+            .authenticator(guestAuthenticator)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = if (BuildConfig.DEBUG)
                     HttpLoggingInterceptor.Level.BODY

@@ -104,6 +104,29 @@ class TokenStorage @Inject constructor(
     fun getToken(): String? = tokenPrefs.getString(KEY_TOKEN, null)
     fun clearToken() = tokenPrefs.edit { remove(KEY_TOKEN) }
 
+    // ─── Гостевой режим (POST /auth/guest, миграция 092) ───
+    // device_id — единственный «пароль» гостя: по нему сервер отдаёт того же гостя, в т.ч. когда
+    // истёк JWT (GuestAuthenticator). Лежит рядом с токеном (зашифрованные prefs) и стирается
+    // вместе с ним в logout() — «удалить гостевые данные» = новый гость при следующем запуске.
+    fun isGuest(): Boolean = tokenPrefs.getBoolean(KEY_IS_GUEST, false)
+    fun setGuest(guest: Boolean) = tokenPrefs.edit { putBoolean(KEY_IS_GUEST, guest) }
+    @Synchronized
+    fun getGuestDeviceId(): String =
+        tokenPrefs.getString(KEY_GUEST_DEVICE_ID, null)
+            ?: java.util.UUID.randomUUID().toString().also { id -> tokenPrefs.edit(commit = true) { putString(KEY_GUEST_DEVICE_ID, id) } }
+
+    // Счётчик записанных гостем действий — после 3-го на «Сегодня» появляется карточка
+    // «Сохраните данные: создайте аккаунт» (пока её не закроют).
+    fun incGuestActions() = prefs.edit { putInt(KEY_GUEST_ACTIONS, prefs.getInt(KEY_GUEST_ACTIONS, 0) + 1) }
+    fun isGuestNudgeDue(): Boolean =
+        isGuest() && prefs.getInt(KEY_GUEST_ACTIONS, 0) >= 3 && !prefs.getBoolean(KEY_GUEST_NUDGE_CLOSED, false)
+    fun closeGuestNudge() = prefs.edit { putBoolean(KEY_GUEST_NUDGE_CLOSED, true) }
+
+    // «Работы на этой неделе» (GET /season-works): скрытые «Сделано/Не актуально» по ключу id:год.
+    fun getHiddenSeasonWorks(): Set<String> = prefs.getStringSet(KEY_HIDDEN_SEASON_WORKS, emptySet()) ?: emptySet()
+    fun hideSeasonWork(key: String) =
+        prefs.edit { putStringSet(KEY_HIDDEN_SEASON_WORKS, getHiddenSeasonWorks() + key) }
+
     fun saveGardenId(id: Int) = prefs.edit { putInt(KEY_GARDEN_ID, id) }
     fun getGardenId(): Int = prefs.getInt(KEY_GARDEN_ID, -1)
     fun hasGarden(): Boolean = getGardenId() != -1
@@ -276,6 +299,11 @@ class TokenStorage @Inject constructor(
         const val THEME_LIGHT  = "light"
         const val THEME_DARK   = "dark"
         private const val KEY_TOKEN           = "auth_token"
+        private const val KEY_IS_GUEST        = "is_guest"
+        private const val KEY_GUEST_DEVICE_ID = "guest_device_id"
+        private const val KEY_GUEST_ACTIONS   = "guest_actions"
+        private const val KEY_GUEST_NUDGE_CLOSED = "guest_nudge_closed"
+        private const val KEY_HIDDEN_SEASON_WORKS = "hidden_season_works"
         private const val KEY_GARDEN_ID       = "garden_id"
         private const val KEY_CLIMATE_ZONE    = "climate_zone"
         private const val KEY_SEASON_START_DOY = "season_start_doy"

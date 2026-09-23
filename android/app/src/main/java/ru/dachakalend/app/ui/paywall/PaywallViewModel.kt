@@ -36,8 +36,12 @@ data class PaywallUiState(
 @HiltViewModel
 class PaywallViewModel @Inject constructor(
     private val subscriptionManager: SubscriptionManager,
-    private val api: DachaApi
+    private val api: DachaApi,
+    private val tokenStorage: ru.dachakalend.app.data.local.TokenStorage
 ) : ViewModel() {
+
+    // Гостю оплата и промокод закрыты (сервер отвечает 403 account_required: для чека нужен email).
+    val isGuest: Boolean get() = tokenStorage.isGuest()
 
     private val _uiState = MutableStateFlow(PaywallUiState())
     val uiState: StateFlow<PaywallUiState> = _uiState.asStateFlow()

@@ -70,5 +70,20 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    /** Начать без регистрации: гостевая учётка. Тот же гость мог уже создать участок (переустановки нет, но токен истёк). */
+    fun startGuest() {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            when (val result = authRepository.startGuest()) {
+                is Result.Success -> {
+                    gardenRepository.loadGardens()
+                    _uiState.value = if (gardenRepository.hasGarden()) AuthUiState.SuccessHasGarden else AuthUiState.SuccessNoGarden
+                }
+                is Result.Error   -> _uiState.value = AuthUiState.Error(result.message)
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
     fun resetState() { _uiState.value = AuthUiState.Idle }
 }

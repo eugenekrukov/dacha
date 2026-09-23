@@ -18,6 +18,7 @@ sealed class Screen(val route: String) {
     // Auth flow
     object Login : Screen("login")
     object Register : Screen("register")
+    object GuestStart : Screen("guest_start")   // «Начать без регистрации» → гостевая учётка
     object CreateGarden : Screen("create_garden")
     object OnboardingCrops : Screen("onboarding_crops")
 

@@ -92,6 +92,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onVerifyEmail: (email: String?) -> Unit,
     onOpenPaywall: () -> Unit,
+    onRegister: () -> Unit,
     viewModel: FeedViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -155,6 +156,7 @@ fun ProfileScreen(
                     onEditGarden = onEditGarden,
                     onLogout = onLogout,
                     onOpenPaywall = onOpenPaywall,
+                    onRegister = onRegister,
                 )
             }
         }

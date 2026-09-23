@@ -24,6 +24,7 @@ class ActionsRepository @Inject constructor(
     private val api: DachaApi,
     private val queue: ActionQueue,
     private val todayCache: TodayCache,
+    private val tokenStorage: ru.dachakalend.app.data.local.TokenStorage,
 ) {
 
     private val _deletedActionId = MutableSharedFlow<Int>()
@@ -44,6 +45,7 @@ class ActionsRepository @Inject constructor(
         return try {
             val saved = api.createAction(CreateActionRequest(plantingId, type, notes, auto, clientId, loggedAt))
             _loggedAction.emit(LoggedActionInfo(plantingId, type))
+            if (!auto) tokenStorage.incGuestActions()  // счётчик для карточки «создайте аккаунт»
             Result.Success(saved)
         } catch (e: IOException) {
             // Офлайн: ставим в очередь, оптимистично возвращаем синтетическое действие.
@@ -61,6 +63,7 @@ class ActionsRepository @Inject constructor(
             // Показать сразу в ленте «Сделано сегодня» (если есть кэш).
             todayCache.updateActions { listOf(optimistic) + it }
             _loggedAction.emit(LoggedActionInfo(plantingId, type))
+            if (!auto) tokenStorage.incGuestActions()  // счётчик для карточки «создайте аккаунт»
             Result.Success(optimistic)
         } catch (e: Exception) {
             errorResult(e, "Ошибка записи действия")

@@ -260,7 +260,7 @@ private fun IntroSlidePage(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(Icons.Default.Spa, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text(
-                            text       = "Зарегистрироваться",
+                            text       = "Начать",
                             fontFamily = NunitoFamily,
                             fontWeight = FontWeight.Black,
                             fontSize   = 16.sp,

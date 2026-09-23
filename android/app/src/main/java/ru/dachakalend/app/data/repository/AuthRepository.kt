@@ -4,6 +4,7 @@ import retrofit2.HttpException
 import ru.dachakalend.app.BuildConfig
 import ru.dachakalend.app.data.api.DachaApi
 import ru.dachakalend.app.data.local.TokenStorage
+import ru.dachakalend.app.data.model.GuestRequest
 import ru.dachakalend.app.data.model.LoginRequest
 import ru.dachakalend.app.data.model.RegisterRequest
 import ru.dachakalend.app.data.model.PromoRedeemResponse
@@ -28,19 +29,57 @@ class AuthRepository @Inject constructor(
         return try {
             val response = api.login(LoginRequest(email, password, BuildConfig.STORE))
             tokenStorage.saveToken(response.token)
+            tokenStorage.setGuest(false)
             Result.Success(response.user)
         } catch (e: Exception) {
             Result.Error(parseError(e))
         }
     }
 
+    /**
+     * Регистрация. Гость (есть гостевой токен) регистрируется через /auth/guest/claim — та же
+     * учётка получает email и пароль, участок и записи остаются. Поэтому экран регистрации один.
+     */
     suspend fun register(email: String, password: String): Result<UserProfile> {
         return try {
-            val response = api.register(RegisterRequest(email, password, BuildConfig.STORE))
+            val request = RegisterRequest(email, password, BuildConfig.STORE)
+            val response = if (tokenStorage.isGuest()) api.claimGuest(request) else api.register(request)
             tokenStorage.saveToken(response.token)
+            tokenStorage.setGuest(false)
             Result.Success(response.user)
         } catch (e: Exception) {
             Result.Error(parseError(e))
+        }
+    }
+
+    fun isGuest(): Boolean = tokenStorage.isGuest()
+
+    /** Вход без регистрации: гостевая учётка по device_id (повторный вызов вернёт того же гостя). */
+    suspend fun startGuest(): Result<Unit> {
+        return try {
+            val response = api.guest(GuestRequest(tokenStorage.getGuestDeviceId(), BuildConfig.STORE))
+            tokenStorage.saveToken(response.token)
+            tokenStorage.setGuest(true)
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(
+                when {
+                    httpCode(e) == 409 -> "На этом телефоне уже создан аккаунт — войдите по email"
+                    e is IOException -> "Нет соединения с сервером"
+                    else -> "Не удалось начать, попробуйте ещё раз"
+                }
+            )
+        }
+    }
+
+    /** Удаляет гостевую учётку на сервере (без пароля) и все локальные данные. */
+    suspend fun deleteGuest(): Result<Unit> {
+        return try {
+            api.deleteAccount(emptyMap())
+            tokenStorage.logout()
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(if (e is IOException) "Нет соединения с сервером" else "Не удалось удалить данные")
         }
     }
 

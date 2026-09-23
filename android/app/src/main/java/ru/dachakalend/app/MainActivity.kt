@@ -37,6 +37,7 @@ import ru.dachakalend.app.ui.onboarding.TutorialIntroScreen
 import ru.dachakalend.app.ui.paywall.PaywallScreen
 import ru.dachakalend.app.notification.NotificationHelper
 import ru.dachakalend.app.review.AppReview
+import ru.dachakalend.app.ui.auth.GuestStartScreen
 import ru.dachakalend.app.ui.auth.LoginScreen
 import ru.dachakalend.app.ui.auth.RegisterScreen
 import ru.dachakalend.app.ui.auth.VerifyEmailScreen
@@ -235,9 +236,10 @@ class MainActivity : ComponentActivity() {
                         // Intro slides (first launch only)
                         composable(Screen.Intro.route) {
                             TutorialIntroScreen(
+                                // «Начать» — гостевой режим (стратегия 2.1): регистрация позже, по желанию.
                                 onRegister = {
                                     tokenStorage.setIntroDone()
-                                    navController.navigate(Screen.Register.route) {
+                                    navController.navigate(Screen.GuestStart.route) {
                                         popUpTo(Screen.Intro.route) { inclusive = true }
                                     }
                                 },
@@ -249,7 +251,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onSkip = {
                                     tokenStorage.setIntroDone()
-                                    navController.navigate(Screen.Login.route) {
+                                    navController.navigate(Screen.GuestStart.route) {
                                         popUpTo(Screen.Intro.route) { inclusive = true }
                                     }
                                 }
@@ -272,7 +274,31 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onGoToRegister = { navController.navigate(Screen.Register.route) },
-                                onForgotPassword = { navController.navigate(Screen.PasswordReset.route) }
+                                onForgotPassword = { navController.navigate(Screen.PasswordReset.route) },
+                                onStartGuest = {
+                                    navController.navigate(Screen.GuestStart.route) {
+                                        popUpTo(Screen.Login.route) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+                        composable(Screen.GuestStart.route) {
+                            GuestStartScreen(
+                                onNeedGarden = {
+                                    navController.navigate(Screen.CreateGarden.route) {
+                                        popUpTo(Screen.GuestStart.route) { inclusive = true }
+                                    }
+                                },
+                                onHasGarden = {
+                                    navController.navigate(Screen.Today.route) {
+                                        popUpTo(Screen.GuestStart.route) { inclusive = true }
+                                    }
+                                },
+                                onLogin = {
+                                    navController.navigate(Screen.Login.route) {
+                                        popUpTo(Screen.GuestStart.route) { inclusive = true }
+                                    }
+                                }
                             )
                         }
                         composable(Screen.Register.route) {
@@ -309,22 +335,28 @@ class MainActivity : ComponentActivity() {
                         ) { backStackEntry ->
                             val email = backStackEntry.arguments?.getString(Screen.VerifyEmail.ARG_EMAIL)?.ifBlank { null }
                             val fromRegister = backStackEntry.arguments?.getBoolean(Screen.VerifyEmail.ARG_FROM_REGISTER) ?: false
-                            VerifyEmailScreen(
-                                email = email,
-                                onVerified = {
-                                    if (fromRegister) {
-                                        navController.navigate(Screen.CreateGarden.route) {
+                            // После регистрации: новому пользователю — создать участок; гостю, который
+                            // только что зарегистрировался (claim), участок уже есть — возвращаем туда,
+                            // откуда он пошёл регистрироваться (профиль или пейволл).
+                            val afterRegister = {
+                                if (tokenStorage.hasGarden()) {
+                                    if (!navController.popBackStack(Screen.Register.route, inclusive = true)) {
+                                        navController.navigate(Screen.Today.route) {
                                             popUpTo(Screen.VerifyEmail.route) { inclusive = true }
                                         }
-                                    } else {
-                                        navController.popBackStack()
                                     }
-                                },
-                                onSkip = if (fromRegister) ({
+                                } else {
                                     navController.navigate(Screen.CreateGarden.route) {
                                         popUpTo(Screen.VerifyEmail.route) { inclusive = true }
                                     }
-                                }) else null
+                                }
+                            }
+                            VerifyEmailScreen(
+                                email = email,
+                                onVerified = {
+                                    if (fromRegister) afterRegister() else navController.popBackStack()
+                                },
+                                onSkip = if (fromRegister) afterRegister else null
                             )
                         }
                         composable(Screen.PasswordReset.route) {
@@ -378,7 +410,8 @@ class MainActivity : ComponentActivity() {
                                 onEditGarden        = { navController.navigate(Screen.GardenEdit.route) },
                                 onOpenJournal       = { navController.navigate(Screen.Journal.route) },
                                 onAddPlanting       = { navController.navigate(Screen.Crops.route) },
-                                onOpenPaywall       = { navController.navigate(Screen.Paywall.route) }
+                                onOpenPaywall       = { navController.navigate(Screen.Paywall.route) },
+                                onRegister          = { navController.navigate(Screen.Register.route) }
                             )
                         }
                         composable(
@@ -395,7 +428,8 @@ class MainActivity : ComponentActivity() {
                                 onEditGarden        = { navController.navigate(Screen.GardenEdit.route) },
                                 onOpenJournal       = { navController.navigate(Screen.Journal.route) },
                                 onAddPlanting       = { navController.navigate(Screen.Crops.route) },
-                                onOpenPaywall       = { navController.navigate(Screen.Paywall.route) }
+                                onOpenPaywall       = { navController.navigate(Screen.Paywall.route) },
+                                onRegister          = { navController.navigate(Screen.Register.route) }
                             )
                         }
                         composable(Screen.Calendar.route) { CalendarScreen() }
@@ -446,7 +480,8 @@ class MainActivity : ComponentActivity() {
                                 onVerifyEmail   = { email ->
                                     navController.navigate(Screen.VerifyEmail.route(email, fromRegister = false))
                                 },
-                                onOpenPaywall   = { navController.navigate(Screen.Paywall.route) }
+                                onOpenPaywall   = { navController.navigate(Screen.Paywall.route) },
+                                onRegister      = { navController.navigate(Screen.Register.route) }
                             )
                         }
                         composable(Screen.Seeds.route) {
@@ -523,7 +558,9 @@ class MainActivity : ComponentActivity() {
                                         popUpTo(Screen.Paywall.route) { inclusive = true }
                                         launchSingleTop = true
                                     }
-                                }
+                                },
+                                // Гостю оплата и промокод недоступны (нужен email для чека) — сначала регистрация.
+                                onNeedAccount = { navController.navigate(Screen.Register.route) }
                             )
                         }
 

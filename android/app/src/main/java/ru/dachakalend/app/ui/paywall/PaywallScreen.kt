@@ -42,6 +42,7 @@ private val Green = Color(0xFF2E7D32)
 @Composable
 fun PaywallScreen(
     onAccessGranted: () -> Unit,
+    onNeedAccount: () -> Unit = {},
     viewModel: PaywallViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -275,7 +276,7 @@ fun PaywallScreen(
 
             // Кнопка покупки
             Button(
-                onClick = { viewModel.purchase(selectedPlan) },
+                onClick = { if (viewModel.isGuest) onNeedAccount() else viewModel.purchase(selectedPlan) },
                 enabled = !uiState.isPurchasing && !uiState.status.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -362,7 +363,7 @@ fun PaywallScreen(
             Spacer(Modifier.height(10.dp))
 
             OutlinedButton(
-                onClick = { viewModel.redeemPromo(promoCode) },
+                onClick = { if (viewModel.isGuest) onNeedAccount() else viewModel.redeemPromo(promoCode) },
                 enabled = promoCode.isNotBlank() && !uiState.isRedeeming,
                 modifier = Modifier
                     .fillMaxWidth()

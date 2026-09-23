@@ -32,6 +32,7 @@ fun LoginScreen(
     onLoginNeedGarden: () -> Unit = {},
     onGoToRegister: () -> Unit,
     onForgotPassword: () -> Unit = {},
+    onStartGuest: () -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -153,6 +154,14 @@ fun LoginScreen(
                 "Нет аккаунта? Зарегистрироваться",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Bold
+            )
+        }
+        TextButton(onClick = onStartGuest) {
+            Text(
+                "Начать без регистрации",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

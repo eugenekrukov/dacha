@@ -37,8 +37,10 @@ fun AccountSection(
     onEditGarden: () -> Unit,
     onLogout: () -> Unit,
     onOpenPaywall: (() -> Unit)? = null,
+    onRegister: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val isGuest = viewModel.isGuest
     val loggedOut by viewModel.loggedOut.collectAsState()
     val emailVerified by viewModel.emailVerified.collectAsState()
     val email by viewModel.email.collectAsState()
@@ -49,6 +51,9 @@ fun AccountSection(
     var showPasswordDialog by remember { mutableStateOf(false) }
     var showEmailDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    // Гость: «Войти в существующий» и «Удалить гостевые данные» — оба стирают гостя (со слиянием
+    // двух аккаунтов не связываемся, спека §2.1 вопрос 2), различается только текст предупреждения.
+    var guestExitDialog by remember { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(accountMessage) {
@@ -87,6 +92,32 @@ fun AccountSection(
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) { Text("Отмена", fontFamily = NunitoFamily) }
+            }
+        )
+    }
+
+    guestExitDialog?.let { mode ->
+        AlertDialog(
+            onDismissRequest = { guestExitDialog = null },
+            title = {
+                Text(if (mode == "login") "Войти в существующий аккаунт?" else "Удалить гостевые данные?",
+                    fontFamily = NunitoFamily, fontWeight = FontWeight.Black)
+            },
+            text = {
+                Text(
+                    "Участок, посадки и записи, сделанные без регистрации, будут удалены. " +
+                        "Чтобы их сохранить, сначала создайте аккаунт.",
+                    fontFamily = NunitoFamily
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { guestExitDialog = null; viewModel.deleteGuestData() }) {
+                    Text(if (mode == "login") "Удалить и войти" else "Удалить", fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { guestExitDialog = null }) { Text("Отмена", fontFamily = NunitoFamily) }
             }
         )
     }
@@ -182,7 +213,7 @@ fun AccountSection(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        if (emailVerified == false) {
+        if (emailVerified == false && !isGuest) {
             Card(
                 modifier = Modifier.fillMaxWidth().clickable { onVerifyEmail(email) },
                 shape = RoundedCornerShape(16.dp),
@@ -308,6 +339,34 @@ fun AccountSection(
         // ─── Аккаунт ───
         Text("АККАУНТ", fontFamily = NunitoFamily, fontWeight = FontWeight.Black, fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(vertical = 8.dp))
+        if (isGuest) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Вы без регистрации", fontFamily = NunitoFamily, fontWeight = FontWeight.Black,
+                        fontSize = 15.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(
+                        "Данные хранятся только для этого телефона. Создайте аккаунт, чтобы не потерять их " +
+                            "при переустановке и открыть веб-версию.",
+                        fontFamily = NunitoFamily, fontSize = 13.sp, color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Button(
+                        onClick = onRegister,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("Создать аккаунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Black)
+                    }
+                }
+            }
+            AccountActionRow("Войти в существующий аккаунт") { guestExitDialog = "login" }
+            HorizontalDivider()
+            AccountActionRow("Удалить гостевые данные", danger = true) { guestExitDialog = "delete" }
+        } else {
         email?.let {
             Text(it, fontFamily = NunitoFamily, fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
@@ -321,6 +380,7 @@ fun AccountSection(
         AccountActionRow("Сменить email") { showEmailDialog = true }
         HorizontalDivider()
         AccountActionRow("Удалить аккаунт", danger = true) { showDeleteDialog = true }
+        }
         Spacer(Modifier.height(16.dp))
 
         // ─── Участок ───
@@ -337,7 +397,7 @@ fun AccountSection(
             Spacer(Modifier.height(16.dp))
         }
 
-        OutlinedButton(
+        if (!isGuest) OutlinedButton(
             onClick = { showLogoutDialog = true },
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(16.dp),
