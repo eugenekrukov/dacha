@@ -282,7 +282,7 @@ private fun IntroSlidePage(
                     )
                 }
                 Text(
-                    "Затем 299 ₽/мес или 1 990 ₽/год.\nОтменить можно в любое время.",
+                    "Больше посадок и фото — в «Дачник Про»:\n299 ₽/мес или 1 990 ₽/год.",
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.SemiBold,
                     fontSize   = 12.sp,
@@ -375,7 +375,7 @@ private fun Slide4Content(onLogin: () -> Unit) {
         }
 
         Text(
-            "Создайте аккаунт — это займёт\nменьше минуты",
+            "Начните без регистрации —\nаккаунт заведёте, когда захотите",
             fontFamily = NunitoFamily,
             fontWeight = FontWeight.SemiBold,
             fontSize   = 15.sp,
@@ -385,9 +385,10 @@ private fun Slide4Content(onLogin: () -> Unit) {
 
         Spacer(Modifier.height(4.dp))
 
-        IntroCTACheckItem("Все функции бесплатно 7 дней")
-        IntroCTACheckItem("Без привязки карты")
-        IntroCTACheckItem("Отмена в любой момент")
+        // Модель с 2026-07-18: бесплатно навсегда с лимитом посадок, без триала (см. backend utils/access.js).
+        IntroCTACheckItem("До 3 посадок одновременно")
+        IntroCTACheckItem("Календарь, погода и напоминания")
+        IntroCTACheckItem("Без карты и без рекламы")
     }
 }
 
