@@ -115,6 +115,10 @@ wc -c /path/to/file     # check size is reasonable
 
 ## Deploy
 
+> ⚠️ **Фактически (проверено 2026-09-24): VPS стоит на ветке `feature/garden-area-soil-tips`, а не на
+> `main`.** Коммиты из `main` доставляются `git cherry-pick <от>..origin/main`; `reset --hard origin/main`
+> ниже на этой ветке затёр бы её историю — не выполнять без отдельного решения. Детали — `docs/DEPLOY.md`.
+
 > **Git-модель (обязательна).** `main` — единственная интеграционная ветка; фичи вливаются в неё
 > `--ff-only`. **VPS — read-only зеркало `origin/main`: на сервере НИКОГДА не коммитят и не правят
 > файлы под git.** Поэтому деплой выполняется через `fetch + reset --hard origin/main`, а НЕ `git pull`

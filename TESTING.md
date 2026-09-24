@@ -103,6 +103,20 @@ export async function buildApp() {
 
 ---
 
+### guest.test.js (гостевой режим, миграция 092)
+
+`POST /auth/guest` (ON CONFLICT по device_id, 409 `guest_claimed`, короткий device_id → 400),
+`POST /auth/guest/claim` (та же строка users, email нормализован, 409 на занятый email / не-гостя),
+гейт `account_required` для оплаты/промокода/смены пароля и email/повтора кода, `DELETE /auth/me`
+гостя без пароля.
+
+### seasonalWorks.test.js («На этой неделе»)
+
+Контент (уникальные id, `crop` — реальные `crops.name` с прода), **покрытие: ≥ 3 работы на каждой
+неделе года в зонах 3–6** (ломается, если правка окон оставит дыру), сдвиг окон от факта сезона,
+фильтр `zones` (снег не показывается на юге), crop-списки для «у вас есть», ключ скрытия id:год,
+роут `GET /season-works`.
+
 ### gardens.test.js
 
 ```
@@ -372,6 +386,11 @@ fun `login success updates state to Success`() = runTest {
 ```
 
 ---
+
+### ReferenceViewModelTest.kt
+
+`refreshArticles()` подхватывает статью, вышедшую после первой загрузки вкладки «Справочник»
+(ViewModel живёт с saveState, `init { load() }` повторно не срабатывает).
 
 ### TokenStorageTest.kt
 

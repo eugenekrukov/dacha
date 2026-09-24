@@ -159,6 +159,7 @@ What's new:
 Что нового:
 - Можно начать без регистрации: выберите город и сразу смотрите, что делать на участке. Аккаунт заведёте, когда захотите, записи сохранятся.
 - На экране «Сегодня» появился блок «На этой неделе»: сезонные работы для вашего региона, от посадки чеснока под зиму до заказа семян. Сроки подстраиваются под погоду на вашем участке.
+- Формы заполнять удобнее: дата выбирается в календаре, экран не прыгает при вводе.
 - Подписка переехала в «Профиль» → «Аккаунт».
 - Мелкие исправления.
 
@@ -167,6 +168,7 @@ English:
 What's new:
 - Start without signing up: pick your town and see right away what to do in your garden. Create an account whenever you like, and your notes will be kept.
 - New "This week" block on the Today screen: seasonal jobs for your region, from planting winter garlic to ordering seeds. Timing adapts to the weather at your plot.
+- Forms are easier to fill in: pick dates from a calendar, and the screen no longer jumps as you type.
 - Subscription has moved to Profile → Account.
 - Minor fixes.
 

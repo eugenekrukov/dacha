@@ -15,6 +15,24 @@
 ## Текущий статус
 
 - **MVP**: ✅ 100% завершён, в проде. Идёт пост-MVP-разработка.
+- **Релиз vc18 / 1.0.15 — собран 2026-09-24, ждёт загрузки в сторы** (владелец; файлы в
+  `C:\Projects\Dacha\releases\vc18\`, «Что нового» — `docs/aso-rustore.md`). Состав:
+  гостевой режим и блок «На этой неделе» (стратегия 2.1 + 2.3, подтянуты из ноября, спека
+  `docs/spec-2026-09-guest-and-season-works.md`); подписка перенесена в «Профиль → Аккаунт»; ссылки
+  на соцсети убраны из «Настроек»; последний слайд вступления — «бесплатно навсегда» вместо «7 дней»;
+  выбор «Сразу в грунт / Через рассаду» только у культур с рассадой; формы не дёргаются от
+  клавиатуры (шторки во весь экран, дата календарём, цифровая клавиатура); свежие статьи в
+  «Справочнике» при возврате на вкладку; дата в шапке «Сегодня» в родительном падеже.
+  Бэкенд (миграции **092** гости, **093** рассада тыквенных) и веб — на проде с 23–24.09.
+- **Гостевой режим** (прод с 2026-09-23): гость — строка `users` без email/пароля (`is_guest`,
+  `guest_device_id`), `POST /auth/guest` идемпотентен по device_id, `POST /auth/guest/claim` пишет
+  email/пароль в ту же строку (данные не переносятся). Гостю закрыты оплата, промокод, смена
+  пароля/email (403 `account_required`). Android: старт «Начать»/«Пропустить», продление токена на
+  401 (`GuestAuthenticator`), шторка «Сохраните записи» после 3-го действия; веб — «Попробовать без
+  регистрации», `/register?next=`. Статистика гостей — скиллы `/statistic*`.
+- **«На этой неделе»** (прод с 2026-09-23): `GET /season-works`, 80 сезонных работ в
+  `backend/src/data/seasonalWorks.js`, окна — от фактического начала/конца сезона участка
+  (`seasonService`), иначе нормы зоны; тест гарантирует ≥ 3 работы на каждой неделе в зонах 3–6.
 - **Стек**: Node.js 20 + Fastify 4 + PostgreSQL · Android (Kotlin + Compose + Hilt) · Веб (React + Vite + TS + Tailwind).
 - **Бэкенд**: `https://dacha.studio1008.com/` · pm2 `dacha-api`.
 - **Веб**: `https://dacha.studio1008.com/app/` (папка `web/`, статика `/var/www/dacha-web`, nginx `location /app/`). Та же БД/API.
@@ -611,6 +629,7 @@ P5 изображения культур ✅ (55/55, миграция 064), хв
 
 ```
 POST /auth/register  POST /auth/login  GET /auth/me  POST /auth/subscription
+POST /auth/guest  POST /auth/guest/claim
 POST /auth/verify-email  POST /auth/resend-verification
 POST /auth/forgot-password  POST /auth/reset-password
 PATCH /auth/password  POST /auth/change-email  POST /auth/confirm-email-change  DELETE /auth/me
@@ -625,6 +644,8 @@ POST /actions  GET /actions  GET /actions/export
 GET /weather?garden_id=
 GET /recommendations?garden_id=
 GET /today?garden_id=
+GET /season-works?garden_id=
+GET /blog/feed?limit=&offset=
 POST /reminders  GET /reminders
 GET /harvests  POST /harvests
 GET /analytics/summary
