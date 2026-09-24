@@ -1,5 +1,10 @@
 ﻿package ru.dachakalend.app.ui.plantings
 
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
+import ru.dachakalend.app.ui.common.DateField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -834,7 +839,6 @@ private fun PlantingSetupBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var date by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)) }
-    var dateDisplay by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))) }
     var quantity by remember { mutableStateOf("1") }
     var variety by remember { mutableStateOf("") }
     var conditions by remember { mutableStateOf("soil") }
@@ -846,9 +850,13 @@ private fun PlantingSetupBottomSheet(
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        // Шторка — отдельное окно со своим фокусом: LocalFocusManager берём ВНУТРИ неё,
+        // снаружи clearFocus() до полей шторки не дотягивается.
+        val focusManager = LocalFocusManager.current
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()   // шторка формы всегда во весь экран — не прыгает от клавиатуры
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 32.dp)
@@ -864,29 +872,13 @@ private fun PlantingSetupBottomSheet(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            OutlinedTextField(
-                value = dateDisplay,
-                onValueChange = { input ->
-                    dateDisplay = input
-                    runCatching {
-                        val parts = input.split(".")
-                        if (parts.size == 3) {
-                            val d = parts[0].toInt(); val m = parts[1].toInt(); val y = parts[2].toInt()
-                            date = LocalDate.of(y, m, d).format(DateTimeFormatter.ISO_LOCAL_DATE)
-                        }
-                    }
-                },
-                label = { Text("Дата посадки", fontFamily = NunitoFamily) },
-                placeholder = { Text("ДД.ММ.ГГГГ", fontFamily = NunitoFamily) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
+            DateField(label = "Дата посадки", isoDate = date, onDateChange = { date = it })
 
             OutlinedTextField(
                 value = quantity,
                 onValueChange = { if (it.all(Char::isDigit)) quantity = it },
                 label = { Text("Количество растений", fontFamily = NunitoFamily) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
@@ -931,7 +923,7 @@ private fun PlantingSetupBottomSheet(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = sowingMethod == "direct",
-                        onClick = { sowingMethod = "direct" },
+                        onClick = { focusManager.clearFocus(); sowingMethod = "direct" },
                         shape = RoundedCornerShape(100.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -941,7 +933,7 @@ private fun PlantingSetupBottomSheet(
                     )
                     FilterChip(
                         selected = sowingMethod == "seedling",
-                        onClick = { sowingMethod = "seedling" },
+                        onClick = { focusManager.clearFocus(); sowingMethod = "seedling" },
                         shape = RoundedCornerShape(100.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -988,6 +980,7 @@ private fun VarietyField(
     varieties: List<CropVariety>,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
     val filtered = remember(value, varieties) {
         if (value.isBlank()) varieties else varieties.filter { it.name.contains(value, ignoreCase = true) }
     }
@@ -1014,7 +1007,7 @@ private fun VarietyField(
                 filtered.forEach { v ->
                     DropdownMenuItem(
                         text = { Text(v.name + (if (v.isHybrid) " F1" else ""), fontFamily = NunitoFamily) },
-                        onClick = { onValueChange(v.name); expanded = false }
+                        onClick = { onValueChange(v.name); expanded = false; focusManager.clearFocus() }
                     )
                 }
             }
@@ -1043,13 +1036,8 @@ private fun PlantingEditBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val initialDate = planting.sownAt?.take(10) ?: LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-    val initialDateDisplay = runCatching {
-        val ld = LocalDate.parse(initialDate)
-        ld.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-    }.getOrElse { initialDate }
 
     var date by remember { mutableStateOf(initialDate) }
-    var dateDisplay by remember { mutableStateOf(initialDateDisplay) }
     var quantity by remember { mutableStateOf((planting.quantity ?: 1).toString()) }
     var variety by remember { mutableStateOf(planting.variety ?: "") }
     var conditions by remember { mutableStateOf(planting.conditions ?: "soil") }
@@ -1061,9 +1049,13 @@ private fun PlantingEditBottomSheet(
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        // Шторка — отдельное окно со своим фокусом: LocalFocusManager берём ВНУТРИ неё,
+        // снаружи clearFocus() до полей шторки не дотягивается.
+        val focusManager = LocalFocusManager.current
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()   // шторка формы всегда во весь экран — не прыгает от клавиатуры
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 32.dp)
@@ -1079,29 +1071,13 @@ private fun PlantingEditBottomSheet(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            OutlinedTextField(
-                value = dateDisplay,
-                onValueChange = { input ->
-                    dateDisplay = input
-                    runCatching {
-                        val parts = input.split(".")
-                        if (parts.size == 3) {
-                            val d = parts[0].toInt(); val m = parts[1].toInt(); val y = parts[2].toInt()
-                            date = LocalDate.of(y, m, d).format(DateTimeFormatter.ISO_LOCAL_DATE)
-                        }
-                    }
-                },
-                label = { Text("Дата посадки", fontFamily = NunitoFamily) },
-                placeholder = { Text("ДД.ММ.ГГГГ", fontFamily = NunitoFamily) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
+            DateField(label = "Дата посадки", isoDate = date, onDateChange = { date = it })
 
             OutlinedTextField(
                 value = quantity,
                 onValueChange = { if (it.all(Char::isDigit)) quantity = it },
                 label = { Text("Количество растений", fontFamily = NunitoFamily) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
@@ -1174,7 +1150,7 @@ private fun PlantingEditBottomSheet(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = sowingMethod == "direct",
-                        onClick = { sowingMethod = "direct" },
+                        onClick = { focusManager.clearFocus(); sowingMethod = "direct" },
                         shape = RoundedCornerShape(100.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -1184,7 +1160,7 @@ private fun PlantingEditBottomSheet(
                     )
                     FilterChip(
                         selected = sowingMethod == "seedling",
-                        onClick = { sowingMethod = "seedling" },
+                        onClick = { focusManager.clearFocus(); sowingMethod = "seedling" },
                         shape = RoundedCornerShape(100.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,

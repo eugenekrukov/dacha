@@ -103,6 +103,8 @@ fun BedPickerField(
     onDelete: (bed: GardenBed) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    // Открытие списка снимает фокус с текстового поля формы — иначе клавиатура «висит» под меню.
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var creating by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     var newType by remember { mutableStateOf("soil") }
@@ -140,7 +142,7 @@ fun BedPickerField(
 
         Box {
             OutlinedButton(
-                onClick = { expanded = true },
+                onClick = { focusManager.clearFocus(); expanded = true },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             ) {

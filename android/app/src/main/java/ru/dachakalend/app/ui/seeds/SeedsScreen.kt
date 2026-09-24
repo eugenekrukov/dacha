@@ -474,6 +474,7 @@ private fun SeedSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()   // шторка формы всегда во весь экран — не прыгает от клавиатуры
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
@@ -516,7 +517,7 @@ private fun SeedSheet(
                     { Text("Формат: 12.2027", fontFamily = NunitoFamily) }
                 } else null,
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             )

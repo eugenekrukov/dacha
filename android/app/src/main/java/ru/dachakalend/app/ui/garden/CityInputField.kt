@@ -38,6 +38,8 @@ fun CityInputField(
 ) {
     Column(modifier = modifier) {
         var focused by remember { mutableStateOf(false) }
+        // Город выбран из подсказок — вводить больше нечего, клавиатуру закрываем.
+        val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
         OutlinedTextField(
             value = value,
@@ -88,6 +90,7 @@ fun CityInputField(
                                 .clickable {
                                     onValueChange(s.name)
                                     onSuggestionSelected(s)
+                                    focusManager.clearFocus()
                                 }
                                 .padding(horizontal = 16.dp, vertical = 10.dp)
                         ) {

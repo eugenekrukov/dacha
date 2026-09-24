@@ -48,6 +48,7 @@ fun AddHarvestSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()   // шторка формы всегда во весь экран — не прыгает от клавиатуры
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .navigationBarsPadding()

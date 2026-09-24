@@ -25,6 +25,9 @@ fun RegionInputField(
         if (query != value) query = value
     }
 
+    // Регион выбран из списка — клавиатуру закрываем.
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+
     val filtered = remember(query) {
         if (query.isBlank()) RUSSIAN_REGIONS
         else RUSSIAN_REGIONS.filter { it.contains(query, ignoreCase = true) }
@@ -58,7 +61,7 @@ fun RegionInputField(
             filtered.forEach { region ->
                 DropdownMenuItem(
                     text = { Text(region) },
-                    onClick = { query = region; onValueChange(region); expanded = false }
+                    onClick = { query = region; onValueChange(region); expanded = false; focusManager.clearFocus() }
                 )
             }
         }
