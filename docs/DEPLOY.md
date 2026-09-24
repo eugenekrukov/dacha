@@ -71,10 +71,11 @@ PowerShell коверкает **двойные** кавычки при пере�
 ## Backend (dacha-api)
 
 > ✅ **С 2026-09-24 VPS снова на `main`** (выровнено с `origin/main`; прежняя ветка сохранена на сервере
-> как `backup/vps-before-main-20260924`). Деплой — **`git fetch origin && git merge --ff-only origin/main`**,
-> НЕ `reset --hard`: на сервере `landing/sitemap.xml` изменён генератором блога (~100 живых URL против 4 в
-> репо), `reset --hard` молча вернул бы его к версии из git. `--ff-only` сохраняет локальную правку и
-> никогда не создаёт merge-коммит (если upstream тоже поменяет sitemap — упадёт с ошибкой, а не затрёт).
+> как `backup/vps-before-main-20260924`). Деплой — **`git fetch origin && git merge --ff-only origin/main`**:
+> никогда не создаёт merge-коммит и падает с ошибкой, если серверная копия почему-то разошлась с `main`.
+> `landing/sitemap.xml` **больше не в git** (`.gitignore`): его целиком генерируют `generate-spravochnik.js`
+> (4 статичные страницы + `/spravochnik/*`) и `generate-blog.js` (`/blog/*`) через `mergeSitemapUrls`.
+> На чистой копии — прогнать оба генератора (сначала справочник), иначе в карте не будет всех разделов.
 
 Сначала локально: влить в `main` и запушить (деплой тянет `origin/main`).
 ```powershell
@@ -460,6 +461,10 @@ TELEGRAM_POST_LINK=https://calendacha.ru   # опц., фолбэк «читат�
 ---
 
 ## История
+
+- **2026-09-24 (3)** — `landing/sitemap.xml` выведен из git (`git rm --cached` + `.gitignore`). На VPS:
+  живая карта (100 URL) → `/tmp`, `git checkout -- landing/sitemap.xml`, `merge --ff-only`, карта возвращена
+  на место уже неотслеживаемым файлом. Отдаваемая копия `/var/www/dacha-landing/sitemap.xml` не затрагивалась.
 
 - **2026-09-24 (2)** — VPS выровнен с `main`: единственный серверный коммит, которого не было в `main`, —
   документация (`session-note.md`), дерево кода совпадало. `git branch backup/vps-before-main-20260924`,

@@ -74,3 +74,7 @@ backend/scripts/*-images.generated.sql
 
 # Релизные артефакты, собранные из CLI (AAB/APK)
 android/release-*/
+
+# Генерируется на VPS (generate-spravochnik.js + generate-blog.js, mergeSitemapUrls) — ~100 живых URL.
+# В git лежали 4 статичные страницы, и reset --hard молча затирал живую карту (2026-09-24).
+landing/sitemap.xml
