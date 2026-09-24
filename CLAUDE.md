@@ -115,15 +115,18 @@ wc -c /path/to/file     # check size is reasonable
 
 ## Deploy
 
-> ⚠️ **Фактически (проверено 2026-09-24): VPS стоит на ветке `feature/garden-area-soil-tips`, а не на
-> `main`.** Коммиты из `main` доставляются `git cherry-pick <от>..origin/main`; `reset --hard origin/main`
-> ниже на этой ветке затёр бы её историю — не выполнять без отдельного решения. Детали — `docs/DEPLOY.md`.
+> ✅ **С 2026-09-24 VPS снова на `main`** (выровнено с `origin/main`; прежняя ветка сохранена на сервере
+> как `backup/vps-before-main-20260924`). Деплой — **`git fetch origin && git merge --ff-only origin/main`**,
+> НЕ `reset --hard`: на сервере `landing/sitemap.xml` изменён генератором блога (~100 живых URL против 4 в
+> репо), `reset --hard` молча вернул бы его к версии из git. `--ff-only` сохраняет локальную правку и
+> никогда не создаёт merge-коммит (если upstream тоже поменяет sitemap — упадёт с ошибкой, а не затрёт).
 
 > **Git-модель (обязательна).** `main` — единственная интеграционная ветка; фичи вливаются в неё
 > `--ff-only`. **VPS — read-only зеркало `origin/main`: на сервере НИКОГДА не коммитят и не правят
-> файлы под git.** Поэтому деплой выполняется через `fetch + reset --hard origin/main`, а НЕ `git pull`
-> (pull может создать merge-коммит и развести серверный `main` с origin — что ломает будущие деплои).
-> Серверное состояние живёт вне git: `.env` (в `.gitignore`), pm2. `reset --hard` их не трогает.
+> файлы под git** (исключение — `landing/sitemap.xml`, его дописывает генератор блога). Поэтому деплой
+> выполняется через `fetch + merge --ff-only origin/main`, а НЕ `git pull` (pull может создать
+> merge-коммит и развести серверный `main` с origin) и не `reset --hard` (затёр бы sitemap).
+> Серверное состояние живёт вне git: `.env` (в `.gitignore`), pm2, `.blog-manifest.json`, `landing/blog/`.
 
 ```bash
 # 1. LOCAL — commit and push first (always), деплоим с main
@@ -133,14 +136,14 @@ git checkout main && git merge --ff-only feature/... && git push origin main && 
 # 2. VPS — only after step 1.
 #    Claude из bash: /c/Windows/System32/OpenSSH/ssh.exe hetzner "<cmd>"  (см. раздел «SSH к VPS»)
 #    Разработчик интерактивно: ssh hetzner
-cd /var/www/dacha-api && git fetch origin && git reset --hard origin/main   # НЕ git pull
+cd /var/www/dacha-api && git fetch origin && git merge --ff-only origin/main   # НЕ reset --hard, НЕ git pull
 cd backend && npm install                        # if package.json changed
 # Миграции — от суперюзера postgres (DDL/GRANT требуют прав; npm run migrate под dacha_user их не имеет):
 sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/0XX_*.sql   # если есть новая миграция
 pm2 restart dacha-api
 ```
 
-> If you skip step 1, `reset --hard origin/main` on VPS won't bring new code — deploy is pointless.
+> If you skip step 1, `merge --ff-only origin/main` on VPS won't bring new code — deploy is pointless.
 > Backend-тесты: `npx vitest run` (мок-БД, Postgres не нужен). Android-сборка из CLI:
 > `$env:JAVA_HOME=...jbr; $env:ANDROID_HOME=...Sdk; gradlew.bat :app:compileDebugKotlin` (PowerShell).
 

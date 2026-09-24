@@ -46,7 +46,7 @@ PowerShell коверкает **двойные** кавычки при пере�
 
 1. **Удалённую команду обрамляй одинарными кавычками, без внутренних `"`.**
    ```powershell
-   ssh hetzner 'cd /var/www/dacha-api && git reset --hard origin/main && pm2 restart dacha-api'
+   ssh hetzner 'cd /var/www/dacha-api && git fetch origin && git merge --ff-only origin/main && pm2 restart dacha-api'
    ```
 2. **Не используй `"`, `<`, `>` внутри** — `echo ""`, `grep -o "<title>"` и т.п. ломаются
    («unexpected EOF», «syntax error near `newline`»). Для статусов — без кавычек:
@@ -70,11 +70,11 @@ PowerShell коверкает **двойные** кавычки при пере�
 
 ## Backend (dacha-api)
 
-> ⚠️ **Фактическое состояние VPS (проверено 2026-09-24):** рабочая копия `/var/www/dacha-api` стоит на
-> ветке `feature/garden-area-soil-tips`, а не на `main`, и далеко впереди `origin` — коммиты из `main`
-> доставляются туда **`git cherry-pick <от>..origin/main`**. `git reset --hard origin/main` на этой
-> ветке затёр бы её историю — **не выполнять**, пока ветку не выровняют с `main` отдельным решением.
-> Конфликт cherry-pick в `session-note.md` (на сервере он отстаёт) — `git checkout --theirs` + `--continue`.
+> ✅ **С 2026-09-24 VPS снова на `main`** (выровнено с `origin/main`; прежняя ветка сохранена на сервере
+> как `backup/vps-before-main-20260924`). Деплой — **`git fetch origin && git merge --ff-only origin/main`**,
+> НЕ `reset --hard`: на сервере `landing/sitemap.xml` изменён генератором блога (~100 живых URL против 4 в
+> репо), `reset --hard` молча вернул бы его к версии из git. `--ff-only` сохраняет локальную правку и
+> никогда не создаёт merge-коммит (если upstream тоже поменяет sitemap — упадёт с ошибкой, а не затрёт).
 
 Сначала локально: влить в `main` и запушить (деплой тянет `origin/main`).
 ```powershell
@@ -82,7 +82,7 @@ git checkout main; git merge --ff-only <branch>; git push origin main
 ```
 Затем на VPS:
 ```powershell
-ssh hetzner 'cd /var/www/dacha-api && git fetch origin && git reset --hard origin/main && pm2 restart dacha-api'
+ssh hetzner 'cd /var/www/dacha-api && git fetch origin && git merge --ff-only origin/main && pm2 restart dacha-api'
 ssh hetzner 'curl -s localhost:3002/health'        # {"status":"ok",...}
 ```
 - `npm install` — только если менялся `backend/package.json`.
@@ -366,7 +366,7 @@ ssh hetzner 'cd /var/www/dacha-api/backend && node scripts/submit-indexnow.js'
 `vk_post_queue` (миграция **048**) в сообщество ВК. Очередь наполняется заранее из md-файла контента.
 Без env (`VK_GROUP_ID`+`VK_ACCESS_TOKEN`) джоб idle — деплоить безопасно.
 
-**Деплой:** обычный backend (`reset --hard` + `pm2 restart`); миграция один раз:
+**Деплой:** обычный backend (`merge --ff-only` + `pm2 restart`); миграция один раз:
 `sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/048_vk_post_queue.sql` (внутри уже
 `ALTER TABLE … OWNER TO dacha_user`).
 
@@ -433,7 +433,7 @@ idle — деплоить безопасно.
 из той же строки очереди). `TELEGRAM_POST_LINK` — только фолбэк на случай, если пост ещё не
 опубликован в ВК (`vk_post_url` пуст).
 
-**Деплой:** обычный backend (`reset --hard` + `pm2 restart`); миграции один раз:
+**Деплой:** обычный backend (`merge --ff-only` + `pm2 restart`); миграции один раз:
 ```
 sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/058_telegram_queue_columns.sql
 sudo -u postgres psql -d dacha_db -f backend/src/db/migrations/059_telegram_body.sql
@@ -460,6 +460,12 @@ TELEGRAM_POST_LINK=https://calendacha.ru   # опц., фолбэк «читат�
 ---
 
 ## История
+
+- **2026-09-24 (2)** — VPS выровнен с `main`: единственный серверный коммит, которого не было в `main`, —
+  документация (`session-note.md`), дерево кода совпадало. `git branch backup/vps-before-main-20260924`,
+  копия `landing/sitemap.xml` → `/root/sitemap.xml.bak-20260924`, `git checkout -B main origin/main`
+  (изменённый sitemap перенёсся как есть, 100 URL). Рестарт не нужен — код идентичен; health/app/feed/crops
+  → 200, cron блога на месте. Способ деплоя сменён на `merge --ff-only` (см. предупреждение выше).
 
 - **2026-09-24** — миграция **093** (`transplant_days = 30` у кабачка/тыквы/патиссона) + веб (выбор
   способа посадки только у культур с рассадой). Cherry-pick 5 коммитов (`bca426c..origin/main`),
