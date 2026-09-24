@@ -243,19 +243,25 @@ export default function AddPlantingForm({ gardenId, crops, onClose, onCreated, i
             onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
           />
 
-          <label className="mt-2 text-sm font-bold text-muted">Способ посадки</label>
-          <div className="flex gap-2">
-            {(['direct', 'seedling'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={`dacha-chip ${sowingMethod === m ? 'dacha-chip-active' : ''}`}
-                onClick={() => setSowingMethod(m)}
-              >
-                {m === 'direct' ? 'Прямой посев' : 'Через рассаду'}
-              </button>
-            ))}
-          </div>
+          {/* Выбор способа — только у культур с рассадой (transplant_days); морковь, картофель, кусты
+              и т.п. сажают одним способом, sowingMethod остаётся 'direct' (см. эффект выбора культуры). */}
+          {selectedCrop?.transplant_days ? (
+            <>
+            <label className="mt-2 text-sm font-bold text-muted">Способ посадки</label>
+            <div className="flex gap-2">
+              {(['direct', 'seedling'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`dacha-chip ${sowingMethod === m ? 'dacha-chip-active' : ''}`}
+                  onClick={() => setSowingMethod(m)}
+                >
+                  {m === 'direct' ? 'Прямой посев' : 'Через рассаду'}
+                </button>
+              ))}
+            </div>
+            </>
+          ) : null}
 
           {error && (
             <div className="flex flex-col gap-1">

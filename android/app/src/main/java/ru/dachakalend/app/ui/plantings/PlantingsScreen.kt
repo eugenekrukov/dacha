@@ -443,6 +443,7 @@ fun PlantingsScreen(
             beds = state.beds,
             varieties = state.editingCropVarieties,
             cropFamily = state.editingCropFamily,
+            hasSeedling = state.editingCropHasSeedling,
             cropSpacingInRowCm = state.editingCropSpacingInRowCm,
             cropSpacingBetweenRowsCm = state.editingCropSpacingBetweenRowsCm,
             onCreateBed = { name, type, widthCm, lengthCm, onSelected -> viewModel.createBed(name, type, widthCm, lengthCm, onSelected) },
@@ -917,34 +918,38 @@ private fun PlantingSetupBottomSheet(
             // «Условия» (грунт/теплица) убраны из формы создания: значение берётся из типа
             // выбранной грядки (иначе дефолт «грунт»), поменять можно в карточке посадки.
 
-            Text(
-                "Способ посадки",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Black,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = sowingMethod == "direct",
-                    onClick = { sowingMethod = "direct" },
-                    shape = RoundedCornerShape(100.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    ),
-                    label = { Text("Сразу в грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+            // Выбор способа только у культур с рассадой (transplant_days): морковь, картофель, кусты и т.п.
+            // сажают одним способом — sowingMethod остаётся "direct".
+            if (defaultSeedling) {
+                Text(
+                    "Способ посадки",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                FilterChip(
-                    selected = sowingMethod == "seedling",
-                    onClick = { sowingMethod = "seedling" },
-                    shape = RoundedCornerShape(100.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    ),
-                    label = { Text("Через рассаду", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = sowingMethod == "direct",
+                        onClick = { sowingMethod = "direct" },
+                        shape = RoundedCornerShape(100.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        ),
+                        label = { Text("Сразу в грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                    )
+                    FilterChip(
+                        selected = sowingMethod == "seedling",
+                        onClick = { sowingMethod = "seedling" },
+                        shape = RoundedCornerShape(100.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        ),
+                        label = { Text("Через рассаду", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -1026,6 +1031,7 @@ private fun PlantingEditBottomSheet(
     beds: List<GardenBed>,
     varieties: List<CropVariety> = emptyList(),
     cropFamily: String?,
+    hasSeedling: Boolean? = null,
     cropSpacingInRowCm: Int? = null,
     cropSpacingBetweenRowsCm: Int? = null,
     onCreateBed: (name: String, type: String, widthCm: Int?, lengthCm: Int?, onSelected: (GardenBed) -> Unit) -> Unit,
@@ -1156,34 +1162,37 @@ private fun PlantingEditBottomSheet(
                 )
             }
 
-            Text(
-                "Способ посадки",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Black,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = sowingMethod == "direct",
-                    onClick = { sowingMethod = "direct" },
-                    shape = RoundedCornerShape(100.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    ),
-                    label = { Text("Сразу в грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+            // Выбор способа только у культур с рассадой; старую посадку «через рассаду» оставляем редактируемой.
+            if (hasSeedling == true || planting.sowingMethod == "seedling") {
+                Text(
+                    "Способ посадки",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                FilterChip(
-                    selected = sowingMethod == "seedling",
-                    onClick = { sowingMethod = "seedling" },
-                    shape = RoundedCornerShape(100.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    ),
-                    label = { Text("Через рассаду", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = sowingMethod == "direct",
+                        onClick = { sowingMethod = "direct" },
+                        shape = RoundedCornerShape(100.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        ),
+                        label = { Text("Сразу в грунт", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                    )
+                    FilterChip(
+                        selected = sowingMethod == "seedling",
+                        onClick = { sowingMethod = "seedling" },
+                        shape = RoundedCornerShape(100.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        ),
+                        label = { Text("Через рассаду", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, softWrap = false) }
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -1194,7 +1203,9 @@ private fun PlantingEditBottomSheet(
                     // старую привязку variety_id (clear_variety_id) — иначе расчёт срока молча
                     // остался бы от прежнего выбранного сорта, хотя имя на экране уже другое.
                     val clearVarietyId = matched == null && planting.varietyId != null
-                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, sowingMethod, if (matched != null) null else variety.trim().ifEmpty { null }, matched?.id, clearVarietyId, bedId)
+                    // Культура без рассады и выбор скрыт — не сохраняем «рассаду» из старого дефолта (null → seedling).
+                    val method = if (hasSeedling == false && planting.sowingMethod != "seedling") "direct" else sowingMethod
+                    onConfirm(date, quantity.toIntOrNull() ?: 1, conditions, method, if (matched != null) null else variety.trim().ifEmpty { null }, matched?.id, clearVarietyId, bedId)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)

@@ -41,6 +41,8 @@ data class PlantingsUiState(
     val pendingCropSpacingBetweenRowsCm: Int? = null,
     val pendingCropVarieties: List<CropVariety> = emptyList(),
     val editingCropFamily: String? = null,
+    // Есть ли у культуры рассадный способ (crops.transplant_days). null — ещё грузится.
+    val editingCropHasSeedling: Boolean? = null,
     val editingCropSpacingInRowCm: Int? = null,
     val editingCropSpacingBetweenRowsCm: Int? = null,
     val editingCropVarieties: List<CropVariety> = emptyList(),
@@ -264,13 +266,14 @@ class PlantingsViewModel @Inject constructor(
 
     fun openEditSheet(planting: Planting) {
         _uiState.value = _uiState.value.copy(
-            editingPlanting = planting, editingCropFamily = null,
+            editingPlanting = planting, editingCropFamily = null, editingCropHasSeedling = null,
             editingCropSpacingInRowCm = null, editingCropSpacingBetweenRowsCm = null, editingCropVarieties = emptyList()
         )
         viewModelScope.launch {
             val crop = (cropsRepository.getCrop(planting.cropId) as? Result.Success)?.data
             _uiState.value = _uiState.value.copy(
                 editingCropFamily = crop?.family,
+                editingCropHasSeedling = crop?.let { it.transplantDays != null },
                 editingCropSpacingInRowCm = crop?.spacingInRowCm,
                 editingCropSpacingBetweenRowsCm = crop?.spacingBetweenRowsCm
             )
