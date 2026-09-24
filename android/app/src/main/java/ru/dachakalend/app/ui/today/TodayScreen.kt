@@ -642,11 +642,10 @@ private fun SunnyHero(
             val day = today.dayOfWeek
                 .getDisplayName(java.time.format.TextStyle.FULL, locale)
                 .uppercase(locale)
-            val d = today.dayOfMonth
-            val month = today.month
-                .getDisplayName(java.time.format.TextStyle.FULL_STANDALONE, locale)
+            // «d MMMM» даёт родительный падеж («24 сентября»); FULL_STANDALONE давал «24 сентябрь».
+            val dayMonth = today.format(java.time.format.DateTimeFormatter.ofPattern("d MMMM", locale))
                 .uppercase(locale)
-            "$day · $d $month"
+            "$day · $dayMonth"
         }
 
         Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 16.dp, bottom = 24.dp)) {
