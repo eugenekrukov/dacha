@@ -175,8 +175,9 @@ dependencies {
     // Chrome Custom Tabs — открытие страницы оплаты ЮKassa
     implementation(libs.androidx.browser)
 
-    // RuStore Reviews SDK — только rustore-флейвор (нативный запрос оценки). gplay — no-op AppReview.
+    // Нативный запрос оценки: RuStore Reviews SDK (rustore) / Play In-App Review (gplay).
     "rustoreImplementation"(libs.rustore.review)
+    "gplayImplementation"(libs.play.review)
 
     // Install Referrer — атрибуция установки к рекламной ссылке (для InstallTracker).
     // RuStore хранит значение 10 дней и отдаёт один раз — читаем при первом запуске.

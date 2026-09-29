@@ -21,6 +21,7 @@ rustorePush = "6.0.0"
 rustoreReview = "9.1.0"
 rustoreInstallReferrer = "7.0.0"
 playInstallReferrer = "2.2"
+playReview = "2.0.2"
 androidxBrowser = "1.8.0"
 yandexMobileAds = "7.12.0"
 googleServices = "4.4.2"
@@ -58,6 +59,7 @@ hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.
 rustore-push = { group = "ru.rustore.sdk", name = "pushclient", version.ref = "rustorePush" }
 rustore-review = { group = "ru.rustore.sdk", name = "review", version.ref = "rustoreReview" }
 rustore-installreferrer = { group = "ru.rustore.sdk", name = "installreferrer", version.ref = "rustoreInstallReferrer" }
+play-review = { group = "com.google.android.play", name = "review", version.ref = "playReview" }
 play-installreferrer = { group = "com.android.installreferrer", name = "installreferrer", version.ref = "playInstallReferrer" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "androidxBrowser" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
