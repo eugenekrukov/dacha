@@ -299,6 +299,10 @@ export const api = {
   trackAppOpen: (deviceId: string) =>
     request<void>('/analytics/app-open', { method: 'POST', body: { device_id: deviceId, store: 'web' } }),
 
+  // Нажатие по карточке статьи блога — читаемость внутри продукта (article_opens). Best-effort.
+  trackArticleOpen: (deviceId: string, slug: string, source: 'today' | 'reference') =>
+    request<void>('/analytics/article-open', { method: 'POST', body: { device_id: deviceId, slug, source, store: 'web' } }),
+
   // --- billing / promo ---
   createPayment: (plan: BillingPlan) =>
     request<CreatePaymentResponse>('/billing/create-payment', { method: 'POST', body: { plan } }),

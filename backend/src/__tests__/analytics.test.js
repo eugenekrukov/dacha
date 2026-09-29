@@ -107,6 +107,27 @@ describe('POST /analytics/app-open', () => {
   })
 })
 
+describe('POST /analytics/article-open', () => {
+  it('пишет открытие статьи без токена, 204', async () => {
+    const queries = []
+    const app = await buildApp({ query: async (sql, params) => { queries.push({ sql, params }); return { rows: [] } } })
+    const res = await supertest(app.server)
+      .post('/analytics/article-open')
+      .send({ device_id: 'abcd1234', slug: 'sliva-kak-ponyat', source: 'today', store: 'web' })
+    expect(res.status).toBe(204)
+    expect(queries[0].sql).toMatch(/INSERT INTO article_opens/)
+    expect(queries[0].params).toEqual(['abcd1234', 'sliva-kak-ponyat', 'today', 'web', null])
+    await app.close()
+  })
+
+  it('без slug → 400', async () => {
+    const app = await buildApp(makeMockDb())
+    const res = await supertest(app.server).post('/analytics/article-open').send({ device_id: 'abcd1234' })
+    expect(res.status).toBe(400)
+    await app.close()
+  })
+})
+
 describe('POST /analytics/paywall-opened', () => {
   it('без токена → 401', async () => {
     const app = await buildApp(makeMockDb())

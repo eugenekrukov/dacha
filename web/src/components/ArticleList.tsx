@@ -1,4 +1,6 @@
+import { api } from '../api/client'
 import type { BlogPost } from '../api/types'
+import { webDeviceId } from '../lib/deviceId'
 
 // Дата выхода — календарная дата из самой строки ("2026-09-23T00:00:00+03:00" → 23 сентября), как
 // на сайте и в Android. new Date(iso) переводил 00:00 МСК в часовой пояс браузера и в UTC+2 и западнее
@@ -12,11 +14,13 @@ export default function ArticleList({
   hasMore,
   onLoadMore,
   loadingMore,
+  source,
 }: {
   articles: BlogPost[]
   hasMore?: boolean
   onLoadMore?: () => void
   loadingMore?: boolean
+  source: 'today' | 'reference'
 }) {
   if (articles.length === 0) return null
   return (
@@ -27,6 +31,7 @@ export default function ArticleList({
           href={a.url}
           target="_blank"
           rel="noopener"
+          onClick={() => api.trackArticleOpen(webDeviceId(), a.slug, source).catch(() => {})}
           className="dacha-card-link flex gap-3 p-3"
         >
           {a.image ? (

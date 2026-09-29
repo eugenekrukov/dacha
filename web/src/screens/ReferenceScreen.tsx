@@ -153,6 +153,7 @@ export default function ReferenceScreen() {
                 hasMore={!q && articles.length < articlesTotal}
                 onLoadMore={loadMoreArticles}
                 loadingMore={loadingMore}
+                source="reference"
               />
             </Section>
           )}

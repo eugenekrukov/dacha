@@ -305,7 +305,7 @@ export default function TodayScreen() {
       {articleOfDay && (
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-black">Почитать</h2>
-          <ArticleList articles={[articleOfDay]} />
+          <ArticleList articles={[articleOfDay]} source="today" />
         </section>
       )}
 

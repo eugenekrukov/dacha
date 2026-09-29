@@ -68,6 +68,34 @@ module.exports = async function (fastify) {
     reply.code(204).send()
   })
 
+  // POST /analytics/article-open — нажатие по карточке статьи блога в приложении/вебе (таблица
+  // article_opens). Публичный, без токена: гости тоже читают. Статья открывается на сайте,
+  // так что это единственный способ увидеть чтение изнутри продукта.
+  fastify.post('/article-open', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    schema: {
+      body: {
+        type: 'object',
+        required: ['device_id', 'slug'],
+        properties: {
+          device_id:   { type: 'string', minLength: 8, maxLength: 128 },
+          slug:        { type: 'string', minLength: 1, maxLength: 200 },
+          source:      { type: 'string', enum: ['today', 'reference'] },
+          store:       { type: 'string', enum: ['rustore', 'gplay', 'samsung', 'web'] },
+          app_version: { type: 'string', maxLength: 32 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { device_id, slug, source, store, app_version } = request.body
+    await fastify.db.query(
+      `INSERT INTO article_opens (device_id, slug, source, store, app_version)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [device_id, slug, source ?? null, store ?? null, app_version ?? null]
+    )
+    reply.code(204).send()
+  })
+
   // POST /analytics/paywall-opened — фиксирует первое открытие экрана пейволла (воронка
   // регистрация→оплата). Идемпотентно, тело не нужно.
   fastify.post('/paywall-opened', auth, async (request, reply) => {

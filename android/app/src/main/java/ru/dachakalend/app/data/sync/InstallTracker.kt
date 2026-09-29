@@ -70,6 +70,18 @@ class InstallTracker @Inject constructor(
         }
     }
 
+    /** Нажатие по карточке статьи блога (article_opens) — best-effort, без повторов. */
+    @SuppressLint("HardwareIds")
+    fun trackArticleOpen(slug: String, source: String) {
+        val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+        if (deviceId.isNullOrBlank()) return
+        scope.launch {
+            runCatching {
+                api.trackArticleOpen(mapOf("device_id" to deviceId, "slug" to slug, "source" to source, "store" to BuildConfig.STORE, "app_version" to BuildConfig.VERSION_NAME))
+            }.onFailure { Log.w("InstallTracker", "article-open failed", it) }
+        }
+    }
+
     internal fun appOpenKey(date: LocalDate, loggedIn: Boolean): String = "$date|$loggedIn"
 
     internal fun buildPayload(deviceId: String, store: String, appVersion: String, referrer: String?): Map<String, String> =

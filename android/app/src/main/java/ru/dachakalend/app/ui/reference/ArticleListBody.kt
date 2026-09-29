@@ -21,19 +21,29 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import ru.dachakalend.app.data.model.BlogPost
+import ru.dachakalend.app.data.sync.InstallTracker
 import ru.dachakalend.app.ui.common.formatIsoDate
 import ru.dachakalend.app.ui.theme.NunitoFamily
 
 // Список статей блога — карточка открывает статью на сайте (Custom Tab), нативного рендера
 // тела нет (см. spec §5 Android). LazyListScope-расширение, как cropListBody/guideListBody.
+// Доступ к InstallTracker из Compose без протаскивания через ViewModel (конструкторы VM в тестах).
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface ArticleTrackerEntryPoint { fun installTracker(): InstallTracker }
+
 fun LazyListScope.articleListBody(
     articles: List<BlogPost>,
     hasMore: Boolean = false,
     onLoadMore: () -> Unit = {},
     loadingMore: Boolean = false,
 ) {
-    items(articles, key = { it.slug }) { article -> ArticleCard(article) }
+    items(articles, key = { it.slug }) { article -> ArticleCard(article, source = "reference") }
     if (hasMore) {
         item(key = "articles_load_more") {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -50,12 +60,16 @@ fun LazyListScope.articleListBody(
 }
 
 @Composable
-fun ArticleCard(article: BlogPost) {
+fun ArticleCard(article: BlogPost, source: String = "today") {
     val context = LocalContext.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
+                runCatching {
+                    EntryPointAccessors.fromApplication(context.applicationContext, ArticleTrackerEntryPoint::class.java)
+                        .installTracker().trackArticleOpen(article.slug, source)
+                }
                 runCatching {
                     CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(article.url))
                 }.onFailure {

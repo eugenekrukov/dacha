@@ -273,6 +273,10 @@ interface DachaApi {
     @POST("analytics/app-open")
     suspend fun trackAppOpen(@Body body: Map<String, String>)
 
+    // Нажатие по карточке статьи блога (article_opens). Токен не нужен.
+    @POST("analytics/article-open")
+    suspend fun trackArticleOpen(@Body body: Map<String, String>)
+
     @GET("analytics/summary")
     suspend fun getAnalyticsSummary(): AnalyticsSummary
 
