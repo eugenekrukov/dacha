@@ -1,10 +1,11 @@
 'use strict'
 
 const bcrypt = require('bcrypt')
-const { isSubscribed, hasPromo, isLifetimePromo, isAdSupportedStore, SUBSCRIPTION_WINDOW_DAYS, FREE_PLANTING_LIMIT } = require('../utils/access')
+const { isSubscribed, hasPromo, isLifetimePromo, isAdSupportedStore, FREE_PLANTING_LIMIT } = require('../utils/access')
 const { generateCode, sendVerificationCode, sendPasswordResetCode } = require('../services/emailService')
 
 const CODE_TTL_MS = 15 * 60 * 1000  // коды подтверждения/сброса живут 15 минут
+const MAX_CODE_ATTEMPTS = 5         // после стольких неверных вводов код больше не принимается
 
 // Выпускает новый одноразовый код, гасит прежние неиспользованные того же назначения.
 async function issueCode(db, userId, purpose) {
@@ -21,16 +22,24 @@ async function issueCode(db, userId, purpose) {
   return code
 }
 
-// Находит id валидного (не использованного, не истёкшего) кода. null если нет.
+// Находит id валидного (не использованного, не истёкшего, не «перебранного») кода. null если нет.
+// Неверный ввод засчитывается попыткой активному коду (миграция 095): rate-limit по IP не
+// защищает от перебора 6 цифр с пула прокси, а лимит попыток на сам код — защищает.
 async function findValidCode(db, userId, purpose, code) {
   const r = await db.query(
     `SELECT id FROM email_codes
      WHERE user_id = $1 AND purpose = $2 AND code = $3
-       AND used_at IS NULL AND expires_at > NOW()
+       AND used_at IS NULL AND expires_at > NOW() AND attempts < $4
      ORDER BY id DESC LIMIT 1`,
-    [userId, purpose, String(code).trim()]
+    [userId, purpose, String(code).trim(), MAX_CODE_ATTEMPTS]
   )
-  return r.rows[0]?.id ?? null
+  if (r.rows[0]) return r.rows[0].id
+  await db.query(
+    `UPDATE email_codes SET attempts = attempts + 1
+     WHERE user_id = $1 AND purpose = $2 AND used_at IS NULL AND expires_at > NOW()`,
+    [userId, purpose]
+  )
+  return null
 }
 
 module.exports = async function (fastify) {
@@ -233,27 +242,9 @@ module.exports = async function (fastify) {
     }
   })
 
-  // POST /auth/subscription — клиент синхронизирует статус подписки из RuStore.
-  // active=true продлевает серверное окно подтверждения; active=false снимает.
-  fastify.post('/subscription', {
-    onRequest: [fastify.authenticate],
-    schema: {
-      body: {
-        type: 'object',
-        required: ['active'],
-        properties: { active: { type: 'boolean' } }
-      }
-    }
-  }, async (request) => {
-    const until = request.body.active
-      ? new Date(Date.now() + SUBSCRIPTION_WINDOW_DAYS * 86_400_000)
-      : null
-    const result = await fastify.db.query(
-      'UPDATE users SET subscription_until = $1 WHERE id = $2 RETURNING subscription_until',
-      [until, request.user.userId]
-    )
-    return { subscription_until: result.rows[0].subscription_until, subscribed: isSubscribed(result.rows[0].subscription_until) }
-  })
+  // POST /auth/subscription (синк RuStore-подписки с клиента) удалён: он позволял любому
+  // авторизованному пользователю, включая гостя, выдать себе Про отправкой {active:true}.
+  // Подписка выдаётся только вебхуком ЮKassa (routes/billing.js).
 
   // POST /auth/verify-email — подтверждение email кодом из письма (текущий пользователь).
   fastify.post('/verify-email', {

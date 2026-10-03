@@ -12,6 +12,7 @@
  */
 
 const Fastify = require('fastify')
+const { isAdmin } = require('../../utils/admin')
 
 async function buildApp(mockDb, billingOpts = {}) {
   const fastify = Fastify({ logger: false })
@@ -39,15 +40,14 @@ async function buildApp(mockDb, billingOpts = {}) {
     if (request.user?.guest) return reply.code(403).send({ error: 'account_required' })
   })
 
-  // Admin guard — зеркало app.js: пускает только request.user.email === ADMIN_EMAIL.
+  // Admin guard — зеркало app.js: email пользователя в БД = ADMIN_EMAIL и подтверждён (utils/admin).
   fastify.decorate('requireAdmin', async function (request, reply) {
     try {
       await request.jwtVerify()
     } catch (err) {
       return reply.send(err)
     }
-    const adminEmail = process.env.ADMIN_EMAIL
-    if (!adminEmail || request.user.email !== adminEmail) {
+    if (!(await isAdmin(fastify.db, request.user.userId))) {
       return reply.code(403).send({ error: 'Forbidden: admin only' })
     }
   })

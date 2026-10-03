@@ -92,11 +92,6 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    /** Синхронизирует статус подписки на сервер (best-effort, не валит вызывающего). */
-    suspend fun syncSubscription(active: Boolean) {
-        try { api.syncSubscription(mapOf("active" to active)) } catch (_: Exception) {}
-    }
-
     /** Погашает промокод. Сервер выдаёт промо-доступ и возвращает его статус. */
     suspend fun redeemPromo(code: String): Result<PromoRedeemResponse> {
         return try {

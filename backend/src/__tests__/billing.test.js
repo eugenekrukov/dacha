@@ -90,19 +90,37 @@ function makeMockDb({ users = {}, payments = {} } = {}) {
         return { rows: [{ auto_renew: false, subscription_until: u.subscription_until || null }] }
       }
       if (sql.includes("UPDATE payments SET status = 'refunded'")) {
+        // Атомарный claim возврата: только из succeeded, RETURNING данных платежа.
         const p = s.payments[params[0]]
-        if (p) p.status = 'refunded'
+        if (!p || p.status !== 'succeeded') return { rows: [] }
+        p.status = 'refunded'
+        return { rows: [{ user_id: p.user_id, plan: p.plan, npd_receipt_uuid: p.npd_receipt_uuid || null, npd_status: p.npd_status || null }] }
+      }
+      if (sql.includes("UPDATE payments SET status = 'succeeded'") || sql.includes("UPDATE payments SET status = 'pending'")) {
+        // Откат claim при ошибке продления/отзыва.
+        const p = s.payments[params[0]]
+        if (p) p.status = sql.includes("'succeeded'") ? 'succeeded' : 'pending'
         return { rows: [] }
       }
       if (sql.includes('INSERT INTO payments')) {
         const userId = params[0]
         const ykId = params[1]
+        // Статус — из VALUES (в ON CONFLICT ... NOT IN тоже есть 'succeeded').
+        const values = sql.slice(sql.indexOf('VALUES'), sql.indexOf('ON CONFLICT'))
         let status = 'pending'
-        if (sql.includes("'succeeded'")) status = 'succeeded'
-        else if (sql.includes("'canceled'")) status = 'canceled'
+        if (values.includes("'succeeded'")) status = 'succeeded'
+        else if (values.includes("'canceled'")) status = 'canceled'
+        const prev = s.payments[ykId]
+        // ON CONFLICT ... DO UPDATE ... WHERE payments.status NOT IN ('succeeded','refunded')
+        if (prev && sql.includes('NOT IN') && (prev.status === 'succeeded' || prev.status === 'refunded')) {
+          return { rows: [] }
+        }
+        if (prev && sql.includes('DO NOTHING')) return { rows: [] }
         // plan: для pending/succeeded-вставок он на индексе 3 (user_id, yk_id, amount, plan, ...).
-        s.payments[ykId] = { user_id: userId, status, plan: params[3], params }
-        return { rows: [] }
+        s.payments[ykId] = prev
+          ? { ...prev, status }
+          : { user_id: userId, status, plan: status === 'canceled' ? params[2] : params[3], params }
+        return { rows: [{ id: 1 }] }
       }
       if (sql.includes("SET npd_status = 'pending'")) {
         const p = s.payments[params[0]]
@@ -328,6 +346,59 @@ describe('POST /billing/webhook', () => {
     const res = await sendWebhook(app, yk, refundWebhook({ id: 'ref_002' }))
     expect(res.status).toBe(200)
     expect(db.state.users[1].subscription_until).toBe(afterFirst)  // не изменилось второй раз
+    await app.close()
+  })
+
+  it('поддельный event=payment.succeeded для неоплаченного платежа → подписка НЕ продлевается', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    // ЮKassa по перезапросу честно отвечает: pending (пользователь не платил).
+    yk.registerPayment({ id: 'pay_unpaid', status: 'pending', metadata: { user_id: '1', plan: 'yearly' } })
+    const res = await supertest(app.server).post('/billing/webhook')
+      .send({ event: 'payment.succeeded', object: { id: 'pay_unpaid', status: 'succeeded' } })
+    expect(res.status).toBe(200)
+    expect(db.state.users[1].subscription_until).toBeUndefined()
+    await app.close()
+  })
+
+  it('поддельный event=payment.canceled для оплаченного платежа → статус не меняется', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    await sendWebhook(app, yk, succeededWebhook())
+    const res = await supertest(app.server).post('/billing/webhook')
+      .send({ event: 'payment.canceled', object: { id: 'pay_001' } })
+    expect(res.status).toBe(200)
+    expect(db.state.payments['pay_001'].status).toBe('succeeded')
+    await app.close()
+  })
+
+  it('succeeded после refund (вебхуки пришли не по порядку) → доступ не выдаётся', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } }, payments: { pay_001: { user_id: 1, status: 'refunded', plan: 'monthly' } } })
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    await sendWebhook(app, yk, succeededWebhook())
+    expect(db.state.users[1].subscription_until).toBeUndefined()
+    await app.close()
+  })
+
+  it('сбой продления → claim откатывается и ответ 500 (ЮKassa повторит)', async () => {
+    const db = makeMockDb({ users: { 1: { email: 'a@b.c' } } })
+    const origQuery = db.query.bind(db)
+    let fail = true
+    db.query = async (sql, params) => {
+      if (fail && sql.includes('UPDATE users') && sql.includes('SET subscription_until')) { fail = false; throw new Error('db down') }
+      return origQuery(sql, params)
+    }
+    const yk = makeYkMock()
+    const app = await buildApp(db, { yookassa: yk })
+    const first = await sendWebhook(app, yk, succeededWebhook())
+    expect(first.status).toBe(500)
+    expect(db.state.payments['pay_001'].status).toBe('pending')
+    const retry = await sendWebhook(app, yk, succeededWebhook())
+    expect(retry.status).toBe(200)
+    expect(isSubscribed(db.state.users[1].subscription_until)).toBe(true)
     await app.close()
   })
 

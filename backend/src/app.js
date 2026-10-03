@@ -3,6 +3,7 @@
 require('dotenv').config()
 
 const Fastify = require('fastify')
+const { isAdmin } = require('./utils/admin')
 
 const app = Fastify({
   logger: {
@@ -69,8 +70,7 @@ app.decorate('requireAdmin', async function (request, reply) {
   } catch (err) {
     return reply.send(err)
   }
-  const adminEmail = process.env.ADMIN_EMAIL
-  if (!adminEmail || request.user.email !== adminEmail) {
+  if (!(await isAdmin(app.db, request.user.userId))) {
     return reply.code(403).send({ error: 'Forbidden: admin only' })
   }
 })

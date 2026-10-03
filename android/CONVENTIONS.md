@@ -128,7 +128,6 @@ if (gardenId == -1) return Result.Error("Участок не выбран")
 | `AuthRepository` | `login(email, password)` | `Result<UserProfile>` |
 | `AuthRepository` | `register(name, email, password)` | `Result<UserProfile>` |
 | `AuthRepository` | `me()` | `Result<UserProfile>` (профиль + подписка/промо + `plantingsLimit` + `emailVerified`) |
-| `AuthRepository` | `syncSubscription(active)` | `Unit` (⚠️ депрекейт — подписка теперь из вебхука ЮKassa, не вызывается) |
 | `BillingRepository` | `createPayment(plan)` | `Result<String>` (confirmation_url для Custom Tab; `plan`=monthly/yearly) |
 | `BillingRepository` | `cancelAutoRenew()` | `Result<Unit>` (отключение автопродления) |
 | `AuthRepository` | `verifyEmail(code)` | `Result<Unit>` (подтверждение email кодом) |
@@ -546,8 +545,8 @@ RuStore Billing **удалён** (RuStore не подключает монети
 **Источник истины по доступу — сервер** (`/auth/me`): `SubscriptionManager.refresh()` читает
 `subscribed`/`subscription_until`/`auto_renew`/`plan` + промо + `plantingsLimit`. Клиент НЕ обращается к платёжному
 провайдеру напрямую — только через `SubscriptionManager`/`BillingRepository`. Подписка приходит
-из вебхука (не синком клиента) — старый `AuthRepository.syncSubscription`/`POST /auth/subscription`
-оставлен на переходный период, но не вызывается.
+из вебхука (не синком клиента). Старый `AuthRepository.syncSubscription`/`POST /auth/subscription`
+удалён 2026-10-03: эндпоинт позволял любому пользователю выдать себе Про запросом `{active:true}`.
 
 **Автопродление**: рекуррент-списание делает cron `renewalJob` (бэкенд) по сохранённой карте.
 В Настройках — тоггл (выключить → `BillingRepository.cancelAutoRenew` → `POST /billing/cancel-autorenew`);
@@ -652,7 +651,7 @@ ModalBottomSheet(
 ## 17. Паттерны сессии 2026-06-03
 
 - **Free-тариф/подписка/гейт (обновлено 2026-08-06)**: `/auth/me` отдаёт `subscribed`/`plantingsLimit`.
-  `SubscriptionManager.refresh()` берёт статус с сервера и синкает подписку (`syncSubscription(active)`).
+  `SubscriptionManager.refresh()` берёт статус с сервера (только чтение; синк подписки с клиента удалён).
   Backend гейтит `POST /plantings` → **402** `plan_limit_reached` сверх free-лимита (1 сад,
   `FREE_PLANTING_LIMIT` посадок, бессрочно) **и запись по посадке сверх free-набора** →
   **402** `planting_locked` (см. ниже, §24). 402 = лимит/нет подписки (не путать с IDOR 403).

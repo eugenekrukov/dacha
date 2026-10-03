@@ -66,7 +66,7 @@ describe('telegramQueueJob', () => {
     const tg = fakeTgSvc(44)
     const r = await runTelegramQueue(db, { tg, env: ENV })
     expect(r.posted).toBe(1)
-    expect(tg.calls.sendPost[0].continueUrl).toBe('https://dacha.studio1008.com')
+    expect(tg.calls.sendPost[0].continueUrl).toBe('https://calendacha.ru')  // канонический маркетинговый домен (summary.md)
   })
 
   it('нет созревших — ничего не постит', async () => {

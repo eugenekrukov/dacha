@@ -94,27 +94,35 @@ module.exports = async function (fastify, opts) {
         return reply.code(200).send({ ok: true })
       }
 
-      const payRes = await db.query(
-        'SELECT user_id, plan, status, npd_receipt_uuid, npd_status FROM payments WHERE yk_payment_id = $1', [refund.payment_id]
+      // Атомарный claim: два параллельных вебхука (ретраи ЮKassa) не отзовут период дважды.
+      // Отзываем только у платежа, который у нас подтверждён как succeeded: если succeeded-вебхук
+      // мы не обработали, дни не выдавались — и вычитать нечего.
+      const claim = await db.query(
+        `UPDATE payments SET status = 'refunded'
+         WHERE yk_payment_id = $1 AND status = 'succeeded'
+         RETURNING user_id, plan, npd_receipt_uuid, npd_status`,
+        [refund.payment_id]
       )
-      const pay = payRes.rows[0]
-      if (!pay) return reply.code(200).send({ ok: true })
-      if (pay.status === 'refunded') return reply.code(200).send({ ok: true })  // идемпотентность
+      const pay = claim.rows[0]
+      if (!pay) return reply.code(200).send({ ok: true })  // неизвестный / уже возвращён
 
       // Полный возврат за период → вычитаем выданные дни. Частичные возвраты не про-рейтим
       // (бизнес-модель — разовая оплата за период; возврат = отмена этого периода).
       const planCfg = yk.getPlan(pay.plan) || yk.getPlan('monthly')
-      const userRes = await db.query('SELECT subscription_until FROM users WHERE id = $1', [pay.user_id])
-      const current = userRes.rows[0] && userRes.rows[0].subscription_until
-      const until = revokeSubscription(current, planCfg.days)
-
-      await db.query(
-        'UPDATE users SET subscription_until = $1, auto_renew = false WHERE id = $2',
-        [until, pay.user_id]
-      )
-      await db.query(
-        "UPDATE payments SET status = 'refunded' WHERE yk_payment_id = $1", [refund.payment_id]
-      )
+      try {
+        const userRes = await db.query('SELECT subscription_until FROM users WHERE id = $1', [pay.user_id])
+        const current = userRes.rows[0] && userRes.rows[0].subscription_until
+        const until = revokeSubscription(current, planCfg.days)
+        await db.query(
+          'UPDATE users SET subscription_until = $1, auto_renew = false WHERE id = $2',
+          [until, pay.user_id]
+        )
+      } catch (e) {
+        // Возвращаем claim, чтобы ретрай ЮKassa (на 500) смог отозвать период.
+        await db.query("UPDATE payments SET status = 'succeeded' WHERE yk_payment_id = $1", [refund.payment_id])
+        fastify.log.error(`[billing] refund revoke failed: ${e.message}`)
+        return reply.code(500).send({ error: 'refund_failed' })
+      }
       // Если по платежу был выдан чек НПД — поставить его на аннулирование.
       if (nalog.isEnabled() && pay.npd_receipt_uuid) {
         await db.query(
@@ -149,45 +157,57 @@ module.exports = async function (fastify, opts) {
 
     if (!userId) return reply.code(200).send({ ok: true })
 
-    // Идемпотентность: если этот платёж уже отмечен succeeded — выходим.
-    const existing = await db.query('SELECT status FROM payments WHERE yk_payment_id = $1', [object.id])
-    if (existing.rows[0] && existing.rows[0].status === 'succeeded') {
-      return reply.code(200).send({ ok: true })
-    }
-
-    if (status === 'succeeded' || event === 'payment.succeeded') {
+    // Решение принимаем ТОЛЬКО по статусу перезапрошенного у ЮKassa объекта. Поле event из тела
+    // непроверяемо: раньше условие было `status === 'succeeded' || event === 'payment.succeeded'`,
+    // и пользователь мог создать платёж, не оплатить его и сам прислать event=payment.succeeded
+    // со своим payment_id → подписка продлевалась бесплатно.
+    if (status === 'succeeded') {
       const planCfg = yk.getPlan(plan) || yk.getPlan('monthly')
       const isRecurring = !!(object.metadata && object.metadata.recurring)
-
-      const userRes = await db.query('SELECT subscription_until, promo_until FROM users WHERE id = $1', [userId])
-      const current = userRes.rows[0] && userRes.rows[0].subscription_until
-      const promoUntil = userRes.rows[0] && userRes.rows[0].promo_until
-      const until = extendSubscription(current, planCfg.days, promoUntil)
-
-      // Сохранённая карта для автосписаний (если ЮKassa вернула saved=true).
-      const pm = object.payment_method
-      const savedCardId = pm && pm.saved ? pm.id : null
-
-      // Автопродление включаем только если карта реально сохранена (рекуррент-режим магазина).
-      // При разовой оплате (самозанятый) карта не сохраняется → auto_renew=false, продление вручную.
-      const autoRenew = savedCardId != null
-      await db.query(
-        `UPDATE users
-         SET subscription_until = $1,
-             plan = $2,
-             auto_renew = $3,
-             payment_method_id = COALESCE($4, payment_method_id)
-         WHERE id = $5`,
-        [until, plan || 'monthly', autoRenew, savedCardId, userId]
-      )
-
       const amount = object.amount && object.amount.value
-      await db.query(
+
+      // Атомарный claim вместо «SELECT status → UPDATE»: при двух параллельных вебхуках
+      // (ретраи ЮKassa) продлевает только тот, чей INSERT/UPDATE реально сменил статус.
+      // refunded не перезаписываем — возврат пришёл раньше, доступ выдавать нельзя.
+      const claim = await db.query(
         `INSERT INTO payments (user_id, yk_payment_id, status, amount, plan, is_recurring)
          VALUES ($1, $2, 'succeeded', $3, $4, $5)
-         ON CONFLICT (yk_payment_id) DO UPDATE SET status = 'succeeded'`,
-        [userId, object.id, amount, plan || 'monthly', isRecurring]
+         ON CONFLICT (yk_payment_id) DO UPDATE SET status = 'succeeded'
+           WHERE payments.status NOT IN ('succeeded', 'refunded')
+         RETURNING id`,
+        [userId, object.id, amount, plan, isRecurring]
       )
+      if (claim.rows.length === 0) return reply.code(200).send({ ok: true })  // уже обработан
+
+      try {
+        const userRes = await db.query('SELECT subscription_until, promo_until FROM users WHERE id = $1', [userId])
+        const current = userRes.rows[0] && userRes.rows[0].subscription_until
+        const promoUntil = userRes.rows[0] && userRes.rows[0].promo_until
+        const until = extendSubscription(current, planCfg.days, promoUntil)
+
+        // Сохранённая карта для автосписаний (если ЮKassa вернула saved=true).
+        const pm = object.payment_method
+        const savedCardId = pm && pm.saved ? pm.id : null
+
+        // Автопродление включаем только если карта реально сохранена (рекуррент-режим магазина).
+        // При разовой оплате (самозанятый) карта не сохраняется → auto_renew=false, продление вручную.
+        const autoRenew = savedCardId != null
+        await db.query(
+          `UPDATE users
+           SET subscription_until = $1,
+               plan = $2,
+               auto_renew = $3,
+               payment_method_id = COALESCE($4, payment_method_id)
+           WHERE id = $5`,
+          [until, plan, autoRenew, savedCardId, userId]
+        )
+      } catch (e) {
+        // Снимаем claim, иначе ретрай ЮKassa увидит succeeded и доступ так и не будет выдан.
+        await db.query("UPDATE payments SET status = 'pending' WHERE yk_payment_id = $1", [object.id])
+        fastify.log.error(`[billing] extend subscription failed: ${e.message}`)
+        return reply.code(500).send({ error: 'extend_failed' })
+      }
+
       // Поставить платёж в очередь на регистрацию чека НПД (если «Мой налог» подключён).
       if (nalog.isEnabled()) {
         await db.query(
@@ -198,11 +218,12 @@ module.exports = async function (fastify, opts) {
       return reply.code(200).send({ ok: true })
     }
 
-    if (status === 'canceled' || event === 'payment.canceled') {
+    if (status === 'canceled') {
       await db.query(
         `INSERT INTO payments (user_id, yk_payment_id, status, plan)
          VALUES ($1, $2, 'canceled', $3)
-         ON CONFLICT (yk_payment_id) DO UPDATE SET status = 'canceled'`,
+         ON CONFLICT (yk_payment_id) DO UPDATE SET status = 'canceled'
+           WHERE payments.status NOT IN ('succeeded', 'refunded')`,
         [userId, object.id, plan || null]
       )
       return reply.code(200).send({ ok: true })

@@ -1,5 +1,6 @@
 'use strict'
 
+const crypto = require('crypto')
 const nodemailer = require('nodemailer')
 const fetch = require('node-fetch')
 
@@ -45,8 +46,10 @@ function _resetTransport() {
 }
 
 /** Генерирует 6-значный код подтверждения (строка, ведущие нули сохраняются). */
+// 6-значный одноразовый код. crypto.randomInt, а не Math.random: Math.random — не CSPRNG,
+// его выход предсказуем по нескольким наблюдениям.
 function generateCode() {
-  return String(Math.floor(100000 + Math.random() * 900000))
+  return String(crypto.randomInt(100000, 1000000))
 }
 
 const APP_NAME = () => process.env.APP_NAME || 'Календарь дачника'

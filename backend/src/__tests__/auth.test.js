@@ -291,6 +291,32 @@ describe('POST /auth/verify-email', () => {
     await app.close()
   })
 
+  it('перебор: после 5 неверных вводов даже верный код не принимается', async () => {
+    // Мини-модель email_codes: один активный код 123456 со счётчиком попыток.
+    const row = { id: 5, code: '123456', attempts: 0 }
+    const app = await buildApp(makeMockDb({
+      query: async (sql, params) => {
+        if (sql.includes('SELECT id FROM email_codes')) {
+          const [, , code, max] = params
+          return { rows: code === row.code && row.attempts < max ? [{ id: row.id }] : [] }
+        }
+        if (sql.includes('SET attempts = attempts + 1')) { row.attempts++; return { rows: [] } }
+        return { rows: [] }
+      },
+    }))
+    const token = makeToken(app)
+    for (let i = 0; i < 5; i++) {
+      const r = await supertest(app.server).post('/auth/verify-email')
+        .set('Authorization', `Bearer ${token}`).send({ code: String(100000 + i) })
+      expect(r.status).toBe(400)
+    }
+    const res = await supertest(app.server).post('/auth/verify-email')
+      .set('Authorization', `Bearer ${token}`).send({ code: '123456' })
+    expect(res.status).toBe(400)
+    expect(row.attempts).toBe(6)
+    await app.close()
+  })
+
   it('без токена → 401', async () => {
     const app = await buildApp(makeMockDb())
     const res = await supertest(app.server).post('/auth/verify-email').send({ code: '123456' })

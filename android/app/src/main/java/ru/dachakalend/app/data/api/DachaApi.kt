@@ -24,10 +24,6 @@ interface DachaApi {
     @GET("auth/me")
     suspend fun getMe(): UserProfile
 
-    // Синхронизация статуса подписки на сервер (источник правды по подписке — RuStore на клиенте)
-    @POST("auth/subscription")
-    suspend fun syncSubscription(@Body body: Map<String, Boolean>)
-
     // Подтверждение email кодом из письма (текущий пользователь)
     @POST("auth/verify-email")
     suspend fun verifyEmail(@Body body: Map<String, String>)

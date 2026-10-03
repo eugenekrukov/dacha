@@ -9,8 +9,16 @@ const ENTRY = {
   season: 'плодоношение', image_url: null,
 }
 
+// Проверка админа читает users из БД: user 1 — подтверждённый admin@test.com.
+const ADMIN_ROW = { email: 'admin@test.com', email_verified: true }
 function makeMockDb(overrides = {}) {
-  return { query: async () => ({ rows: [] }), ...overrides }
+  const db = { query: async () => ({ rows: [] }), ...overrides }
+  const inner = db.query
+  db.query = async (sql, params) =>
+    sql.includes('SELECT email, email_verified FROM users')
+      ? { rows: params[0] === 1 ? [ADMIN_ROW] : [] }
+      : inner(sql, params)
+  return db
 }
 
 describe('GET /guide', () => {
@@ -103,6 +111,23 @@ describe('POST /guide (admin)', () => {
   it('403 для не-админа', async () => {
     const app = await buildApp(makeMockDb())
     const token = makeToken(app, 2, 'user@test.com')
+    const res = await supertest(app.server)
+      .post('/guide')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ slug: 'x', name: 'X', kind: 'disease' })
+    expect(res.status).toBe(403)
+    await app.close()
+  })
+
+  it('403: email из токена = ADMIN_EMAIL, но в БД у пользователя другой/неподтверждённый адрес', async () => {
+    // Мок напрямую (без makeMockDb): адрес совпадает с ADMIN_EMAIL, но не подтверждён —
+    // например, кто-то зарегистрировал свободный админский email.
+    const app = await buildApp({
+      query: async (sql) => sql.includes('FROM users')
+        ? { rows: [{ email: 'admin@test.com', email_verified: false }] }
+        : { rows: [ENTRY] },
+    })
+    const token = makeToken(app, 1, 'admin@test.com')
     const res = await supertest(app.server)
       .post('/guide')
       .set('Authorization', `Bearer ${token}`)

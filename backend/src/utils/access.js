@@ -1,10 +1,5 @@
 'use strict'
 
-// Сколько держим подписку «подтверждённой» после синхронизации с клиента.
-// Клиент синхронизирует статус при каждом запуске; если перестал (отписка/удаление) —
-// окно истекает и доступ закрывается. Подписка валидируется в RuStore на клиенте.
-const SUBSCRIPTION_WINDOW_DAYS = 7
-
 // Промокоды. lifetime → promo_until ставится в далёкое будущее (LIFETIME_UNTIL);
 // month → продлевает promo_until на PROMO_MONTH_DAYS дней.
 const PROMO_MONTH_DAYS = 30
@@ -139,7 +134,7 @@ function revokeSubscription(currentUntil, days) {
 }
 
 module.exports = {
-  SUBSCRIPTION_WINDOW_DAYS, PROMO_MONTH_DAYS, LIFETIME_UNTIL, FREE_PLANTING_LIMIT,
+  PROMO_MONTH_DAYS, LIFETIME_UNTIL, FREE_PLANTING_LIMIT,
   isSubscribed, hasPromo, isLifetimePromo, hasAccess, extendSubscription,
   revokeSubscription, isAdSupportedStore, freeTierState, isPlantingLocked, markLimitHit
 }
