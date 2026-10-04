@@ -63,8 +63,81 @@ function buildSlug(title, manifest) {
   return slug
 }
 
+// [текст](/путь/) — только внутренние ссылки (путь с «/»): перелинковка статей и справочника.
+// Внешних ссылок в статьях нет и не нужно, поэтому «https://…» сюда не попадёт.
 function inlineMd(s) {
-  return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+  return esc(s)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/\[([^\]]+)\]\((\/[^)\s]*)\)/g, '<a href="$2">$1</a>')
+}
+
+// ---- Перелинковка: «Читайте также» подбирается автоматически по словам заголовков ----
+// ponytail: сходство по заголовкам (stem = 5 букв, вес = IDF), без тела статьи — в манифесте
+// его нет. Потолок: омонимия и слова вне заголовка не видны; тогда ссылки дописывают руками.
+const STEM_LEN = 5
+const RELATED_MAX = 3
+const RELATED_MIN_SCORE = 1.5
+// Хотя бы одно общее слово должно быть редким (≤12% заголовков): «как», «когда», «делать» связью не считаются.
+const SPECIFIC_DF = 0.12
+// Служебные слова и действия: общая «когда сажать/обрезать» не делает статьи родственными,
+// связывает только предмет (культура, болезнь, приём).
+const GENERIC_STEMS = new Set(('когда можно нужно нужна почем зачем делат делае прави сроки срока осень лучше после чтобы ' +
+  'пора призн причи начин стоит вмест решае решаю важне каждо прост больш именн сразу сейча вовсе подго готов остав ' +
+  'убира убрат копат уборк сажат посад обрез обрат хранен храни зиму зимой зимы летом весна весно сезон месяц').split(' '))
+function stemsOf(title) {
+  const words = String(title).toLowerCase().replace(/ё/g, 'е').split(/[^а-я]+/)
+  return new Set(words.filter(w => w.length >= 4).map(w => w.slice(0, STEM_LEN)).filter(st => !GENERIC_STEMS.has(st)))
+}
+
+function pickRelated(slug, title, manifest) {
+  const entries = Object.entries(manifest).map(([sl, m]) => ({ slug: sl, title: m.seoTitle || m.title, at: m.scheduledAt }))
+  const stems = new Map(entries.map(e => [e.slug, stemsOf(e.title)]))
+  const df = new Map()
+  for (const set of stems.values()) for (const st of set) df.set(st, (df.get(st) || 0) + 1)
+  const mine = stemsOf(title)
+  const n = entries.length + 1
+  return entries
+    .filter(e => e.slug !== slug)
+    .map(e => {
+      let score = 0
+      let specific = false
+      for (const st of stems.get(e.slug)) {
+        if (!mine.has(st)) continue
+        score += Math.log(n / (df.get(st) || 1))
+        if ((df.get(st) || 1) / n <= SPECIFIC_DF) specific = true
+      }
+      return { ...e, score: specific ? score : 0 }
+    })
+    .filter(e => e.score >= RELATED_MIN_SCORE)
+    .sort((a, b) => b.score - a.score || new Date(b.at) - new Date(a.at))
+    .slice(0, RELATED_MAX)
+}
+
+// Карточка культуры справочника по слову из заголовка: имена берём из <h1> уже сгенерированных
+// страниц /spravochnik/kultury/*/ (без БД; нет папки — просто нет ссылки).
+function loadCropIndex() {
+  const dir = path.join(OUT_DIR, '..', 'spravochnik', 'kultury')
+  if (!fs.existsSync(dir)) return []
+  const out = []
+  for (const slug of fs.readdirSync(dir)) {
+    const f = path.join(dir, slug, 'index.html')
+    if (!fs.existsSync(f)) continue
+    const m = fs.readFileSync(f, 'utf8').match(/<h1>([^<]+)<\/h1>/)
+    if (m) out.push({ slug, name: m[1], stems: stemsOf(m[1]) })
+  }
+  return out
+}
+
+function pickCrop(title, crops) {
+  const mine = stemsOf(title)
+  return crops.find(c => c.stems.size && [...c.stems].every(st => mine.has(st))) || null
+}
+
+function renderRelated(related, crop) {
+  if (!related.length && !crop) return ''
+  const items = related.map(r => `<li><a href="/blog/${r.slug}/">${esc(r.title)}</a></li>`)
+  if (crop) items.push(`<li><a href="/spravochnik/kultury/${crop.slug}/">${esc(crop.name)}: справочник культуры</a></li>`)
+  return `<nav class="related" aria-label="Читайте также"><h2>Читайте также</h2><ul>${items.join('')}</ul></nav>`
 }
 
 // Упоминание приложения в тексте статьи → ссылка на вход в веб-версию (блог живёт на сайте
@@ -126,6 +199,7 @@ function renderPostBody(post) {
   }
   html += '</article>'
   if (post.faq && post.faq.length) html += renderFaq(post.faq)
+  html += post.relatedHtml || ''
   html += `<a class="cta" href="/app/">🌱 Открыть «Календарь дачника» →</a>`
   return html
 }
@@ -202,6 +276,7 @@ function main() {
   }
 
   const manifest = loadManifest()
+  const crops = loadCropIndex()
   fs.mkdirSync(OUT_DIR, { recursive: true })
 
   // --refresh-existing: перегенерировать (новая обёртка renderShell и т.п.) только те посты
@@ -246,7 +321,10 @@ function main() {
       description: buildDescription(post.body),
       canonical,
       breadcrumbs: `<a href="/">Главная</a> / <a href="/blog/">Блог</a> / ${esc(pageTitle)}`,
-      bodyHtml: renderPostBody({ ...post, title: pageTitle, dateLabel }),
+      bodyHtml: renderPostBody({
+        ...post, title: pageTitle, dateLabel,
+        relatedHtml: renderRelated(pickRelated(slug, pageTitle, manifest), pickCrop(pageTitle, crops))
+      }),
       activeNav: 'blog',
       image: post.image || undefined,
       jsonLdBlocks: [
@@ -274,6 +352,14 @@ function main() {
       dateLabel, image: post.image || null, sourceFile: path.basename(file)
     }
     if (due) console.log(`NEW_URL: ${canonical}`) // publish-blog-due.sh отправляет их в IndexNow
+  }
+
+  // Ссылка на несуществующий слаг = 404 для читателя и робота: предупреждаем, не падаем
+  // (ссылка на статью, которая выйдет позже по таймеру, временно «битая» — это тоже видно здесь).
+  for (const post of eligible) {
+    for (const [, sl] of String(post.body).matchAll(/\]\(\/blog\/([a-z0-9-]+)\/\)/g)) {
+      if (!manifest[sl]) console.warn(`WARN: в «${post.title}» ссылка на несуществующую статью /blog/${sl}/`)
+    }
   }
 
   saveManifest(manifest)

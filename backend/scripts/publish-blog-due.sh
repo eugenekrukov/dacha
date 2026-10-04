@@ -18,6 +18,18 @@ for f in $(ls ../docs/vk-content/batch-*.md | tail -2); do
   NEW="$NEW $(echo "$out" | sed -n 's/^NEW_URL: //p')"
 done
 
+# Перелинковка «Читайте также» зависит от соседей по манифесту: когда вышли новые статьи,
+# перегенерируем уже опубликованные страницы из всех батчей, чтобы старые получили ссылки на новые.
+if [ -n "$(echo $NEW)" ]; then
+  for f in ../docs/vk-content/batch-*.md; do node scripts/generate-blog.js "$f" --refresh-existing >/dev/null; done
+  echo "перелинковка обновлена"
+fi
+
+# sitemap.xml вне git и собирается двумя генераторами; generate-blog.js трогает только /blog/*.
+# Если файл пересоздался без справочника (так было с 24.09), догенерируем справочник.
+grep -q '/spravochnik/' "$ROOT/landing/sitemap.xml" || node scripts/generate-spravochnik.js || echo "WARN: generate-spravochnik.js упал, sitemap без справочника"
+
+
 # Копируем всегда, а не только при новых статьях: если вчера копирование упало, сегодня догонит.
 rsync -a --delete "$ROOT/landing/blog/" /var/www/dacha-landing/blog/
 cp "$ROOT/landing/sitemap.xml" /var/www/dacha-landing/sitemap.xml
